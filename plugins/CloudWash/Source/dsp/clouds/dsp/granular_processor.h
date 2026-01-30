@@ -210,6 +210,9 @@ class GranularProcessor {
   
   Parameters parameters_;
   
+  // Original Mutable Instruments Clouds SampleRateConverter
+  // Uses compile-time coefficient template for optimal performance
+  // kDownsamplingFactor = 2, so ratio is -2/+2 for down/up sampling
   SampleRateConverter<-kDownsamplingFactor, 45, src_filter_1x_2_45> src_down_;
   SampleRateConverter<+kDownsamplingFactor, 45, src_filter_1x_2_45> src_up_;
   

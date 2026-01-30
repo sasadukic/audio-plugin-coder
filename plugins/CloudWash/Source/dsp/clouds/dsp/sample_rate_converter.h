@@ -50,42 +50,14 @@ class SampleRateConverter {
   };
 
   void Process(const FloatFrame* in, FloatFrame* out, size_t input_size) {
-    // SAFETY CHECK: Validate input pointer
-    if (in == nullptr || out == nullptr) {
-      return;
-    }
-    
-    // SAFETY CHECK: Validate input_size is reasonable
-    if (input_size == 0 || input_size > 65536) {
-      return;
-    }
-
     int32_t history_ptr = history_ptr_;
     FloatFrame* history = history_;
     const float scale = ratio < 0 ? 1.0f : float(ratio);
-    
-    // CRITICAL FIX: Use local copies of input/output to avoid pointer issues
-    const FloatFrame* input_ptr = in;
-    FloatFrame* output_ptr = out;
-    size_t remaining = input_size;
-    
-    while (remaining > 0) {
+    while (input_size) {
       int32_t consumed = ratio < 0 ? -ratio : 1;
-      
-      // SAFETY: Ensure we don't read past input buffer
-      if (consumed > static_cast<int32_t>(remaining)) {
-        consumed = static_cast<int32_t>(remaining);
-      }
-      
       for (int32_t i = 0; i < consumed; ++i) {
-        // Clamp history_ptr to valid range before using as index
-        if (history_ptr < 0 || history_ptr >= filter_size) {
-          history_ptr = filter_size - 1;
-        }
-        // SAFETY: Read from local pointer with bounds check
-        FloatFrame input_sample = *input_ptr++;
-        history[history_ptr + filter_size] = history[history_ptr] = input_sample;
-        --remaining;
+        history[history_ptr + filter_size] = history[history_ptr] = *in++;
+        --input_size;
         --history_ptr;
         if (history_ptr < 0) {
           history_ptr += filter_size;
@@ -96,26 +68,16 @@ class SampleRateConverter {
       for (int32_t i = 0; i < produced; ++i) {
         float y_l = 0.0f;
         float y_r = 0.0f;
-        // SAFETY FIX: Ensure history_ptr + 1 is within valid bounds
-        int32_t x_index = history_ptr + 1;
-        if (x_index < 0) x_index += filter_size;
-        if (x_index >= filter_size) x_index -= filter_size;
-        const FloatFrame* x = &history[x_index];
-        
-        // SAFETY: Use pointer arithmetic with explicit bounds checking
+        const FloatFrame* x = &history[history_ptr + 1];
         for (int32_t j = i; j < filter_size; j += produced) {
           const float h = coefficients_[j];
-          // CRITICAL FIX: Ensure we don't read past history buffer
-          int32_t read_index = x_index + (j - i) / produced;
-          if (read_index < 0) read_index += filter_size;
-          if (read_index >= filter_size) read_index -= filter_size;
-          const FloatFrame* sample_ptr = &history[read_index];
-          y_l += sample_ptr->l * h;
-          y_r += sample_ptr->r * h;
+          y_l += x->l * h;
+          y_r += x->r * h;
+          ++x;
         }
-        output_ptr->l = y_l * scale;
-        output_ptr->r = y_r * scale;
-        ++output_ptr;
+        out->l = y_l * scale;
+        out->r = y_r * scale;
+        ++out;
       }
     }
     history_ptr_ = history_ptr;

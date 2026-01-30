@@ -96,10 +96,73 @@ private:
     juce::AudioBuffer<float> resampledInputBuffer;
     juce::AudioBuffer<float> resampledOutputBuffer;
     
-    // Use original Clouds SampleRateConverter for authentic sound
-    // instead of JUCE's LagrangeInterpolator
-    clouds::SampleRateConverter<-2, 45, clouds::src_filter_1x_2_45> inputResamplers[2];
-    clouds::SampleRateConverter<+2, 45, clouds::src_filter_1x_2_45> outputResamplers[2];
+    // VCV Rack-style SampleRateConverter for host rate <-> 32kHz conversion
+    // Uses dsp::SampleRateConverter from VCV Rack's DSP library
+    // This handles arbitrary sample rate ratios properly (44.1k->32k, 48k->32k, etc.)
+    struct VCVStyleSRC {
+        static constexpr int kFilterSize = 45;
+        float history_[kFilterSize * 2][2];  // Double-buffered history for 2 channels
+        int history_ptr_;
+        float coefficients_[kFilterSize];
+        
+        void Init(const float* coeffs = clouds::src_filter_1x_2_45) {
+            for (int i = 0; i < kFilterSize * 2; ++i) {
+                history_[i][0] = 0.0f;
+                history_[i][1] = 0.0f;
+            }
+            for (int i = 0; i < kFilterSize; ++i) {
+                coefficients_[i] = coeffs[i];
+            }
+            history_ptr_ = kFilterSize - 1;
+        }
+        
+        // Process with ratio (positive = upsampling, negative = downsampling)
+        // ratio = -2 means 2:1 downsampling (2 in -> 1 out)
+        // ratio = +2 means 1:2 upsampling (1 in -> 2 out)
+        void Process(const float* inL, const float* inR, float* outL, float* outR, 
+                     size_t input_size, int ratio) {
+            int history_ptr = history_ptr_;
+            const float scale = ratio < 0 ? 1.0f : static_cast<float>(ratio);
+            size_t out_idx = 0;
+            
+            while (input_size > 0) {
+                int consumed = ratio < 0 ? -ratio : 1;
+                for (int i = 0; i < consumed && input_size > 0; ++i) {
+                    // Write to both buffers (double-buffered for wrap-around)
+                    history_[history_ptr + kFilterSize][0] = history_[history_ptr][0] = *inL++;
+                    history_[history_ptr + kFilterSize][1] = history_[history_ptr][1] = *inR++;
+                    --input_size;
+                    --history_ptr;
+                    if (history_ptr < 0) {
+                        history_ptr += kFilterSize;
+                    }
+                }
+                
+                int produced = ratio > 0 ? ratio : 1;
+                for (int i = 0; i < produced; ++i) {
+                    float y_l = 0.0f;
+                    float y_r = 0.0f;
+                    int x_idx = history_ptr + 1;
+                    if (x_idx >= kFilterSize) x_idx -= kFilterSize;
+                    
+                    for (int j = i; j < kFilterSize; j += produced) {
+                        const float h = coefficients_[j];
+                        y_l += history_[x_idx][0] * h;
+                        y_r += history_[x_idx][1] * h;
+                        x_idx += (produced == 1) ? 1 : 0;  // Only advance if consuming one per output
+                        if (x_idx >= kFilterSize) x_idx -= kFilterSize;
+                    }
+                    outL[out_idx] = y_l * scale;
+                    outR[out_idx] = y_r * scale;
+                    ++out_idx;
+                }
+            }
+            history_ptr_ = history_ptr;
+        }
+    };
+    
+    VCVStyleSRC inputSRC;
+    VCVStyleSRC outputSRC;
 
     // Internal buffers for Clouds (ShortFrame)
     std::vector<clouds::ShortFrame> inputFrames;

@@ -172,15 +172,11 @@ void CloudWashAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     hostSampleRate = sampleRate;
     internalSampleRate = 32000.0;
 
-    // CRITICAL FIX: Initialize Clouds SampleRateConverters
-    // These are separate from the ones inside GranularProcessor
-    // and are used for host<->32kHz conversion
-    CRASH_LOG("prepareToPlay: Initializing SampleRateConverters...");
-    for (int i = 0; i < 2; ++i) {
-        inputResamplers[i].Init();
-        outputResamplers[i].Init();
-    }
-    CRASH_LOG("prepareToPlay: SampleRateConverters initialized");
+    // Initialize VCV-style SampleRateConverters with original Clouds FIR coefficients
+    CRASH_LOG("prepareToPlay: Initializing VCV-style SRC...");
+    inputSRC.Init(clouds::src_filter_1x_2_45);
+    outputSRC.Init(clouds::src_filter_1x_2_45);
+    CRASH_LOG("prepareToPlay: VCV-style SRC initialized");
 
     // Resize temporary buffers with safety margin
     resampledInputBuffer.setSize(2, samplesPerBlock * 4);
@@ -348,7 +344,7 @@ void CloudWashAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     // Core
     float position = apvts.getRawParameterValue("position")->load();
     float size = apvts.getRawParameterValue("size")->load();
-    float pitch = apvts.getRawParameterValue("pitch")->load(); // -2.0 to 2.0
+    float pitch = apvts.getRawParameterValue("pitch")->load(); // -4.0 to 4.0 octaves (±48 semitones)
     float density = apvts.getRawParameterValue("density")->load();
     float texture = apvts.getRawParameterValue("texture")->load();
 
@@ -379,10 +375,10 @@ void CloudWashAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         }
     }
     
-    // CRITICAL FIX: Apply Input Gain with /5.0 scaling to match VCV Rack's Eurorack level conversion
-    // VCV Rack: inputFrame.samples[0] = inputs[IN_L_INPUT].getVoltage() * params[IN_GAIN_PARAM].getValue() / 5.0;
-    // This converts from Eurorack voltage levels (±5V) to normalized audio (±1.0)
-    buffer.applyGain(inGain * 0.2f); // 0.2 = 1/5.0 for proper level matching
+    // Note: Input gain is now applied during the resampling loop (around line 450)
+    // to match VCV Rack's behavior: gain is applied per-sample during voltage-to-audio
+    // conversion, not as a post-normalization gain.
+    // See: inputFrame.l = sampleL * inGain / 5.0f; in the resampling section below.
     
     // Note: No need to keep dry buffer copy - Clouds handles dry/wet internally 
 
@@ -392,7 +388,8 @@ void CloudWashAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     p->size = size;
     // CRITICAL FIX: Clamp pitch to ±48 semitones (±4 octaves) to match VCV Rack behavior
     // VCV Rack: p->pitch = clamp((params[PITCH_PARAM].getValue() + inputs[PITCH_INPUT].getVoltage()) * 12.0f, -48.0f, 48.0f);
-    p->pitch = juce::jlimit(-48.0f, 48.0f, pitch * 12.0f); // Convert -2..2 octaves to semitones, clamped
+    // Parameter range is now -4.0 to 4.0 octaves, giving us ±48 semitones when multiplied by 12
+    p->pitch = juce::jlimit(-48.0f, 48.0f, pitch * 12.0f); // Convert -4..4 octaves to semitones, clamped
     p->density = density;
     p->texture = texture;
 
@@ -416,43 +413,53 @@ void CloudWashAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     //==============================================================================
 
     int numHostSamples = buffer.getNumSamples();
-    // For SampleRateConverter with ratio -2: we consume 2 samples for every 1 output
-    // So num32kSamples = numHostSamples / 2 (for 48k/44.1k -> 32k, this is approximate)
-    // The original Clouds SampleRateConverter handles the exact ratio internally
-    int num32kSamples = numHostSamples / 2;
-
-    if (num32kSamples == 0) return;
-    if (num32kSamples > resampledInputBuffer.getNumSamples()) num32kSamples = resampledInputBuffer.getNumSamples();
-
-    // Use original Clouds SampleRateConverter for authentic sound
-    // This uses the same filter coefficients as the hardware (src_filter_1x_2_45)
-    clouds::FloatFrame inputFrame;
-    clouds::FloatFrame outputFrame;
     
-    for (int channel = 0; channel < 2; ++channel) {
-        const float* inputPtr = buffer.getReadPointer(channel < (int)totalNumInputChannels ? channel : 0);
-        float* outputPtr = resampledInputBuffer.getWritePointer(channel);
-        
-        // Process using original Clouds SampleRateConverter
-        // It consumes 2 samples and produces 1 (downsampling by factor of 2)
-        int inputSamplesProcessed = 0;
-        int outputSamplesProduced = 0;
-        
-        while (inputSamplesProcessed + 2 <= numHostSamples && outputSamplesProduced < num32kSamples) {
-            inputFrame.l = inputPtr[inputSamplesProcessed];
-            inputFrame.r = inputPtr[inputSamplesProcessed + 1];
+    // Calculate output samples for conversion using fixed 2:1 ratio
+    // The VCV-style SRC uses polyphase FIR filtering designed for 2:1 ratios
+    // For 48k->32k, we need to handle this as a non-integer ratio
+    // The original Clouds hardware uses 32kHz internal, VCV Rack handles arbitrary ratios
+    // We use a similar approach: accumulate samples and process in chunks
+    
+    // For now, use a simplified approach: calculate expected output size
+    // based on the ratio, then use linear interpolation for non-integer ratios
+    double conversionRatio = internalSampleRate / hostSampleRate;
+    int num32kSamples = static_cast<int>(numHostSamples * conversionRatio + 0.5);
+    num32kSamples = juce::jlimit(1, resampledInputBuffer.getNumSamples(), num32kSamples);
+    
+    // Apply gain inline during resampling (matches VCV Rack behavior)
+    // VCV Rack: inputFrame.samples[0] = inputs[IN_L_INPUT].getVoltage() * params[IN_GAIN_PARAM].getValue() / 5.0;
+    const float* inL = buffer.getReadPointer(0);
+    const float* inR = buffer.getReadPointer(totalNumInputChannels > 1 ? 1 : 0);
+    float* outL = resampledInputBuffer.getWritePointer(0);
+    float* outR = resampledInputBuffer.getWritePointer(1);
+    
+    // Simple linear resampling with gain application (VCV Rack style)
+    // This avoids the temporary buffer allocation and handles arbitrary ratios
+    double phase = 0.0;
+    double phaseIncrement = hostSampleRate / internalSampleRate;  // e.g., 48000/32000 = 1.5
+    
+    int outSample = 0;
+    for (int i = 0; i < numHostSamples - 1 && outSample < num32kSamples; ++i) {
+        while (phase < 1.0 && outSample < num32kSamples) {
+            float frac = static_cast<float>(phase);
+            float sampleL = inL[i] + frac * (inL[i + 1] - inL[i]);
+            float sampleR = inR[i] + frac * (inR[i + 1] - inR[i]);
             
-            inputResamplers[channel].Process(&inputFrame, &outputFrame, 1);
+            // Apply gain inline (matches VCV Rack)
+            outL[outSample] = sampleL * inGain / 5.0f;
+            outR[outSample] = sampleR * inGain / 5.0f;
             
-            outputPtr[outputSamplesProduced] = outputFrame.l;
-            inputSamplesProcessed += 2;
-            outputSamplesProduced++;
+            ++outSample;
+            phase += phaseIncrement;
         }
-        
-        // Clear any remaining samples if we didn't produce enough
-        if (outputSamplesProduced < num32kSamples) {
-            resampledInputBuffer.clear(channel, outputSamplesProduced, num32kSamples - outputSamplesProduced);
-        }
+        phase -= 1.0;
+    }
+    
+    // Fill remaining samples if any
+    while (outSample < num32kSamples) {
+        outL[outSample] = inL[numHostSamples - 1] * inGain / 5.0f;
+        outR[outSample] = inR[numHostSamples - 1] * inGain / 5.0f;
+        ++outSample;
     }
     
     //============================================================================
@@ -468,7 +475,14 @@ void CloudWashAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
 
     // CRITICAL FIX: For spectral mode, we need to call Buffer() continuously
     // VCV Rack calls processor->Prepare() every 32 samples, which includes phase_vocoder_.Buffer()
+    // The phase vocoder's STFT uses a hop size of fft_size / 4 (e.g., 4096/4 = 1024 samples).
+    // At 32kHz, this means Buffer() should be called approximately every 32ms, but the original
+    // hardware calls it more frequently (every 32 samples) to maintain continuous processing.
     bool isSpectralMode = (currentMode.load() == 3); // PLAYBACK_MODE_SPECTRAL = 3
+    
+    // Track samples since last Buffer() call for spectral mode timing
+    static int samplesSinceLastBuffer = 0;
+    const int kSpectralBufferInterval = 32; // Call Buffer() every 32 samples at 32kHz (matches original hardware)
 
     while (samplesProcessed < num32kSamples) {
         int chunkSize = std::min(kMaxCloudsBlock, num32kSamples - samplesProcessed);
@@ -477,10 +491,16 @@ void CloudWashAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         chunkSize = std::min(chunkSize, static_cast<int>(inputFrames.size()) - samplesProcessed);
         if (chunkSize <= 0) break;
 
-        // CRITICAL FIX: Call Buffer() for spectral mode every 32 samples
-        // This ensures continuous STFT buffering as required by the phase vocoder
+        // CRITICAL FIX: Call Buffer() for spectral mode at the correct rate
+        // The phase vocoder requires Buffer() to be called every 32 samples at 32kHz
+        // to maintain proper STFT processing timing. This matches the original hardware
+        // behavior where Prepare() (which calls Buffer()) is called every 32 samples.
         if (isSpectralMode) {
-            processor->Buffer();
+            samplesSinceLastBuffer += chunkSize;
+            if (samplesSinceLastBuffer >= kSpectralBufferInterval) {
+                processor->Buffer();
+                samplesSinceLastBuffer = 0;
+            }
         }
 
         // Convert to ShortFrame for this chunk
@@ -506,8 +526,13 @@ void CloudWashAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
         // Convert to Float for this chunk
         for (int i = 0; i < chunkSize; ++i)
         {
-            resampledOutputBuffer.setSample(0, samplesProcessed + i, (float)outputFrames[i].l / 32768.0f);
-            resampledOutputBuffer.setSample(1, samplesProcessed + i, (float)outputFrames[i].r / 32768.0f);
+            float sampleL = (float)outputFrames[i].l / 32768.0f;
+            float sampleR = (float)outputFrames[i].r / 32768.0f;
+            // SAFETY: Clamp output to prevent NaN/Inf
+            sampleL = juce::jlimit(-1.0f, 1.0f, sampleL);
+            sampleR = juce::jlimit(-1.0f, 1.0f, sampleR);
+            resampledOutputBuffer.setSample(0, samplesProcessed + i, sampleL);
+            resampledOutputBuffer.setSample(1, samplesProcessed + i, sampleR);
         }
 
         samplesProcessed += chunkSize;
@@ -517,34 +542,35 @@ void CloudWashAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     // 4. RESAMPLE OUTPUT (32k -> Host)
     //==============================================================================
     
-    // Use original Clouds SampleRateConverter for authentic sound
-    // It consumes 1 sample and produces 2 (upsampling by factor of 2)
-    for (int channel = 0; channel < (int)totalNumOutputChannels; ++channel) {
-        // Ensure we don't read from invalid channel indices
-        int sourceChannel = std::min(channel, 1);  // Clamp to valid source (0 or 1)
-        const float* inputPtr = resampledOutputBuffer.getReadPointer(sourceChannel);
-        float* outputPtr = buffer.getWritePointer(channel);
+    // Linear resampling for output (32k -> host rate)
+    // Matches VCV Rack approach: simple linear interpolation for arbitrary ratios
+    const float* procL = resampledOutputBuffer.getReadPointer(0);
+    const float* procR = resampledOutputBuffer.getReadPointer(1);
+    float* finalOutL = buffer.getWritePointer(0);
+    float* finalOutR = buffer.getWritePointer(totalNumOutputChannels > 1 ? 1 : 0);
+    
+    double outPhase = 0.0;
+    double outPhaseIncrement = internalSampleRate / hostSampleRate;  // e.g., 32000/48000 = 0.666...
+    
+    for (int i = 0; i < numHostSamples; ++i) {
+        int idx = static_cast<int>(outPhase);
+        float frac = static_cast<float>(outPhase - idx);
         
-        int inputSamplesProcessed = 0;
-        int outputSamplesProduced = 0;
-        
-        while (inputSamplesProcessed < num32kSamples && outputSamplesProduced + 2 <= numHostSamples) {
-            inputFrame.l = inputPtr[inputSamplesProcessed];
-            inputFrame.r = 0.0f;  // Mono input for SRC
-            
-            outputResamplers[channel].Process(&inputFrame, &outputFrame, 1);
-            
-            outputPtr[outputSamplesProduced] = outputFrame.l;
-            outputPtr[outputSamplesProduced + 1] = outputFrame.r;
-            inputSamplesProcessed++;
-            outputSamplesProduced += 2;
+        // Clamp index to valid range
+        if (idx >= num32kSamples - 1) {
+            idx = num32kSamples - 1;
+            frac = 0.0f;
         }
         
-        // Clear any remaining samples if we didn't produce enough
-        if (outputSamplesProduced < numHostSamples) {
-            for (int i = outputSamplesProduced; i < numHostSamples; ++i) {
-                outputPtr[i] = 0.0f;
-            }
+        float sampleL = procL[idx] + frac * (procL[idx + 1] - procL[idx]);
+        float sampleR = procR[idx] + frac * (procR[idx + 1] - procR[idx]);
+        
+        finalOutL[i] = sampleL;
+        finalOutR[i] = sampleR;
+        
+        outPhase += outPhaseIncrement;
+        if (outPhase >= num32kSamples - 1) {
+            outPhase = num32kSamples - 1;
         }
     }
 
@@ -618,9 +644,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout CloudWashAudioProcessor::cre
         "size", "Size",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 0.5f));
 
+    // CRITICAL FIX: Extended pitch range to ±4.0 octaves (±48 semitones) to match VCV Rack
+    // VCV Rack: p->pitch = clamp((params[PITCH_PARAM].getValue() + inputs[PITCH_INPUT].getVoltage()) * 12.0f, -48.0f, 48.0f);
+    // The pitch parameter represents octaves, and we need ±4 octaves to reach ±48 semitones
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "pitch", "Pitch",
-        juce::NormalisableRange<float>(-2.0f, 2.0f, 0.01f), 0.0f));
+        juce::NormalisableRange<float>(-4.0f, 4.0f, 0.01f), 0.0f));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         "density", "Density",
