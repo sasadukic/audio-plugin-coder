@@ -62,6 +62,33 @@
       align-items: center;
     }
 
+    .preset-center {
+      position: absolute;
+      left: 50%;
+      bottom: 10px;
+      transform: translateX(-50%);
+      z-index: 3;
+      pointer-events: auto;
+    }
+
+    .preset-center .select-trigger {
+      min-width: 124px;
+      text-align: center;
+      justify-content: center;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .preset-center .select-menu {
+      left: 50%;
+      transform-origin: center bottom;
+      transform: translate(-50%, 6px) scale(0.96);
+    }
+
+    .preset-center .control-select.open .select-menu {
+      transform: translate(-50%, 0) scale(1);
+    }
+
     .control-select {
       position: relative;
       min-width: 0;
@@ -475,18 +502,17 @@
             <button class="select-option" type="button" data-value="6">6 dB</button>
           </div>
         </div>
-        <div class="control-select" id="smoothSourceSel">
-          <button class="select-trigger" type="button" aria-label="Smooth Target Source" aria-haspopup="listbox" aria-expanded="false" data-tooltip="Smooth target source">Folder Scan</button>
-          <div class="select-menu" role="listbox" aria-label="Smooth Target Source">
-            <button class="select-option is-active" type="button" data-value="folder">Folder Scan</button>
-            <button class="select-option" type="button" data-value="nano">NANO Preset</button>
-            <button class="select-option" type="button" data-value="dub_techno">Dub Techno Preset</button>
-          </div>
+      </div>
+    </div>
+
+    <div class="preset-center" id="presetCenter">
+      <div class="control-select" id="smoothSourceSel">
+        <button class="select-trigger" type="button" aria-label="Target Preset" aria-haspopup="listbox" aria-expanded="false" data-tooltip="Target preset">PSYTRANCE</button>
+        <div class="select-menu" role="listbox" aria-label="Target Preset">
+          <button class="select-option is-active" type="button" data-value="psytrance">PSYTRANCE</button>
+          <button class="select-option" type="button" data-value="nano">NANO Preset</button>
+          <button class="select-option" type="button" data-value="dub_techno">Dub Techno Preset</button>
         </div>
-        <button class="select-trigger action-btn" id="smoothPresetBtn" type="button" data-tooltip="Scan songs folder and build smooth preset">
-          Build Smooth
-        </button>
-        <div class="preset-status" id="presetStatus" data-tooltip="Smooth preset status">No smooth preset</div>
       </div>
     </div>
   </div>
@@ -512,7 +538,7 @@
       fullscreenOn: false,
       oscLengthMode: 0,
       theme: "blue",
-      smoothSource: "folder"
+      smoothSource: "psytrance"
     };
 
     const builtInSmoothTargets = {
@@ -1052,6 +1078,15 @@
                                     0.00131835,
                                     0.00130277
                                 ]
+                   },
+    "psytrance":  {
+                       "label":  "PSYTRANCE",
+                       "path":  "C:\\Users\\psilo\\Documents\\iZotope\\Tonal Balance Control 2\\Target Curves\\PSYTRANCE.json",
+                       "filesAnalysed":  1,
+                       "limited":  false,
+                       "bins":  [
+                                    0.56519705, 0.56694270, 0.56873628, 0.57052775, 0.57223002, 0.57397903, 0.57577607, 0.57762246, 0.57951954, 0.58146872, 0.58347142, 0.58552912, 0.58764332, 0.58981557, 0.59204747, 0.59434066, 0.59669682, 0.59911768, 0.60140486, 0.60329374, 0.60523449, 0.60722852, 0.60927732, 0.61138237, 0.61354523, 0.61576748, 0.61805075, 0.62039672, 0.62280710, 0.62426404, 0.62528739, 0.62633883, 0.62741916, 0.62852914, 0.62966961, 0.63084139, 0.63204535, 0.63266547, 0.63253342, 0.63239774, 0.63225834, 0.63211511, 0.63196794, 0.63181674, 0.63134989, 0.63074622, 0.63012598, 0.62948871, 0.62883393, 0.62815248, 0.62714085, 0.62610145, 0.62503350, 0.62393623, 0.62276958, 0.62120568, 0.61959883, 0.61794786, 0.61625156, 0.61423233, 0.61206443, 0.60983699, 0.60754839, 0.60503952, 0.60243596, 0.59976092, 0.59704261, 0.59430841, 0.59149912, 0.58864322, 0.58591509, 0.58311205, 0.58025889, 0.57745510, 0.57457431, 0.57160528, 0.56854293, 0.56539649, 0.56225456, 0.55903738, 0.55584763, 0.55268275, 0.54949751, 0.54640467, 0.54325384, 0.54015707, 0.53699608, 0.53385368, 0.53067759, 0.52755603, 0.52448586, 0.52148670, 0.51865937, 0.51586868, 0.51324266, 0.51063777, 0.50805411, 0.50575837, 0.50364891, 0.50168316, 0.49976672, 0.49774886, 0.49572668, 0.49382299, 0.49218045, 0.49071701, 0.48917695, 0.48762910, 0.48626181, 0.48508611, 0.48378887, 0.48227338, 0.48075235, 0.47933300, 0.47791732, 0.47641896, 0.47501689, 0.47353878, 0.47207739, 0.47076977, 0.46965742, 0.46836279, 0.46695023, 0.46570296, 0.46467454, 0.46362219, 0.46243922, 0.46121995, 0.45980529, 0.45842935, 0.45699487, 0.45558298, 0.45388275, 0.45218890, 0.45047764, 0.44903339, 0.44726964, 0.44553058, 0.44378430, 0.44211970, 0.44040996, 0.43856487, 0.43682190, 0.43488047, 0.43301112, 0.43116540, 0.42944586, 0.42744091, 0.42549179, 0.42356735, 0.42179634, 0.41986233, 0.41792817, 0.41578438, 0.41354792, 0.41128228, 0.40903698, 0.40676646, 0.40427458, 0.40180150, 0.39926311, 0.39677140, 0.39400170, 0.39131327, 0.38849813, 0.38581235, 0.38298914, 0.38028537, 0.37749650, 0.37476213, 0.37207772, 0.36949858, 0.36684280, 0.36402463, 0.36124476, 0.35848689, 0.35576028, 0.35293010, 0.35017633, 0.34737680, 0.34469267, 0.34201812, 0.33945107, 0.33689297, 0.33444069, 0.33202429, 0.32974178, 0.32747604, 0.32522312, 0.32302214, 0.32091925, 0.31896698, 0.31706435, 0.31528226, 0.31343245, 0.31142664, 0.30927248, 0.30703101, 0.30491550, 0.30300519, 0.30123269, 0.29963708, 0.29815797, 0.29680578, 0.29557308, 0.29443220, 0.29346701, 0.29256359, 0.29171093, 0.29094263, 0.28998496, 0.28877637, 0.28769721, 0.28671582, 0.28585172, 0.28512143, 0.28440353, 0.28347408, 0.28210839, 0.28053923, 0.27881146, 0.27695130, 0.27499005, 0.27285613, 0.27076823, 0.26870040, 0.26658658, 0.26432023, 0.26203053, 0.25969309, 0.25730897, 0.25471478, 0.25187373, 0.24875255, 0.24536844, 0.24176310, 0.23778099, 0.23335302, 0.22862688, 0.22347493, 0.21786697, 0.21179647, 0.20514909, 0.19771156, 0.18968977, 0.18122909, 0.17222144, 0.16266208, 0.15254926, 0.14192264, 0.13090300, 0.11954468, 0.10795907, 0.09638430, 0.08516726, 0.07480357
+                                ]
                    }
 };
 
@@ -1551,6 +1586,8 @@
     }
 
     function setPresetStatus(message) {
+      if (!presetStatus)
+        return;
       presetStatus.textContent = message;
       presetStatus.dataset.tooltip = message;
     }
@@ -1576,19 +1613,6 @@
         selected = smoothSourceSel.dataset.value;
       }
 
-      if (smoothSourceSel) {
-        const trigger = smoothSourceSel.querySelector(".select-trigger");
-        if (trigger && typeof trigger.textContent === "string") {
-          const label = trigger.textContent.trim().toLowerCase();
-          if (label.indexOf("nano") >= 0)
-            selected = "nano";
-          else if (label.indexOf("dub") >= 0)
-            selected = "dub_techno";
-          else if (label.indexOf("folder") >= 0)
-            selected = "folder";
-        }
-      }
-
       if (state.smoothSource !== selected)
         state.smoothSource = selected;
 
@@ -1597,8 +1621,10 @@
 
     function setSmoothScanBusy(isBusy) {
       smoothPresetScanInProgress = isBusy;
-      smoothPresetBtn.classList.toggle("is-busy", isBusy);
-      smoothPresetBtn.textContent = isBusy ? "Scanning..." : "Build Smooth";
+      if (smoothPresetBtn) {
+        smoothPresetBtn.classList.toggle("is-busy", isBusy);
+        smoothPresetBtn.textContent = isBusy ? "Scanning..." : "Build Smooth";
+      }
 
       if (smoothScanWatchdogId !== null) {
         window.clearTimeout(smoothScanWatchdogId);
@@ -1609,8 +1635,10 @@
         smoothScanWatchdogId = window.setTimeout(() => {
           smoothScanWatchdogId = null;
           smoothPresetScanInProgress = false;
-          smoothPresetBtn.classList.remove("is-busy");
-          smoothPresetBtn.textContent = "Build Smooth";
+          if (smoothPresetBtn) {
+            smoothPresetBtn.classList.remove("is-busy");
+            smoothPresetBtn.textContent = "Build Smooth";
+          }
           setPresetStatus("Scan timed out. Try a smaller folder.");
         }, 180000);
       }
@@ -1716,12 +1744,14 @@
         : 0;
       const overlayLiftDb = 9.0;
 
+      const centerPoints = [];
       const upperPoints = [];
       const lowerPoints = [];
       for (let i = 0; i < BINS; i++) {
         const x = (i / (BINS - 1)) * width;
         const upper = offsetNormByDb(applyAnalyzerTiltToNorm(smoothPresetUpper[i], i), overlayLiftDb);
         const lower = offsetNormByDb(applyAnalyzerTiltToNorm(smoothPresetLower[i], i), overlayLiftDb);
+        const center = offsetNormByDb(applyAnalyzerTiltToNorm(smoothPreset[i], i), overlayLiftDb);
         upperPoints.push({
           x,
           y: (1 - upper) * height
@@ -1729,6 +1759,10 @@
         lowerPoints.push({
           x,
           y: (1 - lower) * height
+        });
+        centerPoints.push({
+          x,
+          y: (1 - center) * height
         });
       }
 
@@ -1752,12 +1786,22 @@
       ctx.fillStyle = activeCanvasTheme.referenceBand || "rgba(56, 214, 255, 0.24)";
       ctx.fill();
 
-      // Explicit visual confirmation that the tonal target overlay is active.
-      ctx.fillStyle = "rgba(175, 244, 255, 0.96)";
-      ctx.font = "11px Segoe UI";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "top";
-      ctx.fillText("TARGET", 10, overlayTop + 10);
+      ctx.beginPath();
+      traceSpectrumCurve(centerPoints, true);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 10.0;
+      ctx.strokeStyle = activeCanvasTheme.referenceGlow;
+      ctx.stroke();
+
+      ctx.beginPath();
+      traceSpectrumCurve(centerPoints, true);
+      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = "rgba(211, 249, 255, 0.96)";
+      ctx.shadowColor = activeCanvasTheme.referenceGlow;
+      ctx.shadowBlur = 4;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
       ctx.restore();
     }
 
@@ -2204,23 +2248,25 @@
       });
     }
 
-    smoothPresetBtn.addEventListener("click", () => {
-      if (smoothPresetScanInProgress)
-        return;
+    if (smoothPresetBtn) {
+      smoothPresetBtn.addEventListener("click", () => {
+        if (smoothPresetScanInProgress)
+          return;
 
-      if (getSelectedSmoothSource() !== "folder") {
-        setPresetStatus("Built-in preset is already active. Switch source to Folder Scan to build a new one.");
-        return;
-      }
+        if (getSelectedSmoothSource() !== "folder") {
+          setPresetStatus("Built-in preset is already active. Switch source to Folder Scan to build a new one.");
+          return;
+        }
 
-      setSmoothScanBusy(true);
-      setPresetStatus("Scanning folder...");
-      const started = callNative("buildSmoothPresetFromFolder");
-      if (!started) {
-        setSmoothScanBusy(false);
-        setPresetStatus(`Native scan is unavailable (${nativeBridgeStatus()}).`);
-      }
-    });
+        setSmoothScanBusy(true);
+        setPresetStatus("Scanning folder...");
+        const started = callNative("buildSmoothPresetFromFolder");
+        if (!started) {
+          setSmoothScanBusy(false);
+          setPresetStatus(`Native scan is unavailable (${nativeBridgeStatus()}).`);
+        }
+      });
+    }
 
     menuToggle.addEventListener("click", () => {
       const show = controlsPanel.classList.contains("is-hidden");
@@ -2393,5 +2439,6 @@
   </script>
 </body>
 </html>
+
 
 
