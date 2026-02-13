@@ -83,3 +83,27 @@ endif()
 
 apc_enable_windows_open_build_folder_after_build(dream ${PLUGIN_FORMATS})
 
+juce_add_console_app(dream_smooth_preset_builder)
+
+target_sources(dream_smooth_preset_builder
+    PRIVATE
+        Source/tools/SmoothPresetBuilder.cpp
+)
+
+target_link_libraries(dream_smooth_preset_builder
+    PRIVATE
+        juce::juce_audio_formats
+        juce::juce_core
+        juce::juce_dsp
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
+target_compile_definitions(dream_smooth_preset_builder
+    PRIVATE
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+)
+

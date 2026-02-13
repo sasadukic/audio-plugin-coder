@@ -475,6 +475,14 @@
             <button class="select-option" type="button" data-value="6">6 dB</button>
           </div>
         </div>
+        <div class="control-select" id="smoothSourceSel">
+          <button class="select-trigger" type="button" aria-label="Smooth Target Source" aria-haspopup="listbox" aria-expanded="false" data-tooltip="Smooth target source">Folder Scan</button>
+          <div class="select-menu" role="listbox" aria-label="Smooth Target Source">
+            <button class="select-option is-active" type="button" data-value="folder">Folder Scan</button>
+            <button class="select-option" type="button" data-value="nano">NANO Preset</button>
+            <button class="select-option" type="button" data-value="dub_techno">Dub Techno Preset</button>
+          </div>
+        </div>
         <button class="select-trigger action-btn" id="smoothPresetBtn" type="button" data-tooltip="Scan songs folder and build smooth preset">
           Build Smooth
         </button>
@@ -503,8 +511,549 @@
       oscilloscopeOn: true,
       fullscreenOn: false,
       oscLengthMode: 0,
-      theme: "blue"
+      theme: "blue",
+      smoothSource: "folder"
     };
+
+    const builtInSmoothTargets = {
+    "folder":  {
+                   "label":  "Folder Scan",
+                   "path":  "",
+                   "filesAnalysed":  0,
+                   "limited":  false,
+                   "bins":  [
+
+                            ]
+               },
+    "nano":  {
+                 "label":  "NANO",
+                 "path":  "C:\\Users\\psilo\\Desktop\\NANO",
+                 "filesAnalysed":  57,
+                 "limited":  false,
+                 "bins":  [
+                              0.64800370,
+                              0.64852262,
+                              0.64942670,
+                              0.65079045,
+                              0.65261608,
+                              0.65483057,
+                              0.65731299,
+                              0.65993732,
+                              0.66260529,
+                              0.66525716,
+                              0.66786623,
+                              0.67042553,
+                              0.67293829,
+                              0.67541432,
+                              0.67787105,
+                              0.68033528,
+                              0.68284065,
+                              0.68541855,
+                              0.68808657,
+                              0.69083840,
+                              0.69364542,
+                              0.69646609,
+                              0.69926149,
+                              0.70200425,
+                              0.70468205,
+                              0.70729417,
+                              0.70984578,
+                              0.71234196,
+                              0.71478111,
+                              0.71715254,
+                              0.71943641,
+                              0.72161001,
+                              0.72365427,
+                              0.72555935,
+                              0.72732514,
+                              0.72895694,
+                              0.73046052,
+                              0.73183829,
+                              0.73308837,
+                              0.73420835,
+                              0.73520046,
+                              0.73607403,
+                              0.73684144,
+                              0.73750854,
+                              0.73806345,
+                              0.73847276,
+                              0.73868626,
+                              0.73864853,
+                              0.73830777,
+                              0.73762190,
+                              0.73656428,
+                              0.73513275,
+                              0.73335719,
+                              0.73129678,
+                              0.72901964,
+                              0.72657531,
+                              0.72397894,
+                              0.72121620,
+                              0.71826512,
+                              0.71511430,
+                              0.71177512,
+                              0.70828104,
+                              0.70467812,
+                              0.70100701,
+                              0.69729233,
+                              0.69355249,
+                              0.68982387,
+                              0.68617827,
+                              0.68271756,
+                              0.67954266,
+                              0.67671460,
+                              0.67423201,
+                              0.67204022,
+                              0.67006105,
+                              0.66821855,
+                              0.66645068,
+                              0.66471064,
+                              0.66296601,
+                              0.66119987,
+                              0.65940714,
+                              0.65758657,
+                              0.65573257,
+                              0.65383565,
+                              0.65188932,
+                              0.64988971,
+                              0.64782888,
+                              0.64568979,
+                              0.64345664,
+                              0.64113283,
+                              0.63875669,
+                              0.63640243,
+                              0.63416433,
+                              0.63212925,
+                              0.63035387,
+                              0.62886012,
+                              0.62764466,
+                              0.62668443,
+                              0.62592733,
+                              0.62527877,
+                              0.62460876,
+                              0.62379152,
+                              0.62276232,
+                              0.62154919,
+                              0.62025666,
+                              0.61901015,
+                              0.61789656,
+                              0.61693269,
+                              0.61606771,
+                              0.61521035,
+                              0.61426431,
+                              0.61316198,
+                              0.61188239,
+                              0.61044484,
+                              0.60888815,
+                              0.60725099,
+                              0.60556293,
+                              0.60384828,
+                              0.60213035,
+                              0.60043621,
+                              0.59879965,
+                              0.59727031,
+                              0.59591699,
+                              0.59480321,
+                              0.59393054,
+                              0.59319061,
+                              0.59238249,
+                              0.59130800,
+                              0.58987170,
+                              0.58810139,
+                              0.58608079,
+                              0.58387130,
+                              0.58149916,
+                              0.57900655,
+                              0.57649314,
+                              0.57409161,
+                              0.57190239,
+                              0.56995291,
+                              0.56820893,
+                              0.56660050,
+                              0.56503564,
+                              0.56340945,
+                              0.56163001,
+                              0.55965036,
+                              0.55748332,
+                              0.55518687,
+                              0.55283231,
+                              0.55048543,
+                              0.54821181,
+                              0.54607463,
+                              0.54409438,
+                              0.54220510,
+                              0.54027021,
+                              0.53815806,
+                              0.53581786,
+                              0.53328472,
+                              0.53062022,
+                              0.52784693,
+                              0.52494907,
+                              0.52192473,
+                              0.51882142,
+                              0.51570493,
+                              0.51260829,
+                              0.50951755,
+                              0.50640106,
+                              0.50323933,
+                              0.50003922,
+                              0.49683815,
+                              0.49370801,
+                              0.49073672,
+                              0.48797941,
+                              0.48540300,
+                              0.48288432,
+                              0.48027810,
+                              0.47750559,
+                              0.47458112,
+                              0.47155792,
+                              0.46845692,
+                              0.46524835,
+                              0.46189407,
+                              0.45839781,
+                              0.45481676,
+                              0.45122916,
+                              0.44769764,
+                              0.44425616,
+                              0.44092053,
+                              0.43769911,
+                              0.43459633,
+                              0.43161032,
+                              0.42873371,
+                              0.42594698,
+                              0.42320725,
+                              0.42043892,
+                              0.41754106,
+                              0.41441584,
+                              0.41100788,
+                              0.40733558,
+                              0.40348491,
+                              0.39956549,
+                              0.39566177,
+                              0.39181513,
+                              0.38804227,
+                              0.38436306,
+                              0.38080686,
+                              0.37740162,
+                              0.37415701,
+                              0.37105697,
+                              0.36805978,
+                              0.36510950,
+                              0.36215448,
+                              0.35916412,
+                              0.35613760,
+                              0.35309878,
+                              0.35007536,
+                              0.34707341,
+                              0.34406692,
+                              0.34100053,
+                              0.33780527,
+                              0.33443007,
+                              0.33087891,
+                              0.32722536,
+                              0.32358527,
+                              0.32006520,
+                              0.31672016,
+                              0.31354254,
+                              0.31048167,
+                              0.30747187,
+                              0.30445024,
+                              0.30135986,
+                              0.29814267,
+                              0.29473615,
+                              0.29108581,
+                              0.28717050,
+                              0.28302094,
+                              0.27870503,
+                              0.27427909,
+                              0.26974073,
+                              0.26501831,
+                              0.26000163,
+                              0.25458232,
+                              0.24867658,
+                              0.24222577,
+                              0.23518839,
+                              0.22754224,
+                              0.21929069,
+                              0.21045415,
+                              0.20104341,
+                              0.19103687,
+                              0.18038034,
+                              0.16901226,
+                              0.15689763,
+                              0.14405946,
+                              0.13061902,
+                              0.11700121,
+                              0.10398502,
+                              0.09274163,
+                              0.08439328
+                          ]
+             },
+    "dub_techno":  {
+                       "label":  "Dub Techno",
+                       "path":  "C:\\Users\\psilo\\Desktop\\Dub Techno",
+                       "filesAnalysed":  7,
+                       "limited":  false,
+                       "bins":  [
+                                    0.62950689,
+                                    0.62997484,
+                                    0.63078958,
+                                    0.63201809,
+                                    0.63366157,
+                                    0.63565338,
+                                    0.63788396,
+                                    0.64023936,
+                                    0.64263058,
+                                    0.64500403,
+                                    0.64733559,
+                                    0.64961869,
+                                    0.65185565,
+                                    0.65405303,
+                                    0.65622145,
+                                    0.65837646,
+                                    0.66053766,
+                                    0.66272306,
+                                    0.66494322,
+                                    0.66719502,
+                                    0.66946274,
+                                    0.67172259,
+                                    0.67395085,
+                                    0.67612892,
+                                    0.67824340,
+                                    0.68028229,
+                                    0.68223178,
+                                    0.68407381,
+                                    0.68578643,
+                                    0.68734825,
+                                    0.68874294,
+                                    0.68996090,
+                                    0.69099838,
+                                    0.69185293,
+                                    0.69251931,
+                                    0.69298631,
+                                    0.69323719,
+                                    0.69325233,
+                                    0.69301486,
+                                    0.69251496,
+                                    0.69175440,
+                                    0.69074816,
+                                    0.68951964,
+                                    0.68808949,
+                                    0.68646300,
+                                    0.68462378,
+                                    0.68253988,
+                                    0.68017608,
+                                    0.67750269,
+                                    0.67449725,
+                                    0.67115080,
+                                    0.66748720,
+                                    0.66358638,
+                                    0.65958655,
+                                    0.65564811,
+                                    0.65189636,
+                                    0.64838797,
+                                    0.64512593,
+                                    0.64209986,
+                                    0.63931680,
+                                    0.63680726,
+                                    0.63461578,
+                                    0.63278639,
+                                    0.63134187,
+                                    0.63027292,
+                                    0.62954330,
+                                    0.62910897,
+                                    0.62893081,
+                                    0.62897360,
+                                    0.62919134,
+                                    0.62951666,
+                                    0.62986839,
+                                    0.63017863,
+                                    0.63041782,
+                                    0.63059241,
+                                    0.63071221,
+                                    0.63074458,
+                                    0.63058358,
+                                    0.63005507,
+                                    0.62895274,
+                                    0.62709361,
+                                    0.62437671,
+                                    0.62082690,
+                                    0.61660713,
+                                    0.61199290,
+                                    0.60731488,
+                                    0.60289609,
+                                    0.59900081,
+                                    0.59579831,
+                                    0.59333766,
+                                    0.59153384,
+                                    0.59016842,
+                                    0.58890814,
+                                    0.58736461,
+                                    0.58521074,
+                                    0.58234000,
+                                    0.57899177,
+                                    0.57573855,
+                                    0.57327861,
+                                    0.57209641,
+                                    0.57215929,
+                                    0.57283902,
+                                    0.57313848,
+                                    0.57213122,
+                                    0.56938601,
+                                    0.56515312,
+                                    0.56022149,
+                                    0.55552799,
+                                    0.55171418,
+                                    0.54884475,
+                                    0.54643112,
+                                    0.54375112,
+                                    0.54028535,
+                                    0.53601921,
+                                    0.53141528,
+                                    0.52705199,
+                                    0.52317089,
+                                    0.51947892,
+                                    0.51538748,
+                                    0.51051229,
+                                    0.50503331,
+                                    0.49960762,
+                                    0.49490896,
+                                    0.49117813,
+                                    0.48813540,
+                                    0.48524603,
+                                    0.48202628,
+                                    0.47813606,
+                                    0.47332996,
+                                    0.46749756,
+                                    0.46083075,
+                                    0.45388159,
+                                    0.44732818,
+                                    0.44159037,
+                                    0.43663269,
+                                    0.43211329,
+                                    0.42770168,
+                                    0.42327124,
+                                    0.41886079,
+                                    0.41454187,
+                                    0.41036454,
+                                    0.40639266,
+                                    0.40271804,
+                                    0.39939269,
+                                    0.39635321,
+                                    0.39342088,
+                                    0.39036351,
+                                    0.38696611,
+                                    0.38309759,
+                                    0.37876016,
+                                    0.37406561,
+                                    0.36914167,
+                                    0.36405617,
+                                    0.35883892,
+                                    0.35357818,
+                                    0.34847736,
+                                    0.34376019,
+                                    0.33948565,
+                                    0.33545673,
+                                    0.33133397,
+                                    0.32684270,
+                                    0.32189944,
+                                    0.31659618,
+                                    0.31111512,
+                                    0.30566239,
+                                    0.30045062,
+                                    0.29567277,
+                                    0.29144907,
+                                    0.28778487,
+                                    0.28458723,
+                                    0.28171375,
+                                    0.27899888,
+                                    0.27627242,
+                                    0.27340588,
+                                    0.27036992,
+                                    0.26723233,
+                                    0.26407465,
+                                    0.26089680,
+                                    0.25759643,
+                                    0.25405398,
+                                    0.25026780,
+                                    0.24642779,
+                                    0.24286933,
+                                    0.23992850,
+                                    0.23777908,
+                                    0.23632759,
+                                    0.23523372,
+                                    0.23405784,
+                                    0.23245308,
+                                    0.23028941,
+                                    0.22766049,
+                                    0.22479463,
+                                    0.22193132,
+                                    0.21921968,
+                                    0.21668556,
+                                    0.21427065,
+                                    0.21191677,
+                                    0.20962259,
+                                    0.20745018,
+                                    0.20548442,
+                                    0.20377791,
+                                    0.20229280,
+                                    0.20087232,
+                                    0.19928326,
+                                    0.19734581,
+                                    0.19506688,
+                                    0.19266935,
+                                    0.19046594,
+                                    0.18867740,
+                                    0.18732540,
+                                    0.18626651,
+                                    0.18529783,
+                                    0.18423252,
+                                    0.18291157,
+                                    0.18121758,
+                                    0.17913382,
+                                    0.17679159,
+                                    0.17439897,
+                                    0.17206834,
+                                    0.16968228,
+                                    0.16692093,
+                                    0.16341141,
+                                    0.15887581,
+                                    0.15322572,
+                                    0.14661208,
+                                    0.13943052,
+                                    0.13223146,
+                                    0.12553604,
+                                    0.11966676,
+                                    0.11469874,
+                                    0.11052184,
+                                    0.10693594,
+                                    0.10373384,
+                                    0.10077051,
+                                    0.09798855,
+                                    0.09539119,
+                                    0.09297664,
+                                    0.09065393,
+                                    0.08817965,
+                                    0.08513756,
+                                    0.08097818,
+                                    0.07513580,
+                                    0.06723516,
+                                    0.05734029,
+                                    0.04609988,
+                                    0.03463944,
+                                    0.02420002,
+                                    0.01570887,
+                                    0.00954215,
+                                    0.00554868,
+                                    0.00325219,
+                                    0.00208778,
+                                    0.00157329,
+                                    0.00137911,
+                                    0.00131835,
+                                    0.00130277
+                                ]
+                   }
+};
 
     const themes = {
       blue: {
@@ -742,6 +1291,7 @@
     const resolutionSel = document.getElementById("resolutionSel");
     const speedSel = document.getElementById("speedSel");
     const tiltSel = document.getElementById("tiltSel");
+    const smoothSourceSel = document.getElementById("smoothSourceSel");
     const leftToolbar = document.getElementById("leftToolbar");
     const menuToggle = document.getElementById("menuToggle");
     const controlsPanel = document.getElementById("controlsPanel");
@@ -754,7 +1304,7 @@
     const smoothPresetBtn = document.getElementById("smoothPresetBtn");
     const presetStatus = document.getElementById("presetStatus");
     const uiTooltip = document.getElementById("uiTooltip");
-    const customSelectRoots = [resolutionSel, speedSel, tiltSel];
+    const customSelectRoots = [resolutionSel, speedSel, tiltSel, smoothSourceSel];
 
     let mouseInside = false;
     let mouseX = 0;
@@ -990,10 +1540,26 @@
       presetStatus.dataset.tooltip = message;
     }
 
+    function smoothActionIdleLabel() {
+      return state.smoothSource === "folder" ? "Build Smooth" : "Load Target";
+    }
+
+    function smoothActionTooltip() {
+      return state.smoothSource === "folder"
+        ? "Scan songs folder and build smooth preset"
+        : "Load selected built-in smooth preset";
+    }
+
+    function updateSmoothActionUi() {
+      if (!smoothPresetScanInProgress)
+        smoothPresetBtn.textContent = smoothActionIdleLabel();
+      smoothPresetBtn.dataset.tooltip = smoothActionTooltip();
+    }
+
     function setSmoothScanBusy(isBusy) {
       smoothPresetScanInProgress = isBusy;
       smoothPresetBtn.classList.toggle("is-busy", isBusy);
-      smoothPresetBtn.textContent = isBusy ? "Scanning..." : "Build Smooth";
+      smoothPresetBtn.textContent = isBusy ? "Scanning..." : smoothActionIdleLabel();
 
       if (smoothScanWatchdogId !== null) {
         window.clearTimeout(smoothScanWatchdogId);
@@ -1087,6 +1653,28 @@
         }
         setPresetStatus("No smooth preset");
       }
+    }
+
+    function loadBuiltInSmoothTarget(key) {
+      const preset = builtInSmoothTargets[key];
+      if (!preset || !Array.isArray(preset.bins) || preset.bins.length === 0) {
+        setPresetStatus(`Preset '${key}' unavailable.`);
+        return false;
+      }
+
+      setSmoothPreset(preset.bins, true);
+      lastReferenceRevisionSeen = Math.max(lastReferenceRevisionSeen, 1);
+
+      const label = typeof preset.label === "string" && preset.label.length > 0
+        ? preset.label
+        : key;
+      const filesAnalysed = Number.isFinite(Number(preset.filesAnalysed))
+        ? Math.max(0, Math.floor(Number(preset.filesAnalysed)))
+        : 0;
+      const limited = !!preset.limited;
+      const suffix = limited ? ", limited scan" : "";
+      setPresetStatus(`Loaded ${label} (${filesAnalysed} file(s)${suffix})`);
+      return true;
     }
 
     function drawSmoothPreset(width, height) {
@@ -1565,6 +2153,11 @@
       rebuildShapedTarget();
     });
 
+    initializeCustomSelect(smoothSourceSel, state.smoothSource, (value) => {
+      state.smoothSource = value;
+      updateSmoothActionUi();
+    });
+
     themeToggleBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       const willOpen = !themePicker.classList.contains("open");
@@ -1594,6 +2187,11 @@
     smoothPresetBtn.addEventListener("click", () => {
       if (smoothPresetScanInProgress)
         return;
+
+      if (state.smoothSource !== "folder") {
+        loadBuiltInSmoothTarget(state.smoothSource);
+        return;
+      }
 
       setSmoothScanBusy(true);
       setPresetStatus("Scanning folder...");
@@ -1751,6 +2349,7 @@
     closeThemePicker();
     bindTooltips();
     setSmoothScanBusy(false);
+    updateSmoothActionUi();
     setPresetStatus("No smooth preset");
     refreshOscLengthButton();
     callNative("setOscilloscopeLengthMode", state.oscLengthMode);
