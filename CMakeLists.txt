@@ -7,17 +7,27 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # OPTIONAL FEATURES
 # ============================================
 option(APC_ENABLE_VISAGE "Enable Visage UI framework support" OFF)
-option(APC_OPEN_BUILD_FOLDER_AFTER_BUILD "Open the VST3 output folder in Explorer after successful VST3 builds (Windows only)" ON)
+option(APC_AUTO_COPY_VST3_TO_SYSTEM_DIR "Auto-copy built VST3 bundles to C:/Program Files/Common Files/VST3 after successful builds (Windows only)" ON)
+option(APC_OPEN_BUILD_FOLDER_AFTER_BUILD "Open the VST3 output folder in Explorer after successful VST3 builds (Windows only)" OFF)
 
 function(apc_enable_windows_open_build_folder_after_build plugin_target)
-    if(NOT WIN32 OR NOT APC_OPEN_BUILD_FOLDER_AFTER_BUILD)
+    if(NOT WIN32)
         return()
     endif()
 
+    set(copy_vst3_script "${CMAKE_SOURCE_DIR}/scripts/auto-copy-vst3.ps1")
     set(open_folder_script "${CMAKE_SOURCE_DIR}/scripts/open-folder-after-build.ps1")
-    if(NOT EXISTS "${open_folder_script}")
+    set(can_auto_copy_vst3 TRUE)
+    set(can_open_folder TRUE)
+
+    if(APC_AUTO_COPY_VST3_TO_SYSTEM_DIR AND NOT EXISTS "${copy_vst3_script}")
+        set(can_auto_copy_vst3 FALSE)
+        message(WARNING "VST3 auto-copy script not found: ${copy_vst3_script}")
+    endif()
+
+    if(APC_OPEN_BUILD_FOLDER_AFTER_BUILD AND NOT EXISTS "${open_folder_script}")
+        set(can_open_folder FALSE)
         message(WARNING "Open-folder script not found: ${open_folder_script}")
-        return()
     endif()
 
     foreach(format IN LISTS ARGN)
@@ -27,14 +37,30 @@ function(apc_enable_windows_open_build_folder_after_build plugin_target)
 
         set(format_target "${plugin_target}_${format}")
         if(TARGET ${format_target})
-            add_custom_command(
-                TARGET ${format_target}
-                POST_BUILD
-                COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${open_folder_script}" -FolderPath "$<TARGET_FILE_DIR:${format_target}>/../../.."
-                VERBATIM
-            )
+            if(APC_AUTO_COPY_VST3_TO_SYSTEM_DIR AND can_auto_copy_vst3)
+                add_custom_command(
+                    TARGET ${format_target}
+                    POST_BUILD
+                    COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${copy_vst3_script}" -BuiltBinaryPath "$<TARGET_FILE:${format_target}>" -DestinationVst3Dir "C:/Program Files/Common Files/VST3/$<TARGET_FILE_NAME:${format_target}>"
+                    VERBATIM
+                )
+            endif()
+
+            if(APC_OPEN_BUILD_FOLDER_AFTER_BUILD AND can_open_folder)
+                add_custom_command(
+                    TARGET ${format_target}
+                    POST_BUILD
+                    COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${open_folder_script}" -FolderPath "$<TARGET_FILE_DIR:${format_target}>/../../.."
+                    VERBATIM
+                )
+            endif()
         endif()
     endforeach()
+endfunction()
+
+# Backward compatible alias for the current helper name used by plugin CMake files.
+function(apc_enable_windows_vst3_post_build_tasks plugin_target)
+    apc_enable_windows_open_build_folder_after_build(${plugin_target} ${ARGN})
 endfunction()
 
 # ============================================
@@ -56,6 +82,7 @@ endif()
 message(STATUS "--- APC BUILD SYSTEM ---")
 message(STATUS "Platform: ${APC_PLATFORM}")
 message(STATUS "Root Directory: ${CMAKE_CURRENT_SOURCE_DIR}")
+message(STATUS "Auto-copy VST3 to system folder after build: ${APC_AUTO_COPY_VST3_TO_SYSTEM_DIR}")
 message(STATUS "Open VST3 folder after build: ${APC_OPEN_BUILD_FOLDER_AFTER_BUILD}")
 
 # ============================================
