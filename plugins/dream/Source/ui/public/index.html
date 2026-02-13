@@ -766,6 +766,7 @@
     const smoothPresetUpper = new Float32Array(BINS);
     let hasSmoothPreset = false;
     let smoothPresetScanInProgress = false;
+    let lastReferenceRevisionSeen = -1;
 
     function initializeJuceBackendBridge() {
       if (typeof window.__JUCE__ !== "undefined"
@@ -1610,7 +1611,7 @@
       mouseY = event.clientY - rect.top;
     });
 
-    window.updateSpectrum = function (bins, sr, osc) {
+    window.updateSpectrum = function (bins, sr, osc, rms, lufs, referenceBins, hasReference, referenceRevision) {
       if (Array.isArray(bins)) {
         const n = Math.min(BINS, bins.length);
         for (let i = 0; i < n; i++) {
@@ -1634,6 +1635,26 @@
       if (typeof sr === "number" && Number.isFinite(sr) && sr > 1000) {
         sampleRate = sr;
       }
+
+      if (typeof referenceRevision === "number" && Number.isFinite(referenceRevision)) {
+        const revision = Math.max(0, Math.floor(referenceRevision));
+        if (revision !== lastReferenceRevisionSeen) {
+          lastReferenceRevisionSeen = revision;
+
+          let values = [];
+          if (Array.isArray(referenceBins)) {
+            values = referenceBins;
+          } else if (referenceBins && typeof referenceBins.length === "number") {
+            values = Array.from(referenceBins);
+          }
+
+          if ((hasReference === true || hasReference === "true") && values.length > 0) {
+            setSmoothPreset(values, true);
+          } else {
+            setSmoothPreset([], false);
+          }
+        }
+      }
     };
 
     window.setSmoothPreset = function (bins, hasPreset) {
@@ -1649,7 +1670,9 @@
         setPresetStatus(text);
       }
       else if (typeof message === "string" && message.length > 0) {
-        setPresetStatus(`${message}${hasSmoothPreset ? " â€¢ overlay on" : " â€¢ no overlay data"}`);
+        window.setTimeout(() => {
+          setPresetStatus(`${message}${hasSmoothPreset ? " • overlay on" : " • no overlay data"}`);
+        }, 140);
       }
     };
 
@@ -1674,3 +1697,4 @@
   </script>
 </body>
 </html>
+

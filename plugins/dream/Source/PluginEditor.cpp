@@ -106,32 +106,45 @@ void DreamAudioProcessorEditor::timerCallback()
 
     const auto spectrum = processorRef.getSpectrumSnapshot();
     const auto oscilloscope = processorRef.getOscilloscopeSnapshot();
+    const auto reference = processorRef.getReferenceSpectrumSnapshot();
+    const auto referenceRevision = processorRef.getReferenceSpectrumRevision();
+    bool hasReference = referenceRevision > 0;
+    if (! hasReference)
+    {
+        hasReference = std::any_of (reference.begin(), reference.end(),
+                                    [] (float value) { return value > 1.0e-6f; });
+    }
+
     const auto arr = makeJsFloatArray (spectrum);
     const auto oscilloscopeArr = makeJsFloatArray (oscilloscope);
+    const auto referenceArrForTick = makeJsFloatArray (reference);
 
     webView->evaluateJavascript ("if (window.updateSpectrum) window.updateSpectrum(" + arr + ","
                                  + juce::String (processorRef.getCurrentAnalysisSampleRate(), 2) + ","
                                  + oscilloscopeArr + ","
                                  + juce::String (processorRef.getRmsDb(), 2) + ","
-                                 + juce::String (processorRef.getLufsIntegrated(), 2) + ");");
+                                 + juce::String (processorRef.getLufsIntegrated(), 2) + ","
+                                 + referenceArrForTick + ","
+                                 + juce::String (hasReference ? "true" : "false") + ","
+                                 + juce::String (static_cast<int> (referenceRevision)) + ");");
 
     const auto currentRevision = processorRef.getReferenceSpectrumRevision();
     if (currentRevision != lastReferenceRevision)
     {
         lastReferenceRevision = currentRevision;
-        const auto reference = processorRef.getReferenceSpectrumSnapshot();
-        bool hasReference = currentRevision > 0;
+        const auto referenceForRevision = processorRef.getReferenceSpectrumSnapshot();
+        bool hasReferenceForRevision = currentRevision > 0;
 
         juce::String referenceArr = "[]";
 
-        if (hasReference)
+        if (hasReferenceForRevision)
         {
-            referenceArr = makeJsFloatArray (reference);
+            referenceArr = makeJsFloatArray (referenceForRevision);
         }
 
         webView->evaluateJavascript (
             "if (window.setSmoothPreset) window.setSmoothPreset(" + referenceArr + ","
-            + juce::String (hasReference ? "true" : "false") + ");");
+            + juce::String (hasReferenceForRevision ? "true" : "false") + ");");
     }
 }
 
