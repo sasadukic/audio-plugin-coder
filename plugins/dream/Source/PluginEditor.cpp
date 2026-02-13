@@ -238,7 +238,7 @@ juce::WebBrowserComponent::Options DreamAudioProcessorEditor::createWebOptions (
     options = options.withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
         .withWinWebView2Options (
             juce::WebBrowserComponent::Options::WinWebView2{}
-                .withUserDataFolder (juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("NPS_DreamAnalyzer")));
+                .withUserDataFolder (juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("NPS_SPECRUM")));
 #endif
 
     return options;

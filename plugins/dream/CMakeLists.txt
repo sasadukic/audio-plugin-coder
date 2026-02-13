@@ -1,4 +1,4 @@
-# Dream Analyzer Plugin
+# SPΞCRΔUM Plugin
 # VST3 only
 
 set(PLUGIN_FORMATS VST3)
@@ -13,7 +13,7 @@ elseif(UNIX)
     set(NEEDS_WEB_BROWSER TRUE)
 endif()
 
-message(STATUS "Dream: Building for ${PLUGIN_FORMATS}")
+message(STATUS "SPΞCRΔUM: Building for ${PLUGIN_FORMATS}")
 
 juce_add_binary_data(dream_WebUI
     SOURCES
@@ -26,7 +26,7 @@ juce_add_plugin(dream
     PLUGIN_MANUFACTURER_CODE NPS0
     PLUGIN_CODE DrmA
     FORMATS ${PLUGIN_FORMATS}
-    PRODUCT_NAME "Dream Analyzer"
+    PRODUCT_NAME "SPΞCRΔUM"
     NEEDS_WEBVIEW2 ${NEEDS_WEBVIEW2}
     NEEDS_WEB_BROWSER ${NEEDS_WEB_BROWSER}
     VST3_CATEGORIES Fx Analyzer
