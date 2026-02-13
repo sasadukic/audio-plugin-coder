@@ -1,9 +1,32 @@
 #include "PluginEditor.h"
 #include "BinaryData.h"
 
+#include <algorithm>
+#include <cmath>
+
 #if JUCE_WINDOWS
  #include <windows.h>
 #endif
+
+namespace
+{
+template <size_t N>
+juce::String makeJsFloatArray (const std::array<float, N>& values)
+{
+    juce::String out = "[";
+    for (size_t i = 0; i < N; ++i)
+    {
+        if (i > 0)
+            out << ",";
+
+        const float v = values[i];
+        out << juce::String (std::isfinite (v) ? v : 0.0f, 6);
+    }
+
+    out << "]";
+    return out;
+}
+} // namespace
 
 #if JUCE_WINDOWS
 static HWND findNearestCaptionedWindow (HWND start) noexcept
@@ -83,23 +106,8 @@ void DreamAudioProcessorEditor::timerCallback()
 
     const auto spectrum = processorRef.getSpectrumSnapshot();
     const auto oscilloscope = processorRef.getOscilloscopeSnapshot();
-    juce::String arr = "[";
-    for (int i = 0; i < static_cast<int> (spectrum.size()); ++i)
-    {
-        if (i > 0)
-            arr << ",";
-        arr << juce::String (spectrum[static_cast<size_t> (i)], 5);
-    }
-    arr << "]";
-
-    juce::String oscilloscopeArr = "[";
-    for (int i = 0; i < static_cast<int> (oscilloscope.size()); ++i)
-    {
-        if (i > 0)
-            oscilloscopeArr << ",";
-        oscilloscopeArr << juce::String (oscilloscope[static_cast<size_t> (i)], 5);
-    }
-    oscilloscopeArr << "]";
+    const auto arr = makeJsFloatArray (spectrum);
+    const auto oscilloscopeArr = makeJsFloatArray (oscilloscope);
 
     webView->evaluateJavascript ("if (window.updateSpectrum) window.updateSpectrum(" + arr + ","
                                  + juce::String (processorRef.getCurrentAnalysisSampleRate(), 2) + ","
@@ -111,20 +119,14 @@ void DreamAudioProcessorEditor::timerCallback()
     if (currentRevision != lastReferenceRevision)
     {
         lastReferenceRevision = currentRevision;
-        const bool hasReference = processorRef.hasReferenceSpectrumData();
+        const auto reference = processorRef.getReferenceSpectrumSnapshot();
+        bool hasReference = currentRevision > 0;
+
         juce::String referenceArr = "[]";
 
         if (hasReference)
         {
-            const auto reference = processorRef.getReferenceSpectrumSnapshot();
-            referenceArr = "[";
-            for (int i = 0; i < static_cast<int> (reference.size()); ++i)
-            {
-                if (i > 0)
-                    referenceArr << ",";
-                referenceArr << juce::String (reference[static_cast<size_t> (i)], 5);
-            }
-            referenceArr << "]";
+            referenceArr = makeJsFloatArray (reference);
         }
 
         webView->evaluateJavascript (
@@ -196,19 +198,16 @@ juce::WebBrowserComponent::Options DreamAudioProcessorEditor::createWebOptions (
                         {
                             juce::String referenceArr = "[]";
                             bool hasReference = false;
+                            const auto reference = editor.processorRef.getReferenceSpectrumSnapshot();
 
-                            if (success && editor.processorRef.hasReferenceSpectrumData())
+                            if (success)
                             {
                                 hasReference = true;
-                                const auto reference = editor.processorRef.getReferenceSpectrumSnapshot();
-                                referenceArr = "[";
-                                for (int i = 0; i < static_cast<int> (reference.size()); ++i)
+
+                                if (hasReference)
                                 {
-                                    if (i > 0)
-                                        referenceArr << ",";
-                                    referenceArr << juce::String (reference[static_cast<size_t> (i)], 5);
+                                    referenceArr = makeJsFloatArray (reference);
                                 }
-                                referenceArr << "]";
                             }
 
                             editor.webView->evaluateJavascript (
