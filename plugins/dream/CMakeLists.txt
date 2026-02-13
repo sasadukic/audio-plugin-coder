@@ -1,4 +1,4 @@
-# SPΞCRΔUM Plugin
+# SPECRAUM Plugin
 # VST3 only
 
 set(PLUGIN_FORMATS VST3)
@@ -13,7 +13,7 @@ elseif(UNIX)
     set(NEEDS_WEB_BROWSER TRUE)
 endif()
 
-message(STATUS "SPΞCRΔUM: Building for ${PLUGIN_FORMATS}")
+message(STATUS "SPECRAUM: Building for ${PLUGIN_FORMATS}")
 
 juce_add_binary_data(dream_WebUI
     SOURCES
@@ -26,7 +26,7 @@ juce_add_plugin(dream
     PLUGIN_MANUFACTURER_CODE NPS0
     PLUGIN_CODE DrmA
     FORMATS ${PLUGIN_FORMATS}
-    PRODUCT_NAME "SPΞCRΔUM"
+    PRODUCT_NAME "SPECRAUM"
     NEEDS_WEBVIEW2 ${NEEDS_WEBVIEW2}
     NEEDS_WEB_BROWSER ${NEEDS_WEB_BROWSER}
     VST3_CATEGORIES Fx Analyzer
@@ -82,3 +82,4 @@ if(WIN32)
 endif()
 
 apc_enable_windows_open_build_folder_after_build(dream ${PLUGIN_FORMATS})
+
