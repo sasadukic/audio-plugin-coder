@@ -765,6 +765,68 @@
     let hasSmoothPreset = false;
     let smoothPresetScanInProgress = false;
 
+    function initializeJuceBackendBridge() {
+      if (typeof window.__JUCE__ !== "undefined"
+          && typeof window.__JUCE__.getAndroidUserScripts === "function"
+          && typeof window.inAndroidUserScriptEval === "undefined") {
+        window.inAndroidUserScriptEval = true;
+        try {
+          eval(window.__JUCE__.getAndroidUserScripts());
+        } catch (error) {
+          console.warn("Dream Analyzer: failed to evaluate Android JUCE bridge scripts.", error);
+        }
+      }
+
+      if (typeof window.__JUCE__ === "undefined")
+        window.__JUCE__ = {};
+
+      if (typeof window.__JUCE__.backend === "undefined") {
+        const eventListeners = new Map();
+
+        window.__JUCE__.backend = {
+          addEventListener(eventId, listener) {
+            if (!eventListeners.has(eventId))
+              eventListeners.set(eventId, new Set());
+            eventListeners.get(eventId).add(listener);
+          },
+
+          removeEventListener(eventId, listener) {
+            if (!eventListeners.has(eventId))
+              return;
+            eventListeners.get(eventId).delete(listener);
+          },
+
+          emitEvent(eventId, payload) {
+            if (typeof window.__JUCE__.postMessage !== "function")
+              return false;
+
+            window.__JUCE__.postMessage(JSON.stringify({ eventId, payload }));
+            return true;
+          },
+
+          emitByBackend(eventId, payload) {
+            if (!eventListeners.has(eventId))
+              return;
+
+            let parsed = payload;
+            if (typeof payload === "string") {
+              try { parsed = JSON.parse(payload); } catch (_) {}
+            }
+
+            for (const listener of eventListeners.get(eventId))
+              listener(parsed);
+          }
+        };
+      }
+    }
+
+    function hasNativeBridge() {
+      return typeof window.__JUCE__ !== "undefined"
+          && typeof window.__JUCE__.postMessage === "function"
+          && window.__JUCE__.backend
+          && typeof window.__JUCE__.backend.emitEvent === "function";
+    }
+
     function formatFreqLabel(freq) {
       if (freq >= 1000) {
         const k = freq / 1000;
@@ -1211,11 +1273,10 @@
     }
 
     function callNative(name, ...params) {
-      if (!(window.__JUCE__ && window.__JUCE__.backend && window.__JUCE__.backend.emitEvent))
+      if (!hasNativeBridge())
         return false;
       const resultId = Math.floor(Math.random() * 2147483647);
-      window.__JUCE__.backend.emitEvent("__juce__invoke", { name, params, resultId });
-      return true;
+      return window.__JUCE__.backend.emitEvent("__juce__invoke", { name, params, resultId });
     }
 
     function hasOpenSelectMenu() {
@@ -1537,6 +1598,7 @@
       closeThemePicker();
       hideTooltip();
     });
+    initializeJuceBackendBridge();
     ensureCanvasSize();
     applyTheme(state.theme);
     closeThemePicker();
