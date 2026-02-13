@@ -1351,29 +1351,17 @@
       const strokeColor = activeCanvasTheme.referenceStroke || "rgba(211, 249, 255, 0.96)";
 
       ctx.beginPath();
-      traceSpectrumCurve(upperPoints, true);
-      ctx.lineWidth = 1.2;
-      ctx.strokeStyle = rgbaWithAlpha(strokeColor, 0.18);
-      ctx.stroke();
-
-      ctx.beginPath();
-      traceSpectrumCurve(lowerPoints, true);
-      ctx.lineWidth = 1.0;
-      ctx.strokeStyle = rgbaWithAlpha(strokeColor, 0.18);
-      ctx.stroke();
-
-      ctx.beginPath();
       traceSpectrumCurve(centerPoints, true);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.lineWidth = 6.0;
-      ctx.strokeStyle = rgbaWithAlpha(activeCanvasTheme.referenceGlow || "rgba(48, 205, 220, 0.30)", 0.34);
+      ctx.strokeStyle = rgbaWithAlpha(activeCanvasTheme.referenceGlow || "rgba(48, 205, 220, 0.30)", 0.17);
       ctx.stroke();
 
       ctx.beginPath();
       traceSpectrumCurve(centerPoints, true);
       ctx.lineWidth = 1.6;
-      ctx.strokeStyle = rgbaWithAlpha(strokeColor, 0.64);
+      ctx.strokeStyle = rgbaWithAlpha(strokeColor, 0.32);
       ctx.shadowColor = rgbaWithAlpha(activeCanvasTheme.referenceGlow || "rgba(48, 205, 220, 0.30)", 0.30);
       ctx.shadowBlur = 3;
       ctx.stroke();
