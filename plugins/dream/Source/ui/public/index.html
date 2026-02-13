@@ -979,12 +979,20 @@
     }
 
     function setSmoothPreset(bins, hasPreset) {
-      hasSmoothPreset = !!hasPreset && Array.isArray(bins) && bins.length > 0;
+      let values = null;
+      if (Array.isArray(bins)) {
+        values = bins;
+      } else if (bins && typeof bins.length === "number") {
+        values = Array.from(bins);
+      }
+
+      const hasValues = Array.isArray(values) && values.length > 0;
+      hasSmoothPreset = hasValues;
 
       if (hasSmoothPreset) {
-        const n = Math.min(BINS, bins.length);
+        const n = Math.min(BINS, values.length);
         for (let i = 0; i < n; i++) {
-          const v = Number(bins[i]);
+          const v = Number(values[i]);
           smoothPreset[i] = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
         }
         for (let i = n; i < BINS; i++) {
@@ -1113,6 +1121,13 @@
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.shadowBlur = 0;
+
+      // Explicit visual confirmation that the tonal target overlay is active.
+      ctx.fillStyle = "rgba(175, 244, 255, 0.96)";
+      ctx.font = "11px Segoe UI";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText("TARGET", 10, 10);
       ctx.restore();
     }
 
@@ -1634,7 +1649,7 @@
         setPresetStatus(text);
       }
       else if (typeof message === "string" && message.length > 0) {
-        setPresetStatus(message);
+        setPresetStatus(`${message}${hasSmoothPreset ? " • overlay on" : " • no overlay data"}`);
       }
     };
 
