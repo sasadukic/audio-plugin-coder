@@ -1542,26 +1542,10 @@
       presetStatus.dataset.tooltip = message;
     }
 
-    function smoothActionIdleLabel() {
-      return state.smoothSource === "folder" ? "Build Smooth" : "Load Target";
-    }
-
-    function smoothActionTooltip() {
-      return state.smoothSource === "folder"
-        ? "Scan songs folder and build smooth preset"
-        : "Load selected built-in smooth preset";
-    }
-
-    function updateSmoothActionUi() {
-      if (!smoothPresetScanInProgress)
-        smoothPresetBtn.textContent = smoothActionIdleLabel();
-      smoothPresetBtn.dataset.tooltip = smoothActionTooltip();
-    }
-
     function setSmoothScanBusy(isBusy) {
       smoothPresetScanInProgress = isBusy;
       smoothPresetBtn.classList.toggle("is-busy", isBusy);
-      smoothPresetBtn.textContent = isBusy ? "Scanning..." : smoothActionIdleLabel();
+      smoothPresetBtn.textContent = isBusy ? "Scanning..." : "Build Smooth";
 
       if (smoothScanWatchdogId !== null) {
         window.clearTimeout(smoothScanWatchdogId);
@@ -2162,10 +2146,10 @@
       if (value === "folder") {
         builtInPresetLocked = false;
         activeBuiltInPresetKey = "";
+        setPresetStatus("Folder scan mode");
       } else {
         loadBuiltInSmoothTarget(value);
       }
-      updateSmoothActionUi();
     });
 
     themeToggleBtn.addEventListener("click", (event) => {
@@ -2199,7 +2183,7 @@
         return;
 
       if (state.smoothSource !== "folder") {
-        loadBuiltInSmoothTarget(state.smoothSource);
+        setPresetStatus("Built-in preset is already active. Switch source to Folder Scan to build a new one.");
         return;
       }
 
@@ -2372,7 +2356,6 @@
     closeThemePicker();
     bindTooltips();
     setSmoothScanBusy(false);
-    updateSmoothActionUi();
     setPresetStatus("No smooth preset");
     refreshOscLengthButton();
     callNative("setOscilloscopeLengthMode", state.oscLengthMode);
