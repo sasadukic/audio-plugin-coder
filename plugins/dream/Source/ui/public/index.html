@@ -1542,6 +1542,15 @@
       presetStatus.dataset.tooltip = message;
     }
 
+    function getSelectedSmoothSource() {
+      if (smoothSourceSel && smoothSourceSel.dataset && typeof smoothSourceSel.dataset.value === "string"
+          && smoothSourceSel.dataset.value.length > 0) {
+        if (state.smoothSource !== smoothSourceSel.dataset.value)
+          state.smoothSource = smoothSourceSel.dataset.value;
+      }
+      return state.smoothSource;
+    }
+
     function setSmoothScanBusy(isBusy) {
       smoothPresetScanInProgress = isBusy;
       smoothPresetBtn.classList.toggle("is-busy", isBusy);
@@ -1663,6 +1672,22 @@
       const suffix = limited ? ", limited scan" : "";
       setPresetStatus(`Loaded ${label} (${filesAnalysed} file(s)${suffix})`);
       return true;
+    }
+
+    function ensureBuiltInPresetActive() {
+      const selectedSource = getSelectedSmoothSource();
+      if (selectedSource === "folder")
+        return;
+
+      const preset = builtInSmoothTargets[selectedSource];
+      if (!preset || !Array.isArray(preset.bins) || preset.bins.length === 0)
+        return;
+
+      if (!hasSmoothPreset || !builtInPresetLocked || activeBuiltInPresetKey !== selectedSource) {
+        builtInPresetLocked = true;
+        activeBuiltInPresetKey = selectedSource;
+        setSmoothPreset(preset.bins, true);
+      }
     }
 
     function drawSmoothPreset(width, height) {
@@ -2108,6 +2133,8 @@
     }
 
     function drawFrame() {
+      ensureBuiltInPresetActive();
+
       const rect = ensureCanvasSize();
       const w = rect.width;
       const h = rect.height;
@@ -2182,7 +2209,7 @@
       if (smoothPresetScanInProgress)
         return;
 
-      if (state.smoothSource !== "folder") {
+      if (getSelectedSmoothSource() !== "folder") {
         setPresetStatus("Built-in preset is already active. Switch source to Folder Scan to build a new one.");
         return;
       }
@@ -2276,12 +2303,16 @@
       }
 
       if (typeof referenceRevision === "number" && Number.isFinite(referenceRevision)) {
+        const selectedSource = getSelectedSmoothSource();
+        if (selectedSource !== "folder")
+          return;
+
         const revision = Math.max(0, Math.floor(referenceRevision));
         if (revision !== lastReferenceRevisionSeen) {
           lastReferenceRevisionSeen = revision;
 
           // Keep built-in presets pinned unless we are in live folder-scan mode.
-          if (builtInPresetLocked && state.smoothSource !== "folder" && revision === 0) {
+          if (builtInPresetLocked && selectedSource !== "folder" && revision === 0) {
             return;
           }
 
@@ -2297,7 +2328,7 @@
             builtInPresetLocked = false;
             activeBuiltInPresetKey = "";
             setSmoothPreset(values, !!hasReference || revision > 0);
-          } else if (revision === 0 && state.smoothSource === "folder") {
+          } else if (revision === 0 && selectedSource === "folder") {
             setSmoothPreset([], false);
           }
         }
@@ -2309,7 +2340,7 @@
     };
 
     window.onSmoothPresetScanFinished = function (success, message, bins, hasPreset, referenceRevision) {
-      if (state.smoothSource === "folder" && success)
+      if (getSelectedSmoothSource() === "folder" && success)
       {
         builtInPresetLocked = false;
         activeBuiltInPresetKey = "";
