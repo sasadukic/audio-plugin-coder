@@ -1289,8 +1289,10 @@
           maxUpperDb = upperDb;
       }
 
-      // Keep the top edge anchored to the 0 dB grid line.
-      const alignToZeroDb = Number.isFinite(maxUpperDb) ? (-maxUpperDb) : 0.0;
+      // Keep the top edge anchored to the displayed 0 dB grid line.
+      // In this UI mapping, displayed 0 dB corresponds to internal -24 dB.
+      const targetTopDb = -dbDisplayOffset;
+      const alignToZeroDb = Number.isFinite(maxUpperDb) ? (targetTopDb - maxUpperDb) : 0.0;
 
       for (let i = 0; i < BINS; i++) {
         const x = (i / (BINS - 1)) * width;
@@ -1320,6 +1322,14 @@
         ctx.clip();
       }
       const reversedLower = lowerPoints.slice().reverse();
+      let minUpperY = Infinity;
+      let maxLowerY = -Infinity;
+      for (let i = 0; i < upperPoints.length; i++) {
+        minUpperY = Math.min(minUpperY, upperPoints[i].y);
+        maxLowerY = Math.max(maxLowerY, lowerPoints[i].y);
+      }
+      const gradientTop = Number.isFinite(minUpperY) ? minUpperY : 0;
+      const gradientBottom = Number.isFinite(maxLowerY) ? maxLowerY : height;
 
       // Draw tonal-balance target range band first.
       ctx.beginPath();
@@ -1329,33 +1339,27 @@
       traceSpectrumCurve(reversedLower, false);
       ctx.closePath();
       const bandColor = activeCanvasTheme.referenceBand || "rgba(56, 214, 255, 0.24)";
-      const fillGradient = ctx.createLinearGradient(0, 0, width, 0);
+      const fillGradient = ctx.createLinearGradient(0, gradientTop, 0, gradientBottom);
       fillGradient.addColorStop(0.00, rgbaWithAlpha(bandColor, 0.00));
-      fillGradient.addColorStop(0.10, rgbaWithAlpha(bandColor, 0.08));
-      fillGradient.addColorStop(0.50, rgbaWithAlpha(bandColor, 0.14));
-      fillGradient.addColorStop(0.90, rgbaWithAlpha(bandColor, 0.08));
+      fillGradient.addColorStop(0.20, rgbaWithAlpha(bandColor, 0.07));
+      fillGradient.addColorStop(0.50, rgbaWithAlpha(bandColor, 0.12));
+      fillGradient.addColorStop(0.80, rgbaWithAlpha(bandColor, 0.07));
       fillGradient.addColorStop(1.00, rgbaWithAlpha(bandColor, 0.00));
       ctx.fillStyle = fillGradient;
       ctx.fill();
 
       const strokeColor = activeCanvasTheme.referenceStroke || "rgba(211, 249, 255, 0.96)";
-      const edgeStrokeGradient = ctx.createLinearGradient(0, 0, width, 0);
-      edgeStrokeGradient.addColorStop(0.00, rgbaWithAlpha(strokeColor, 0.00));
-      edgeStrokeGradient.addColorStop(0.12, rgbaWithAlpha(strokeColor, 0.24));
-      edgeStrokeGradient.addColorStop(0.50, rgbaWithAlpha(strokeColor, 0.44));
-      edgeStrokeGradient.addColorStop(0.88, rgbaWithAlpha(strokeColor, 0.24));
-      edgeStrokeGradient.addColorStop(1.00, rgbaWithAlpha(strokeColor, 0.00));
 
       ctx.beginPath();
       traceSpectrumCurve(upperPoints, true);
       ctx.lineWidth = 1.2;
-      ctx.strokeStyle = edgeStrokeGradient;
+      ctx.strokeStyle = rgbaWithAlpha(strokeColor, 0.18);
       ctx.stroke();
 
       ctx.beginPath();
       traceSpectrumCurve(lowerPoints, true);
       ctx.lineWidth = 1.0;
-      ctx.strokeStyle = edgeStrokeGradient;
+      ctx.strokeStyle = rgbaWithAlpha(strokeColor, 0.18);
       ctx.stroke();
 
       ctx.beginPath();
@@ -1368,14 +1372,8 @@
 
       ctx.beginPath();
       traceSpectrumCurve(centerPoints, true);
-      const centerStrokeGradient = ctx.createLinearGradient(0, 0, width, 0);
-      centerStrokeGradient.addColorStop(0.00, rgbaWithAlpha(strokeColor, 0.00));
-      centerStrokeGradient.addColorStop(0.10, rgbaWithAlpha(strokeColor, 0.30));
-      centerStrokeGradient.addColorStop(0.50, rgbaWithAlpha(strokeColor, 0.70));
-      centerStrokeGradient.addColorStop(0.90, rgbaWithAlpha(strokeColor, 0.30));
-      centerStrokeGradient.addColorStop(1.00, rgbaWithAlpha(strokeColor, 0.00));
       ctx.lineWidth = 1.6;
-      ctx.strokeStyle = centerStrokeGradient;
+      ctx.strokeStyle = rgbaWithAlpha(strokeColor, 0.64);
       ctx.shadowColor = rgbaWithAlpha(activeCanvasTheme.referenceGlow || "rgba(48, 205, 220, 0.30)", 0.30);
       ctx.shadowBlur = 3;
       ctx.stroke();
