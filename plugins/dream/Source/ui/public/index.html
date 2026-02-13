@@ -762,6 +762,8 @@
     let cornerHoverActive = false;
     const cornerRevealSizePx = 176;
     const smoothPreset = new Float32Array(BINS);
+    const smoothPresetLower = new Float32Array(BINS);
+    const smoothPresetUpper = new Float32Array(BINS);
     let hasSmoothPreset = false;
     let smoothPresetScanInProgress = false;
 
@@ -977,7 +979,7 @@
     }
 
     function setSmoothPreset(bins, hasPreset) {
-      hasSmoothPreset = !!hasPreset && Array.isArray(bins);
+      hasSmoothPreset = !!hasPreset && Array.isArray(bins) && bins.length > 0;
 
       if (hasSmoothPreset) {
         const n = Math.min(BINS, bins.length);
@@ -985,8 +987,10 @@
           const v = Number(bins[i]);
           smoothPreset[i] = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
         }
-        for (let i = n; i < BINS; i++)
-          smoothPreset[i] = 0;
+        for (let i = n; i < BINS; i++) {
+          const edgeValue = n > 0 ? smoothPreset[n - 1] : 0;
+          smoothPreset[i] = edgeValue;
+        }
 
         const work = new Float32Array(BINS);
         const temp = new Float32Array(BINS);
@@ -1010,28 +1014,25 @@
         smoothPass(work, temp);
         smoothPass(temp, work);
 
-        let minV = 1;
-        let maxV = 0;
         for (let i = 0; i < BINS; i++) {
-          const v = work[i];
-          if (v < minV) minV = v;
-          if (v > maxV) maxV = v;
-        }
+          const center = Math.max(0, Math.min(1, work[i]));
+          const t = i / Math.max(1, BINS - 1);
+          const edgeFactor = Math.abs((t * 2) - 1);
+          const halfWidth = 0.05 + (0.02 * edgeFactor);
 
-        const range = Math.max(0.035, maxV - minV);
-        const targetMin = 0.16;
-        const targetMax = 0.86;
-        for (let i = 0; i < BINS; i++) {
-          const normalized = (work[i] - minV) / range;
-          const shaped = Math.pow(Math.max(0, Math.min(1, normalized)), 0.95);
-          smoothPreset[i] = targetMin + shaped * (targetMax - targetMin);
+          smoothPreset[i] = center;
+          smoothPresetLower[i] = Math.max(0, center - halfWidth);
+          smoothPresetUpper[i] = Math.min(1, center + halfWidth);
         }
 
         setPresetStatus("Smooth preset ready");
       }
       else {
-        for (let i = 0; i < BINS; i++)
+        for (let i = 0; i < BINS; i++) {
           smoothPreset[i] = 0;
+          smoothPresetLower[i] = 0;
+          smoothPresetUpper[i] = 0;
+        }
         setPresetStatus("No smooth preset");
       }
     }
@@ -1039,19 +1040,42 @@
     function drawSmoothPreset(width, height) {
       if (!hasSmoothPreset) return;
 
-      const points = [];
+      const centerPoints = [];
+      const upperPoints = [];
+      const lowerPoints = [];
       for (let i = 0; i < BINS; i++) {
-        points.push({
+        const x = (i / (BINS - 1)) * width;
+        upperPoints.push({
+          x,
+          y: (1 - smoothPresetUpper[i]) * height
+        });
+        lowerPoints.push({
+          x,
+          y: (1 - smoothPresetLower[i]) * height
+        });
+        centerPoints.push({
           x: (i / (BINS - 1)) * width,
           y: (1 - smoothPreset[i]) * height
         });
       }
 
-      if (points.length === 0) return;
+      if (centerPoints.length === 0) return;
 
       ctx.save();
+      const reversedLower = lowerPoints.slice().reverse();
+
+      // Draw tonal-balance target range band first.
       ctx.beginPath();
-      traceSpectrumCurve(points, true);
+      ctx.moveTo(upperPoints[0].x, upperPoints[0].y);
+      traceSpectrumCurve(upperPoints, false);
+      ctx.lineTo(reversedLower[0].x, reversedLower[0].y);
+      traceSpectrumCurve(reversedLower, false);
+      ctx.closePath();
+      ctx.fillStyle = activeCanvasTheme.referenceBand || "rgba(86, 205, 220, 0.16)";
+      ctx.fill();
+
+      ctx.beginPath();
+      traceSpectrumCurve(centerPoints, true);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.lineWidth = 14.0;
@@ -1059,7 +1083,7 @@
       ctx.stroke();
 
       ctx.beginPath();
-      traceSpectrumCurve(points, true);
+      traceSpectrumCurve(centerPoints, true);
       ctx.lineWidth = 2.2;
       ctx.strokeStyle = activeCanvasTheme.referenceStroke;
       ctx.shadowColor = activeCanvasTheme.referenceGlow;
