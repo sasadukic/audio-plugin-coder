@@ -108,7 +108,7 @@ void DreamAudioProcessorEditor::timerCallback()
     const auto oscilloscope = processorRef.getOscilloscopeSnapshot();
     const auto reference = processorRef.getReferenceSpectrumSnapshot();
     const auto referenceRevision = processorRef.getReferenceSpectrumRevision();
-    bool hasReference = referenceRevision > 0;
+    bool hasReference = processorRef.hasReferenceSpectrumData() || referenceRevision > 0;
     if (! hasReference)
     {
         hasReference = std::any_of (reference.begin(), reference.end(),
@@ -213,20 +213,20 @@ juce::WebBrowserComponent::Options DreamAudioProcessorEditor::createWebOptions (
                             bool hasReference = false;
                             const auto reference = editor.processorRef.getReferenceSpectrumSnapshot();
                             const auto referenceRevision = editor.processorRef.getReferenceSpectrumRevision();
+                            const auto hasReferenceSnapshot = editor.processorRef.hasReferenceSpectrumData();
 
                             if (success)
                             {
-                                hasReference = referenceRevision > 0;
-                                if (! hasReference)
-                                {
-                                    hasReference = std::any_of (reference.begin(), reference.end(),
-                                                                [] (float value) { return value > 1.0e-6f; });
-                                }
-
+                                // Always forward bins after a successful scan. Even an all-zero
+                                // result should draw a visible baseline overlay.
+                                hasReference = true;
+                                referenceArr = makeJsFloatArray (reference);
+                            }
+                            else
+                            {
+                                hasReference = hasReferenceSnapshot || referenceRevision > 0;
                                 if (hasReference)
-                                {
                                     referenceArr = makeJsFloatArray (reference);
-                                }
                             }
 
                             editor.webView->evaluateJavascript (
