@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SPΞCRΔUM</title>
+  <title>SPECRAUM</title>
   <style>
     :root {
       --bg-top: #16181d;
@@ -767,6 +767,8 @@
     let hasSmoothPreset = false;
     let smoothPresetScanInProgress = false;
     let lastReferenceRevisionSeen = -1;
+    let lastReferenceBinsReceived = 0;
+    let lastReferenceHasFlag = false;
 
     function initializeJuceBackendBridge() {
       if (typeof window.__JUCE__ !== "undefined"
@@ -776,7 +778,7 @@
         try {
           eval(window.__JUCE__.getAndroidUserScripts());
         } catch (error) {
-          console.warn("SPΞCRΔUM: failed to evaluate Android JUCE bridge scripts.", error);
+          console.warn("SPECRAUM: failed to evaluate Android JUCE bridge scripts.", error);
         }
       }
 
@@ -988,6 +990,8 @@
       }
 
       const hasValues = Array.isArray(values) && values.length > 0;
+      lastReferenceBinsReceived = hasValues ? values.length : 0;
+      lastReferenceHasFlag = !!hasPreset;
       hasSmoothPreset = hasValues;
 
       if (hasSmoothPreset) {
@@ -1648,9 +1652,10 @@
             values = Array.from(referenceBins);
           }
 
-          if ((hasReference === true || hasReference === "true") && values.length > 0) {
-            setSmoothPreset(values, true);
-          } else {
+          const hasUsableReference = values.length > 0 && (revision > 0 || !!hasReference);
+          if (hasUsableReference) {
+            setSmoothPreset(values, !!hasReference || revision > 0);
+          } else if (revision === 0) {
             setSmoothPreset([], false);
           }
         }
@@ -1661,7 +1666,18 @@
       setSmoothPreset(bins, hasPreset);
     };
 
-    window.onSmoothPresetScanFinished = function (success, message) {
+    window.onSmoothPresetScanFinished = function (success, message, bins, hasPreset, referenceRevision) {
+      const gotBinsArray = Array.isArray(bins) || (bins && typeof bins.length === "number");
+      if (gotBinsArray) {
+        setSmoothPreset(bins, !!hasPreset);
+      }
+
+      if (typeof referenceRevision === "number" && Number.isFinite(referenceRevision)) {
+        const revision = Math.max(0, Math.floor(referenceRevision));
+        if (revision > lastReferenceRevisionSeen)
+          lastReferenceRevisionSeen = revision;
+      }
+
       setSmoothScanBusy(false);
       if (!success) {
         const text = (typeof message === "string" && message.length > 0)
@@ -1671,7 +1687,10 @@
       }
       else if (typeof message === "string" && message.length > 0) {
         window.setTimeout(() => {
-          setPresetStatus(`${message}${hasSmoothPreset ? " � overlay on" : " � no overlay data"}`);
+          setPresetStatus(
+            `${message}${hasSmoothPreset ? " - overlay on" : " - no overlay data"}`
+            + ` (rev:${lastReferenceRevisionSeen}, bins:${lastReferenceBinsReceived}, flag:${lastReferenceHasFlag ? "1" : "0"})`
+          );
         }, 140);
       }
     };
@@ -1697,4 +1716,5 @@
   </script>
 </body>
 </html>
+
 

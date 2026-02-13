@@ -212,10 +212,16 @@ juce::WebBrowserComponent::Options DreamAudioProcessorEditor::createWebOptions (
                             juce::String referenceArr = "[]";
                             bool hasReference = false;
                             const auto reference = editor.processorRef.getReferenceSpectrumSnapshot();
+                            const auto referenceRevision = editor.processorRef.getReferenceSpectrumRevision();
 
                             if (success)
                             {
-                                hasReference = true;
+                                hasReference = referenceRevision > 0;
+                                if (! hasReference)
+                                {
+                                    hasReference = std::any_of (reference.begin(), reference.end(),
+                                                                [] (float value) { return value > 1.0e-6f; });
+                                }
 
                                 if (hasReference)
                                 {
@@ -230,7 +236,10 @@ juce::WebBrowserComponent::Options DreamAudioProcessorEditor::createWebOptions (
                             editor.webView->evaluateJavascript (
                                 "if (window.onSmoothPresetScanFinished) window.onSmoothPresetScanFinished("
                                 + juce::String (success ? "true" : "false") + ","
-                                + juce::JSON::toString (juce::var (message)) + ");");
+                                + juce::JSON::toString (juce::var (message)) + ","
+                                + referenceArr + ","
+                                + juce::String (hasReference ? "true" : "false") + ","
+                                + juce::String (static_cast<int> (referenceRevision)) + ");");
                         }
 
                         done (success);
