@@ -769,6 +769,7 @@
     let lastReferenceRevisionSeen = -1;
     let lastReferenceBinsReceived = 0;
     let lastReferenceHasFlag = false;
+    let smoothScanWatchdogId = null;
 
     function initializeJuceBackendBridge() {
       if (typeof window.__JUCE__ !== "undefined"
@@ -826,10 +827,24 @@
     }
 
     function hasNativeBridge() {
-      return typeof window.__JUCE__ !== "undefined"
-          && typeof window.__JUCE__.postMessage === "function"
-          && window.__JUCE__.backend
-          && typeof window.__JUCE__.backend.emitEvent === "function";
+      if (typeof window.__JUCE__ === "undefined")
+        return false;
+
+      const backend = window.__JUCE__.backend;
+      if (backend && typeof backend.emitEvent === "function")
+        return true;
+
+      return typeof window.__JUCE__.postMessage === "function";
+    }
+
+    function nativeBridgeStatus() {
+      if (typeof window.__JUCE__ === "undefined")
+        return "missing __JUCE__";
+      if (window.__JUCE__.backend && typeof window.__JUCE__.backend.emitEvent === "function")
+        return "backend.emitEvent";
+      if (typeof window.__JUCE__.postMessage === "function")
+        return "postMessage";
+      return "no transport";
     }
 
     function formatFreqLabel(freq) {
@@ -979,6 +994,21 @@
       smoothPresetScanInProgress = isBusy;
       smoothPresetBtn.classList.toggle("is-busy", isBusy);
       smoothPresetBtn.textContent = isBusy ? "Scanning..." : "Build Smooth";
+
+      if (smoothScanWatchdogId !== null) {
+        window.clearTimeout(smoothScanWatchdogId);
+        smoothScanWatchdogId = null;
+      }
+
+      if (isBusy) {
+        smoothScanWatchdogId = window.setTimeout(() => {
+          smoothScanWatchdogId = null;
+          smoothPresetScanInProgress = false;
+          smoothPresetBtn.classList.remove("is-busy");
+          smoothPresetBtn.textContent = "Build Smooth";
+          setPresetStatus("Scan timed out. Try a smaller folder.");
+        }, 180000);
+      }
     }
 
     function setSmoothPreset(bins, hasPreset) {
@@ -1343,7 +1373,20 @@
       if (!hasNativeBridge())
         return false;
       const resultId = Math.floor(Math.random() * 2147483647);
-      return window.__JUCE__.backend.emitEvent("__juce__invoke", { name, params, resultId });
+      const payload = { name, params, resultId };
+
+      if (window.__JUCE__.backend && typeof window.__JUCE__.backend.emitEvent === "function") {
+        const emitted = window.__JUCE__.backend.emitEvent("__juce__invoke", payload);
+        if (emitted !== false)
+          return true;
+      }
+
+      if (typeof window.__JUCE__.postMessage === "function") {
+        window.__JUCE__.postMessage(JSON.stringify({ eventId: "__juce__invoke", payload }));
+        return true;
+      }
+
+      return false;
     }
 
     function hasOpenSelectMenu() {
@@ -1557,7 +1600,7 @@
       const started = callNative("buildSmoothPresetFromFolder");
       if (!started) {
         setSmoothScanBusy(false);
-        setPresetStatus("Native scan is unavailable.");
+        setPresetStatus(`Native scan is unavailable (${nativeBridgeStatus()}).`);
       }
     });
 

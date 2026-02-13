@@ -358,8 +358,9 @@ bool DreamAudioProcessor::buildSmoothPresetFromFolder (const juce::File& folder,
         return false;
     }
 
-    juce::Array<juce::File> allFiles;
-    folder.findChildFiles (allFiles, juce::File::findFiles, true);
+    constexpr int maxAudioFilesToAnalyse = 160;
+    constexpr int maxCandidateFilesToScan = 30000;
+    constexpr double maxSecondsPerFileToAnalyse = 120.0;
 
     auto isSupportedAudioFile = [] (const juce::File& file)
     {
@@ -369,10 +370,33 @@ bool DreamAudioProcessor::buildSmoothPresetFromFolder (const juce::File& folder,
     };
 
     juce::Array<juce::File> audioFiles;
-    for (const auto& file : allFiles)
+    int candidateFilesScanned = 0;
+    bool hitCandidateFileLimit = false;
+    bool hitAudioFileLimit = false;
+
+    for (const auto& entry : juce::RangedDirectoryIterator (folder,
+                                                            true,
+                                                            "*",
+                                                            juce::File::findFiles,
+                                                            juce::File::FollowSymlinks::no))
     {
+        ++candidateFilesScanned;
+        if (candidateFilesScanned > maxCandidateFilesToScan)
+        {
+            hitCandidateFileLimit = true;
+            break;
+        }
+
+        const auto file = entry.getFile();
         if (isSupportedAudioFile (file))
+        {
             audioFiles.add (file);
+            if (audioFiles.size() >= maxAudioFilesToAnalyse)
+            {
+                hitAudioFileLimit = true;
+                break;
+            }
+        }
     }
 
     if (audioFiles.isEmpty())
@@ -443,12 +467,15 @@ bool DreamAudioProcessor::buildSmoothPresetFromFolder (const juce::File& folder,
         std::fill (localFifo.begin(), localFifo.end(), 0.0f);
         int localFifoIndex = 0;
         std::int64_t position = 0;
+        const auto fileSamplesToAnalyse = juce::jmin<std::int64_t> (
+            reader->lengthInSamples,
+            static_cast<std::int64_t> (reader->sampleRate * maxSecondsPerFileToAnalyse));
         bool fileContributed = false;
 
-        while (position < reader->lengthInSamples)
+        while (position < fileSamplesToAnalyse)
         {
             const int samplesToRead = static_cast<int> (
-                juce::jmin<std::int64_t> (readBlockSize, reader->lengthInSamples - position));
+                juce::jmin<std::int64_t> (readBlockSize, fileSamplesToAnalyse - position));
             readBuffer.clear();
             reader->read (&readBuffer, 0, samplesToRead, position, true, true);
 
@@ -525,7 +552,14 @@ bool DreamAudioProcessor::buildSmoothPresetFromFolder (const juce::File& folder,
 
     hasReferenceSpectrum.store (true, std::memory_order_relaxed);
     referenceSpectrumRevision.fetch_add (1, std::memory_order_relaxed);
-    outMessage = "Smooth preset built from " + juce::String (filesAnalysed) + " file(s).";
+
+    juce::String truncationNote;
+    if (hitAudioFileLimit || hitCandidateFileLimit)
+        truncationNote = " (limited scan)";
+
+    outMessage = "Smooth preset built from "
+        + juce::String (filesAnalysed)
+        + " file(s)." + truncationNote;
     return true;
 }
 
