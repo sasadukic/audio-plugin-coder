@@ -1636,46 +1636,20 @@
           smoothPreset[i] = edgeValue;
         }
 
-        const work = new Float32Array(BINS);
-        const temp = new Float32Array(BINS);
-        for (let i = 0; i < BINS; i++)
-          work[i] = smoothPreset[i];
-
-        const smoothPass = (input, output) => {
-          for (let i = 0; i < BINS; i++) {
-            let weightedSum = 0;
-            let weightTotal = 0;
-            for (let offset = -4; offset <= 4; offset++) {
-              const idx = Math.max(0, Math.min(BINS - 1, i + offset));
-              const weight = Math.exp(-(offset * offset) / 6);
-              weightedSum += input[idx] * weight;
-              weightTotal += weight;
-            }
-            output[i] = weightTotal > 0 ? (weightedSum / weightTotal) : input[i];
-          }
-        };
-
-        smoothPass(work, temp);
-        smoothPass(temp, work);
-
-        const sorted = Array.from(work).sort((a, b) => a - b);
-        const p10 = sorted[Math.floor((sorted.length - 1) * 0.10)];
-        const p90 = sorted[Math.floor((sorted.length - 1) * 0.90)];
-        const sourceRange = Math.max(0.03, p90 - p10);
-        const targetMin = 0.22;
-        const targetMax = 0.82;
-
+        // Keep scanned/built-in spectral shape intact.
+        // The old percentile remap compressed highs and changed tonal slope.
         for (let i = 0; i < BINS; i++) {
-          const normalized = Math.max(0, Math.min(1, (work[i] - p10) / sourceRange));
-          const anchored = (normalized * 0.68) + (Math.max(0, Math.min(1, work[i])) * 0.32);
-          const center = targetMin + anchored * (targetMax - targetMin);
+          const center = smoothPreset[i];
           const t = i / Math.max(1, BINS - 1);
           const edgeFactor = Math.abs((t * 2) - 1);
-          const halfWidth = 0.055 + (0.02 * edgeFactor);
+          const halfWidthDb = 3.0 + (1.0 * edgeFactor);
+          const centerDb = normToDb(center);
+          const lower = dbToNorm(centerDb - halfWidthDb);
+          const upper = dbToNorm(centerDb + halfWidthDb);
 
           smoothPreset[i] = center;
-          smoothPresetLower[i] = Math.max(0, center - halfWidth);
-          smoothPresetUpper[i] = Math.min(1, center + halfWidth);
+          smoothPresetLower[i] = lower;
+          smoothPresetUpper[i] = upper;
         }
 
         setPresetStatus("Smooth preset ready");
