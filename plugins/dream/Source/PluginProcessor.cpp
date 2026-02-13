@@ -179,6 +179,7 @@ void DreamAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     juce::ScopedNoDenormals noDenormals;
 
     bool hasHostPpq = false;
+    bool hostTransportIsPlaying = false;
     double hostPpq = 0.0;
     double hostQuarterNotesPerBar = 4.0;
     if (auto* hostPlayHead = getPlayHead())
@@ -187,10 +188,11 @@ void DreamAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         {
             if (auto bpm = position->getBpm())
                 currentTempoBpm.store (static_cast<float> (*bpm), std::memory_order_relaxed);
+            hostTransportIsPlaying = position->getIsPlaying();
             if (auto ppq = position->getPpqPosition())
             {
                 hostPpq = *ppq;
-                hasHostPpq = true;
+                hasHostPpq = hostTransportIsPlaying;
             }
             if (auto ts = position->getTimeSignature())
             {
@@ -526,23 +528,17 @@ bool DreamAudioProcessor::buildSmoothPresetFromFolder (const juce::File& folder,
         std::array<float, spectrumBins> output {};
         for (int i = 0; i < spectrumBins; ++i)
         {
-            float weightedSum = 0.0f;
-            float weightTotal = 0.0f;
-            for (int offset = -4; offset <= 4; ++offset)
-            {
-                const int idx = juce::jlimit (0, spectrumBins - 1, i + offset);
-                const float distance = static_cast<float> (offset * offset);
-                const float weight = std::exp (-distance / 6.0f);
-                weightedSum += input[static_cast<size_t> (idx)] * weight;
-                weightTotal += weight;
-            }
-            output[static_cast<size_t> (i)] = weightTotal > 0.0f ? (weightedSum / weightTotal) : input[static_cast<size_t> (i)];
+            const int leftIdx = juce::jlimit (0, spectrumBins - 1, i - 1);
+            const int rightIdx = juce::jlimit (0, spectrumBins - 1, i + 1);
+            const float center = input[static_cast<size_t> (i)];
+            const float left = input[static_cast<size_t> (leftIdx)];
+            const float right = input[static_cast<size_t> (rightIdx)];
+            output[static_cast<size_t> (i)] = center * 0.60f + left * 0.20f + right * 0.20f;
         }
         return output;
     };
 
     auto smoothed = applySmoothingPass (averaged);
-    smoothed = applySmoothingPass (smoothed);
 
     for (int i = 0; i < spectrumBins; ++i)
     {

@@ -234,23 +234,17 @@ PresetBuildResult buildSmoothPresetFromFolder (const juce::File& folder)
         std::array<float, spectrumBins> output {};
         for (int i = 0; i < spectrumBins; ++i)
         {
-            float weightedSum = 0.0f;
-            float weightTotal = 0.0f;
-            for (int offset = -4; offset <= 4; ++offset)
-            {
-                const int idx = juce::jlimit (0, spectrumBins - 1, i + offset);
-                const float distance = static_cast<float> (offset * offset);
-                const float weight = std::exp (-distance / 6.0f);
-                weightedSum += input[static_cast<size_t> (idx)] * weight;
-                weightTotal += weight;
-            }
-            output[static_cast<size_t> (i)] = weightTotal > 0.0f ? (weightedSum / weightTotal) : input[static_cast<size_t> (i)];
+            const int leftIdx = juce::jlimit (0, spectrumBins - 1, i - 1);
+            const int rightIdx = juce::jlimit (0, spectrumBins - 1, i + 1);
+            const float center = input[static_cast<size_t> (i)];
+            const float left = input[static_cast<size_t> (leftIdx)];
+            const float right = input[static_cast<size_t> (rightIdx)];
+            output[static_cast<size_t> (i)] = center * 0.60f + left * 0.20f + right * 0.20f;
         }
         return output;
     };
 
     auto smoothed = applySmoothingPass (averaged);
-    smoothed = applySmoothingPass (smoothed);
 
     for (int i = 0; i < spectrumBins; ++i)
         result.bins[static_cast<size_t> (i)] = juce::jlimit (0.0f, 1.0f, smoothed[static_cast<size_t> (i)]);
