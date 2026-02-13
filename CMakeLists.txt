@@ -7,6 +7,35 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # OPTIONAL FEATURES
 # ============================================
 option(APC_ENABLE_VISAGE "Enable Visage UI framework support" OFF)
+option(APC_OPEN_BUILD_FOLDER_AFTER_BUILD "Open the VST3 output folder in Explorer after successful VST3 builds (Windows only)" ON)
+
+function(apc_enable_windows_open_build_folder_after_build plugin_target)
+    if(NOT WIN32 OR NOT APC_OPEN_BUILD_FOLDER_AFTER_BUILD)
+        return()
+    endif()
+
+    set(open_folder_script "${CMAKE_SOURCE_DIR}/scripts/open-folder-after-build.ps1")
+    if(NOT EXISTS "${open_folder_script}")
+        message(WARNING "Open-folder script not found: ${open_folder_script}")
+        return()
+    endif()
+
+    foreach(format IN LISTS ARGN)
+        if(NOT format STREQUAL "VST3")
+            continue()
+        endif()
+
+        set(format_target "${plugin_target}_${format}")
+        if(TARGET ${format_target})
+            add_custom_command(
+                TARGET ${format_target}
+                POST_BUILD
+                COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${open_folder_script}" -FolderPath "$<TARGET_FILE_DIR:${format_target}>/../../.."
+                VERBATIM
+            )
+        endif()
+    endforeach()
+endfunction()
 
 # ============================================
 # PLATFORM DETECTION
@@ -27,6 +56,7 @@ endif()
 message(STATUS "--- APC BUILD SYSTEM ---")
 message(STATUS "Platform: ${APC_PLATFORM}")
 message(STATUS "Root Directory: ${CMAKE_CURRENT_SOURCE_DIR}")
+message(STATUS "Open VST3 folder after build: ${APC_OPEN_BUILD_FOLDER_AFTER_BUILD}")
 
 # ============================================
 # GLOBAL DEFINITIONS (Platform-Specific)

@@ -176,6 +176,8 @@ endif()
 # ============================================
 # These targets help create installers
 
+apc_enable_windows_open_build_folder_after_build({PLUGIN_NAME} ${PLUGIN_FORMATS})
+
 # Copy VST3 to build output for packaging
 add_custom_target({PLUGIN_NAME}_CopyVST3
     COMMAND ${CMAKE_COMMAND} -E copy_directory

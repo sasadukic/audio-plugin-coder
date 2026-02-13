@@ -1,35 +1,30 @@
 ﻿{
-    "plugin_name":  "nf_gnarly",
-    "version":  "v1.0.0",
-    "current_phase":  "ship_complete",
+    "plugin_name":  "mutable-instruments-clouds-clone",
+    "version":  "v0.0.0",
+    "current_phase":  "code_complete",
     "ui_framework":  "webview",
-    "complexity_score":  2,
-    "created_at":  "2026-01-23T20:38:00Z",
-    "last_modified":  "2026-02-12T10:59:29.4221060+01:00",
+    "complexity_score":  4,
+    "created_at":  "2026-02-12T09:52:27.6202070+01:00",
+    "last_modified":  "2026-02-12T11:20:30.6567796+01:00",
     "phase_history":  [
                           {
-                              "phase":  "ideation_complete",
-                              "completed_at":  "2026-01-23T20:38:00Z",
-                              "framework_selected":  null
+                              "phase":  "ideation",
+                              "completed_at":  "2026-02-12T09:52:27.6202070+01:00",
+                              "framework_selected":  "pending"
                           },
                           {
-                              "phase":  "plan_complete",
-                              "completed_at":  "2026-01-23T20:38:00Z",
+                              "phase":  "plan",
+                              "completed_at":  "2026-02-12T09:58:36.3264632+01:00",
                               "framework_selected":  "webview"
                           },
                           {
-                              "phase":  "design_complete",
-                              "completed_at":  "2026-01-23T20:40:00Z",
+                              "phase":  "design",
+                              "completed_at":  "2026-02-12T11:20:30.6567796+01:00",
                               "framework_selected":  "webview"
                           },
                           {
                               "phase":  "code_complete",
-                              "completed_at":  "2026-02-12T10:07:04.9514726+01:00",
-                              "framework_selected":  "webview"
-                          },
-                          {
-                              "phase":  "ship_complete",
-                              "completed_at":  "2026-02-12T10:59:29.4221060+01:00",
+                              "completed_at":  "2026-02-12T11:20:30.6567796+01:00",
                               "framework_selected":  "webview"
                           }
                       ],
@@ -41,11 +36,11 @@
                        "design_complete":  true,
                        "code_complete":  true,
                        "tests_passed":  false,
-                       "ship_ready":  true
+                       "ship_ready":  false
                    },
     "framework_selection":  {
                                 "decision":  "webview",
-                                "rationale":  "Complex UI with real-time visualization and interactive controls requires WebView for rich HTML/CSS/JS interface",
+                                "rationale":  "Selected for richer dark UI iteration and interactive control rendering while keeping DSP native.",
                                 "implementation_strategy":  "phased"
                             },
     "error_recovery":  {

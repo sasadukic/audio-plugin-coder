@@ -19,7 +19,7 @@ NfGnarlyAudioProcessorEditor::NfGnarlyAudioProcessorEditor (NfGnarlyAudioProcess
 
     // 2. Create WebView SECOND with relay references
     DBG ("NfGnarly Editor: Creating WebView...");
-    webView.reset (new SinglePageBrowser (createWebOptions (*this)));
+    webView.reset (new juce::WebBrowserComponent (createWebOptions (*this)));
     DBG ("NfGnarly Editor: WebView created");
 
     // 3. Create attachments BEFORE addAndMakeVisible (CRITICAL!)
@@ -49,7 +49,11 @@ NfGnarlyAudioProcessorEditor::NfGnarlyAudioProcessorEditor (NfGnarlyAudioProcess
 
     // 5. Load UI from resource provider
     DBG ("NfGnarly Editor: Loading HTML from resource provider...");
-    webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
+    auto startUrl = juce::WebBrowserComponent::getResourceProviderRoot();
+    if (! startUrl.endsWithChar ('/'))
+        startUrl << '/';
+    startUrl << "index.html";
+    webView->goToURL (startUrl);
     DBG ("NfGnarly Editor Constructor: COMPLETE");
 
     setSize (400, 380);
@@ -119,13 +123,66 @@ std::optional<juce::WebBrowserComponent::Resource> NfGnarlyAudioProcessorEditor:
         };
     };
 
-    // Direct access to index.html (like AngelGrain)
-    if (url.isEmpty() || url == "/" || url == "/index.html")
+    auto path = url.trim();
+
+    // JUCE can pass either a relative path ("/index.html") or a full backend URL
+    // ("https://juce.backend/index.html" / "juce://juce.backend/index.html").
+    const auto schemePos = path.indexOf ("://");
+    if (schemePos >= 0)
     {
-        DBG ("NfGnarly: Serving index.html directly");
-        return makeResource (nf_gnarly_BinaryData::index_html,
-                           nf_gnarly_BinaryData::index_htmlSize,
-                           "text/html");
+        const auto hostStart = schemePos + 3;
+        const auto firstSlash = path.indexOfChar (hostStart, '/');
+        path = (firstSlash >= 0) ? path.substring (firstSlash) : "/";
+    }
+
+    if (path.startsWithIgnoreCase ("juce.backend/"))
+        path = path.fromFirstOccurrenceOf ("/", false, false);
+
+    if (const auto queryPos = path.indexOfChar ('?'); queryPos >= 0)
+        path = path.substring (0, queryPos);
+    if (const auto fragmentPos = path.indexOfChar ('#'); fragmentPos >= 0)
+        path = path.substring (0, fragmentPos);
+
+    path = path.replaceCharacter ('\\', '/');
+    if (path.startsWithChar ('/'))
+        path = path.substring (1);
+    if (path.isEmpty())
+        path = "index.html";
+
+    const char* data = nullptr;
+    int dataSize = 0;
+    const char* mime = "application/octet-stream";
+
+    // JUCE BinaryData names are mangled to symbol names (index_html/index_js/index_js2),
+    // not full file paths, so map URL paths explicitly.
+    if (path == "index.html")
+    {
+        data = nf_gnarly_BinaryData::index_html;
+        dataSize = nf_gnarly_BinaryData::index_htmlSize;
+        mime = "text/html";
+    }
+    else if (path == "js/index.js")
+    {
+        data = nf_gnarly_BinaryData::index_js;
+        dataSize = nf_gnarly_BinaryData::index_jsSize;
+        mime = "application/javascript";
+    }
+    else if (path == "js/juce/index.js")
+    {
+        data = nf_gnarly_BinaryData::index_js2;
+        dataSize = nf_gnarly_BinaryData::index_js2Size;
+        mime = "application/javascript";
+    }
+    else if (path == "favicon.ico")
+    {
+        // Avoid backend DNS fallback on favicon lookup.
+        return std::nullopt;
+    }
+
+    if (data != nullptr && dataSize > 0)
+    {
+        DBG ("NfGnarly: Serving resource " + path);
+        return makeResource (data, dataSize, mime);
     }
 
     DBG ("NfGnarly: Resource not found: " + url);

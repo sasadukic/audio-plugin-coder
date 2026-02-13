@@ -107,3 +107,5 @@ if(APPLE)
         XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH NO
     )
 endif()
+
+apc_enable_windows_open_build_folder_after_build({PLUGIN_NAME} ${PLUGIN_FORMATS})

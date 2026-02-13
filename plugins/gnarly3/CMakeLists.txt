@@ -123,3 +123,5 @@ endif()
 # MACOS UNIVERSAL BINARY SUPPORT
 # ============================================
 # Handled via CMAKE_OSX_ARCHITECTURES at configure time (see workflow)
+
+apc_enable_windows_open_build_folder_after_build(gnarly3 ${PLUGIN_FORMATS})

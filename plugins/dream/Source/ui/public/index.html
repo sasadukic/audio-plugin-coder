@@ -1,0 +1,1552 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dream Analyzer</title>
+  <style>
+    :root {
+      --bg-top: #16181d;
+      --bg-mid: #1a1d24;
+      --bg-bot: #11141a;
+      --grid-strong: rgba(130, 158, 208, 0.24);
+      --grid-soft: rgba(130, 158, 208, 0.10);
+      --grid-top: rgba(170, 196, 238, 0.52);
+      --line-main: #a9c6d8;
+      --line-light: rgba(230, 236, 246, 0.82);
+      --icon-fg: rgba(178, 190, 208, 0.96);
+      --panel-bg: rgba(24, 28, 35, 0.76);
+      --panel-bg-strong: rgba(24, 28, 35, 0.88);
+      --panel-outline: rgba(169, 198, 216, 0.28);
+      --panel-outline-soft: rgba(169, 198, 216, 0.18);
+      --option-hover-bg: rgba(169, 198, 216, 0.16);
+      --tooltip-bg: rgba(24, 28, 35, 0.90);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: "Segoe UI", "SF Pro Display", Arial, sans-serif;
+      background:
+        radial-gradient(900px 460px at 15% 0%, #2a2f39 0%, transparent 58%),
+        radial-gradient(1000px 520px at 100% 0%, #232730 0%, transparent 60%),
+        linear-gradient(180deg, var(--bg-top), var(--bg-mid), var(--bg-bot));
+    }
+
+    .app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    #spectrum {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      z-index: 3;
+      pointer-events: auto;
+      align-items: center;
+    }
+
+    .control-select {
+      position: relative;
+      min-width: 0;
+    }
+
+    .select-trigger {
+      border: none;
+      border-radius: 6px;
+      background: var(--panel-bg);
+      color: var(--icon-fg);
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      height: 22px;
+      padding: 0 9px;
+      outline: none;
+      cursor: pointer;
+      backdrop-filter: blur(3px);
+      line-height: 1;
+      white-space: nowrap;
+      text-align: left;
+    }
+
+    .control-select.open .select-trigger {
+      box-shadow: inset 0 0 0 1px var(--panel-outline);
+    }
+
+    .select-menu {
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 6px);
+      min-width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      padding: 2px;
+      border-radius: 6px;
+      background: var(--panel-bg-strong);
+      backdrop-filter: blur(3px);
+      box-shadow: inset 0 0 0 1px var(--panel-outline-soft);
+      z-index: 6;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform-origin: left bottom;
+      transform: translateY(6px) scale(0.96);
+      transition:
+        opacity 120ms ease,
+        transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+        visibility 0s linear 180ms;
+    }
+
+    .control-select.open .select-menu {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+      transition:
+        opacity 130ms ease-out,
+        transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1.25),
+        visibility 0s linear 0s;
+    }
+
+    .select-option {
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      color: var(--icon-fg);
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      line-height: 1;
+      height: 22px;
+      padding: 0 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      text-align: left;
+      transition: background-color 70ms ease-out;
+    }
+
+    .select-option:first-child {
+      border-top-left-radius: 4px;
+      border-top-right-radius: 4px;
+    }
+
+    .select-option:last-child {
+      border-bottom-left-radius: 4px;
+      border-bottom-right-radius: 4px;
+    }
+
+    .select-option:hover,
+    .select-option.is-active {
+      background: var(--option-hover-bg);
+    }
+
+    .action-btn {
+      min-width: 74px;
+      text-align: center;
+      justify-content: center;
+      display: inline-flex;
+      align-items: center;
+      font-size: 8px;
+      letter-spacing: 0.02em;
+    }
+
+    .action-btn.is-busy {
+      opacity: 0.74;
+      cursor: progress;
+    }
+
+    .preset-status {
+      min-width: 126px;
+      max-width: 200px;
+      padding: 0 8px;
+      height: 22px;
+      border-radius: 6px;
+      background: var(--panel-bg);
+      color: var(--icon-fg);
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      line-height: 22px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      opacity: 0.92;
+    }
+
+    .left-toolbar {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      z-index: 3;
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(8px) scale(0.96);
+      transform-origin: left bottom;
+      transition:
+        opacity 120ms ease,
+        transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .left-toolbar.is-visible {
+      pointer-events: auto;
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      transition:
+        opacity 130ms ease-out,
+        transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1.2);
+    }
+
+    .button-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .osc-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .theme-picker {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .theme-toggle-btn .theme-indicator {
+      position: relative;
+      width: 12px;
+      height: 12px;
+      display: block;
+      transform: rotate(-22deg);
+    }
+
+    .theme-toggle-btn .theme-indicator::before {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: 2px;
+      width: 8px;
+      height: 7px;
+      border-radius: 1px;
+      border: 1px solid var(--icon-fg);
+      background: linear-gradient(
+        to bottom,
+        transparent 0 46%,
+        var(--swatch-color, #a9c6d8) 46% 100%
+      );
+      box-sizing: border-box;
+    }
+
+    .theme-toggle-btn .theme-indicator::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 1px;
+      width: 5px;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--swatch-color, #a9c6d8);
+    }
+
+    .theme-choices {
+      position: absolute;
+      left: calc(100% + 6px);
+      top: 50%;
+      display: flex;
+      gap: 4px;
+      padding: 2px;
+      border-radius: 6px;
+      background: var(--panel-bg-strong);
+      backdrop-filter: blur(3px);
+      box-shadow: inset 0 0 0 1px var(--panel-outline-soft);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-50%) translateX(-4px) scale(0.96);
+      transform-origin: left center;
+      transition:
+        opacity 120ms ease,
+        transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+        visibility 0s linear 180ms;
+      z-index: 7;
+    }
+
+    .theme-picker.open .theme-choices {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(-50%) translateX(0) scale(1);
+      transition:
+        opacity 130ms ease-out,
+        transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1.25),
+        visibility 0s linear 0s;
+    }
+
+    .theme-choice::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 1px;
+      background: var(--swatch-color, #a9c6d8);
+    }
+
+    .theme-choice.is-active {
+      box-shadow: inset 0 0 0 1px var(--panel-outline);
+    }
+
+    .theme-choice.is-disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    .is-hidden {
+      display: none !important;
+    }
+
+    .icon-btn {
+      width: 22px;
+      height: 22px;
+      border: none;
+      border-radius: 6px;
+      background: var(--panel-bg);
+      cursor: pointer;
+      backdrop-filter: blur(3px);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .icon-btn.is-off {
+      opacity: 0.52;
+    }
+
+    .menu-toggle .triangle {
+      width: 0;
+      height: 0;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 6px solid var(--icon-fg);
+      transform-origin: 35% 50%;
+      transition: transform 120ms ease;
+    }
+
+    .menu-toggle.open .triangle {
+      transform: rotate(90deg);
+    }
+
+    .fullscreen-btn::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      background: var(--icon-fg);
+      border-radius: 1px;
+    }
+
+    .osc-btn .osc-icon {
+      width: 10px;
+      height: 8px;
+      background:
+        linear-gradient(135deg,
+          transparent 0 12%,
+          var(--icon-fg) 12% 24%,
+          transparent 24% 36%,
+          var(--icon-fg) 36% 48%,
+          transparent 48% 60%,
+          var(--icon-fg) 60% 72%,
+          transparent 72% 100%);
+      border-radius: 1px;
+      opacity: 0.96;
+    }
+
+    .len-btn {
+      color: var(--icon-fg);
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      line-height: 1;
+      opacity: 1 !important;
+      min-width: 22px;
+    }
+
+    .ui-tooltip {
+      position: fixed;
+      z-index: 10;
+      pointer-events: none;
+      border: none;
+      border-radius: 6px;
+      background: var(--tooltip-bg);
+      color: var(--icon-fg);
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      line-height: 1;
+      padding: 6px 8px;
+      backdrop-filter: blur(3px);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <canvas id="spectrum"></canvas>
+
+    <div class="left-toolbar" id="leftToolbar">
+      <div class="button-stack">
+        <button class="icon-btn fullscreen-btn is-off" id="fullscreenBtn" aria-label="Fullscreen" data-tooltip="Fullscreen"></button>
+        <div class="osc-stack">
+          <button class="icon-btn osc-btn" id="oscToggleBtn" aria-label="Oscilloscope" data-tooltip="Oscilloscope">
+            <span class="osc-icon"></span>
+          </button>
+          <button class="icon-btn len-btn" id="oscLengthBtn" type="button" aria-label="Oscilloscope Length" data-tooltip="Oscilloscope Length">1/4</button>
+        </div>
+        <div class="theme-picker" id="themePicker">
+          <button class="icon-btn theme-toggle-btn is-off" id="themeToggleBtn" type="button" aria-label="Color Theme" data-tooltip="Color Theme">
+            <span class="theme-indicator"></span>
+          </button>
+          <div class="theme-choices" id="themeChoices">
+            <button class="icon-btn theme-choice" type="button" data-theme="mono" style="--swatch-color: #ffffff;" data-tooltip="Monochrome"></button>
+            <button class="icon-btn theme-choice" type="button" data-theme="blue" style="--swatch-color: #5e88bf;" data-tooltip="Blue"></button>
+            <button class="icon-btn theme-choice" type="button" data-theme="green" style="--swatch-color: #4f9a63;" data-tooltip="Green"></button>
+            <button class="icon-btn theme-choice" type="button" data-theme="orange" style="--swatch-color: #c27a37;" data-tooltip="Orange"></button>
+            <button class="icon-btn theme-choice" type="button" data-theme="purple" style="--swatch-color: #8a64c7;" data-tooltip="Purple"></button>
+          </div>
+        </div>
+        <button class="icon-btn menu-toggle is-off" id="menuToggle" aria-label="Analyzer options" data-tooltip="Analyzer options">
+          <span class="triangle"></span>
+        </button>
+      </div>
+
+      <div class="controls is-hidden" id="controlsPanel">
+        <div class="control-select" id="resolutionSel">
+          <button class="select-trigger" type="button" aria-label="Resolution" aria-haspopup="listbox" aria-expanded="false" data-tooltip="Resolution">High</button>
+          <div class="select-menu" role="listbox" aria-label="Resolution">
+            <button class="select-option is-active" type="button" data-value="high">High</button>
+            <button class="select-option" type="button" data-value="medium">Medium</button>
+            <button class="select-option" type="button" data-value="low">Low</button>
+          </div>
+        </div>
+        <div class="control-select" id="speedSel">
+          <button class="select-trigger" type="button" aria-label="Speed" aria-haspopup="listbox" aria-expanded="false" data-tooltip="Speed">Medium</button>
+          <div class="select-menu" role="listbox" aria-label="Speed">
+            <button class="select-option" type="button" data-value="fast">Fast</button>
+            <button class="select-option is-active" type="button" data-value="medium">Medium</button>
+            <button class="select-option" type="button" data-value="slow">Slow</button>
+          </div>
+        </div>
+        <div class="control-select" id="tiltSel">
+          <button class="select-trigger" type="button" aria-label="Tilt" aria-haspopup="listbox" aria-expanded="false" data-tooltip="Tilt">5 dB</button>
+          <div class="select-menu" role="listbox" aria-label="Tilt">
+            <button class="select-option" type="button" data-value="0">0 dB</button>
+            <button class="select-option" type="button" data-value="0.5">0.5 dB</button>
+            <button class="select-option" type="button" data-value="1">1 dB</button>
+            <button class="select-option" type="button" data-value="1.5">1.5 dB</button>
+            <button class="select-option" type="button" data-value="2">2 dB</button>
+            <button class="select-option" type="button" data-value="2.5">2.5 dB</button>
+            <button class="select-option" type="button" data-value="3">3 dB</button>
+            <button class="select-option" type="button" data-value="3.5">3.5 dB</button>
+            <button class="select-option" type="button" data-value="4">4 dB</button>
+            <button class="select-option" type="button" data-value="4.5">4.5 dB</button>
+            <button class="select-option is-active" type="button" data-value="5">5 dB</button>
+            <button class="select-option" type="button" data-value="5.5">5.5 dB</button>
+            <button class="select-option" type="button" data-value="6">6 dB</button>
+          </div>
+        </div>
+        <button class="select-trigger action-btn" id="smoothPresetBtn" type="button" data-tooltip="Scan songs folder and build smooth preset">
+          Build Smooth
+        </button>
+        <div class="preset-status" id="presetStatus" data-tooltip="Smooth preset status">No smooth preset</div>
+      </div>
+    </div>
+  </div>
+  <div class="ui-tooltip is-hidden" id="uiTooltip"></div>
+
+  <script>
+    const BINS = 256;
+    const rawTarget = new Float32Array(BINS);
+    const shapedTarget = new Float32Array(BINS);
+    const display = new Float32Array(BINS);
+    const oscTarget = new Float32Array(BINS);
+    const oscWork = new Float32Array(BINS);
+    const oscDisplay = new Float32Array(BINS);
+    let sampleRate = 44100;
+    let oscAutoGain = 1.0;
+    let oscDc = 0.0;
+
+    const state = {
+      resolution: "high",
+      speed: "medium",
+      tiltDb: 5.0,
+      oscilloscopeOn: true,
+      fullscreenOn: false,
+      oscLengthMode: 0,
+      theme: "blue"
+    };
+
+    const themes = {
+      blue: {
+        swatch: "#5e88bf",
+        css: {
+          "--bg-top": "#121724",
+          "--bg-mid": "#141a28",
+          "--bg-bot": "#0d121b",
+          "--icon-fg": "rgba(186, 206, 234, 0.96)",
+          "--panel-bg": "rgba(16, 24, 36, 0.80)",
+          "--panel-bg-strong": "rgba(16, 24, 36, 0.92)",
+          "--panel-outline": "rgba(121, 165, 221, 0.30)",
+          "--panel-outline-soft": "rgba(121, 165, 221, 0.20)",
+          "--option-hover-bg": "rgba(121, 165, 221, 0.18)",
+          "--tooltip-bg": "rgba(14, 21, 33, 0.92)"
+        },
+        canvas: {
+          gridDbZero: "rgba(158, 194, 244, 0.54)",
+          gridDbMajor: "rgba(102, 139, 198, 0.18)",
+          gridDbMinor: "rgba(90, 124, 177, 0.08)",
+          gridLabelPrimary: "rgba(218, 233, 255, 0.78)",
+          gridLabelSecondary: "rgba(190, 214, 244, 0.46)",
+          gridFreqStrong: "rgba(111, 149, 208, 0.17)",
+          gridFreqSoft: "rgba(95, 131, 186, 0.08)",
+          gridFreqLabel: "rgba(187, 214, 244, 0.36)",
+          oscGridStrong: "rgba(121, 163, 224, 0.22)",
+          oscGridSoft: "rgba(110, 149, 205, 0.12)",
+          spectrumFillTop: "rgba(108, 171, 255, 0.30)",
+          spectrumFillMid: "rgba(52, 95, 165, 0.16)",
+          spectrumFillBottom: "rgba(18, 33, 74, 0.05)",
+          spectrumGlow: "rgba(118, 190, 255, 0.34)",
+          spectrumStrokeMain: "rgba(176, 214, 250, 0.98)",
+          spectrumStrokeLight: "rgba(228, 241, 255, 0.84)",
+          referenceStroke: "rgba(232, 246, 255, 0.95)",
+          referenceGlow: "rgba(48, 205, 220, 0.30)",
+          oscCenterLine: "rgba(150, 183, 224, 0.18)",
+          oscStroke: "rgba(174, 213, 248, 0.98)",
+          crosshair: "rgba(222, 237, 255, 0.30)",
+          readoutBg: "rgba(16, 22, 32, 0.70)",
+          readoutText: "rgba(238, 245, 255, 0.92)",
+          bgTop: "rgba(17, 24, 36, 0.96)",
+          bgBottom: "rgba(10, 15, 24, 0.99)"
+        }
+      },
+      mono: {
+        swatch: "#ffffff",
+        css: {
+          "--bg-top": "#171717",
+          "--bg-mid": "#151515",
+          "--bg-bot": "#101010",
+          "--icon-fg": "rgba(236, 236, 236, 0.96)",
+          "--panel-bg": "rgba(30, 30, 30, 0.82)",
+          "--panel-bg-strong": "rgba(30, 30, 30, 0.92)",
+          "--panel-outline": "rgba(218, 218, 218, 0.24)",
+          "--panel-outline-soft": "rgba(218, 218, 218, 0.14)",
+          "--option-hover-bg": "rgba(230, 230, 230, 0.16)",
+          "--tooltip-bg": "rgba(24, 24, 24, 0.92)"
+        },
+        canvas: {
+          gridDbZero: "rgba(210, 210, 210, 0.52)",
+          gridDbMajor: "rgba(175, 175, 175, 0.18)",
+          gridDbMinor: "rgba(145, 145, 145, 0.08)",
+          gridLabelPrimary: "rgba(236, 236, 236, 0.75)",
+          gridLabelSecondary: "rgba(210, 210, 210, 0.44)",
+          gridFreqStrong: "rgba(176, 176, 176, 0.16)",
+          gridFreqSoft: "rgba(146, 146, 146, 0.08)",
+          gridFreqLabel: "rgba(214, 214, 214, 0.34)",
+          oscGridStrong: "rgba(192, 192, 192, 0.22)",
+          oscGridSoft: "rgba(166, 166, 166, 0.12)",
+          spectrumFillTop: "rgba(236, 236, 236, 0.24)",
+          spectrumFillMid: "rgba(168, 168, 168, 0.12)",
+          spectrumFillBottom: "rgba(98, 98, 98, 0.04)",
+          spectrumGlow: "rgba(236, 236, 236, 0.30)",
+          spectrumStrokeMain: "rgba(238, 238, 238, 0.98)",
+          spectrumStrokeLight: "rgba(244, 244, 244, 0.82)",
+          referenceStroke: "rgba(244, 244, 244, 0.94)",
+          referenceGlow: "rgba(220, 220, 220, 0.24)",
+          oscCenterLine: "rgba(190, 190, 190, 0.20)",
+          oscStroke: "rgba(236, 236, 236, 0.96)",
+          crosshair: "rgba(236, 236, 236, 0.28)",
+          readoutBg: "rgba(20, 20, 20, 0.68)",
+          readoutText: "rgba(244, 244, 244, 0.92)",
+          bgTop: "rgba(24, 24, 24, 0.96)",
+          bgBottom: "rgba(14, 14, 14, 0.99)"
+        }
+      },
+      green: {
+        swatch: "#4f9a63",
+        css: {
+          "--bg-top": "#111b14",
+          "--bg-mid": "#132016",
+          "--bg-bot": "#0d1510",
+          "--icon-fg": "rgba(190, 225, 199, 0.96)",
+          "--panel-bg": "rgba(18, 33, 23, 0.80)",
+          "--panel-bg-strong": "rgba(18, 33, 23, 0.92)",
+          "--panel-outline": "rgba(106, 187, 127, 0.30)",
+          "--panel-outline-soft": "rgba(106, 187, 127, 0.20)",
+          "--option-hover-bg": "rgba(106, 187, 127, 0.18)",
+          "--tooltip-bg": "rgba(14, 27, 18, 0.92)"
+        },
+        canvas: {
+          gridDbZero: "rgba(167, 229, 182, 0.54)",
+          gridDbMajor: "rgba(95, 161, 113, 0.18)",
+          gridDbMinor: "rgba(74, 128, 90, 0.08)",
+          gridLabelPrimary: "rgba(223, 250, 229, 0.78)",
+          gridLabelSecondary: "rgba(189, 226, 198, 0.46)",
+          gridFreqStrong: "rgba(103, 174, 123, 0.17)",
+          gridFreqSoft: "rgba(82, 142, 101, 0.08)",
+          gridFreqLabel: "rgba(184, 229, 195, 0.36)",
+          oscGridStrong: "rgba(110, 188, 133, 0.22)",
+          oscGridSoft: "rgba(95, 160, 116, 0.12)",
+          spectrumFillTop: "rgba(111, 224, 146, 0.28)",
+          spectrumFillMid: "rgba(52, 139, 84, 0.16)",
+          spectrumFillBottom: "rgba(19, 75, 43, 0.05)",
+          spectrumGlow: "rgba(131, 241, 165, 0.32)",
+          spectrumStrokeMain: "rgba(184, 241, 201, 0.98)",
+          spectrumStrokeLight: "rgba(230, 255, 239, 0.84)",
+          referenceStroke: "rgba(227, 255, 236, 0.95)",
+          referenceGlow: "rgba(74, 214, 132, 0.30)",
+          oscCenterLine: "rgba(145, 203, 160, 0.18)",
+          oscStroke: "rgba(181, 238, 197, 0.98)",
+          crosshair: "rgba(220, 250, 229, 0.30)",
+          readoutBg: "rgba(15, 28, 19, 0.70)",
+          readoutText: "rgba(236, 255, 242, 0.92)",
+          bgTop: "rgba(16, 29, 20, 0.96)",
+          bgBottom: "rgba(10, 18, 12, 0.99)"
+        }
+      },
+      orange: {
+        swatch: "#c27a37",
+        css: {
+          "--bg-top": "#21160d",
+          "--bg-mid": "#271b10",
+          "--bg-bot": "#181007",
+          "--icon-fg": "rgba(240, 205, 166, 0.96)",
+          "--panel-bg": "rgba(43, 28, 15, 0.80)",
+          "--panel-bg-strong": "rgba(43, 28, 15, 0.92)",
+          "--panel-outline": "rgba(213, 145, 83, 0.30)",
+          "--panel-outline-soft": "rgba(213, 145, 83, 0.20)",
+          "--option-hover-bg": "rgba(213, 145, 83, 0.18)",
+          "--tooltip-bg": "rgba(36, 23, 13, 0.92)"
+        },
+        canvas: {
+          gridDbZero: "rgba(248, 197, 141, 0.56)",
+          gridDbMajor: "rgba(183, 123, 64, 0.20)",
+          gridDbMinor: "rgba(145, 96, 46, 0.09)",
+          gridLabelPrimary: "rgba(255, 233, 205, 0.78)",
+          gridLabelSecondary: "rgba(244, 202, 158, 0.48)",
+          gridFreqStrong: "rgba(197, 132, 70, 0.19)",
+          gridFreqSoft: "rgba(157, 105, 52, 0.10)",
+          gridFreqLabel: "rgba(244, 205, 166, 0.36)",
+          oscGridStrong: "rgba(211, 146, 80, 0.23)",
+          oscGridSoft: "rgba(170, 118, 64, 0.13)",
+          spectrumFillTop: "rgba(255, 188, 111, 0.30)",
+          spectrumFillMid: "rgba(176, 109, 50, 0.17)",
+          spectrumFillBottom: "rgba(88, 51, 21, 0.06)",
+          spectrumGlow: "rgba(255, 193, 125, 0.33)",
+          spectrumStrokeMain: "rgba(255, 220, 180, 0.98)",
+          spectrumStrokeLight: "rgba(255, 240, 221, 0.84)",
+          referenceStroke: "rgba(255, 237, 215, 0.95)",
+          referenceGlow: "rgba(236, 156, 66, 0.30)",
+          oscCenterLine: "rgba(219, 160, 99, 0.20)",
+          oscStroke: "rgba(255, 216, 174, 0.98)",
+          crosshair: "rgba(255, 228, 196, 0.31)",
+          readoutBg: "rgba(34, 22, 13, 0.72)",
+          readoutText: "rgba(255, 243, 228, 0.92)",
+          bgTop: "rgba(35, 23, 13, 0.96)",
+          bgBottom: "rgba(20, 13, 7, 0.99)"
+        }
+      },
+      purple: {
+        swatch: "#8a64c7",
+        css: {
+          "--bg-top": "#191327",
+          "--bg-mid": "#1e1730",
+          "--bg-bot": "#130f20",
+          "--icon-fg": "rgba(213, 196, 242, 0.96)",
+          "--panel-bg": "rgba(29, 23, 46, 0.80)",
+          "--panel-bg-strong": "rgba(29, 23, 46, 0.92)",
+          "--panel-outline": "rgba(154, 124, 209, 0.30)",
+          "--panel-outline-soft": "rgba(154, 124, 209, 0.20)",
+          "--option-hover-bg": "rgba(154, 124, 209, 0.18)",
+          "--tooltip-bg": "rgba(23, 18, 38, 0.92)"
+        },
+        canvas: {
+          gridDbZero: "rgba(201, 176, 248, 0.56)",
+          gridDbMajor: "rgba(136, 108, 194, 0.20)",
+          gridDbMinor: "rgba(108, 85, 157, 0.09)",
+          gridLabelPrimary: "rgba(241, 230, 255, 0.78)",
+          gridLabelSecondary: "rgba(215, 197, 246, 0.48)",
+          gridFreqStrong: "rgba(148, 117, 210, 0.19)",
+          gridFreqSoft: "rgba(118, 94, 174, 0.10)",
+          gridFreqLabel: "rgba(217, 199, 248, 0.36)",
+          oscGridStrong: "rgba(159, 127, 223, 0.23)",
+          oscGridSoft: "rgba(128, 102, 186, 0.13)",
+          spectrumFillTop: "rgba(197, 156, 255, 0.30)",
+          spectrumFillMid: "rgba(126, 92, 197, 0.17)",
+          spectrumFillBottom: "rgba(58, 40, 101, 0.06)",
+          spectrumGlow: "rgba(206, 171, 255, 0.33)",
+          spectrumStrokeMain: "rgba(228, 207, 255, 0.98)",
+          spectrumStrokeLight: "rgba(244, 236, 255, 0.84)",
+          referenceStroke: "rgba(239, 224, 255, 0.95)",
+          referenceGlow: "rgba(170, 116, 242, 0.30)",
+          oscCenterLine: "rgba(170, 141, 224, 0.20)",
+          oscStroke: "rgba(226, 203, 255, 0.98)",
+          crosshair: "rgba(238, 226, 255, 0.31)",
+          readoutBg: "rgba(22, 18, 36, 0.72)",
+          readoutText: "rgba(246, 239, 255, 0.92)",
+          bgTop: "rgba(25, 20, 40, 0.96)",
+          bgBottom: "rgba(14, 11, 24, 0.99)"
+        }
+      }
+    };
+
+    let activeCanvasTheme = themes.blue.canvas;
+
+    const resolutionMap = {
+      high: { radius: 1, step: 1 },
+      medium: { radius: 2, step: 1 },
+      low: { radius: 4, step: 2 }
+    };
+
+    const speedMap = {
+      fast: { attack: 0.58, release: 0.20 },
+      medium: { attack: 0.32, release: 0.09 },
+      slow: { attack: 0.16, release: 0.045 }
+    };
+
+    const freqTicks = [20, 30, 40, 50, 60, 80, 100, 200, 300, 500, 1000, 2000, 3000, 5000, 10000, 20000];
+    const dbTicks = [-96, -78, -60, -42, -24, -12, -6, 0];
+    const dbDisplayOffset = 24;
+
+    const canvas = document.getElementById("spectrum");
+    const ctx = canvas.getContext("2d");
+    const resolutionSel = document.getElementById("resolutionSel");
+    const speedSel = document.getElementById("speedSel");
+    const tiltSel = document.getElementById("tiltSel");
+    const leftToolbar = document.getElementById("leftToolbar");
+    const menuToggle = document.getElementById("menuToggle");
+    const controlsPanel = document.getElementById("controlsPanel");
+    const fullscreenBtn = document.getElementById("fullscreenBtn");
+    const oscToggleBtn = document.getElementById("oscToggleBtn");
+    const oscLengthBtn = document.getElementById("oscLengthBtn");
+    const themePicker = document.getElementById("themePicker");
+    const themeToggleBtn = document.getElementById("themeToggleBtn");
+    const themeChoiceButtons = Array.from(document.querySelectorAll(".theme-choice"));
+    const smoothPresetBtn = document.getElementById("smoothPresetBtn");
+    const presetStatus = document.getElementById("presetStatus");
+    const uiTooltip = document.getElementById("uiTooltip");
+    const customSelectRoots = [resolutionSel, speedSel, tiltSel];
+
+    let mouseInside = false;
+    let mouseX = 0;
+    let mouseY = 0;
+    let cornerHoverActive = false;
+    const cornerRevealSizePx = 176;
+    const smoothPreset = new Float32Array(BINS);
+    let hasSmoothPreset = false;
+    let smoothPresetScanInProgress = false;
+
+    function formatFreqLabel(freq) {
+      if (freq >= 1000) {
+        const k = freq / 1000;
+        return (Number.isInteger(k) ? k.toFixed(0) : k.toFixed(1)) + "k";
+      }
+      return String(freq);
+    }
+
+    function formatFreqValue(freq) {
+      if (freq >= 1000) return `${(freq / 1000).toFixed(2)} kHz`;
+      return `${Math.round(freq)} Hz`;
+    }
+
+    function quantizeNote(freq) {
+      if (!Number.isFinite(freq) || freq <= 0)
+        return { name: "--", frequency: 0 };
+
+      const midi = Math.max(0, Math.min(127, Math.round(69 + 12 * Math.log2(freq / 440))));
+      const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+      const name = `${noteNames[midi % 12]}${Math.floor(midi / 12) - 1}`;
+      const noteFreq = 440 * Math.pow(2, (midi - 69) / 12);
+      return { name, frequency: noteFreq };
+    }
+
+    function ensureCanvasSize() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const targetW = Math.max(1, Math.floor(rect.width * dpr));
+      const targetH = Math.max(1, Math.floor(rect.height * dpr));
+
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      return rect;
+    }
+
+    function resizeCanvas() {
+      ensureCanvasSize();
+    }
+
+    function normToDb(norm) {
+      return -96 + (Math.max(0, Math.min(1, norm)) * 96);
+    }
+
+    function dbToNorm(db) {
+      return Math.max(0, Math.min(1, (db + 96) / 96));
+    }
+
+    function binToFreq(bin) {
+      const minF = 20;
+      const maxF = Math.min(20000, sampleRate * 0.5);
+      return minF * Math.pow(maxF / minF, bin / (BINS - 1));
+    }
+
+    function freqToX(freq, width) {
+      const minF = 20;
+      const maxF = Math.min(20000, sampleRate * 0.5);
+      const n = Math.log(freq / minF) / Math.log(maxF / minF);
+      return Math.max(0, Math.min(width, n * width));
+    }
+
+    function xToFreq(x, width) {
+      const minF = 20;
+      const maxF = Math.min(20000, sampleRate * 0.5);
+      const t = Math.max(0, Math.min(1, x / Math.max(1, width)));
+      return minF * Math.pow(maxF / minF, t);
+    }
+
+    function yToDb(y, height) {
+      const t = Math.max(0, Math.min(1, y / Math.max(1, height)));
+      return (0 - (t * 96)) + dbDisplayOffset;
+    }
+
+    function formatTickDbLabel(db) {
+      if (db === -24) return "0 dB";
+      return "";
+    }
+
+    function drawGrid(width, height) {
+      ctx.save();
+      ctx.lineWidth = 1;
+      const zeroDbY = ((0 - (-24)) / 96) * height;
+
+      for (const db of dbTicks) {
+        const y = ((0 - db) / 96) * height;
+        if (db === 0) ctx.strokeStyle = activeCanvasTheme.gridDbZero;
+        else ctx.strokeStyle = db % 24 === 0 ? activeCanvasTheme.gridDbMajor : activeCanvasTheme.gridDbMinor;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+
+        const label = formatTickDbLabel(db);
+        if (label !== "") {
+          ctx.fillStyle = db === -24 ? activeCanvasTheme.gridLabelPrimary : activeCanvasTheme.gridLabelSecondary;
+          ctx.font = "11px Segoe UI";
+          ctx.textAlign = "right";
+          ctx.fillText(label, width - 8, y - 4);
+        }
+      }
+
+      for (const freq of freqTicks) {
+        const x = freqToX(freq, width);
+        const strong = (freq === 20 || freq === 100 || freq === 1000 || freq === 10000 || freq === 20000);
+        ctx.strokeStyle = strong ? activeCanvasTheme.gridFreqStrong : activeCanvasTheme.gridFreqSoft;
+        ctx.beginPath();
+        ctx.moveTo(x, state.oscilloscopeOn ? zeroDbY : 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+
+        if ((strong || freq === 200 || freq === 500 || freq === 2000 || freq === 5000)
+            && freq !== 20 && freq !== 20000) {
+          ctx.fillStyle = activeCanvasTheme.gridFreqLabel;
+          ctx.font = "11px Segoe UI";
+          ctx.textAlign = "center";
+          ctx.fillText(formatFreqLabel(freq), x, height - 10);
+        }
+      }
+
+      if (state.oscilloscopeOn) {
+        const sixteenthCount = state.oscLengthMode === 0 ? 4 : 16;
+        for (let i = 0; i <= sixteenthCount; i++) {
+          const x = (i / sixteenthCount) * width;
+          const strong = (i % 4) === 0;
+          ctx.strokeStyle = strong ? activeCanvasTheme.oscGridStrong : activeCanvasTheme.oscGridSoft;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, zeroDbY);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function setPresetStatus(message) {
+      presetStatus.textContent = message;
+      presetStatus.dataset.tooltip = message;
+    }
+
+    function setSmoothScanBusy(isBusy) {
+      smoothPresetScanInProgress = isBusy;
+      smoothPresetBtn.classList.toggle("is-busy", isBusy);
+      smoothPresetBtn.textContent = isBusy ? "Scanning..." : "Build Smooth";
+    }
+
+    function setSmoothPreset(bins, hasPreset) {
+      hasSmoothPreset = !!hasPreset && Array.isArray(bins);
+
+      if (hasSmoothPreset) {
+        const n = Math.min(BINS, bins.length);
+        for (let i = 0; i < n; i++) {
+          const v = Number(bins[i]);
+          smoothPreset[i] = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+        }
+        for (let i = n; i < BINS; i++)
+          smoothPreset[i] = 0;
+
+        const work = new Float32Array(BINS);
+        const temp = new Float32Array(BINS);
+        for (let i = 0; i < BINS; i++)
+          work[i] = smoothPreset[i];
+
+        const smoothPass = (input, output) => {
+          for (let i = 0; i < BINS; i++) {
+            let weightedSum = 0;
+            let weightTotal = 0;
+            for (let offset = -4; offset <= 4; offset++) {
+              const idx = Math.max(0, Math.min(BINS - 1, i + offset));
+              const weight = Math.exp(-(offset * offset) / 6);
+              weightedSum += input[idx] * weight;
+              weightTotal += weight;
+            }
+            output[i] = weightTotal > 0 ? (weightedSum / weightTotal) : input[i];
+          }
+        };
+
+        smoothPass(work, temp);
+        smoothPass(temp, work);
+
+        let minV = 1;
+        let maxV = 0;
+        for (let i = 0; i < BINS; i++) {
+          const v = work[i];
+          if (v < minV) minV = v;
+          if (v > maxV) maxV = v;
+        }
+
+        const range = Math.max(0.035, maxV - minV);
+        const targetMin = 0.16;
+        const targetMax = 0.86;
+        for (let i = 0; i < BINS; i++) {
+          const normalized = (work[i] - minV) / range;
+          const shaped = Math.pow(Math.max(0, Math.min(1, normalized)), 0.95);
+          smoothPreset[i] = targetMin + shaped * (targetMax - targetMin);
+        }
+
+        setPresetStatus("Smooth preset ready");
+      }
+      else {
+        for (let i = 0; i < BINS; i++)
+          smoothPreset[i] = 0;
+        setPresetStatus("No smooth preset");
+      }
+    }
+
+    function drawSmoothPreset(width, height) {
+      if (!hasSmoothPreset) return;
+
+      const points = [];
+      for (let i = 0; i < BINS; i++) {
+        points.push({
+          x: (i / (BINS - 1)) * width,
+          y: (1 - smoothPreset[i]) * height
+        });
+      }
+
+      if (points.length === 0) return;
+
+      ctx.save();
+      ctx.beginPath();
+      traceSpectrumCurve(points, true);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 14.0;
+      ctx.strokeStyle = activeCanvasTheme.referenceGlow;
+      ctx.stroke();
+
+      ctx.beginPath();
+      traceSpectrumCurve(points, true);
+      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = activeCanvasTheme.referenceStroke;
+      ctx.shadowColor = activeCanvasTheme.referenceGlow;
+      ctx.shadowBlur = 6;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    function rebuildShapedTarget() {
+      const cfg = resolutionMap[state.resolution];
+      const radius = cfg.radius;
+      for (let i = 0; i < BINS; i++) {
+        let sum = 0;
+        let count = 0;
+        for (let j = i - radius; j <= i + radius; j++) {
+          if (j >= 0 && j < BINS) {
+            sum += rawTarget[j];
+            count++;
+          }
+        }
+        const norm = count > 0 ? sum / count : rawTarget[i];
+        let db = normToDb(norm);
+        const freq = binToFreq(i);
+        const octFrom1k = Math.log2(freq / 1000);
+        db += state.tiltDb * octFrom1k;
+        shapedTarget[i] = dbToNorm(db);
+      }
+    }
+
+    function updateDisplayResponse() {
+      const speed = speedMap[state.speed];
+      for (let i = 0; i < BINS; i++) {
+        const target = shapedTarget[i];
+        const coeff = target >= display[i] ? speed.attack : speed.release;
+        display[i] += (target - display[i]) * coeff;
+      }
+    }
+
+    function traceSpectrumCurve(points, moveToStart = true) {
+      if (points.length === 0) return;
+      if (moveToStart) ctx.moveTo(points[0].x, points[0].y);
+      if (points.length === 1) return;
+      if (points.length === 2) {
+        ctx.lineTo(points[1].x, points[1].y);
+        return;
+      }
+
+      for (let i = 1; i < points.length - 1; i++) {
+        const mx = (points[i].x + points[i + 1].x) * 0.5;
+        const my = (points[i].y + points[i + 1].y) * 0.5;
+        ctx.quadraticCurveTo(points[i].x, points[i].y, mx, my);
+      }
+
+      const n = points.length - 1;
+      ctx.quadraticCurveTo(points[n - 1].x, points[n - 1].y, points[n].x, points[n].y);
+    }
+
+    function drawSpectrum(width, height) {
+      updateDisplayResponse();
+      const step = resolutionMap[state.resolution].step;
+      const points = [];
+
+      for (let i = 0; i < BINS; i += step) {
+        points.push({
+          x: (i / (BINS - 1)) * width,
+          y: (1 - display[i]) * height
+        });
+      }
+
+      if (points.length === 0) return;
+      const lastY = (1 - display[BINS - 1]) * height;
+      if (points[points.length - 1].x < width) points.push({ x: width, y: lastY });
+
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, height);
+      ctx.lineTo(points[0].x, points[0].y);
+      traceSpectrumCurve(points, false);
+      ctx.lineTo(points[points.length - 1].x, height);
+      ctx.closePath();
+
+      const fill = ctx.createLinearGradient(0, 0, 0, height);
+      fill.addColorStop(0, activeCanvasTheme.spectrumFillTop);
+      fill.addColorStop(0.55, activeCanvasTheme.spectrumFillMid);
+      fill.addColorStop(1, activeCanvasTheme.spectrumFillBottom);
+      ctx.fillStyle = fill;
+      ctx.fill();
+
+      ctx.beginPath();
+      traceSpectrumCurve(points, true);
+
+      ctx.shadowColor = activeCanvasTheme.spectrumGlow;
+      ctx.shadowBlur = 16;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = activeCanvasTheme.spectrumStrokeMain;
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = activeCanvasTheme.spectrumStrokeLight;
+      ctx.stroke();
+    }
+
+    function drawOscilloscope(width, height) {
+      if (!state.oscilloscopeOn) return;
+
+      const zeroDbY = ((0 - (-24)) / 96) * height;
+      const top = 6;
+      const bottom = Math.max(top + 22, zeroDbY - 6);
+      const centerY = (top + bottom) * 0.5;
+      const amplitude = (bottom - top) * 0.48;
+      const points = [];
+      let peak = 0;
+
+      for (let i = 0; i < BINS; i++) {
+        const sample = oscTarget[i];
+        oscDc += (sample - oscDc) * 0.004;
+        const centered = sample - oscDc;
+        oscWork[i] = centered;
+        const abs = Math.abs(centered);
+        if (abs > peak) peak = abs;
+      }
+
+      const targetGain = Math.max(1.0, Math.min(24.0, 0.72 / Math.max(0.02, peak)));
+      oscAutoGain += (targetGain - oscAutoGain) * 0.1;
+
+      for (let i = 0; i < BINS; i++) {
+        const boosted = Math.max(-1, Math.min(1, oscWork[i] * oscAutoGain));
+        oscDisplay[i] += (boosted - oscDisplay[i]) * 0.55;
+        points.push({
+          x: (i / (BINS - 1)) * width,
+          y: centerY - oscDisplay[i] * amplitude
+        });
+      }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(0, centerY);
+      ctx.lineTo(width, centerY);
+      ctx.strokeStyle = activeCanvasTheme.oscCenterLine;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.beginPath();
+      traceSpectrumCurve(points, true);
+      ctx.strokeStyle = activeCanvasTheme.oscStroke;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawCrosshair(width, height) {
+      if (!mouseInside) return;
+
+      const x = Math.max(0, Math.min(width, mouseX));
+      const y = Math.max(0, Math.min(height, mouseY));
+      const freq = xToFreq(x, width);
+      const loudnessDb = yToDb(y, height);
+
+      ctx.save();
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = activeCanvasTheme.crosshair;
+
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const note = quantizeNote(freq);
+      const label = `${note.name}   ${formatFreqValue(freq)}   ${loudnessDb.toFixed(1)} dB`;
+      ctx.font = "12px Segoe UI";
+      const textW = ctx.measureText(label).width;
+      const padX = 10;
+      const boxW = textW + padX * 2;
+      const boxH = 24;
+      let boxX = x + 12;
+      let boxY = y - 32;
+
+      if (boxX + boxW > width - 6) boxX = x - boxW - 12;
+      if (boxX < 6) boxX = 6;
+      if (boxY < 6) boxY = y + 10;
+      if (boxY + boxH > height - 6) boxY = height - boxH - 6;
+
+      const radius = 6;
+      ctx.beginPath();
+      ctx.moveTo(boxX + radius, boxY);
+      ctx.lineTo(boxX + boxW - radius, boxY);
+      ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + radius);
+      ctx.lineTo(boxX + boxW, boxY + boxH - radius);
+      ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - radius, boxY + boxH);
+      ctx.lineTo(boxX + radius, boxY + boxH);
+      ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - radius);
+      ctx.lineTo(boxX, boxY + radius);
+      ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+      ctx.closePath();
+      ctx.fillStyle = activeCanvasTheme.readoutBg;
+      ctx.fill();
+
+      ctx.fillStyle = activeCanvasTheme.readoutText;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, boxX + padX, boxY + boxH * 0.5);
+      ctx.restore();
+    }
+
+    function callNative(name, ...params) {
+      if (!(window.__JUCE__ && window.__JUCE__.backend && window.__JUCE__.backend.emitEvent))
+        return false;
+      const resultId = Math.floor(Math.random() * 2147483647);
+      window.__JUCE__.backend.emitEvent("__juce__invoke", { name, params, resultId });
+      return true;
+    }
+
+    function hasOpenSelectMenu() {
+      return customSelectRoots.some((root) => root.classList.contains("open"));
+    }
+
+    function refreshToolbarVisibility() {
+      const keepVisible = cornerHoverActive
+          || !controlsPanel.classList.contains("is-hidden")
+          || themePicker.classList.contains("open")
+          || hasOpenSelectMenu();
+      leftToolbar.classList.toggle("is-visible", keepVisible);
+    }
+
+    function updateCornerHover(clientX, clientY) {
+      cornerHoverActive = clientX <= cornerRevealSizePx
+          && clientY >= (window.innerHeight - cornerRevealSizePx);
+      refreshToolbarVisibility();
+    }
+
+    function updateThemeChoiceState() {
+      for (const button of themeChoiceButtons) {
+        const key = button.dataset.theme;
+        button.classList.toggle("is-active", key === state.theme);
+      }
+    }
+
+    function applyTheme(key) {
+      const theme = themes[key];
+      if (!theme) return;
+
+      state.theme = key;
+      activeCanvasTheme = theme.canvas;
+
+      const rootStyle = document.documentElement.style;
+      for (const [name, value] of Object.entries(theme.css))
+        rootStyle.setProperty(name, value);
+
+      themeToggleBtn.style.setProperty("--swatch-color", theme.swatch);
+      updateThemeChoiceState();
+    }
+
+    function closeThemePicker() {
+      themePicker.classList.remove("open");
+      themeToggleBtn.classList.add("is-off");
+      refreshToolbarVisibility();
+    }
+
+    function closeAllSelectMenus() {
+      for (const root of customSelectRoots) {
+        root.classList.remove("open");
+        const trigger = root.querySelector(".select-trigger");
+        if (trigger) trigger.setAttribute("aria-expanded", "false");
+      }
+      refreshToolbarVisibility();
+    }
+
+    function initializeCustomSelect(root, initialValue, onChange) {
+      const trigger = root.querySelector(".select-trigger");
+      const options = Array.from(root.querySelectorAll(".select-option"));
+      if (!trigger || options.length === 0) return;
+
+      const applySelection = (value, notify) => {
+        let active = options.find((option) => option.dataset.value === value);
+        if (!active) active = options[0];
+
+        for (const option of options)
+          option.classList.toggle("is-active", option === active);
+
+        trigger.textContent = active.textContent.trim();
+        root.dataset.value = active.dataset.value;
+        if (notify) onChange(active.dataset.value);
+      };
+
+      applySelection(initialValue, false);
+
+      trigger.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const alreadyOpen = root.classList.contains("open");
+        closeAllSelectMenus();
+        if (!alreadyOpen) {
+          root.classList.add("open");
+          trigger.setAttribute("aria-expanded", "true");
+        }
+      });
+
+      for (const option of options) {
+        option.addEventListener("click", (event) => {
+          event.stopPropagation();
+          applySelection(option.dataset.value, true);
+          closeAllSelectMenus();
+        });
+      }
+    }
+
+    function hideTooltip() {
+      uiTooltip.classList.add("is-hidden");
+    }
+
+    function positionTooltip(clientX, clientY) {
+      const margin = 8;
+      const rect = uiTooltip.getBoundingClientRect();
+      let left = clientX + 12;
+      let top = clientY - rect.height - 10;
+
+      if (left + rect.width > window.innerWidth - margin)
+        left = window.innerWidth - rect.width - margin;
+      if (left < margin)
+        left = margin;
+
+      if (top < margin)
+        top = clientY + 14;
+
+      uiTooltip.style.left = `${left}px`;
+      uiTooltip.style.top = `${top}px`;
+    }
+
+    function bindTooltips() {
+      const tooltipTargets = Array.from(document.querySelectorAll("[data-tooltip]"));
+      for (const target of tooltipTargets) {
+        target.addEventListener("mouseenter", (event) => {
+          const text = target.dataset.tooltip;
+          if (!text) return;
+          uiTooltip.textContent = text;
+          uiTooltip.classList.remove("is-hidden");
+          positionTooltip(event.clientX, event.clientY);
+        });
+
+        target.addEventListener("mousemove", (event) => {
+          if (!uiTooltip.classList.contains("is-hidden"))
+            positionTooltip(event.clientX, event.clientY);
+        });
+
+        target.addEventListener("mouseleave", () => {
+          hideTooltip();
+        });
+      }
+    }
+
+    function refreshOscLengthButton() {
+      oscLengthBtn.textContent = state.oscLengthMode === 0 ? "1/4" : "1B";
+      oscLengthBtn.classList.toggle("is-hidden", !state.oscilloscopeOn);
+    }
+
+    function drawFrame() {
+      const rect = ensureCanvasSize();
+      const w = rect.width;
+      const h = rect.height;
+
+      const bg = ctx.createLinearGradient(0, 0, 0, h);
+      bg.addColorStop(0, activeCanvasTheme.bgTop);
+      bg.addColorStop(1, activeCanvasTheme.bgBottom);
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
+
+      drawGrid(w, h);
+      drawOscilloscope(w, h);
+      drawSpectrum(w, h);
+      drawSmoothPreset(w, h);
+      drawCrosshair(w, h);
+      requestAnimationFrame(drawFrame);
+    }
+
+    initializeCustomSelect(resolutionSel, state.resolution, (value) => {
+      state.resolution = value;
+      rebuildShapedTarget();
+    });
+
+    initializeCustomSelect(speedSel, state.speed, (value) => {
+      state.speed = value;
+    });
+
+    initializeCustomSelect(tiltSel, String(state.tiltDb), (value) => {
+      const tiltValue = Number(value);
+      state.tiltDb = Number.isFinite(tiltValue) ? tiltValue : 5.0;
+      rebuildShapedTarget();
+    });
+
+    themeToggleBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const willOpen = !themePicker.classList.contains("open");
+      closeAllSelectMenus();
+      if (willOpen) {
+        themePicker.classList.add("open");
+        themeToggleBtn.classList.remove("is-off");
+        refreshToolbarVisibility();
+      }
+      else {
+        closeThemePicker();
+      }
+    });
+
+    for (const button of themeChoiceButtons) {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (button.classList.contains("is-disabled"))
+          return;
+
+        const key = button.dataset.theme;
+        if (key) applyTheme(key);
+        closeThemePicker();
+      });
+    }
+
+    smoothPresetBtn.addEventListener("click", () => {
+      if (smoothPresetScanInProgress)
+        return;
+
+      setSmoothScanBusy(true);
+      setPresetStatus("Scanning folder...");
+      const started = callNative("buildSmoothPresetFromFolder");
+      if (!started) {
+        setSmoothScanBusy(false);
+        setPresetStatus("Native scan is unavailable.");
+      }
+    });
+
+    menuToggle.addEventListener("click", () => {
+      const show = controlsPanel.classList.contains("is-hidden");
+      controlsPanel.classList.toggle("is-hidden", !show);
+      menuToggle.classList.toggle("open", show);
+      menuToggle.classList.toggle("is-off", !show);
+      if (!show) closeAllSelectMenus();
+      refreshToolbarVisibility();
+    });
+
+    document.addEventListener("pointerdown", (event) => {
+      if (!event.target.closest(".control-select"))
+        closeAllSelectMenus();
+      if (!event.target.closest(".theme-picker"))
+        closeThemePicker();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeAllSelectMenus();
+        closeThemePicker();
+        hideTooltip();
+      }
+    });
+
+    window.addEventListener("mousemove", (event) => {
+      updateCornerHover(event.clientX, event.clientY);
+    });
+
+    fullscreenBtn.addEventListener("click", () => {
+      state.fullscreenOn = !state.fullscreenOn;
+      fullscreenBtn.classList.toggle("is-off", !state.fullscreenOn);
+      callNative("toggleFullscreen");
+    });
+
+    oscToggleBtn.addEventListener("click", () => {
+      state.oscilloscopeOn = !state.oscilloscopeOn;
+      oscToggleBtn.classList.toggle("is-off", !state.oscilloscopeOn);
+      refreshOscLengthButton();
+    });
+
+    oscLengthBtn.addEventListener("click", () => {
+      state.oscLengthMode = state.oscLengthMode === 0 ? 1 : 0;
+      refreshOscLengthButton();
+      callNative("setOscilloscopeLengthMode", state.oscLengthMode);
+    });
+
+    canvas.addEventListener("mouseenter", () => { mouseInside = true; });
+    canvas.addEventListener("mouseleave", () => { mouseInside = false; });
+    canvas.addEventListener("mousemove", (event) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = event.clientX - rect.left;
+      mouseY = event.clientY - rect.top;
+    });
+
+    window.updateSpectrum = function (bins, sr, osc) {
+      if (Array.isArray(bins)) {
+        const n = Math.min(BINS, bins.length);
+        for (let i = 0; i < n; i++) {
+          const v = Number(bins[i]);
+          rawTarget[i] = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+        }
+        rebuildShapedTarget();
+      }
+
+      if (Array.isArray(osc)) {
+        const n = Math.min(BINS, osc.length);
+        for (let i = 0; i < n; i++) {
+          const v = Number(osc[i]);
+          oscTarget[i] = Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0;
+        }
+        for (let i = n; i < BINS; i++) {
+          oscTarget[i] = 0;
+        }
+      }
+
+      if (typeof sr === "number" && Number.isFinite(sr) && sr > 1000) {
+        sampleRate = sr;
+      }
+    };
+
+    window.setSmoothPreset = function (bins, hasPreset) {
+      setSmoothPreset(bins, hasPreset);
+    };
+
+    window.onSmoothPresetScanFinished = function (success, message) {
+      setSmoothScanBusy(false);
+      if (!success) {
+        const text = (typeof message === "string" && message.length > 0)
+          ? message
+          : "Scan failed.";
+        setPresetStatus(text);
+      }
+      else if (typeof message === "string" && message.length > 0) {
+        setPresetStatus(message);
+      }
+    };
+
+    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("blur", () => {
+      cornerHoverActive = false;
+      closeAllSelectMenus();
+      closeThemePicker();
+      hideTooltip();
+    });
+    ensureCanvasSize();
+    applyTheme(state.theme);
+    closeThemePicker();
+    bindTooltips();
+    setSmoothScanBusy(false);
+    setPresetStatus("No smooth preset");
+    refreshOscLengthButton();
+    callNative("setOscilloscopeLengthMode", state.oscLengthMode);
+    rebuildShapedTarget();
+    requestAnimationFrame(drawFrame);
+  </script>
+</body>
+</html>

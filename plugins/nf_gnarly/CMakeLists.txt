@@ -32,6 +32,8 @@ message(STATUS "NF Gnarly: WebView backend: ${WEBVIEW_BACKEND}")
 juce_add_binary_data(nf_gnarly_WebUI
     SOURCES
         Source/ui/public/index.html
+        Source/ui/public/js/index.js
+        Source/ui/public/js/juce/index.js
     NAMESPACE nf_gnarly_BinaryData
 )
 
@@ -110,6 +112,16 @@ if(WIN32)
             JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
             _USE_MATH_DEFINES=1
     )
+
+    # Auto-install built VST3 to the standard system location after each build.
+    set(NF_GNARLY_VST3_SYSTEM_DIR "C:/Program Files/Common Files/VST3/Gnarly.vst3")
+    set(NF_GNARLY_POST_BUILD_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../../scripts/auto-copy-vst3.ps1")
+    add_custom_command(
+        TARGET nf_gnarly_VST3
+        POST_BUILD
+        COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${NF_GNARLY_POST_BUILD_SCRIPT}" -BuiltBinaryPath "$<TARGET_FILE:nf_gnarly_VST3>" -DestinationVst3Dir "${NF_GNARLY_VST3_SYSTEM_DIR}"
+        VERBATIM
+    )
 endif()
 
 # macOS-specific definitions
@@ -133,3 +145,5 @@ endif()
 # MACOS UNIVERSAL BINARY SUPPORT
 # ============================================
 # Handled via CMAKE_OSX_ARCHITECTURES at configure time (see workflow)
+
+apc_enable_windows_open_build_folder_after_build(nf_gnarly ${PLUGIN_FORMATS})

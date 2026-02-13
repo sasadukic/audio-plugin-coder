@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clouds Clone</title>
+  <style>
+    :root {
+      --bg: #161a24;
+      --panel: #1e2431;
+      --line: #39465f;
+      --text: #d8dfef;
+      --muted: #93a2bf;
+      --accent: #6fc4ff;
+      --knob: #2a3347;
+      --knob-edge: #4a5b79;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(900px 460px at 8% -20%, #24314b 0%, transparent 58%), var(--bg);
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      user-select: none;
+    }
+    #ui {
+      width: 100%;
+      height: 100%;
+      padding: 10px;
+      display: grid;
+      grid-template-rows: auto auto auto auto;
+      gap: 8px;
+      background: linear-gradient(180deg, #24314a, #1a2233);
+      border: 2px solid #3d4b63;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+    .title { font-size: 18px; }
+    .sub { font-size: 11px; color: var(--muted); }
+    .scope {
+      background: #1d2537;
+      padding: 6px;
+    }
+    #activityViz {
+      width: 100%;
+      height: 72px;
+      display: block;
+      background: #1d2537;
+    }
+    .row {
+      display: grid;
+      gap: 8px;
+    }
+    .row.main { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .row.blend { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .control {
+      display: grid;
+      place-items: center;
+      gap: 3px;
+      padding-top: 2px;
+    }
+    .knob {
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      border: none;
+      background: conic-gradient(from 225deg, var(--accent) 0deg, var(--accent) 30deg, #263146 30deg, #263146 360deg);
+      position: relative;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+    .knob::after {
+      content: "";
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: #172033;
+    }
+    .pointer {
+      position: absolute;
+      top: 7px;
+      left: 50%;
+      width: 2px;
+      height: 12px;
+      background: #b7c5e8;
+      transform: translateX(-50%) rotate(-135deg);
+      transform-origin: 50% 24px;
+    }
+    .label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      text-align: center;
+    }
+    .value {
+      font-size: 10px;
+      color: #c3cde3;
+      font-family: Consolas, monospace;
+    }
+    .freeze-row {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .freeze-btn {
+      height: 24px;
+      min-width: 68px;
+      border: 1px solid #4a5b78;
+      background: #2a3550;
+      color: #cfd8ea;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 0 10px;
+    }
+    .freeze-btn.active {
+      background: #2d4f72;
+      border-color: #73c6ff;
+      color: #e5f3ff;
+    }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      align-items: end;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <div class="header">
+      <div class="title">Clouds</div>
+      <div class="sub">Original Controls + Original DSP Core</div>
+    </div>
+
+    <div class="scope">
+      <canvas id="activityViz" width="780" height="72"></canvas>
+    </div>
+
+    <div class="row main">
+      <div class="control"><div class="knob" data-param="position"><div class="pointer" id="position-pointer"></div></div><div class="label">Position</div><div class="value" id="position-value">0.50</div></div>
+      <div class="control"><div class="knob" data-param="size"><div class="pointer" id="size-pointer"></div></div><div class="label">Size</div><div class="value" id="size-value">0.50</div></div>
+      <div class="control"><div class="knob" data-param="pitch"><div class="pointer" id="pitch-pointer"></div></div><div class="label">Pitch</div><div class="value" id="pitch-value">0 st</div></div>
+      <div class="control"><div class="knob" data-param="density"><div class="pointer" id="density-pointer"></div></div><div class="label">Density</div><div class="value" id="density-value">0.50</div></div>
+      <div class="control"><div class="knob" data-param="texture"><div class="pointer" id="texture-pointer"></div></div><div class="label">Texture</div><div class="value" id="texture-value">0.50</div></div>
+    </div>
+
+    <div class="row blend">
+      <div class="control"><div class="knob" data-param="blend"><div class="pointer" id="blend-pointer"></div></div><div class="label">Blend</div><div class="value" id="blend-value">0.65</div></div>
+      <div class="control"><div class="knob" data-param="spread"><div class="pointer" id="spread-pointer"></div></div><div class="label">Spread</div><div class="value" id="spread-value">0.50</div></div>
+      <div class="control"><div class="knob" data-param="feedback"><div class="pointer" id="feedback-pointer"></div></div><div class="label">Feedback</div><div class="value" id="feedback-value">0.20</div></div>
+      <div class="control"><div class="knob" data-param="reverb"><div class="pointer" id="reverb-pointer"></div></div><div class="label">Reverb</div><div class="value" id="reverb-value">0.25</div></div>
+    </div>
+
+    <div class="freeze-row">
+      <button class="freeze-btn" id="freeze-btn">Freeze</button>
+    </div>
+
+    <div class="footer">
+      <span>Mutable Instruments Clouds UI Layout</span>
+      <span>WebView</span>
+    </div>
+  </div>
+
+  <script>
+    if (typeof window.__JUCE__ !== "undefined" && typeof window.__JUCE__.getAndroidUserScripts !== "undefined" && typeof window.inAndroidUserScriptEval === "undefined") {
+      window.inAndroidUserScriptEval = true;
+      eval(window.__JUCE__.getAndroidUserScripts());
+      delete window.inAndroidUserScriptEval;
+    }
+    if (typeof window.__JUCE__ === "undefined") window.__JUCE__ = { postMessage: function () {} };
+    if (typeof window.__JUCE__.initialisationData === "undefined")
+      window.__JUCE__.initialisationData = { __juce__platform: [], __juce__functions: [], __juce__registeredGlobalEventIds: [], __juce__sliders: [], __juce__toggles: [], __juce__comboBoxes: [] };
+
+    class ListenerList {
+      constructor() { this.listeners = new Map(); this.listenerId = 0; }
+      addListener(fn) { const id = this.listenerId++; this.listeners.set(id, fn); return id; }
+      removeListener(id) { this.listeners.delete(id); }
+      callListeners(payload) { for (const [, value] of this.listeners) value(payload); }
+    }
+    class EventListenerList {
+      constructor() { this.eventListeners = new Map(); }
+      addEventListener(eventId, fn) { if (!this.eventListeners.has(eventId)) this.eventListeners.set(eventId, new ListenerList()); return [eventId, this.eventListeners.get(eventId).addListener(fn)]; }
+      removeEventListener([eventId, id]) { if (this.eventListeners.has(eventId)) this.eventListeners.get(eventId).removeListener(id); }
+      emitEvent(eventId, object) { if (this.eventListeners.has(eventId)) this.eventListeners.get(eventId).callListeners(object); }
+    }
+    class Backend {
+      constructor() { this.listeners = new EventListenerList(); }
+      addEventListener(eventId, fn) { return this.listeners.addEventListener(eventId, fn); }
+      removeEventListener(ref) { this.listeners.removeEventListener(ref); }
+      emitEvent(eventId, object) { window.__JUCE__.postMessage(JSON.stringify({ eventId, payload: object })); }
+      emitByBackend(eventId, object) { this.listeners.emitEvent(eventId, JSON.parse(object)); }
+    }
+    if (typeof window.__JUCE__.backend === "undefined") window.__JUCE__.backend = new Backend();
+
+    class SliderState {
+      constructor(name) {
+        this.name = name;
+        this.identifier = "__juce__slider" + this.name;
+        this.scaledValue = 0;
+        this.properties = { start: 0, end: 1, skew: 1, interval: 0 };
+        this.valueChangedEvent = new ListenerList();
+        window.__JUCE__.backend.addEventListener(this.identifier, (e) => {
+          if (e.eventType === "valueChanged") {
+            this.scaledValue = e.value;
+            this.valueChangedEvent.callListeners();
+          }
+          if (e.eventType === "propertiesChanged") {
+            let { eventType: _, ...rest } = e;
+            this.properties = rest;
+            this.valueChangedEvent.callListeners();
+          }
+        });
+        window.__JUCE__.backend.emitEvent(this.identifier, { eventType: "requestInitialUpdate" });
+      }
+      normalisedToScaledValue(v) { return Math.pow(v, 1 / this.properties.skew) * (this.properties.end - this.properties.start) + this.properties.start; }
+      getNormalisedValue() { return Math.pow((this.scaledValue - this.properties.start) / (this.properties.end - this.properties.start), this.properties.skew); }
+      setNormalisedValue(v) {
+        const clamped = Math.max(0, Math.min(1, v));
+        this.scaledValue = this.normalisedToScaledValue(clamped);
+        window.__JUCE__.backend.emitEvent(this.identifier, { eventType: "valueChanged", value: this.scaledValue });
+      }
+      getScaledValue() { return this.scaledValue; }
+      sliderDragStarted() { window.__JUCE__.backend.emitEvent(this.identifier, { eventType: "sliderDragStarted" }); }
+      sliderDragEnded() { window.__JUCE__.backend.emitEvent(this.identifier, { eventType: "sliderDragEnded" }); }
+    }
+
+    const sliderStates = new Map();
+    const getSliderState = (name) => {
+      if (!sliderStates.has(name)) sliderStates.set(name, new SliderState(name));
+      return sliderStates.get(name);
+    };
+
+    const cfg = {
+      position: { format: v => v.toFixed(2) },
+      size: { format: v => v.toFixed(2) },
+      pitch: { format: v => Math.round(v) + " st" },
+      density: { format: v => v.toFixed(2) },
+      texture: { format: v => v.toFixed(2) },
+      blend: { format: v => v.toFixed(2) },
+      spread: { format: v => v.toFixed(2) },
+      feedback: { format: v => v.toFixed(2) },
+      reverb: { format: v => v.toFixed(2) }
+    };
+
+    let incomingLevel = 0.0;
+    let grainLevel = 0.0;
+    let incomingWave = new Array(128).fill(0);
+    window.updateIncomingAudio = function (inL, grainL, wave) {
+      incomingLevel = Math.max(0, Math.min(1, Number(inL) || 0));
+      grainLevel = Math.max(0, Math.min(1, Number(grainL) || 0));
+      if (Array.isArray(wave) && wave.length > 0) incomingWave = wave;
+    };
+
+    function drawVisualization() {
+      const c = document.getElementById("activityViz");
+      const ctx = c.getContext("2d");
+      const w = c.width;
+      const h = c.height;
+      const pos = getSliderState("position").getScaledValue();
+      const size = getSliderState("size").getScaledValue();
+      const density = getSliderState("density").getScaledValue();
+
+      ctx.fillStyle = "#1d2537";
+      ctx.fillRect(0, 0, w, h);
+
+      const mid = h * 0.55;
+      ctx.strokeStyle = "rgba(111,196,255,0.85)";
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      for (let i = 0; i < w; i++) {
+        const src = incomingWave[Math.floor((i / Math.max(1, w - 1)) * (incomingWave.length - 1))] || 0;
+        const y = mid - src * (h * 0.33);
+        if (i === 0) ctx.moveTo(i, y); else ctx.lineTo(i, y);
+      }
+      ctx.stroke();
+
+      const center = 8 + pos * (w - 16);
+      const half = Math.max(8, size * (w * 0.24));
+      const minX = Math.max(6, center - half);
+      const maxX = Math.min(w - 6, center + half);
+      ctx.fillStyle = "rgba(111,196,255,0.12)";
+      ctx.fillRect(minX, 8, Math.max(2, maxX - minX), h - 16);
+
+      const t = performance.now() * 0.001;
+      const count = Math.floor(4 + density * 34);
+      for (let i = 0; i < count; i++) {
+        const seed = i * 11.3 + t * (0.8 + density * 3.0);
+        const x = minX + ((Math.sin(seed * 1.37) * 0.5 + 0.5) * Math.max(2, maxX - minX));
+        const y = 10 + ((Math.cos(seed * 1.91) * 0.5 + 0.5) * (h - 20));
+        const r = 1.2 + (Math.sin(seed * 2.9) * 0.5 + 0.5) * 2.3;
+        ctx.fillStyle = "rgba(111,196,255,0.62)";
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      }
+
+      const meterX = w - 8;
+      const meterH = (h - 12) * grainLevel;
+      ctx.fillStyle = "rgba(111,196,255,0.75)";
+      ctx.fillRect(meterX, h - 6 - meterH, 3, meterH);
+
+      requestAnimationFrame(drawVisualization);
+    }
+
+    function bindKnob(param) {
+      const state = getSliderState(param);
+      const pointer = document.getElementById(param + "-pointer");
+      const value = document.getElementById(param + "-value");
+      const knob = document.querySelector('.knob[data-param="' + param + '"]');
+      if (!pointer || !value || !knob) return;
+      let drag = false;
+      let lastY = 0;
+      const update = () => {
+        const norm = Math.max(0, Math.min(1, state.getNormalisedValue()));
+        const angle = -135 + norm * 270;
+        const arc = norm * 270;
+        pointer.style.transform = "translateX(-50%) rotate(" + angle + "deg)";
+        knob.style.background = "conic-gradient(from 225deg, var(--accent) 0deg, var(--accent) " + arc + "deg, var(--knob) " + arc + "deg, var(--knob) 360deg)";
+        value.textContent = cfg[param].format(state.getScaledValue());
+      };
+      state.valueChangedEvent.addListener(update);
+      update();
+      knob.addEventListener("mousedown", (e) => { drag = true; lastY = e.clientY; state.sliderDragStarted(); e.preventDefault(); });
+      document.addEventListener("mousemove", (e) => {
+        if (!drag) return;
+        const dy = lastY - e.clientY;
+        lastY = e.clientY;
+        state.setNormalisedValue(state.getNormalisedValue() + dy * 0.0045);
+      });
+      document.addEventListener("mouseup", () => { if (drag) { drag = false; state.sliderDragEnded(); } });
+      knob.addEventListener("wheel", (e) => { e.preventDefault(); state.setNormalisedValue(state.getNormalisedValue() + (e.deltaY > 0 ? -0.02 : 0.02)); });
+    }
+
+    function bindToggle(btnId, param, activeClass) {
+      const btn = document.getElementById(btnId);
+      const state = getSliderState(param);
+      const render = () => btn.classList.toggle(activeClass, state.getScaledValue() > 0.5);
+      state.valueChangedEvent.addListener(render);
+      btn.addEventListener("click", () => state.setNormalisedValue(state.getScaledValue() > 0.5 ? 0.0 : 1.0));
+      render();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      bindKnob("position");
+      bindKnob("size");
+      bindKnob("pitch");
+      bindKnob("density");
+      bindKnob("texture");
+      bindKnob("blend");
+      bindKnob("spread");
+      bindKnob("feedback");
+      bindKnob("reverb");
+      bindToggle("freeze-btn", "freeze", "active");
+      drawVisualization();
+    });
+  </script>
+</body>
+</html>

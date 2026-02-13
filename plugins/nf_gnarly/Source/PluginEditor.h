@@ -29,15 +29,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> resonanceRelay;
 
     // 2. WEBVIEW SECOND (destroyed middle - depends on relays via withOptionsFrom)
-    struct SinglePageBrowser : juce::WebBrowserComponent
-    {
-        using WebBrowserComponent::WebBrowserComponent;
-        bool pageAboutToLoad (const juce::String& newURL) override
-        {
-            return newURL == getResourceProviderRoot();
-        }
-    };
-    std::unique_ptr<SinglePageBrowser> webView;
+    std::unique_ptr<juce::WebBrowserComponent> webView;
 
     // 3. ATTACHMENTS LAST (destroyed first - depend on both relays and parameters)
     std::unique_ptr<juce::WebSliderParameterAttachment> driveAttachment;
