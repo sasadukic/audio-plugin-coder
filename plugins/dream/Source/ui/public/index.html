@@ -1459,6 +1459,10 @@
       return dbToNorm(db + (state.tiltDb * octFrom1k));
     }
 
+    function offsetNormByDb(norm, dbOffset) {
+      return dbToNorm(normToDb(norm) + dbOffset);
+    }
+
     function binToFreq(bin) {
       const minF = 20;
       const maxF = Math.min(20000, sampleRate * 0.5);
@@ -1710,15 +1714,14 @@
       const overlayTop = state.oscilloscopeOn
         ? ((0 - (-24)) / 96) * height
         : 0;
+      const overlayLiftDb = 9.0;
 
-      const centerPoints = [];
       const upperPoints = [];
       const lowerPoints = [];
       for (let i = 0; i < BINS; i++) {
         const x = (i / (BINS - 1)) * width;
-        const upper = applyAnalyzerTiltToNorm(smoothPresetUpper[i], i);
-        const lower = applyAnalyzerTiltToNorm(smoothPresetLower[i], i);
-        const center = applyAnalyzerTiltToNorm(smoothPreset[i], i);
+        const upper = offsetNormByDb(applyAnalyzerTiltToNorm(smoothPresetUpper[i], i), overlayLiftDb);
+        const lower = offsetNormByDb(applyAnalyzerTiltToNorm(smoothPresetLower[i], i), overlayLiftDb);
         upperPoints.push({
           x,
           y: (1 - upper) * height
@@ -1727,13 +1730,9 @@
           x,
           y: (1 - lower) * height
         });
-        centerPoints.push({
-          x: (i / (BINS - 1)) * width,
-          y: (1 - center) * height
-        });
       }
 
-      if (centerPoints.length === 0) return;
+      if (upperPoints.length === 0) return;
 
       ctx.save();
       if (overlayTop > 0) {
@@ -1752,37 +1751,6 @@
       ctx.closePath();
       ctx.fillStyle = activeCanvasTheme.referenceBand || "rgba(56, 214, 255, 0.24)";
       ctx.fill();
-
-      ctx.beginPath();
-      traceSpectrumCurve(upperPoints, true);
-      ctx.lineWidth = 1.4;
-      ctx.strokeStyle = "rgba(150, 238, 255, 0.58)";
-      ctx.stroke();
-
-      ctx.beginPath();
-      traceSpectrumCurve(lowerPoints, true);
-      ctx.lineWidth = 1.4;
-      ctx.strokeStyle = "rgba(150, 238, 255, 0.58)";
-      ctx.stroke();
-
-      ctx.beginPath();
-      traceSpectrumCurve(centerPoints, true);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.lineWidth = 14.0;
-      ctx.strokeStyle = activeCanvasTheme.referenceGlow;
-      ctx.stroke();
-
-      ctx.beginPath();
-      traceSpectrumCurve(centerPoints, true);
-      ctx.setLineDash([8, 6]);
-      ctx.lineWidth = 2.8;
-      ctx.strokeStyle = "rgba(211, 249, 255, 0.98)";
-      ctx.shadowColor = activeCanvasTheme.referenceGlow;
-      ctx.shadowBlur = 6;
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.shadowBlur = 0;
 
       // Explicit visual confirmation that the tonal target overlay is active.
       ctx.fillStyle = "rgba(175, 244, 255, 0.96)";
