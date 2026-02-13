@@ -1707,6 +1707,10 @@
     function drawSmoothPreset(width, height) {
       if (!hasSmoothPreset) return;
 
+      const overlayTop = state.oscilloscopeOn
+        ? ((0 - (-24)) / 96) * height
+        : 0;
+
       const centerPoints = [];
       const upperPoints = [];
       const lowerPoints = [];
@@ -1732,6 +1736,11 @@
       if (centerPoints.length === 0) return;
 
       ctx.save();
+      if (overlayTop > 0) {
+        ctx.beginPath();
+        ctx.rect(0, overlayTop, width, Math.max(1, height - overlayTop));
+        ctx.clip();
+      }
       const reversedLower = lowerPoints.slice().reverse();
 
       // Draw tonal-balance target range band first.
@@ -1780,7 +1789,7 @@
       ctx.font = "11px Segoe UI";
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
-      ctx.fillText("TARGET", 10, 10);
+      ctx.fillText("TARGET", 10, overlayTop + 10);
       ctx.restore();
     }
 
@@ -2164,9 +2173,9 @@
         ctx.fillRect(0, 0, w, h);
 
         drawGrid(w, h);
-        drawOscilloscope(w, h);
         drawSpectrum(w, h);
         drawSmoothPreset(w, h);
+        drawOscilloscope(w, h);
         drawCrosshair(w, h);
       } catch (error) {
         reportUiError("draw", error);
