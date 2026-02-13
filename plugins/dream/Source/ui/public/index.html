@@ -1320,6 +1320,8 @@
     let lastReferenceBinsReceived = 0;
     let lastReferenceHasFlag = false;
     let smoothScanWatchdogId = null;
+    let builtInPresetLocked = false;
+    let activeBuiltInPresetKey = "";
 
     function initializeJuceBackendBridge() {
       if (typeof window.__JUCE__ !== "undefined"
@@ -1662,6 +1664,8 @@
         return false;
       }
 
+      builtInPresetLocked = true;
+      activeBuiltInPresetKey = key;
       setSmoothPreset(preset.bins, true);
       lastReferenceRevisionSeen = Math.max(lastReferenceRevisionSeen, 1);
 
@@ -2155,6 +2159,12 @@
 
     initializeCustomSelect(smoothSourceSel, state.smoothSource, (value) => {
       state.smoothSource = value;
+      if (value === "folder") {
+        builtInPresetLocked = false;
+        activeBuiltInPresetKey = "";
+      } else {
+        loadBuiltInSmoothTarget(value);
+      }
       updateSmoothActionUi();
     });
 
@@ -2286,6 +2296,11 @@
         if (revision !== lastReferenceRevisionSeen) {
           lastReferenceRevisionSeen = revision;
 
+          // Keep built-in presets pinned unless we are in live folder-scan mode.
+          if (builtInPresetLocked && state.smoothSource !== "folder" && revision === 0) {
+            return;
+          }
+
           let values = [];
           if (Array.isArray(referenceBins)) {
             values = referenceBins;
@@ -2295,8 +2310,10 @@
 
           const hasUsableReference = values.length > 0 && (revision > 0 || !!hasReference);
           if (hasUsableReference) {
+            builtInPresetLocked = false;
+            activeBuiltInPresetKey = "";
             setSmoothPreset(values, !!hasReference || revision > 0);
-          } else if (revision === 0) {
+          } else if (revision === 0 && state.smoothSource === "folder") {
             setSmoothPreset([], false);
           }
         }
@@ -2308,6 +2325,12 @@
     };
 
     window.onSmoothPresetScanFinished = function (success, message, bins, hasPreset, referenceRevision) {
+      if (state.smoothSource === "folder" && success)
+      {
+        builtInPresetLocked = false;
+        activeBuiltInPresetKey = "";
+      }
+
       const gotBinsArray = Array.isArray(bins) || (bins && typeof bins.length === "number");
       if (gotBinsArray) {
         setSmoothPreset(bins, !!hasPreset);
