@@ -1322,6 +1322,7 @@
     let smoothScanWatchdogId = null;
     let builtInPresetLocked = false;
     let activeBuiltInPresetKey = "";
+    let lastUiError = "";
 
     function initializeJuceBackendBridge() {
       if (typeof window.__JUCE__ !== "undefined"
@@ -1542,13 +1543,44 @@
       presetStatus.dataset.tooltip = message;
     }
 
+    function reportUiError(context, error) {
+      const message = (error && typeof error.message === "string" && error.message.length > 0)
+        ? error.message
+        : String(error);
+      const key = `${context}:${message}`;
+      if (lastUiError === key)
+        return;
+
+      lastUiError = key;
+      console.error(`SPECRAUM ${context} error`, error);
+      setPresetStatus(`UI error (${context}): ${message}`);
+    }
+
     function getSelectedSmoothSource() {
+      let selected = state.smoothSource;
+
       if (smoothSourceSel && smoothSourceSel.dataset && typeof smoothSourceSel.dataset.value === "string"
           && smoothSourceSel.dataset.value.length > 0) {
-        if (state.smoothSource !== smoothSourceSel.dataset.value)
-          state.smoothSource = smoothSourceSel.dataset.value;
+        selected = smoothSourceSel.dataset.value;
       }
-      return state.smoothSource;
+
+      if (smoothSourceSel) {
+        const trigger = smoothSourceSel.querySelector(".select-trigger");
+        if (trigger && typeof trigger.textContent === "string") {
+          const label = trigger.textContent.trim().toLowerCase();
+          if (label.indexOf("nano") >= 0)
+            selected = "nano";
+          else if (label.indexOf("dub") >= 0)
+            selected = "dub_techno";
+          else if (label.indexOf("folder") >= 0)
+            selected = "folder";
+        }
+      }
+
+      if (state.smoothSource !== selected)
+        state.smoothSource = selected;
+
+      return selected;
     }
 
     function setSmoothScanBusy(isBusy) {
@@ -2133,24 +2165,29 @@
     }
 
     function drawFrame() {
-      ensureBuiltInPresetActive();
+      try {
+        ensureBuiltInPresetActive();
 
-      const rect = ensureCanvasSize();
-      const w = rect.width;
-      const h = rect.height;
+        const rect = ensureCanvasSize();
+        const w = rect.width;
+        const h = rect.height;
 
-      const bg = ctx.createLinearGradient(0, 0, 0, h);
-      bg.addColorStop(0, activeCanvasTheme.bgTop);
-      bg.addColorStop(1, activeCanvasTheme.bgBottom);
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, w, h);
+        const bg = ctx.createLinearGradient(0, 0, 0, h);
+        bg.addColorStop(0, activeCanvasTheme.bgTop);
+        bg.addColorStop(1, activeCanvasTheme.bgBottom);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, w, h);
 
-      drawGrid(w, h);
-      drawOscilloscope(w, h);
-      drawSpectrum(w, h);
-      drawSmoothPreset(w, h);
-      drawCrosshair(w, h);
-      requestAnimationFrame(drawFrame);
+        drawGrid(w, h);
+        drawOscilloscope(w, h);
+        drawSpectrum(w, h);
+        drawSmoothPreset(w, h);
+        drawCrosshair(w, h);
+      } catch (error) {
+        reportUiError("draw", error);
+      } finally {
+        requestAnimationFrame(drawFrame);
+      }
     }
 
     initializeCustomSelect(resolutionSel, state.resolution, (value) => {
@@ -2278,60 +2315,59 @@
     });
 
     window.updateSpectrum = function (bins, sr, osc, rms, lufs, referenceBins, hasReference, referenceRevision) {
-      if (Array.isArray(bins)) {
-        const n = Math.min(BINS, bins.length);
-        for (let i = 0; i < n; i++) {
-          const v = Number(bins[i]);
-          rawTarget[i] = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+      try {
+        if (Array.isArray(bins)) {
+          const n = Math.min(BINS, bins.length);
+          for (let i = 0; i < n; i++) {
+            const v = Number(bins[i]);
+            rawTarget[i] = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+          }
+          rebuildShapedTarget();
         }
-        rebuildShapedTarget();
-      }
 
-      if (Array.isArray(osc)) {
-        const n = Math.min(BINS, osc.length);
-        for (let i = 0; i < n; i++) {
-          const v = Number(osc[i]);
-          oscTarget[i] = Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0;
+        if (Array.isArray(osc)) {
+          const n = Math.min(BINS, osc.length);
+          for (let i = 0; i < n; i++) {
+            const v = Number(osc[i]);
+            oscTarget[i] = Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0;
+          }
+          for (let i = n; i < BINS; i++) {
+            oscTarget[i] = 0;
+          }
         }
-        for (let i = n; i < BINS; i++) {
-          oscTarget[i] = 0;
+
+        if (typeof sr === "number" && Number.isFinite(sr) && sr > 1000) {
+          sampleRate = sr;
         }
-      }
 
-      if (typeof sr === "number" && Number.isFinite(sr) && sr > 1000) {
-        sampleRate = sr;
-      }
-
-      if (typeof referenceRevision === "number" && Number.isFinite(referenceRevision)) {
-        const selectedSource = getSelectedSmoothSource();
-        if (selectedSource !== "folder")
-          return;
-
-        const revision = Math.max(0, Math.floor(referenceRevision));
-        if (revision !== lastReferenceRevisionSeen) {
-          lastReferenceRevisionSeen = revision;
-
-          // Keep built-in presets pinned unless we are in live folder-scan mode.
-          if (builtInPresetLocked && selectedSource !== "folder" && revision === 0) {
+        if (typeof referenceRevision === "number" && Number.isFinite(referenceRevision)) {
+          const selectedSource = getSelectedSmoothSource();
+          if (selectedSource !== "folder")
             return;
-          }
 
-          let values = [];
-          if (Array.isArray(referenceBins)) {
-            values = referenceBins;
-          } else if (referenceBins && typeof referenceBins.length === "number") {
-            values = Array.from(referenceBins);
-          }
+          const revision = Math.max(0, Math.floor(referenceRevision));
+          if (revision !== lastReferenceRevisionSeen) {
+            lastReferenceRevisionSeen = revision;
 
-          const hasUsableReference = values.length > 0 && (revision > 0 || !!hasReference);
-          if (hasUsableReference) {
-            builtInPresetLocked = false;
-            activeBuiltInPresetKey = "";
-            setSmoothPreset(values, !!hasReference || revision > 0);
-          } else if (revision === 0 && selectedSource === "folder") {
-            setSmoothPreset([], false);
+            let values = [];
+            if (Array.isArray(referenceBins)) {
+              values = referenceBins;
+            } else if (referenceBins && typeof referenceBins.length === "number") {
+              values = Array.from(referenceBins);
+            }
+
+            const hasUsableReference = values.length > 0 && (revision > 0 || !!hasReference);
+            if (hasUsableReference) {
+              builtInPresetLocked = false;
+              activeBuiltInPresetKey = "";
+              setSmoothPreset(values, !!hasReference || revision > 0);
+            } else if (revision === 0 && selectedSource === "folder") {
+              setSmoothPreset([], false);
+            }
           }
         }
+      } catch (error) {
+        reportUiError("updateSpectrum", error);
       }
     };
 
