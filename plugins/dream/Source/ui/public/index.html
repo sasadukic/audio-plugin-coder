@@ -1451,6 +1451,14 @@
       return Math.max(0, Math.min(1, (db + 96) / 96));
     }
 
+    function applyAnalyzerTiltToNorm(norm, binIndex) {
+      const clamped = Math.max(0, Math.min(1, Number(norm)));
+      const db = normToDb(clamped);
+      const freq = binToFreq(Math.max(0, Math.min(BINS - 1, binIndex)));
+      const octFrom1k = Math.log2(freq / 1000);
+      return dbToNorm(db + (state.tiltDb * octFrom1k));
+    }
+
     function binToFreq(bin) {
       const minF = 20;
       const maxF = Math.min(20000, sampleRate * 0.5);
@@ -1730,17 +1738,20 @@
       const lowerPoints = [];
       for (let i = 0; i < BINS; i++) {
         const x = (i / (BINS - 1)) * width;
+        const upper = applyAnalyzerTiltToNorm(smoothPresetUpper[i], i);
+        const lower = applyAnalyzerTiltToNorm(smoothPresetLower[i], i);
+        const center = applyAnalyzerTiltToNorm(smoothPreset[i], i);
         upperPoints.push({
           x,
-          y: (1 - smoothPresetUpper[i]) * height
+          y: (1 - upper) * height
         });
         lowerPoints.push({
           x,
-          y: (1 - smoothPresetLower[i]) * height
+          y: (1 - lower) * height
         });
         centerPoints.push({
           x: (i / (BINS - 1)) * width,
-          y: (1 - smoothPreset[i]) * height
+          y: (1 - center) * height
         });
       }
 
