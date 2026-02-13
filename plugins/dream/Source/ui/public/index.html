@@ -990,6 +990,23 @@
       return dbToNorm(normToDb(norm) + dbOffset);
     }
 
+    function rgbaWithAlpha(color, alpha) {
+      const safeAlpha = Math.max(0, Math.min(1, Number(alpha)));
+      if (typeof color === "string") {
+        const match = color.match(/rgba?\s*\(\s*([^)]+)\)/i);
+        if (match && match[1]) {
+          const parts = match[1].split(",").map((x) => Number(x.trim()));
+          if (parts.length >= 3) {
+            const r = Math.max(0, Math.min(255, Math.round(parts[0])));
+            const g = Math.max(0, Math.min(255, Math.round(parts[1])));
+            const b = Math.max(0, Math.min(255, Math.round(parts[2])));
+            return `rgba(${r}, ${g}, ${b}, ${safeAlpha})`;
+          }
+        }
+      }
+      return `rgba(56, 214, 255, ${safeAlpha})`;
+    }
+
     function binToFreq(bin) {
       const minF = 20;
       const maxF = Math.min(20000, sampleRate * 0.5);
@@ -1255,11 +1272,31 @@
       const centerPoints = [];
       const upperPoints = [];
       const lowerPoints = [];
+      const upperRaw = new Float32Array(BINS);
+      const lowerRaw = new Float32Array(BINS);
+      const centerRaw = new Float32Array(BINS);
+      let maxUpperDb = -Infinity;
+
       for (let i = 0; i < BINS; i++) {
-        const x = (i / (BINS - 1)) * width;
         const upper = offsetNormByDb(applyAnalyzerTiltToNorm(smoothPresetUpper[i], i), overlayLiftDb);
         const lower = offsetNormByDb(applyAnalyzerTiltToNorm(smoothPresetLower[i], i), overlayLiftDb);
         const center = offsetNormByDb(applyAnalyzerTiltToNorm(smoothPreset[i], i), overlayLiftDb);
+        upperRaw[i] = upper;
+        lowerRaw[i] = lower;
+        centerRaw[i] = center;
+        const upperDb = normToDb(upper);
+        if (upperDb > maxUpperDb)
+          maxUpperDb = upperDb;
+      }
+
+      // Keep the top edge anchored to the 0 dB grid line.
+      const alignToZeroDb = Number.isFinite(maxUpperDb) ? (-maxUpperDb) : 0.0;
+
+      for (let i = 0; i < BINS; i++) {
+        const x = (i / (BINS - 1)) * width;
+        const upper = offsetNormByDb(upperRaw[i], alignToZeroDb);
+        const lower = offsetNormByDb(lowerRaw[i], alignToZeroDb);
+        const center = offsetNormByDb(centerRaw[i], alignToZeroDb);
         upperPoints.push({
           x,
           y: (1 - upper) * height
@@ -1291,23 +1328,56 @@
       ctx.lineTo(reversedLower[0].x, reversedLower[0].y);
       traceSpectrumCurve(reversedLower, false);
       ctx.closePath();
-      ctx.fillStyle = activeCanvasTheme.referenceBand || "rgba(56, 214, 255, 0.24)";
+      const bandColor = activeCanvasTheme.referenceBand || "rgba(56, 214, 255, 0.24)";
+      const fillGradient = ctx.createLinearGradient(0, 0, width, 0);
+      fillGradient.addColorStop(0.00, rgbaWithAlpha(bandColor, 0.00));
+      fillGradient.addColorStop(0.10, rgbaWithAlpha(bandColor, 0.08));
+      fillGradient.addColorStop(0.50, rgbaWithAlpha(bandColor, 0.14));
+      fillGradient.addColorStop(0.90, rgbaWithAlpha(bandColor, 0.08));
+      fillGradient.addColorStop(1.00, rgbaWithAlpha(bandColor, 0.00));
+      ctx.fillStyle = fillGradient;
       ctx.fill();
+
+      const strokeColor = activeCanvasTheme.referenceStroke || "rgba(211, 249, 255, 0.96)";
+      const edgeStrokeGradient = ctx.createLinearGradient(0, 0, width, 0);
+      edgeStrokeGradient.addColorStop(0.00, rgbaWithAlpha(strokeColor, 0.00));
+      edgeStrokeGradient.addColorStop(0.12, rgbaWithAlpha(strokeColor, 0.24));
+      edgeStrokeGradient.addColorStop(0.50, rgbaWithAlpha(strokeColor, 0.44));
+      edgeStrokeGradient.addColorStop(0.88, rgbaWithAlpha(strokeColor, 0.24));
+      edgeStrokeGradient.addColorStop(1.00, rgbaWithAlpha(strokeColor, 0.00));
+
+      ctx.beginPath();
+      traceSpectrumCurve(upperPoints, true);
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = edgeStrokeGradient;
+      ctx.stroke();
+
+      ctx.beginPath();
+      traceSpectrumCurve(lowerPoints, true);
+      ctx.lineWidth = 1.0;
+      ctx.strokeStyle = edgeStrokeGradient;
+      ctx.stroke();
 
       ctx.beginPath();
       traceSpectrumCurve(centerPoints, true);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      ctx.lineWidth = 10.0;
-      ctx.strokeStyle = activeCanvasTheme.referenceGlow;
+      ctx.lineWidth = 6.0;
+      ctx.strokeStyle = rgbaWithAlpha(activeCanvasTheme.referenceGlow || "rgba(48, 205, 220, 0.30)", 0.34);
       ctx.stroke();
 
       ctx.beginPath();
       traceSpectrumCurve(centerPoints, true);
-      ctx.lineWidth = 2.2;
-      ctx.strokeStyle = activeCanvasTheme.referenceStroke || "rgba(211, 249, 255, 0.96)";
-      ctx.shadowColor = activeCanvasTheme.referenceGlow;
-      ctx.shadowBlur = 4;
+      const centerStrokeGradient = ctx.createLinearGradient(0, 0, width, 0);
+      centerStrokeGradient.addColorStop(0.00, rgbaWithAlpha(strokeColor, 0.00));
+      centerStrokeGradient.addColorStop(0.10, rgbaWithAlpha(strokeColor, 0.30));
+      centerStrokeGradient.addColorStop(0.50, rgbaWithAlpha(strokeColor, 0.70));
+      centerStrokeGradient.addColorStop(0.90, rgbaWithAlpha(strokeColor, 0.30));
+      centerStrokeGradient.addColorStop(1.00, rgbaWithAlpha(strokeColor, 0.00));
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = centerStrokeGradient;
+      ctx.shadowColor = rgbaWithAlpha(activeCanvasTheme.referenceGlow || "rgba(48, 205, 220, 0.30)", 0.30);
+      ctx.shadowBlur = 3;
       ctx.stroke();
       ctx.shadowBlur = 0;
       ctx.restore();
