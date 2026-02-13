@@ -1604,7 +1604,7 @@
       }
     }
 
-    function setSmoothPreset(bins, hasPreset) {
+    function applySmoothPreset(bins, hasPreset) {
       let values = null;
       if (Array.isArray(bins)) {
         values = bins;
@@ -1691,7 +1691,7 @@
 
       builtInPresetLocked = true;
       activeBuiltInPresetKey = key;
-      setSmoothPreset(preset.bins, true);
+      applySmoothPreset(preset.bins, true);
       lastReferenceRevisionSeen = Math.max(lastReferenceRevisionSeen, 1);
 
       const label = typeof preset.label === "string" && preset.label.length > 0
@@ -1718,7 +1718,7 @@
       if (!hasSmoothPreset || !builtInPresetLocked || activeBuiltInPresetKey !== selectedSource) {
         builtInPresetLocked = true;
         activeBuiltInPresetKey = selectedSource;
-        setSmoothPreset(preset.bins, true);
+        applySmoothPreset(preset.bins, true);
       }
     }
 
@@ -2360,9 +2360,9 @@
             if (hasUsableReference) {
               builtInPresetLocked = false;
               activeBuiltInPresetKey = "";
-              setSmoothPreset(values, !!hasReference || revision > 0);
+              applySmoothPreset(values, !!hasReference || revision > 0);
             } else if (revision === 0 && selectedSource === "folder") {
-              setSmoothPreset([], false);
+              applySmoothPreset([], false);
             }
           }
         }
@@ -2372,7 +2372,7 @@
     };
 
     window.setSmoothPreset = function (bins, hasPreset) {
-      setSmoothPreset(bins, hasPreset);
+      applySmoothPreset(bins, hasPreset);
     };
 
     window.onSmoothPresetScanFinished = function (success, message, bins, hasPreset, referenceRevision) {
@@ -2384,7 +2384,7 @@
 
       const gotBinsArray = Array.isArray(bins) || (bins && typeof bins.length === "number");
       if (gotBinsArray) {
-        setSmoothPreset(bins, !!hasPreset);
+        applySmoothPreset(bins, !!hasPreset);
       }
 
       if (typeof referenceRevision === "number" && Number.isFinite(referenceRevision)) {
