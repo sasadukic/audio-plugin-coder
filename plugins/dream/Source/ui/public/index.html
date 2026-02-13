@@ -66,9 +66,22 @@
       position: absolute;
       left: 50%;
       bottom: 10px;
-      transform: translateX(-50%);
+      transform: translateX(-50%) translateY(8px) scale(0.96);
       z-index: 3;
+      pointer-events: none;
+      opacity: 0;
+      transition:
+        opacity 120ms ease,
+        transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .preset-center.is-visible {
       pointer-events: auto;
+      opacity: 1;
+      transform: translateX(-50%) translateY(0) scale(1);
+      transition:
+        opacity 130ms ease-out,
+        transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1.2);
     }
 
     .preset-center .select-trigger {
@@ -1124,6 +1137,7 @@
           spectrumStrokeLight: "rgba(228, 241, 255, 0.84)",
           referenceStroke: "rgba(232, 246, 255, 0.95)",
           referenceGlow: "rgba(48, 205, 220, 0.30)",
+          referenceBand: "rgba(48, 205, 220, 0.24)",
           oscCenterLine: "rgba(150, 183, 224, 0.18)",
           oscStroke: "rgba(174, 213, 248, 0.98)",
           crosshair: "rgba(222, 237, 255, 0.30)",
@@ -1166,6 +1180,7 @@
           spectrumStrokeLight: "rgba(244, 244, 244, 0.82)",
           referenceStroke: "rgba(244, 244, 244, 0.94)",
           referenceGlow: "rgba(220, 220, 220, 0.24)",
+          referenceBand: "rgba(220, 220, 220, 0.18)",
           oscCenterLine: "rgba(190, 190, 190, 0.20)",
           oscStroke: "rgba(236, 236, 236, 0.96)",
           crosshair: "rgba(236, 236, 236, 0.28)",
@@ -1208,6 +1223,7 @@
           spectrumStrokeLight: "rgba(230, 255, 239, 0.84)",
           referenceStroke: "rgba(227, 255, 236, 0.95)",
           referenceGlow: "rgba(74, 214, 132, 0.30)",
+          referenceBand: "rgba(74, 214, 132, 0.22)",
           oscCenterLine: "rgba(145, 203, 160, 0.18)",
           oscStroke: "rgba(181, 238, 197, 0.98)",
           crosshair: "rgba(220, 250, 229, 0.30)",
@@ -1250,6 +1266,7 @@
           spectrumStrokeLight: "rgba(255, 240, 221, 0.84)",
           referenceStroke: "rgba(255, 237, 215, 0.95)",
           referenceGlow: "rgba(236, 156, 66, 0.30)",
+          referenceBand: "rgba(236, 156, 66, 0.22)",
           oscCenterLine: "rgba(219, 160, 99, 0.20)",
           oscStroke: "rgba(255, 216, 174, 0.98)",
           crosshair: "rgba(255, 228, 196, 0.31)",
@@ -1292,6 +1309,7 @@
           spectrumStrokeLight: "rgba(244, 236, 255, 0.84)",
           referenceStroke: "rgba(239, 224, 255, 0.95)",
           referenceGlow: "rgba(170, 116, 242, 0.30)",
+          referenceBand: "rgba(170, 116, 242, 0.22)",
           oscCenterLine: "rgba(170, 141, 224, 0.20)",
           oscStroke: "rgba(226, 203, 255, 0.98)",
           crosshair: "rgba(238, 226, 255, 0.31)",
@@ -1339,13 +1357,18 @@
     const smoothPresetBtn = document.getElementById("smoothPresetBtn");
     const presetStatus = document.getElementById("presetStatus");
     const uiTooltip = document.getElementById("uiTooltip");
+    const presetCenter = document.getElementById("presetCenter");
+    const toolbarSelectRoots = [resolutionSel, speedSel, tiltSel];
     const customSelectRoots = [resolutionSel, speedSel, tiltSel, smoothSourceSel];
 
     let mouseInside = false;
     let mouseX = 0;
     let mouseY = 0;
     let cornerHoverActive = false;
+    let presetHoverActive = false;
     const cornerRevealSizePx = 176;
+    const presetRevealWidthPx = 300;
+    const presetRevealHeightPx = 148;
     const smoothPreset = new Float32Array(BINS);
     const smoothPresetLower = new Float32Array(BINS);
     const smoothPresetUpper = new Float32Array(BINS);
@@ -1592,6 +1615,21 @@
       presetStatus.dataset.tooltip = message;
     }
 
+    function getOverlayProfileForSource(sourceKey) {
+      const key = String(sourceKey || "");
+      if (key === "psytrance") {
+        return {
+          liftDb: 12.0,
+          bandWidthDb: 9.0
+        };
+      }
+
+      return {
+        liftDb: 9.0,
+        bandWidthDb: 6.5
+      };
+    }
+
     function reportUiError(context, error) {
       const message = (error && typeof error.message === "string" && error.message.length > 0)
         ? error.message
@@ -1658,6 +1696,8 @@
       hasSmoothPreset = hasValues;
 
       if (hasSmoothPreset) {
+        const selectedSource = getSelectedSmoothSource();
+        const overlayProfile = getOverlayProfileForSource(selectedSource);
         const n = Math.min(BINS, values.length);
         for (let i = 0; i < n; i++) {
           const v = Number(values[i]);
@@ -1672,9 +1712,7 @@
         // The old percentile remap compressed highs and changed tonal slope.
         for (let i = 0; i < BINS; i++) {
           const center = smoothPreset[i];
-          const t = i / Math.max(1, BINS - 1);
-          const edgeFactor = Math.abs((t * 2) - 1);
-          const halfWidthDb = 3.0 + (1.0 * edgeFactor);
+          const halfWidthDb = 0.5 * overlayProfile.bandWidthDb;
           const centerDb = normToDb(center);
           const lower = dbToNorm(centerDb - halfWidthDb);
           const upper = dbToNorm(centerDb + halfWidthDb);
@@ -1742,7 +1780,8 @@
       const overlayTop = state.oscilloscopeOn
         ? ((0 - (-24)) / 96) * height
         : 0;
-      const overlayLiftDb = 9.0;
+      const overlayProfile = getOverlayProfileForSource(getSelectedSmoothSource());
+      const overlayLiftDb = overlayProfile.liftDb;
 
       const centerPoints = [];
       const upperPoints = [];
@@ -1797,7 +1836,7 @@
       ctx.beginPath();
       traceSpectrumCurve(centerPoints, true);
       ctx.lineWidth = 2.2;
-      ctx.strokeStyle = "rgba(211, 249, 255, 0.96)";
+      ctx.strokeStyle = activeCanvasTheme.referenceStroke || "rgba(211, 249, 255, 0.96)";
       ctx.shadowColor = activeCanvasTheme.referenceGlow;
       ctx.shadowBlur = 4;
       ctx.stroke();
@@ -2028,22 +2067,38 @@
       return false;
     }
 
-    function hasOpenSelectMenu() {
-      return customSelectRoots.some((root) => root.classList.contains("open"));
+    function hasOpenSelectMenu(roots = customSelectRoots) {
+      return roots.some((root) => root.classList.contains("open"));
     }
 
     function refreshToolbarVisibility() {
       const keepVisible = cornerHoverActive
           || !controlsPanel.classList.contains("is-hidden")
           || themePicker.classList.contains("open")
-          || hasOpenSelectMenu();
+          || hasOpenSelectMenu(toolbarSelectRoots);
       leftToolbar.classList.toggle("is-visible", keepVisible);
+    }
+
+    function refreshPresetCenterVisibility() {
+      if (!presetCenter)
+        return;
+      const keepVisible = presetHoverActive || (smoothSourceSel && smoothSourceSel.classList.contains("open"));
+      presetCenter.classList.toggle("is-visible", !!keepVisible);
     }
 
     function updateCornerHover(clientX, clientY) {
       cornerHoverActive = clientX <= cornerRevealSizePx
           && clientY >= (window.innerHeight - cornerRevealSizePx);
       refreshToolbarVisibility();
+    }
+
+    function updatePresetHover(clientX, clientY) {
+      const centerX = window.innerWidth * 0.5;
+      const dx = Math.abs(clientX - centerX);
+      const withinX = dx <= (presetRevealWidthPx * 0.5);
+      const withinY = clientY >= (window.innerHeight - presetRevealHeightPx);
+      presetHoverActive = withinX && withinY;
+      refreshPresetCenterVisibility();
     }
 
     function updateThemeChoiceState() {
@@ -2081,6 +2136,7 @@
         if (trigger) trigger.setAttribute("aria-expanded", "false");
       }
       refreshToolbarVisibility();
+      refreshPresetCenterVisibility();
     }
 
     function initializeCustomSelect(root, initialValue, onChange) {
@@ -2294,6 +2350,7 @@
 
     window.addEventListener("mousemove", (event) => {
       updateCornerHover(event.clientX, event.clientY);
+      updatePresetHover(event.clientX, event.clientY);
     });
 
     fullscreenBtn.addEventListener("click", () => {
@@ -2421,9 +2478,11 @@
     window.addEventListener("resize", resizeCanvas);
     window.addEventListener("blur", () => {
       cornerHoverActive = false;
+      presetHoverActive = false;
       closeAllSelectMenus();
       closeThemePicker();
       hideTooltip();
+      refreshPresetCenterVisibility();
     });
     initializeJuceBackendBridge();
     ensureCanvasSize();
@@ -2435,6 +2494,7 @@
     refreshOscLengthButton();
     callNative("setOscilloscopeLengthMode", state.oscLengthMode);
     rebuildShapedTarget();
+    refreshPresetCenterVisibility();
     requestAnimationFrame(drawFrame);
   </script>
 </body>
