@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SPECRAUM</title>
   <style>
+    @font-face {
+      font-family: "SPRoboto";
+      src:
+        url("./fonts/RobotoCondensed-VariableFont_wght.ttf") format("truetype-variations"),
+        url("./fonts/RobotoCondensed-VariableFont_wght.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: swap;
+    }
+
     :root {
       --bg-top: #16181d;
       --bg-mid: #1a1d24;
@@ -33,11 +43,18 @@
       height: 100%;
       margin: 0;
       overflow: hidden;
-      font-family: "Segoe UI", "SF Pro Display", Arial, sans-serif;
+      font-family: "SPRoboto", "Roboto Condensed", "Roboto", "Segoe UI", "SF Pro Display", Arial, sans-serif;
+      font-style: normal;
+      font-size: 11px;
       background:
         radial-gradient(900px 460px at 15% 0%, #2a2f39 0%, transparent 58%),
         radial-gradient(1000px 520px at 100% 0%, #232730 0%, transparent 60%),
         linear-gradient(180deg, var(--bg-top), var(--bg-mid), var(--bg-bot));
+    }
+
+    button, input, select, textarea {
+      font-family: inherit;
+      font-style: normal;
     }
 
     .app {
@@ -54,12 +71,92 @@
       display: block;
     }
 
+    .band-solo-strip {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 24px;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .band-solo-item {
+      position: absolute;
+      top: 0;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding-left: 0;
+      pointer-events: auto;
+      overflow: hidden;
+    }
+
+    .band-solo-btn {
+      width: 16px;
+      height: 16px;
+      border: 1px solid var(--panel-outline);
+      border-radius: 999px;
+      background: var(--panel-bg);
+      color: var(--icon-fg);
+      opacity: 0.44;
+      font-size: 0;
+      line-height: 1;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      padding: 0;
+    }
+
+    .band-solo-btn::before {
+      content: "S";
+      color: inherit;
+      font-family: "SPRoboto", "Roboto Condensed", "Roboto", "Segoe UI", "SF Pro Display", Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+      transform: translateY(-0.4px);
+      pointer-events: none;
+    }
+
+    .band-solo-btn:hover {
+      background: var(--option-hover-bg);
+      opacity: 0.62;
+    }
+
+    .band-solo-btn.is-active {
+      border-color: var(--icon-fg);
+      background: var(--option-hover-bg);
+      color: var(--icon-fg);
+      opacity: 0.82;
+    }
+
+    .band-solo-label {
+      color: var(--icon-fg);
+      opacity: 0.74;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      line-height: 1;
+      white-space: nowrap;
+      text-shadow: 0 2px 8px rgba(2, 8, 18, 0.55);
+      pointer-events: none;
+    }
+
     .controls {
       display: flex;
       gap: 8px;
       z-index: 3;
       pointer-events: auto;
       align-items: center;
+    }
+
+    .left-toolbar .controls {
+      position: absolute;
+      left: 44px;
+      bottom: 0;
     }
 
     .preset-center {
@@ -102,6 +199,53 @@
       transform: translate(-50%, 0) scale(1);
     }
 
+    .preset-center #smoothSourceSel {
+      width: 152px;
+    }
+
+    .preset-center #smoothSourceSel .select-trigger {
+      width: 100%;
+      min-width: 0;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .preset-center #smoothSourceSel .select-menu {
+      left: 0;
+      bottom: calc(100% - 1px);
+      width: 100%;
+      min-width: 100%;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      transform-origin: center bottom;
+      transform: translateY(6px) scale(0.96);
+    }
+
+    .preset-center #smoothSourceSel.open .select-menu {
+      transform: translateY(0) scale(1);
+    }
+
+    .preset-center #smoothSourceSel.open .select-trigger {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+
+    .preset-center #smoothSourceSel .select-option {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 8px;
+      text-align: center;
+    }
+
+    .preset-center #smoothSourceSel .select-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 8px;
+      text-align: center;
+    }
+
     .preset-inline-controls {
       display: flex;
       align-items: center;
@@ -112,13 +256,13 @@
       position: relative;
       width: 22px;
       height: 22px;
-      border: none;
+      border: 1px solid var(--panel-outline-soft);
       border-radius: 999px;
       padding: 0;
       cursor: ns-resize;
       outline: none;
-      background: var(--panel-bg);
-      box-shadow: none;
+      background: rgba(255, 255, 255, 0.03);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
       backdrop-filter: blur(3px);
       display: inline-flex;
       align-items: center;
@@ -128,11 +272,13 @@
 
     .overlay-knob:hover,
     .overlay-knob:focus-visible {
-      box-shadow: none;
+      border-color: var(--panel-outline);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
     }
 
     .overlay-knob.is-dragging {
-      box-shadow: none;
+      border-color: var(--panel-outline);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
     }
 
     .overlay-knob-indicator {
@@ -159,7 +305,7 @@
       border-radius: 6px;
       background: var(--panel-bg);
       color: var(--icon-fg);
-      font-size: 8px;
+      font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.01em;
       height: 22px;
@@ -217,7 +363,7 @@
       border-radius: 0;
       background: transparent;
       color: var(--icon-fg);
-      font-size: 8px;
+      font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.01em;
       line-height: 1;
@@ -244,13 +390,71 @@
       background: var(--option-hover-bg);
     }
 
+    .select-action {
+      border: none;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--icon-fg);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      line-height: 1;
+      height: 22px;
+      padding: 0 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      transition: background-color 70ms ease-out, opacity 90ms ease-out;
+    }
+
+    .select-action:hover {
+      background: var(--option-hover-bg);
+    }
+
+    .select-action.is-busy {
+      opacity: 0.72;
+      cursor: progress;
+    }
+
+    .preset-user-row {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .preset-user-row .select-option {
+      flex: 1 1 auto;
+    }
+
+    .preset-delete-btn {
+      border: none;
+      border-radius: 4px;
+      width: 18px;
+      height: 18px;
+      margin-right: 2px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--icon-fg);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      opacity: 0.72;
+      transition: opacity 70ms ease-out, background-color 70ms ease-out;
+    }
+
+    .preset-delete-btn:hover {
+      opacity: 1;
+      background: var(--option-hover-bg);
+    }
+
     .action-btn {
       min-width: 74px;
       text-align: center;
       justify-content: center;
       display: inline-flex;
       align-items: center;
-      font-size: 8px;
+      font-size: 10px;
       letter-spacing: 0.02em;
     }
 
@@ -267,7 +471,7 @@
       border-radius: 6px;
       background: var(--panel-bg);
       color: var(--icon-fg);
-      font-size: 8px;
+      font-size: 10px;
       font-weight: 600;
       letter-spacing: 0.01em;
       line-height: 22px;
@@ -279,16 +483,16 @@
 
     .left-toolbar {
       position: absolute;
-      bottom: 10px;
+      top: 50%;
       left: 10px;
       z-index: 3;
       display: flex;
-      align-items: flex-end;
+      align-items: center;
       gap: 8px;
       pointer-events: none;
       opacity: 0;
-      transform: translateY(8px) scale(0.96);
-      transform-origin: left bottom;
+      transform: translateY(calc(-50% + 8px)) scale(0.96);
+      transform-origin: left center;
       transition:
         opacity 120ms ease,
         transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -297,23 +501,84 @@
     .left-toolbar.is-visible {
       pointer-events: auto;
       opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: translateY(-50%) scale(1);
       transition:
         opacity 130ms ease-out,
         transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1.2);
     }
 
+    .osc-mode-hub {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      width: 44px;
+      height: 44px;
+      transform: translateX(-50%);
+      z-index: 5;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+    }
+
+    .osc-mode-hub.is-visible {
+      display: inline-flex;
+    }
+
+    .osc-mode-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 8px;
+      background-color: transparent;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 22px 22px;
+      background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNNDgwLTgwcS04Mi4zMyAwLTE1NS4zMy0zMS41LTczLTMxLjUtMTI3LjM0LTg1LjgzUTE0My0yNTEuNjcgMTExLjUtMzI0LjY3VDgwLTQ4MHEwLTgzIDMxLjUtMTU2dDg1LjgzLTEyN3E1NC4zNC01NCAxMjcuMzQtODUuNVQ0ODAtODgwcTgzIDAgMTU2IDMxLjVUNzYzLTc2M3E1NCA1NCA4NS41IDEyN1Q4ODAtNDgwcTAgODIuMzMtMzEuNSAxNTUuMzMtMzEuNSA3My04NS41IDEyNy4zNFE3MDktMTQzIDYzNi0xMTEuNVQ0ODAtODBabTAtNjYuNjdxMTM5LjMzIDAgMjM2LjMzLTk3LjMzdDk3LTIzNnEwLTEzOS4zMy05Ny0yMzYuMzN0LTIzNi4zMy05N3EtMTM4LjY3IDAtMjM2IDk3LTk3LjMzIDk3LTk3LjMzIDIzNi4zMyAwIDEzOC42NyA5Ny4zMyAyMzYgOTcuMzMgOTcuMzMgMjM2IDk3LjMzWk00ODAtNDgwWiIvPjwvc3ZnPg==");
+      opacity: 0;
+      cursor: pointer;
+      transition: opacity 130ms ease;
+    }
+
+    .osc-mode-hub:hover .osc-mode-btn {
+      opacity: 0.9;
+    }
+
+    .osc-mode-btn.is-active {
+      background-image:
+        url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNNDgwLTgwcS04Mi4zMyAwLTE1NS4zMy0zMS41LTczLTMxLjUtMTI3LjM0LTg1LjgzUTE0My0yNTEuNjcgMTExLjUtMzI0LjY3VDgwLTQ4MHEwLTgzIDMxLjUtMTU2dDg1LjgzLTEyN3E1NC4zNC01NCAxMjcuMzQtODUuNVQ0ODAtODgwcTgzIDAgMTU2IDMxLjVUNzYzLTc2M3E1NCA1NCA4NS41IDEyN1Q4ODAtNDgwcTAgODIuMzMtMzEuNSAxNTUuMzMtMzEuNSA3My04NS41IDEyNy4zNFE3MDktMTQzIDYzNi0xMTEuNVQ0ODAtODBabTAtNjYuNjdxMTM5LjMzIDAgMjM2LjMzLTk3LjMzdDk3LTIzNnEwLTEzOS4zMy05Ny0yMzYuMzN0LTIzNi4zMy05N3EtMTM4LjY3IDAtMjM2IDk3LTk3LjMzIDk3LTk3LjMzIDIzNi4zMyAwIDEzOC42NyA5Ny4zMyAyMzYgOTcuMzMgOTcuMzMgMjM2IDk3LjMzWk00ODAtNDgwWiIvPjwvc3ZnPg=="),
+        url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNNDgwLTgwcS04Mi4zMyAwLTE1NS4zMy0zMS41LTczLTMxLjUtMTI3LjM0LTg1LjgzUTE0My0yNTEuNjcgMTExLjUtMzI0LjY3VDgwLTQ4MHEwLTgzIDMxLjUtMTU2dDg1LjgzLTEyN3E1NC4zNC01NCAxMjcuMzQtODUuNVQ0ODAtODgwcTgzIDAgMTU2IDMxLjVUNzYzLTc2M3E1NCA1NCA4NS41IDEyN1Q4ODAtNDgwcTAgODIuMzMtMzEuNSAxNTUuMzMtMzEuNSA3My04NS41IDEyNy4zNFE3MDktMTQzIDYzNi0xMTEuNVQ0ODAtODBabTAtNjYuNjdxMTM5LjMzIDAgMjM2LjMzLTk3LjMzdDk3LTIzNnEwLTEzOS4zMy05Ny0yMzYuMzN0LTIzNi4zMy05N3EtMTM4LjY3IDAtMjM2IDk3LTk3LjMzIDk3LTk3LjMzIDIzNi4zMyAwIDEzOC42NyA5Ny4zMyAyMzYgOTcuMzMgOTcuMzMgMjM2IDk3LjMzWk00ODAtNDgwWiIvPjwvc3ZnPg==");
+      background-size: 18px 18px, 18px 18px;
+      background-position: 42% 50%, 58% 50%;
+      filter: drop-shadow(0 0 3px rgba(188, 216, 255, 0.45));
+    }
+
+    .osc-mode-btn.is-off {
+      filter: none;
+    }
+
     .button-stack {
       display: flex;
       flex-direction: column;
+      align-items: flex-start;
+      width: 78px;
       gap: 6px;
     }
 
     .osc-stack {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+      position: relative;
+      display: inline-flex;
+      width: 36px;
+      min-height: 36px;
       align-items: center;
+      justify-content: flex-start;
+    }
+
+    .warning-stack {
+      display: inline-flex;
+      align-items: center;
+      min-width: 76px;
+      gap: 4px;
     }
 
     .theme-picker {
@@ -364,11 +629,11 @@
       top: 50%;
       display: flex;
       gap: 4px;
-      padding: 2px;
+      padding: 0;
       border-radius: 6px;
-      background: var(--panel-bg-strong);
-      backdrop-filter: blur(3px);
-      box-shadow: inset 0 0 0 1px var(--panel-outline-soft);
+      background: transparent;
+      backdrop-filter: none;
+      box-shadow: none;
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
@@ -400,8 +665,14 @@
       background: var(--swatch-color, #a9c6d8);
     }
 
+    .theme-choice {
+      border: none;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
     .theme-choice.is-active {
-      box-shadow: inset 0 0 0 1px var(--panel-outline);
+      box-shadow: none;
     }
 
     .theme-choice.is-disabled {
@@ -427,22 +698,285 @@
       padding: 0;
     }
 
+    .left-toolbar .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: transparent;
+      backdrop-filter: none;
+      box-shadow: none;
+    }
+
+    .left-toolbar .menu-toggle .triangle {
+      width: 18px;
+      height: 18px;
+    }
+
+    .left-toolbar .help-btn::before {
+      font-size: 18px;
+    }
+
+    .left-toolbar .save-default-btn::before {
+      width: 14px;
+      height: 14px;
+    }
+
+    .left-toolbar .save-default-btn::after {
+      left: 50%;
+      bottom: 5px;
+      top: auto;
+      right: auto;
+      width: 6px;
+      height: 3px;
+      transform: translateX(-50%);
+    }
+
+    .left-toolbar .peak-warning-btn::before {
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 12px solid var(--icon-fg);
+    }
+
+    .left-toolbar .peak-warning-btn::after {
+      top: 8px;
+      font-size: 9px;
+    }
+
+    .left-toolbar .suppressor-btn::before {
+      top: 7px;
+      width: 14px;
+      height: 9px;
+      border-top-width: 2px;
+      border-left-width: 2px;
+      border-right-width: 2px;
+    }
+
+    .left-toolbar .suppressor-btn::after {
+      top: 14px;
+      width: 3px;
+      height: 4px;
+    }
+
+    .left-toolbar .fullscreen-btn::before {
+      width: 10px;
+      height: 10px;
+    }
+
+    .left-toolbar .osc-btn .osc-icon {
+      width: 13px;
+      height: 10px;
+    }
+
+    .left-toolbar .len-btn {
+      position: absolute;
+      left: 40px;
+      top: 0;
+      font-size: 11px;
+      min-width: 36px;
+    }
+
+    .left-toolbar .theme-toggle-btn .theme-indicator {
+      width: 16px;
+      height: 16px;
+    }
+
+    .left-toolbar .theme-toggle-btn .theme-indicator::before {
+      left: 3px;
+      top: 3px;
+      width: 10px;
+      height: 9px;
+    }
+
+    .left-toolbar .theme-toggle-btn .theme-indicator::after {
+      width: 6px;
+      height: 3px;
+    }
+
+    .left-toolbar .theme-choice::before {
+      width: 12px;
+      height: 12px;
+    }
+
     .icon-btn.is-off {
       opacity: 0.52;
     }
 
     .menu-toggle .triangle {
-      width: 0;
-      height: 0;
-      border-top: 4px solid transparent;
-      border-bottom: 4px solid transparent;
-      border-left: 6px solid var(--icon-fg);
-      transform-origin: 35% 50%;
-      transition: transform 120ms ease;
+      position: relative;
+      width: 14px;
+      height: 14px;
+      border: 1.6px solid var(--icon-fg);
+      border-radius: 50%;
+      box-sizing: border-box;
+      transform-origin: 50% 50%;
+      transition: transform 150ms ease;
+    }
+
+    .menu-toggle .triangle::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 4px;
+      height: 4px;
+      border: 1.5px solid var(--icon-fg);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.94;
+    }
+
+    .menu-toggle .triangle::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 18px;
+      height: 18px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background:
+        conic-gradient(from 0deg,
+          var(--icon-fg) 0 8deg,
+          transparent 8deg 45deg,
+          var(--icon-fg) 45deg 53deg,
+          transparent 53deg 90deg,
+          var(--icon-fg) 90deg 98deg,
+          transparent 98deg 135deg,
+          var(--icon-fg) 135deg 143deg,
+          transparent 143deg 180deg,
+          var(--icon-fg) 180deg 188deg,
+          transparent 188deg 225deg,
+          var(--icon-fg) 225deg 233deg,
+          transparent 233deg 270deg,
+          var(--icon-fg) 270deg 278deg,
+          transparent 278deg 315deg,
+          var(--icon-fg) 315deg 323deg,
+          transparent 323deg 360deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 7px, #000 7px 100%);
+      mask: radial-gradient(circle, transparent 0 7px, #000 7px 100%);
+      opacity: 0.88;
+      pointer-events: none;
     }
 
     .menu-toggle.open .triangle {
-      transform: rotate(90deg);
+      transform: rotate(24deg);
+    }
+
+    .help-btn::before {
+      content: "?";
+      color: var(--icon-fg);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .save-default-btn {
+      position: relative;
+    }
+
+    .save-default-btn::before {
+      content: "";
+      position: relative;
+      width: 10px;
+      height: 10px;
+      border: 1.2px solid var(--icon-fg);
+      border-radius: 1.5px;
+      box-sizing: border-box;
+      background: linear-gradient(
+        to bottom,
+        var(--icon-fg) 0 30%,
+        transparent 30% 100%
+      ),
+      linear-gradient(
+        to right,
+        transparent 0 66%,
+        var(--icon-fg) 66% 100%
+      );
+      opacity: 0.95;
+    }
+
+    .save-default-btn::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 4px;
+      width: 4px;
+      height: 2px;
+      border: 1px solid var(--icon-fg);
+      border-radius: 1px;
+      background: transparent;
+      transform: translateX(-50%);
+      opacity: 0.95;
+    }
+
+    .save-default-btn.is-saving {
+      opacity: 1 !important;
+    }
+
+    .peak-warning-btn {
+      position: relative;
+    }
+
+    .peak-warning-btn::before {
+      content: "";
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-bottom: 9px solid var(--icon-fg);
+      transform: translateY(-1px);
+      opacity: 0.94;
+    }
+
+    .peak-warning-btn::after {
+      content: "!";
+      position: absolute;
+      left: 50%;
+      top: 6px;
+      transform: translateX(-50%);
+      color: var(--panel-bg-strong);
+      font-size: 8px;
+      font-weight: 800;
+      line-height: 1;
+      pointer-events: none;
+      opacity: 0.95;
+    }
+
+    .suppressor-btn {
+      position: relative;
+    }
+
+    .suppressor-btn::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 5px;
+      width: 11px;
+      height: 7px;
+      transform: translateX(-50%);
+      border-top: 1.6px solid var(--icon-fg);
+      border-left: 1.6px solid var(--icon-fg);
+      border-right: 1.6px solid var(--icon-fg);
+      border-radius: 8px 8px 0 0;
+      opacity: 0.95;
+    }
+
+    .suppressor-btn::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 11px;
+      width: 2px;
+      height: 3px;
+      border-radius: 1px;
+      background: var(--icon-fg);
+      transform: translateX(-50%);
+      opacity: 0.90;
+      pointer-events: none;
+    }
+
+    .suppressor-btn.is-disabled {
+      opacity: 0.42 !important;
     }
 
     .fullscreen-btn::before {
@@ -471,7 +1005,7 @@
 
     .len-btn {
       color: var(--icon-fg);
-      font-size: 8px;
+      font-size: 9px;
       font-weight: 700;
       letter-spacing: 0.01em;
       line-height: 1;
@@ -479,6 +1013,58 @@
       min-width: 22px;
     }
 
+        /* Embedded left-toolbar SVG icons */
+    .left-toolbar .fullscreen-btn,
+    .left-toolbar .osc-btn,
+    .left-toolbar .theme-toggle-btn,
+    .left-toolbar .help-btn,
+    .left-toolbar .save-default-btn,
+    .left-toolbar .peak-warning-btn,
+    .left-toolbar .suppressor-btn,
+    .left-toolbar .menu-toggle,
+    .left-toolbar .len-btn {
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 24px 24px;
+    }
+    .left-toolbar .fullscreen-btn { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNMTIwLTEyMHYtMTk1LjMzaDY2LjY3djEyOC42NmgxMjguNjZWLTEyMEgxMjBabTUyNC42NyAwdi02Ni42N2gxMjguNjZ2LTEyOC42Nkg4NDBWLTEyMEg2NDQuNjdaTTEyMC02NDQuNjdWLTg0MGgxOTUuMzN2NjYuNjdIMTg2LjY3djEyOC42NkgxMjBabTY1My4zMyAwdi0xMjguNjZINjQ0LjY3Vi04NDBIODQwdjE5NS4zM2gtNjYuNjdaIi8+PC9zdmc+"); }
+    .left-toolbar .fullscreen-btn:not(.is-off) { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNMjQ4LjY3LTEyMHYtMTI4LjY3SDEyMHYtNjYuNjZoMTk1LjMzVi0xMjBoLTY2LjY2Wm0zOTYgMHYtMTk1LjMzSDg0MHY2Ni42Nkg3MTEuMzNWLTEyMGgtNjYuNjZaTTEyMC02NDQuNjd2LTY2LjY2aDEyOC42N1YtODQwaDY2LjY2djE5NS4zM0gxMjBabTUyNC42NyAwVi04NDBoNjYuNjZ2MTI4LjY3SDg0MHY2Ni42Nkg2NDQuNjdaIi8+PC9zdmc+"); }
+    .left-toolbar .osc-btn { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNMjgzLjMzLTI0MHYtNDgwSDM1MHY0ODBoLTY2LjY3Wk00NDYuNjctODB2LTgwMGg2Ni42NnY4MDBoLTY2LjY2Wk0xMjAtNDAwdi0xNjBoNjYuNjd2MTYwSDEyMFptNDkwIDE2MHYtNDgwaDY2LjY3djQ4MEg2MTBabTE2My4zMy0xNjB2LTE2MEg4NDB2MTYwaC02Ni42N1oiLz48L3N2Zz4="); }
+    .left-toolbar .theme-toggle-btn { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNNDgwLTgwcS04MiAwLTE1NS0zMS41dC0xMjcuNS04NlExNDMtMjUyIDExMS41LTMyNVQ4MC00ODBxMC04NC4zMyAzMi4xNy0xNTcuMzMgMzIuMTYtNzMgODcuNjYtMTI3dDEyOS44NC04NC44NFE0MDQtODgwIDQ4OC42Ny04ODAgNTY4LTg4MCA2MzktODUzLjE3cTcxIDI2Ljg0IDEyNC41IDc0LjM0dDg1IDExMi42NlE4ODAtNjAxIDg4MC01MjRxMCAxMTAuMzMtNjUuMzMgMTcyLjUtNjUuMzQgNjIuMTctMTY4IDYyLjE3SDU3MnEtMTUgMC0yNC44MyAxMS05Ljg0IDExLTkuODQgMjQuMzMgMCAyMiAxNC42NyA0Mi4xNyAxNC42NyAyMC4xNiAxNC42NyA0Ni41IDAgNDItMjMuMTcgNjMuNjZRNTIwLjMzLTgwIDQ4MC04MFptMC00MDBabS0xOTEgMTVxMTUuNjctMTUuNjcgMTUuNjctMzcuNjdUMjg5LTU0MC4zM1EyNzMuMzMtNTU2IDI1MS4zMy01NTZ0LTM3LjY2IDE1LjY3UTE5OC01MjQuNjcgMTk4LTUwMi42N3EwIDIyIDE1LjY3IDM3LjY3IDE1LjY2IDE1LjY3IDM3LjY2IDE1LjY3IDIyIDAgMzcuNjctMTUuNjdabTEyNC0xNjYuNjdxMTUuNjctMTUuNjYgMTUuNjctMzcuNjYgMC0yMi0xNS42Ny0zNy42Ny0xNS42Ny0xNS42Ny0zNy42Ny0xNS42N1QzMzcuNjctNzA3UTMyMi02OTEuMzMgMzIyLTY2OS4zM3QxNS42NyAzNy42NlEzNTMuMzMtNjE2IDM3NS4zMy02MTZxMjIgMCAzNy42Ny0xNS42N1ptMjA5LjMzIDBRNjM4LTY0Ny4zMyA2MzgtNjY5LjMzcTAtMjItMTUuNjctMzcuNjctMTUuNjYtMTUuNjctMzcuNjYtMTUuNjctMjIgMC0zNy42NyAxNS42Ny0xNS42NyAxNS42Ny0xNS42NyAzNy42N1Q1NDctNjMxLjY3UTU2Mi42Ny02MTYgNTg0LjY3LTYxNnQzNy42Ni0xNS42N1pNNzQ5LjY3LTQ2NXExNS42Ni0xNS42NyAxNS42Ni0zNy42N3QtMTUuNjYtMzcuNjZRNzM0LTU1NiA3MTItNTU2dC0zNy42NyAxNS42N3EtMTUuNjYgMTUuNjYtMTUuNjYgMzcuNjYgMCAyMiAxNS42NiAzNy42N1E2OTAtNDQ5LjMzIDcxMi00NDkuMzNUNzQ5LjY3LTQ2NVpNNDgwLTE0Ni42N3ExMC4zMyAwIDE1LjE3LTQuNjYgNC44My00LjY3IDQuODMtMTQgMC0xNC0xNC42Ny0yOC4zNFE0NzAuNjctMjA4IDQ3MC42Ny0yNDhxMC00NC42NyAyOS42Ni03Ni4zM1E1MzAtMzU2IDU3NC42Ny0zNTZoNzJxNzIuNjYgMCAxMTkuNjYtNDIuNXQ0Ny0xMjUuNXEwLTEyOC4zMy05Ny41LTIwOC44M3QtMjI3LjE2LTgwLjVxLTE0Mi42NyAwLTI0Mi4zNCA5Ni42NlExNDYuNjctNjIwIDE0Ni42Ny00ODBxMCAxMzguMzMgOTcuNSAyMzUuODNUNDgwLTE0Ni42N1oiLz48L3N2Zz4="); }
+    .left-toolbar .help-btn { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNNDI4LjY3LTMyNi42N3EuNjYtNzUgMTUuODMtMTA4LjgzdDU5LjUtNzMuODNxNDEuNjctMzcuMzQgNjMuODMtNjcuODQgMjIuMTctMzAuNSAyMi4xNy02Ni41IDAtNDMuNjYtMjkuMTctNzIuNjYtMjkuMTYtMjktODEuNS0yOS01MS42NiAwLTc5LjE2IDMwdC0zOS44NCA2MkwyNzAtNjkyLjY3cTIxLjY3LTYwLjY2IDc1LjMzLTEwNFEzOTktODQwIDQ3OS4zMy04NDBxMTAxLjY3IDAgMTU2LjUgNTYuNSA1NC44NCA1Ni41IDU0Ljg0IDEzNS44MyAwIDQ4LjY3LTIwLjg0IDg2LjUtMjAuODMgMzcuODQtNjYuMTYgODEuNS00OSA0Ny01OS4xNyA3MS44NC0xMC4xNyAyNC44My0xMC44MyA4MS4xNmgtMTA1Wk00NzkuMzMtODBRNDQ5LTgwIDQyNy41LTEwMS41VDQwNi0xNTMuMzNxMC0zMC4zNCAyMS41LTUxLjg0IDIxLjUtMjEuNSA1MS44My0yMS41IDMwLjM0IDAgNTEuODQgMjEuNSAyMS41IDIxLjUgMjEuNSA1MS44NCAwIDMwLjMzLTIxLjUgNTEuODNUNDc5LjMzLTgwWiIvPjwvc3ZnPg=="); }
+    .left-toolbar .save-default-btn { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNODQwLTY4MnY0OTUuMzNxMCAyNy0xOS44MyA0Ni44NFE4MDAuMzMtMTIwIDc3My4zMy0xMjBIMTg2LjY3cS0yNyAwLTQ2Ljg0LTE5LjgzUTEyMC0xNTkuNjcgMTIwLTE4Ni42N3YtNTg2LjY2cTAtMjcgMTkuODMtNDYuODRRMTU5LjY3LTg0MCAxODYuNjctODQwSDY4MmwxNTggMTU4Wm0tNjYuNjcgMjkuMzNMNjUyLjY3LTc3My4zM2gtNDY2djU4Ni42Nmg1ODYuNjZ2LTQ2NlptLTIxNiAzNzcuNDlxMzItMzEuODQgMzItNzcuMzMgMC00NS40OS0zMS44NC03Ny40OS0zMS44NC0zMi03Ny4zMy0zMi00NS40OSAwLTc3LjQ5IDMxLjg0LTMyIDMxLjg1LTMyIDc3LjM0dDMxLjg0IDc3LjQ5cTMxLjg0IDMyIDc3LjMzIDMyIDQ1LjQ5IDAgNzcuNDktMzEuODVaTTIzNS4zMy01NzZINTk0di0xNDguNjdIMjM1LjMzVi01NzZabS00OC42Ni03Ni42N3Y0NjYtNTg2LjY2IDEyMC42NloiLz48L3N2Zz4="); }
+    .left-toolbar .peak-warning-btn { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJtNDAtMTIwIDQ0MC03NjAgNDQwIDc2MEg0MFptMTE1LjMzLTY2LjY3aDY0OS4zNEw0ODAtNzQ2LjY3bC0zMjQuNjcgNTYwWm0zNTEuMTctNjAuOTVxOS41LTkuNjEgOS41LTIzLjgzIDAtMTQuMjItOS42Mi0yMy43Mi05LjYxLTkuNS0yMy44My05LjUtMTQuMjIgMC0yMy43MiA5LjYyLTkuNSA5LjYyLTkuNSAyMy44MyAwIDE0LjIyIDkuNjIgMjMuNzIgOS42MiA5LjUgMjMuODMgOS41IDE0LjIyIDAgMjMuNzItOS42MlpNNDQ5LjMzLTM1Mkg1MTZ2LTIxNmgtNjYuNjd2MjE2Wk00ODAtNDY2LjY3WiIvPjwvc3ZnPg=="); }
+    .left-toolbar .suppressor-btn { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJtNDAtMjQwIDI0MC0zMjAgMTkwIDI1My4zM2gzMTYuNjdMNTYwLTYwOCA0NDMuMzMtNDUzLjMzbC00Mi01NS4zNEw1NjAtNzIwbDM2MCA0ODBINDBabTUxMy42Ny02Ni42N1ptLTM4MC4zNCAwaDIxMy4zNEwyODAtNDQ5IDE3My4zMy0zMDYuNjdabTAgMGgyMTMuMzQtMjEzLjM0WiIvPjwvc3ZnPg=="); }
+    .left-toolbar .menu-toggle { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJtMzgyLTgwLTE4LjY3LTEyNi42N3EtMTctNi4zMy0zNC44My0xNi42Ni0xNy44My0xMC4zNC0zMi4xNy0yMS42N0wxNzgtMTkyLjMzIDc5LjMzLTM2NWwxMDYuMzQtNzguNjdxLTEuNjctOC4zMy0yLTE4LjE2LS4zNC05Ljg0LS4zNC0xOC4xNyAwLTguMzMuMzQtMTguMTcuMzMtOS44MyAyLTE4LjE2TDc5LjMzLTU5NSAxNzgtNzY3LjY3IDI5Ni4zMy03MTVxMTQuMzQtMTEuMzMgMzIuMzQtMjEuNjcgMTgtMTAuMzMgMzQuNjYtMTZMMzgyLTg4MGgxOTZsMTguNjcgMTI2LjY3cTE3IDYuMzMgMzUuMTYgMTYuMzMgMTguMTcgMTAgMzEuODQgMjJMNzgyLTc2Ny42NyA4ODAuNjctNTk1bC0xMDYuMzQgNzcuMzNxMS42NyA5IDIgMTguODQuMzQgOS44My4zNCAxOC44MyAwIDktLjM0IDE4LjVRNzc2LTQ1MiA3NzQtNDQzbDEwNi4zMyA3OC05OC42NiAxNzIuNjctMTE4LTUyLjY3cS0xNC4zNCAxMS4zMy0zMiAyMi0xNy42NyAxMC42Ny0zNSAxNi4zM0w1NzgtODBIMzgyWm01NS4zMy02Ni42N2g4NWwxNC0xMTBxMzIuMzQtOCA2MC44NC0yNC41VDY0OS0zMjFsMTAzLjY3IDQ0LjMzIDM5LjY2LTcwLjY2TDcwMS00MTVxNC4zMy0xNiA2LjY3LTMyLjE3UTcxMC00NjMuMzMgNzEwLTQ4MHEwLTE2LjY3LTItMzIuODMtMi0xNi4xNy03LTMyLjE3bDkxLjMzLTY3LjY3LTM5LjY2LTcwLjY2TDY0OS02MzguNjdxLTIyLjY3LTI1LTUwLjgzLTQxLjgzLTI4LjE3LTE2LjgzLTYxLjg0LTIyLjgzbC0xMy42Ni0xMTBoLTg1bC0xNCAxMTBxLTMzIDcuMzMtNjEuNSAyMy44M1QzMTEtNjM5bC0xMDMuNjctNDQuMzMtMzkuNjYgNzAuNjZMMjU5LTU0NS4zM1EyNTQuNjctNTI5IDI1Mi4zMy01MTMgMjUwLTQ5NyAyNTAtNDgwcTAgMTYuNjcgMi4zMyAzMi42NyAyLjM0IDE2IDYuNjcgMzIuMzNsLTkxLjMzIDY3LjY3IDM5LjY2IDcwLjY2TDMxMS0zMjEuMzNxMjMuMzMgMjMuNjYgNTEuODMgNDAuMTYgMjguNSAxNi41IDYwLjg0IDI0LjVsMTMuNjYgMTEwWm00My4zNC0yMDBxNTUuMzMgMCA5NC4zMy0zOVQ2MTQtNDgwcTAtNTUuMzMtMzktOTQuMzN0LTk0LjMzLTM5cS01NS42NyAwLTk0LjUgMzktMzguODQgMzktMzguODQgOTQuMzN0MzguODQgOTQuMzNxMzguODMgMzkgOTQuNSAzOVpNNDgwLTQ4MFoiLz48L3N2Zz4="); }
+    .left-toolbar .len-btn {
+      background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNNTgwLTEyMHEtMjcgMC00Ni44My0xOS44My0xOS44NC0xOS44NC0xOS44NC00Ni44NHYtNTg2LjY2cTAtMjcgMTkuODQtNDYuODRRNTUzLTg0MCA1ODAtODQwaDE5My4zM3EyNyAwIDQ2Ljg0IDE5LjgzUTg0MC04MDAuMzMgODQwLTc3My4zM3Y1ODYuNjZxMCAyNy0xOS44MyA0Ni44NFE4MDAuMzMtMTIwIDc3My4zMy0xMjBINTgwWm0wLTY1My4zM3Y1ODYuNjZoMTkzLjMzdi01ODYuNjZINTgwWk0xODYuNjctMTIwcS0yNyAwLTQ2Ljg0LTE5LjgzUTEyMC0xNTkuNjcgMTIwLTE4Ni42N3YtNTg2LjY2cTAtMjcgMTkuODMtNDYuODRRMTU5LjY3LTg0MCAxODYuNjctODQwSDM4MHEyNyAwIDQ2LjgzIDE5LjgzIDE5Ljg0IDE5Ljg0IDE5Ljg0IDQ2Ljg0djU4Ni42NnEwIDI3LTE5Ljg0IDQ2Ljg0UTQwNy0xMjAgMzgwLTEyMEgxODYuNjdabTAtNjUzLjMzdjU4Ni42NkgzODB2LTU4Ni42NkgxODYuNjdabTU4Ni42NiAwSDU4MGgxOTMuMzNabS0zOTMuMzMgMEgxODYuNjcgMzgwWiIvPjwvc3ZnPg==");
+      color: transparent;
+      font-size: 0;
+      line-height: 0;
+      text-indent: -9999px;
+      overflow: hidden;
+    }
+    .left-toolbar .len-btn.mode-bar {
+      background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNMTQ2LjY3LTE2MHEtMjcgMC00Ni44NC0xOS44M1E4MC0xOTkuNjcgODAtMjI2LjY3di01MDYuNjZxMC0yNyAxOS44My00Ni44NFExMTkuNjctODAwIDE0Ni42Ny04MDBoNjY2LjY2cTI3IDAgNDYuODQgMTkuODNRODgwLTc2MC4zMyA4ODAtNzMzLjMzdjUwNi42NnEwIDI3LTE5LjgzIDQ2Ljg0UTg0MC4zMy0xNjAgODEzLjMzLTE2MEgxNDYuNjdaTTUxNi0yMjYuNjdoMTE1LjMzdi01MDYuNjZINTE2djUwNi42NlptLTE4Ni42NyAwaDExNS4zNHYtNTA2LjY2SDMyOS4zM3Y1MDYuNjZabS0xODIuNjYgMGgxMTZ2LTUwNi42NmgtMTE2djUwNi42NlptNTUxLjMzIDBoMTE1LjMzdi01MDYuNjZINjk4djUwNi42NloiLz48L3N2Zz4=");
+    }
+    .left-toolbar .help-btn::before,
+    .left-toolbar .save-default-btn::before,
+    .left-toolbar .save-default-btn::after,
+    .left-toolbar .peak-warning-btn::before,
+    .left-toolbar .peak-warning-btn::after,
+    .left-toolbar .suppressor-btn::before,
+    .left-toolbar .suppressor-btn::after,
+    .left-toolbar .fullscreen-btn::before {
+      content: none;
+    }
+    .left-toolbar .osc-btn .osc-icon {
+      display: none;
+    }
+    .left-toolbar .theme-toggle-btn .theme-indicator,
+    .left-toolbar .menu-toggle .triangle {
+      display: none;
+    }
+        /* End embedded left-toolbar SVG icons */
     .ui-tooltip {
       position: fixed;
       z-index: 10;
@@ -487,7 +1073,7 @@
       border-radius: 6px;
       background: var(--tooltip-bg);
       color: var(--icon-fg);
-      font-size: 8px;
+      font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.01em;
       line-height: 1;
@@ -495,11 +1081,75 @@
       backdrop-filter: blur(3px);
       white-space: nowrap;
     }
+
+    .credit-splash {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 180ms ease, visibility 0s linear 180ms;
+    }
+
+    .credit-splash.is-visible {
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 140ms ease-out;
+    }
+
+    .credit-splash.is-fading {
+      opacity: 0;
+      visibility: visible;
+      transition: opacity 650ms ease-out;
+    }
+
+    .credit-splash-content {
+      text-align: center;
+      transform: translateY(-4%);
+      text-shadow: 0 8px 28px rgba(2, 6, 15, 0.75);
+    }
+
+    .credit-title {
+      color: var(--icon-fg);
+      font-size: clamp(40px, 8.2vw, 118px);
+      line-height: 0.92;
+      letter-spacing: 0.10em;
+      font-weight: 800;
+    }
+
+    .credit-subtitle {
+      margin-top: 14px;
+      color: rgba(224, 235, 252, 0.86);
+      font-size: clamp(11px, 1.5vw, 19px);
+      letter-spacing: 0.16em;
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
   <div class="app">
     <canvas id="spectrum"></canvas>
+    <div class="osc-mode-hub" id="oscModeHub">
+      <button class="osc-mode-btn is-off" id="oscModeBtn" type="button" aria-label="Oscilloscope mode" data-tooltip="Oscilloscope mode: Mono"></button>
+    </div>
+    <div class="band-solo-strip" id="bandSoloStrip">
+      <div class="band-solo-item" data-band-index="0" data-start-hz="20" data-end-hz="200">
+        <button class="band-solo-btn" type="button" data-band-index="0" data-tooltip="Solo low band">S</button>
+      </div>
+      <div class="band-solo-item" data-band-index="1" data-start-hz="200" data-end-hz="2000">
+        <button class="band-solo-btn" type="button" data-band-index="1" data-tooltip="Solo low-mid band">S</button>
+      </div>
+      <div class="band-solo-item" data-band-index="2" data-start-hz="2000" data-end-hz="5000">
+        <button class="band-solo-btn" type="button" data-band-index="2" data-tooltip="Solo high-mid band">S</button>
+      </div>
+      <div class="band-solo-item" data-band-index="3" data-start-hz="5000" data-end-hz="20000">
+        <button class="band-solo-btn" type="button" data-band-index="3" data-tooltip="Solo high band">S</button>
+      </div>
+    </div>
 
     <div class="left-toolbar" id="leftToolbar">
       <div class="button-stack">
@@ -521,6 +1171,12 @@
             <button class="icon-btn theme-choice" type="button" data-theme="orange" style="--swatch-color: #c27a37;" data-tooltip="Orange"></button>
             <button class="icon-btn theme-choice" type="button" data-theme="purple" style="--swatch-color: #8a64c7;" data-tooltip="Purple"></button>
           </div>
+        </div>
+        <button class="icon-btn help-btn is-off" id="helpBtn" type="button" aria-label="About" data-tooltip="About"></button>
+        <button class="icon-btn save-default-btn is-off" id="saveDefaultsBtn" type="button" aria-label="Save as default" data-tooltip="Save current state as default"></button>
+        <div class="warning-stack">
+          <button class="icon-btn peak-warning-btn" id="peakWarningBtn" type="button" aria-label="Peak warning" data-tooltip="Peak warning"></button>
+          <button class="icon-btn suppressor-btn" id="suppressorBtn" type="button" aria-label="Resonance suppressor" data-tooltip="Resonance suppressor"></button>
         </div>
         <button class="icon-btn menu-toggle is-off" id="menuToggle" aria-label="Analyzer options" data-tooltip="Analyzer options">
           <span class="triangle"></span>
@@ -567,41 +1223,24 @@
 
     <div class="preset-center" id="presetCenter">
       <div class="preset-inline-controls">
-        <button
-          class="overlay-knob"
-          id="overlayWidthKnob"
-          type="button"
-          role="slider"
-          aria-label="Overlay width"
-          aria-orientation="vertical"
-          aria-valuemin="3"
-          aria-valuemax="18"
-          aria-valuenow="12"
-          data-tooltip="Overlay width: 12.0 dB">
-          <span class="overlay-knob-indicator"></span>
-        </button>
         <div class="control-select" id="smoothSourceSel">
           <button class="select-trigger" type="button" aria-label="Target Preset" aria-haspopup="listbox" aria-expanded="false" data-tooltip="Target preset">PSYTRANCE</button>
           <div class="select-menu" role="listbox" aria-label="Target Preset">
+            <button class="select-action" id="newSmoothPresetBtn" type="button" data-tooltip="Scan folder and create a new preset">New Preset</button>
             <button class="select-option is-active" type="button" data-value="psytrance">PSYTRANCE</button>
             <button class="select-option" type="button" data-value="dubtechno">DUBTECHNO</button>
             <button class="select-option" type="button" data-value="orchestral">ORCHESTRAL</button>
+            <button class="select-option" type="button" data-value="orchestralgame">ORCHESTRAL GAME</button>
             <button class="select-option" type="button" data-value="progressive">PROGRESSIVE</button>
           </div>
         </div>
-        <button
-          class="overlay-knob"
-          id="overlayLevelKnob"
-          type="button"
-          role="slider"
-          aria-label="Overlay level"
-          aria-orientation="vertical"
-          aria-valuemin="-23"
-          aria-valuemax="0"
-          aria-valuenow="0"
-          data-tooltip="Overlay level: 0.0 dB">
-          <span class="overlay-knob-indicator"></span>
-        </button>
+      </div>
+    </div>
+
+    <div class="credit-splash" id="creditSplash" aria-hidden="true">
+      <div class="credit-splash-content">
+        <div class="credit-title">SPECRAUM</div>
+        <div class="credit-subtitle">SASHAD / PsiloCybian</div>
       </div>
     </div>
   </div>
@@ -612,24 +1251,34 @@
     const rawTarget = new Float32Array(BINS);
     const shapedTarget = new Float32Array(BINS);
     const display = new Float32Array(BINS);
-    const oscTarget = new Float32Array(BINS);
-    const oscWork = new Float32Array(BINS);
-    const oscDisplay = new Float32Array(BINS);
+    const oscTargetL = new Float32Array(BINS);
+    const oscTargetR = new Float32Array(BINS);
+    const oscWorkL = new Float32Array(BINS);
+    const oscWorkR = new Float32Array(BINS);
+    const oscDisplayL = new Float32Array(BINS);
+    const oscDisplayR = new Float32Array(BINS);
     let sampleRate = 44100;
-    let oscAutoGain = 1.0;
-    let oscDc = 0.0;
+    let oscAutoGainL = 1.0;
+    let oscAutoGainR = 1.0;
+    let oscDcL = 0.0;
+    let oscDcR = 0.0;
 
     const state = {
       resolution: "high",
       speed: "medium",
       tiltDb: 5.0,
       oscilloscopeOn: true,
+      oscStereo: false,
       fullscreenOn: false,
       oscLengthMode: 0,
       theme: "blue",
       smoothSource: "psytrance",
       overlayLevelDb: 0.0,
-      overlayWidthDb: 12.0
+      overlayWidthDb: 12.0,
+      presetSmoothing: 16,
+      soloBand: -1,
+      peakWarningOn: true,
+      suppressorOn: true
     };
     const builtInSmoothTargets = {
     "psytrance":  {
@@ -672,6 +1321,37 @@
                                      0.21965530, 0.21558003, 0.21186090, 0.20792484, 0.20439179, 0.20041171, 0.19644984, 0.19249410, 0.18884471, 0.18506961, 0.18114360, 0.17718962, 0.17329798, 0.16962793, 0.16585723, 0.16244017,
                                      0.15898273, 0.15573769, 0.15249083, 0.14948152, 0.14619580, 0.14280133, 0.13926110, 0.13583950, 0.13243147, 0.12904698, 0.12565483, 0.12231515, 0.11912420, 0.11606801, 0.11328535, 0.11065651,
                                      0.10827697, 0.10606200, 0.10411148, 0.10235433, 0.10085639, 0.09960240, 0.09867173, 0.09768751, 0.09695957, 0.09649599, 0.09621068, 0.09606941, 0.09599866, 0.09591437, 0.09570368, 0.09523428
+                                 ]
+                     },
+    "orchestralgame":  {
+                        "label":  "ORCHESTRAL GAME",
+                        "path":  "C:\\Users\\psilo\\Documents\\iZotope\\Tonal Balance Control 2\\Target Curves\\ORCHESTRAL GAME.json",
+                        "filesAnalysed":  1,
+                        "limited":  false,
+                        "bins":  [
+                                    0.52972574, 0.53119880, 0.53271230, 0.53419379, 0.53551766, 0.53687788, 0.53827545, 0.53971140, 0.54118678, 0.54270268, 0.54426020, 0.54586048,
+                                    0.54750471, 0.54919410, 0.55092987, 0.55271330, 0.55454570, 0.55642843, 0.55814399, 0.55940247, 0.56069552, 0.56202407, 0.56338910, 0.56479161,
+                                    0.56623264, 0.56771323, 0.56923448, 0.57079751, 0.57240345, 0.57364702, 0.57473595, 0.57585477, 0.57700432, 0.57818544, 0.57939898, 0.58064585,
+                                    0.58192696, 0.58309749, 0.58411840, 0.58516735, 0.58624511, 0.58735246, 0.58849022, 0.58965922, 0.59060829, 0.59148310, 0.59238193, 0.59330545,
+                                    0.59425432, 0.59521630, 0.59574124, 0.59628059, 0.59683475, 0.59740413, 0.59793558, 0.59798306, 0.59803185, 0.59808197, 0.59813348, 0.59779797,
+                                    0.59732219, 0.59683335, 0.59633108, 0.59553437, 0.59466981, 0.59378151, 0.59287043, 0.59193746, 0.59097887, 0.59001053, 0.58912755, 0.58822031,
+                                    0.58732026, 0.58654813, 0.58575480, 0.58501438, 0.58434999, 0.58366736, 0.58309354, 0.58251944, 0.58186148, 0.58111931, 0.58035502, 0.57956505,
+                                    0.57874149, 0.57783324, 0.57692740, 0.57613516, 0.57534084, 0.57457776, 0.57371683, 0.57274514, 0.57182768, 0.57095305, 0.57038050, 0.56978268,
+                                    0.56916093, 0.56853873, 0.56807189, 0.56766154, 0.56701755, 0.56621147, 0.56551427, 0.56493924, 0.56437607, 0.56372474, 0.56268760, 0.56138743,
+                                    0.56007554, 0.55890790, 0.55756293, 0.55587633, 0.55423426, 0.55289822, 0.55170201, 0.54996787, 0.54817294, 0.54601261, 0.54391759, 0.54185831,
+                                    0.53990921, 0.53742595, 0.53452007, 0.53184892, 0.52946875, 0.52708896, 0.52394314, 0.52113189, 0.51845964, 0.51626491, 0.51354720, 0.51115677,
+                                    0.50811935, 0.50530762, 0.50268931, 0.50074740, 0.49830421, 0.49559210, 0.49317576, 0.49112585, 0.48907385, 0.48622311, 0.48362442, 0.48045266,
+                                    0.47774067, 0.47461929, 0.47206494, 0.46828573, 0.46472111, 0.46106926, 0.45819500, 0.45454997, 0.45085751, 0.44735362, 0.44431221, 0.44127543,
+                                    0.43783240, 0.43471154, 0.43109409, 0.42812300, 0.42520489, 0.42292942, 0.41946401, 0.41645949, 0.41317812, 0.41058733, 0.40703225, 0.40370792,
+                                    0.40022813, 0.39715559, 0.39378669, 0.39027974, 0.38676831, 0.38267536, 0.37884446, 0.37488671, 0.37133606, 0.36686146, 0.36283873, 0.35849226,
+                                    0.35484250, 0.35050920, 0.34653419, 0.34229057, 0.33832307, 0.33424585, 0.33036109, 0.32616802, 0.32152572, 0.31711421, 0.31264971, 0.30852087,
+                                    0.30343902, 0.29847052, 0.29296306, 0.28780870, 0.28205476, 0.27656636, 0.27041808, 0.26423753, 0.25785924, 0.25171340, 0.24545577, 0.23918269,
+                                    0.23322013, 0.22751452, 0.22215864, 0.21653582, 0.21127360, 0.20577562, 0.20055804, 0.19510944, 0.19000453, 0.18468822, 0.17963019, 0.17449832,
+                                    0.16962054, 0.16464001, 0.15960618, 0.15447993, 0.14932550, 0.14432305, 0.13933108, 0.13452902, 0.12965032, 0.12488362, 0.12004628, 0.11531845,
+                                    0.11041084, 0.10555137, 0.10069733, 0.09597370, 0.09126134, 0.08660466, 0.08204506, 0.07763489, 0.07343621, 0.06948648, 0.06583042, 0.06242477,
+                                    0.05929568, 0.05643930, 0.05388930, 0.05161808, 0.04968318, 0.04806671, 0.04682871, 0.04603370, 0.04573025, 0.04585193, 0.04634648, 0.04717166,
+                                    0.04824721, 0.04945452, 0.05073061, 0.05195989
+
                                  ]
                      },
     "progressive":  {
@@ -931,33 +1611,55 @@
       slow: { attack: 0.16, release: 0.045 }
     };
 
-    const freqTicks = [20, 30, 40, 50, 60, 80, 100, 200, 300, 500, 1000, 2000, 3000, 5000, 10000, 20000];
+    const freqGridTicks = [200, 2000, 5000];
+    const freqLabelTicks = [40, 100, 200, 400, 600, 1000, 2000, 4000, 6000, 10000];
+    const soloBandRanges = [
+      { startHz: 20, endHz: 200 },
+      { startHz: 200, endHz: 2000 },
+      { startHz: 2000, endHz: 5000 },
+      { startHz: 5000, endHz: 20000 }
+    ];
     const dbTicks = [-96, -78, -60, -42, -24, -12, -6, 0];
     const dbDisplayOffset = 24;
 
     const canvas = document.getElementById("spectrum");
     const ctx = canvas.getContext("2d");
+    const bandSoloStrip = document.getElementById("bandSoloStrip");
+    const bandSoloItems = Array.from(document.querySelectorAll(".band-solo-item"));
+    const bandSoloButtons = Array.from(document.querySelectorAll(".band-solo-btn"));
     const resolutionSel = document.getElementById("resolutionSel");
     const speedSel = document.getElementById("speedSel");
     const tiltSel = document.getElementById("tiltSel");
     const smoothSourceSel = document.getElementById("smoothSourceSel");
+    const smoothSourceMenu = smoothSourceSel ? smoothSourceSel.querySelector(".select-menu") : null;
+    const newSmoothPresetBtn = document.getElementById("newSmoothPresetBtn");
     const leftToolbar = document.getElementById("leftToolbar");
     const menuToggle = document.getElementById("menuToggle");
+    const helpBtn = document.getElementById("helpBtn");
+    const saveDefaultsBtn = document.getElementById("saveDefaultsBtn");
+    const peakWarningBtn = document.getElementById("peakWarningBtn");
+    const suppressorBtn = document.getElementById("suppressorBtn");
     const controlsPanel = document.getElementById("controlsPanel");
     const fullscreenBtn = document.getElementById("fullscreenBtn");
     const oscToggleBtn = document.getElementById("oscToggleBtn");
     const oscLengthBtn = document.getElementById("oscLengthBtn");
+    const oscModeHub = document.getElementById("oscModeHub");
+    const oscModeBtn = document.getElementById("oscModeBtn");
     const themePicker = document.getElementById("themePicker");
     const themeToggleBtn = document.getElementById("themeToggleBtn");
     const themeChoiceButtons = Array.from(document.querySelectorAll(".theme-choice"));
-    const smoothPresetBtn = document.getElementById("smoothPresetBtn");
     const presetStatus = document.getElementById("presetStatus");
     const uiTooltip = document.getElementById("uiTooltip");
+    const creditSplash = document.getElementById("creditSplash");
     const presetCenter = document.getElementById("presetCenter");
     const overlayWidthKnob = document.getElementById("overlayWidthKnob");
     const overlayLevelKnob = document.getElementById("overlayLevelKnob");
+    const presetSmoothingKnob = document.getElementById("presetSmoothingKnob");
     const toolbarSelectRoots = [resolutionSel, speedSel, tiltSel];
     const customSelectRoots = [resolutionSel, speedSel, tiltSel, smoothSourceSel];
+    const UI_DEFAULTS_STORAGE_KEY = "speccraum.ui.defaults.v1";
+    const USER_SMOOTH_PRESETS_STORAGE_KEY = "speccraum.user.smooth.presets.v1";
+    const FIXED_PRESET_SMOOTHING = 16;
     const overlayWidthBounds = {
       min: 3.0,
       max: 18.0,
@@ -970,16 +1672,45 @@
       wheelStep: 1.0,
       dragScale: 0.2
     };
+    const presetSmoothingBounds = {
+      min: FIXED_PRESET_SMOOTHING,
+      max: FIXED_PRESET_SMOOTHING,
+      wheelStep: 0,
+      dragScale: 0
+    };
 
     let mouseInside = false;
     let mouseX = 0;
     let mouseY = 0;
+    let overlayLevelHoverActive = false;
+    let overlayLevelDragActive = false;
+    let overlayLevelDragPointerId = null;
+    let overlayLevelDragStartY = 0;
+    let overlayLevelDragStartValue = 0;
+    let overlayReadoutMode = "level";
+    let overlayReadoutVisible = false;
+    let overlayReadoutHideTimerId = null;
+    let overlayWheelInteractionUntil = 0;
+    let crosshairAlpha = 1.0;
+    let crosshairTargetAlpha = 1.0;
+    let lastCrosshairUpdateMs = 0;
+    const CROSSHAIR_FADE_OUT_MS = 140;
+    const CROSSHAIR_FADE_IN_MS = 1000;
     let cornerHoverActive = false;
     let presetHoverActive = false;
-    const cornerRevealSizePx = 176;
+    const cornerRevealWidthPx = 360;
+    const cornerRevealVerticalPaddingPx = 140;
     const presetRevealWidthPx = 300;
     const presetRevealHeightPx = 148;
     const smoothPreset = new Float32Array(BINS);
+    const overlaySmoothA = new Float32Array(BINS);
+    const overlaySmoothB = new Float32Array(BINS);
+    const overlayUpperDisplay = new Float32Array(BINS);
+    const overlayLowerDisplay = new Float32Array(BINS);
+    const overlayCenterDisplay = new Float32Array(BINS);
+    const RESONANCE_SUPPRESSOR_BANDS = 6;
+    const suppressorFrequencyHz = new Float32Array(RESONANCE_SUPPRESSOR_BANDS);
+    const suppressorGainDb = new Float32Array(RESONANCE_SUPPRESSOR_BANDS);
     let hasSmoothPreset = false;
     let smoothPresetScanInProgress = false;
     let lastReferenceRevisionSeen = -1;
@@ -989,6 +1720,12 @@
     let builtInPresetLocked = false;
     let activeBuiltInPresetKey = "";
     let lastUiError = "";
+    let creditSplashFadeTimerId = null;
+    let creditSplashHideTimerId = null;
+    let saveDefaultsFlashTimerId = null;
+    const userSmoothTargets = {};
+    const userSmoothPresetOrder = [];
+    const selectChangeHandlers = new WeakMap();
 
     function initializeJuceBackendBridge() {
       if (typeof window.__JUCE__ !== "undefined"
@@ -1180,6 +1917,380 @@
       return Math.max(min, Math.min(max, value));
     }
 
+    function sanitizeSmoothSourceKey(value) {
+      const key = typeof value === "string" ? value.trim().toLowerCase() : "";
+      if (Object.prototype.hasOwnProperty.call(builtInSmoothTargets, key)
+          || Object.prototype.hasOwnProperty.call(userSmoothTargets, key))
+        return key;
+      return "psytrance";
+    }
+
+    function getSmoothPresetByKey(key) {
+      const safeKey = typeof key === "string" ? key.trim().toLowerCase() : "";
+      if (Object.prototype.hasOwnProperty.call(builtInSmoothTargets, safeKey))
+        return builtInSmoothTargets[safeKey];
+      if (Object.prototype.hasOwnProperty.call(userSmoothTargets, safeKey))
+        return userSmoothTargets[safeKey];
+      return null;
+    }
+
+    function hasSmoothSourceOption(value) {
+      if (!smoothSourceMenu)
+        return false;
+      const safeValue = String(value || "");
+      return Array.from(smoothSourceMenu.querySelectorAll(".select-option"))
+        .some((option) => option.dataset.value === safeValue);
+    }
+
+    function appendSmoothSourceOption(value, label) {
+      if (!smoothSourceMenu || hasSmoothSourceOption(value))
+        return;
+
+      const optionValue = String(value || "");
+      const optionLabel = String(label || value).toUpperCase();
+
+      const row = document.createElement("div");
+      row.className = "preset-user-row";
+      row.dataset.value = optionValue;
+
+      const option = document.createElement("button");
+      option.className = "select-option";
+      option.type = "button";
+      option.dataset.value = optionValue;
+      option.textContent = optionLabel;
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "preset-delete-btn";
+      deleteBtn.type = "button";
+      deleteBtn.dataset.value = optionValue;
+      deleteBtn.setAttribute("aria-label", `Delete ${optionLabel}`);
+      deleteBtn.textContent = "x";
+
+      row.appendChild(option);
+      row.appendChild(deleteBtn);
+      smoothSourceMenu.appendChild(row);
+    }
+
+    function extractFilesAnalysedFromMessage(message) {
+      const text = typeof message === "string" ? message : "";
+      const match = text.match(/(\d+)\s+file\(s\)/i);
+      if (!match)
+        return 0;
+      const value = Number(match[1]);
+      return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+    }
+
+    function normalizeBinsToArray(bins) {
+      let values = null;
+      if (Array.isArray(bins))
+        values = bins;
+      else if (bins && typeof bins.length === "number")
+        values = Array.from(bins);
+
+      if (!Array.isArray(values) || values.length <= 0)
+        return null;
+
+      const normalized = new Array(BINS);
+      const n = Math.min(BINS, values.length);
+      for (let i = 0; i < n; i++) {
+        const numeric = Number(values[i]);
+        normalized[i] = Number.isFinite(numeric) ? clampValue(numeric, 0, 1) : 0;
+      }
+
+      const edge = n > 0 ? normalized[n - 1] : 0;
+      for (let i = n; i < BINS; i++)
+        normalized[i] = edge;
+      return normalized;
+    }
+
+    function makeUniqueUserPresetLabel(baseLabel) {
+      const normalizedBase = String(baseLabel || "NEW PRESET")
+        .trim()
+        .replace(/\s+/g, " ")
+        .slice(0, 26)
+        .toUpperCase();
+      const base = normalizedBase.length > 0 ? normalizedBase : "NEW PRESET";
+
+      const existingLabels = new Set();
+      for (const preset of Object.values(builtInSmoothTargets)) {
+        if (preset && typeof preset.label === "string")
+          existingLabels.add(preset.label.trim().toUpperCase());
+      }
+      for (const key of userSmoothPresetOrder) {
+        const preset = userSmoothTargets[key];
+        if (preset && typeof preset.label === "string")
+          existingLabels.add(preset.label.trim().toUpperCase());
+      }
+
+      if (!existingLabels.has(base))
+        return base;
+
+      let index = 2;
+      while (index < 1000) {
+        const candidate = `${base} ${index}`;
+        if (!existingLabels.has(candidate))
+          return candidate;
+        index++;
+      }
+
+      return `${base} ${Date.now() % 1000}`;
+    }
+
+    function makeUniqueUserPresetKey(label) {
+      const slug = String(label || "preset")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "")
+        .slice(0, 20);
+      let key = `user_${slug || "preset"}`;
+      let suffix = 2;
+      while (Object.prototype.hasOwnProperty.call(builtInSmoothTargets, key)
+             || Object.prototype.hasOwnProperty.call(userSmoothTargets, key)) {
+        key = `user_${slug || "preset"}${suffix}`;
+        suffix++;
+      }
+      return key;
+    }
+
+    function persistUserSmoothPresets() {
+      if (typeof window.localStorage === "undefined")
+        return;
+
+      const payload = [];
+      for (const key of userSmoothPresetOrder) {
+        const preset = userSmoothTargets[key];
+        if (!preset || !Array.isArray(preset.bins))
+          continue;
+        payload.push({
+          key,
+          label: preset.label,
+          filesAnalysed: Number.isFinite(Number(preset.filesAnalysed))
+            ? Math.max(0, Math.floor(Number(preset.filesAnalysed)))
+            : 0,
+          limited: !!preset.limited,
+          bins: preset.bins.map((v) => clampValue(Number(v), 0, 1))
+        });
+      }
+
+      try {
+        window.localStorage.setItem(USER_SMOOTH_PRESETS_STORAGE_KEY, JSON.stringify(payload));
+      } catch (error) {
+        console.warn("SPECRAUM: failed to persist user presets.", error);
+      }
+    }
+
+    function loadUserSmoothPresets() {
+      if (typeof window.localStorage === "undefined")
+        return;
+
+      try {
+        const raw = window.localStorage.getItem(USER_SMOOTH_PRESETS_STORAGE_KEY);
+        if (!raw)
+          return;
+
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed))
+          return;
+
+        for (const entry of parsed) {
+          if (!entry || typeof entry !== "object")
+            continue;
+
+          const key = typeof entry.key === "string" ? entry.key.trim().toLowerCase() : "";
+          if (!key || Object.prototype.hasOwnProperty.call(builtInSmoothTargets, key)
+              || Object.prototype.hasOwnProperty.call(userSmoothTargets, key))
+            continue;
+
+          const bins = normalizeBinsToArray(entry.bins);
+          if (!bins)
+            continue;
+
+          const label = makeUniqueUserPresetLabel(
+            typeof entry.label === "string" ? entry.label : "NEW PRESET");
+          const filesAnalysed = Number.isFinite(Number(entry.filesAnalysed))
+            ? Math.max(0, Math.floor(Number(entry.filesAnalysed)))
+            : 0;
+          const limited = !!entry.limited;
+
+          userSmoothTargets[key] = {
+            label,
+            path: "Generated from folder scan",
+            filesAnalysed,
+            limited,
+            bins
+          };
+          userSmoothPresetOrder.push(key);
+          appendSmoothSourceOption(key, label);
+        }
+      } catch (error) {
+        console.warn("SPECRAUM: failed to load user presets.", error);
+      }
+    }
+
+    function createUserPresetFromScan(bins, folderName, message) {
+      const normalizedBins = normalizeBinsToArray(bins);
+      if (!normalizedBins)
+        return null;
+
+      const labelBase = (typeof folderName === "string" && folderName.trim().length > 0)
+        ? folderName.trim()
+        : "NEW PRESET";
+      const label = makeUniqueUserPresetLabel(labelBase);
+      const key = makeUniqueUserPresetKey(label);
+      const filesAnalysed = extractFilesAnalysedFromMessage(message);
+      const limited = /limited scan/i.test(String(message || ""));
+
+      userSmoothTargets[key] = {
+        label,
+        path: (typeof folderName === "string" && folderName.trim().length > 0)
+          ? folderName.trim()
+          : "Generated from folder scan",
+        filesAnalysed,
+        limited,
+        bins: normalizedBins
+      };
+      userSmoothPresetOrder.push(key);
+      appendSmoothSourceOption(key, label);
+      persistUserSmoothPresets();
+      return { key, label, filesAnalysed, limited };
+    }
+
+    function deleteUserSmoothPresetByKey(key) {
+      const safeKey = typeof key === "string" ? key.trim().toLowerCase() : "";
+      if (!safeKey || !Object.prototype.hasOwnProperty.call(userSmoothTargets, safeKey))
+        return false;
+
+      delete userSmoothTargets[safeKey];
+      const idx = userSmoothPresetOrder.indexOf(safeKey);
+      if (idx >= 0)
+        userSmoothPresetOrder.splice(idx, 1);
+
+      if (smoothSourceMenu) {
+        const row = smoothSourceMenu.querySelector(`.preset-user-row[data-value="${safeKey}"]`);
+        if (row)
+          row.remove();
+      }
+
+      const selected = getSelectedSmoothSource();
+      if (selected === safeKey) {
+        const fallback = userSmoothPresetOrder.length > 0 ? userSmoothPresetOrder[userSmoothPresetOrder.length - 1] : "psytrance";
+        setCustomSelectValue(smoothSourceSel, fallback, true);
+      }
+
+      persistUserSmoothPresets();
+      return true;
+    }
+
+    function quantizeTiltDb(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric))
+        return 5.0;
+      return clampValue(Math.round(numeric * 2) * 0.5, 0.0, 6.0);
+    }
+
+    function loadSavedUiDefaults() {
+      if (typeof window.localStorage === "undefined")
+        return null;
+
+      try {
+        const raw = window.localStorage.getItem(UI_DEFAULTS_STORAGE_KEY);
+        if (!raw)
+          return null;
+
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object")
+          return null;
+
+        const nextState = {};
+        if (typeof parsed.resolution === "string" && Object.prototype.hasOwnProperty.call(resolutionMap, parsed.resolution))
+          nextState.resolution = parsed.resolution;
+        if (typeof parsed.speed === "string" && Object.prototype.hasOwnProperty.call(speedMap, parsed.speed))
+          nextState.speed = parsed.speed;
+        if (typeof parsed.theme === "string" && Object.prototype.hasOwnProperty.call(themes, parsed.theme))
+          nextState.theme = parsed.theme;
+
+        nextState.tiltDb = quantizeTiltDb(parsed.tiltDb);
+        if (typeof parsed.oscilloscopeOn === "boolean")
+          nextState.oscilloscopeOn = parsed.oscilloscopeOn;
+        if (typeof parsed.oscStereo === "boolean")
+          nextState.oscStereo = parsed.oscStereo;
+        if (typeof parsed.peakWarningOn === "boolean")
+          nextState.peakWarningOn = parsed.peakWarningOn;
+        if (typeof parsed.suppressorOn === "boolean")
+          nextState.suppressorOn = parsed.suppressorOn;
+        nextState.oscLengthMode = Number(parsed.oscLengthMode) === 1 ? 1 : 0;
+        nextState.smoothSource = sanitizeSmoothSourceKey(parsed.smoothSource);
+
+        const overlayLevelValue = Number(parsed.overlayLevelDb);
+        if (Number.isFinite(overlayLevelValue))
+          nextState.overlayLevelDb = clampValue(Math.round(overlayLevelValue), overlayLevelBounds.min, overlayLevelBounds.max);
+
+        const overlayWidthValue = Number(parsed.overlayWidthDb);
+        if (Number.isFinite(overlayWidthValue))
+          nextState.overlayWidthDb = clampValue(Math.round(overlayWidthValue), overlayWidthBounds.min, overlayWidthBounds.max);
+
+        const presetSmoothingValue = Number(parsed.presetSmoothing);
+        if (Number.isFinite(presetSmoothingValue))
+          nextState.presetSmoothing = clampValue(
+            Math.round(presetSmoothingValue),
+            presetSmoothingBounds.min,
+            presetSmoothingBounds.max);
+        return nextState;
+      } catch (error) {
+        console.warn("SPECRAUM: failed to load saved defaults.", error);
+        return null;
+      }
+    }
+
+    function saveCurrentUiDefaults() {
+      if (typeof window.localStorage === "undefined")
+        return false;
+
+      try {
+        const payload = {
+          resolution: state.resolution,
+          speed: state.speed,
+          tiltDb: quantizeTiltDb(state.tiltDb),
+          oscilloscopeOn: !!state.oscilloscopeOn,
+          oscStereo: !!state.oscStereo,
+          peakWarningOn: !!state.peakWarningOn,
+          suppressorOn: !!state.suppressorOn,
+          oscLengthMode: state.oscLengthMode === 1 ? 1 : 0,
+          theme: state.theme,
+          smoothSource: sanitizeSmoothSourceKey(getSelectedSmoothSource()),
+          overlayLevelDb: clampValue(Math.round(state.overlayLevelDb), overlayLevelBounds.min, overlayLevelBounds.max),
+          overlayWidthDb: clampValue(Math.round(state.overlayWidthDb), overlayWidthBounds.min, overlayWidthBounds.max),
+          presetSmoothing: clampValue(
+            Math.round(state.presetSmoothing),
+            presetSmoothingBounds.min,
+            presetSmoothingBounds.max)
+        };
+        window.localStorage.setItem(UI_DEFAULTS_STORAGE_KEY, JSON.stringify(payload));
+        return true;
+      } catch (error) {
+        console.warn("SPECRAUM: failed to save defaults.", error);
+        return false;
+      }
+    }
+
+    function flashSaveDefaultsButton(success) {
+      if (!saveDefaultsBtn)
+        return;
+
+      if (saveDefaultsFlashTimerId !== null) {
+        window.clearTimeout(saveDefaultsFlashTimerId);
+        saveDefaultsFlashTimerId = null;
+      }
+
+      saveDefaultsBtn.classList.toggle("is-saving", success);
+      saveDefaultsBtn.classList.remove("is-off");
+
+      saveDefaultsFlashTimerId = window.setTimeout(() => {
+        saveDefaultsBtn.classList.remove("is-saving");
+        saveDefaultsBtn.classList.add("is-off");
+        saveDefaultsFlashTimerId = null;
+      }, success ? 850 : 520);
+    }
+
     function formatDb(value, includePlus = false) {
       const numeric = Number(value);
       if (!Number.isFinite(numeric))
@@ -1189,7 +2300,7 @@
       return `${sign}${rounded} dB`;
     }
 
-    function applyKnobVisual(knob, value, bounds, tooltipPrefix, includePlus = false) {
+    function applyKnobVisual(knob, value, bounds, tooltipPrefix, includePlus = false, formatter = null) {
       if (!knob)
         return;
       const span = bounds.max - bounds.min;
@@ -1198,7 +2309,9 @@
         : 0.5;
       const angle = -135 + normalized * 270;
       knob.style.setProperty("--knob-angle", `${angle.toFixed(1)}deg`);
-      const label = formatDb(value, includePlus);
+      const label = typeof formatter === "function"
+        ? formatter(value)
+        : formatDb(value, includePlus);
       knob.dataset.tooltip = `${tooltipPrefix}: ${label}`;
       knob.setAttribute("aria-valuenow", String(Math.round(value)));
       knob.setAttribute("aria-valuetext", label);
@@ -1219,12 +2332,51 @@
       applyKnobVisual(overlayWidthKnob, state.overlayWidthDb, overlayWidthBounds, "Overlay width");
     }
 
+    function updatePresetSmoothingKnobVisual() {
+      applyKnobVisual(
+        presetSmoothingKnob,
+        state.presetSmoothing,
+        presetSmoothingBounds,
+        "Overlay smoothing",
+        false,
+        (value) => String(Math.round(value)));
+    }
+
+    function syncNativeResonanceSuppressorConfig() {
+      const enabled = hasSmoothPreset && !!state.peakWarningOn && !!state.suppressorOn;
+      callNative(
+        "setResonanceSuppressorConfig",
+        enabled,
+        Math.round(state.overlayLevelDb),
+        Math.round(state.overlayWidthDb),
+        Number.isFinite(state.tiltDb) ? state.tiltDb : 5.0
+      );
+    }
+
+    function syncNativeReferenceSpectrum() {
+      if (!hasSmoothPreset) {
+        callNative("setReferenceSpectrum", []);
+        syncNativeResonanceSuppressorConfig();
+        return;
+      }
+
+      const bins = Array.from(smoothPreset, (value) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric))
+          return 0;
+        return clampValue(numeric, 0, 1);
+      });
+      callNative("setReferenceSpectrum", bins);
+      syncNativeResonanceSuppressorConfig();
+    }
+
     function setOverlayLevelDb(value) {
       const numeric = Number(value);
       const bounded = clampValue(Number.isFinite(numeric) ? numeric : 0, overlayLevelBounds.min, overlayLevelBounds.max);
       const quantized = Math.round(bounded);
       state.overlayLevelDb = quantized;
       updateOverlayLevelKnobVisual();
+      syncNativeResonanceSuppressorConfig();
     }
 
     function setOverlayWidthDb(value) {
@@ -1233,6 +2385,13 @@
       const quantized = Math.round(bounded);
       state.overlayWidthDb = quantized;
       updateOverlayWidthKnobVisual();
+      syncNativeResonanceSuppressorConfig();
+    }
+
+    function setPresetSmoothing(value) {
+      void value;
+      state.presetSmoothing = FIXED_PRESET_SMOOTHING;
+      updatePresetSmoothingKnobVisual();
     }
 
     function initializeDbKnob(knob, bounds, readValue, applyValue, resetValue) {
@@ -1317,6 +2476,70 @@
       initializeDbKnob(overlayLevelKnob, overlayLevelBounds, () => state.overlayLevelDb, setOverlayLevelDb, 0.0);
       setOverlayWidthDb(state.overlayWidthDb);
       setOverlayLevelDb(state.overlayLevelDb);
+      setPresetSmoothing(FIXED_PRESET_SMOOTHING);
+    }
+
+    function hitTestOverlayBand(localX, localY, width, height, tolerancePx = 14) {
+      if (!hasSmoothPreset)
+        return false;
+      if (!Number.isFinite(localX) || !Number.isFinite(localY) || width <= 0 || height <= 0)
+        return false;
+      if (localX < 0 || localY < 0 || localX > width || localY > height)
+        return false;
+
+      const normalizedX = clampValue(localX / Math.max(1, width), 0, 1);
+      const bin = Math.max(0, Math.min(BINS - 1, Math.round(normalizedX * (BINS - 1))));
+      const upperNorm = overlayUpperDisplay[bin];
+      const lowerNorm = overlayLowerDisplay[bin];
+      if (!Number.isFinite(upperNorm) || !Number.isFinite(lowerNorm))
+        return false;
+
+      const upperY = (1 - upperNorm) * height;
+      const lowerY = (1 - lowerNorm) * height;
+      const top = Math.min(upperY, lowerY) - tolerancePx;
+      const bottom = Math.max(upperY, lowerY) + tolerancePx;
+      return localY >= top && localY <= bottom;
+    }
+
+    function refreshOverlayLevelCursor() {
+      if (!canvas)
+        return;
+      if (overlayLevelDragActive) {
+        canvas.style.cursor = "ns-resize";
+        return;
+      }
+      if (!mouseInside) {
+        overlayLevelHoverActive = false;
+        canvas.style.cursor = "";
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      overlayLevelHoverActive = hitTestOverlayBand(mouseX, mouseY, rect.width, rect.height);
+      canvas.style.cursor = overlayLevelHoverActive ? "ns-resize" : "";
+    }
+
+    function hideOverlayReadout() {
+      if (overlayReadoutHideTimerId !== null) {
+        window.clearTimeout(overlayReadoutHideTimerId);
+        overlayReadoutHideTimerId = null;
+      }
+      overlayReadoutVisible = false;
+    }
+
+    function showOverlayReadout(mode, holdMs = 0) {
+      overlayReadoutMode = mode === "width" ? "width" : "level";
+      overlayReadoutVisible = true;
+      if (overlayReadoutHideTimerId !== null) {
+        window.clearTimeout(overlayReadoutHideTimerId);
+        overlayReadoutHideTimerId = null;
+      }
+      if (holdMs > 0) {
+        overlayReadoutHideTimerId = window.setTimeout(() => {
+          overlayReadoutVisible = false;
+          overlayReadoutHideTimerId = null;
+        }, holdMs);
+      }
     }
 
     function drawGrid(width, height) {
@@ -1330,42 +2553,79 @@
       );
 
       for (const db of dbTicks) {
+        if (db !== -24)
+          continue;
         const y = ((0 - db) / 96) * height;
-        if (db === 0) ctx.strokeStyle = activeCanvasTheme.gridDbZero;
-        else ctx.strokeStyle = db % 24 === 0 ? activeCanvasTheme.gridDbMajor : activeCanvasTheme.gridDbMinor;
+        ctx.strokeStyle = rgbaWithAlpha(activeCanvasTheme.gridDbZero, 0.20);
+        ctx.lineWidth = 1;
+        if (state.oscilloscopeOn) {
+          ctx.shadowColor = rgbaWithAlpha(activeCanvasTheme.gridDbZero, 0.24);
+          ctx.shadowBlur = 5;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 2;
+        }
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
         ctx.stroke();
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
 
         const label = formatTickDbLabel(db);
         if (label !== "") {
-          ctx.fillStyle = db === -24 ? activeCanvasTheme.gridLabelPrimary : activeCanvasTheme.gridLabelSecondary;
-          ctx.font = "11px Segoe UI";
+          ctx.fillStyle = rgbaWithAlpha(
+            db === -24 ? activeCanvasTheme.gridLabelPrimary : activeCanvasTheme.gridLabelSecondary,
+            0.55);
+          ctx.font = "12px SPRoboto, Roboto Condensed, Roboto, Segoe UI, Arial, sans-serif";
           ctx.textAlign = "right";
-          ctx.fillText(label, width - 8, y - 4);
+          ctx.textBaseline = "middle";
+          const labelY = y + 1;
+          ctx.fillText(label, width - 8, labelY);
+          if (overlayLevelDragActive || overlayReadoutVisible) {
+            const readoutIsWidth = overlayReadoutMode === "width";
+            const readoutValue = readoutIsWidth
+              ? Math.round(state.overlayWidthDb)
+              : Math.round(state.overlayLevelDb);
+            const readoutText = readoutIsWidth
+              ? `WIDTH ${readoutValue} dB`
+              : `LEVEL ${readoutValue} dB`;
+            ctx.fillStyle = rgbaWithAlpha(activeCanvasTheme.gridLabelPrimary, 0.76);
+            ctx.textAlign = "left";
+            ctx.fillText(readoutText, 8, labelY);
+          }
+          ctx.textBaseline = "alphabetic";
         }
       }
 
-      for (const freq of freqTicks) {
+      for (const freq of freqGridTicks) {
         const x = freqToX(freq, width);
-        const strong = (freq === 20 || freq === 100 || freq === 1000 || freq === 10000 || freq === 20000);
-        ctx.strokeStyle = strong ? activeCanvasTheme.gridFreqStrong : activeCanvasTheme.gridFreqSoft;
+        const lineTop = state.oscilloscopeOn ? zeroDbY : 0;
+        const lineBottom = height;
+        const fadeEndY = Math.max(lineTop, Math.min(lineBottom, zeroDbY + 34));
+        const lineSpan = Math.max(1, lineBottom - lineTop);
+        const fadeEndT = Math.max(0, Math.min(1, (fadeEndY - lineTop) / lineSpan));
+        const lineGradient = ctx.createLinearGradient(0, lineTop, 0, lineBottom);
+        lineGradient.addColorStop(0.0, rgbaWithAlpha(activeCanvasTheme.gridFreqStrong, 0.0));
+        lineGradient.addColorStop(fadeEndT, rgbaWithAlpha(activeCanvasTheme.gridFreqStrong, 0.0));
+        lineGradient.addColorStop(1.0, activeCanvasTheme.gridFreqStrong);
+        ctx.strokeStyle = lineGradient;
         ctx.beginPath();
-        ctx.moveTo(x, state.oscilloscopeOn ? zeroDbY : 0);
-        ctx.lineTo(x, height);
+        ctx.moveTo(x, lineTop);
+        ctx.lineTo(x, lineBottom);
         ctx.stroke();
+      }
 
-        const overlapsPresetControls = freq === 500 || freq === 1000;
-        if ((strong || freq === 200 || freq === 500 || freq === 2000 || freq === 5000)
-            && freq !== 20 && freq !== 20000) {
-          if (hidePresetOverlappingLabels && overlapsPresetControls)
-            continue;
-          ctx.fillStyle = activeCanvasTheme.gridFreqLabel;
-          ctx.font = "11px Segoe UI";
-          ctx.textAlign = "center";
-          ctx.fillText(formatFreqLabel(freq), x, height - 10);
-        }
+      for (const freq of freqLabelTicks) {
+        const x = freqToX(freq, width);
+        const overlapsPresetControls = freq === 400 || freq === 600 || freq === 1000;
+        if (hidePresetOverlappingLabels && overlapsPresetControls)
+          continue;
+        ctx.fillStyle = activeCanvasTheme.gridFreqLabel;
+        ctx.font = "12px SPRoboto, Roboto Condensed, Roboto, Segoe UI, Arial, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(formatFreqLabel(freq), x, height - 10);
       }
 
       if (state.oscilloscopeOn) {
@@ -1435,9 +2695,9 @@
 
     function setSmoothScanBusy(isBusy) {
       smoothPresetScanInProgress = isBusy;
-      if (smoothPresetBtn) {
-        smoothPresetBtn.classList.toggle("is-busy", isBusy);
-        smoothPresetBtn.textContent = isBusy ? "Scanning..." : "Build Smooth";
+      if (newSmoothPresetBtn) {
+        newSmoothPresetBtn.classList.toggle("is-busy", isBusy);
+        newSmoothPresetBtn.textContent = isBusy ? "Scanning..." : "New Preset";
       }
 
       if (smoothScanWatchdogId !== null) {
@@ -1449,9 +2709,9 @@
         smoothScanWatchdogId = window.setTimeout(() => {
           smoothScanWatchdogId = null;
           smoothPresetScanInProgress = false;
-          if (smoothPresetBtn) {
-            smoothPresetBtn.classList.remove("is-busy");
-            smoothPresetBtn.textContent = "Build Smooth";
+          if (newSmoothPresetBtn) {
+            newSmoothPresetBtn.classList.remove("is-busy");
+            newSmoothPresetBtn.textContent = "New Preset";
           }
           setPresetStatus("Scan timed out. Try a smaller folder.");
         }, 180000);
@@ -1490,16 +2750,18 @@
         }
         setPresetStatus("No smooth preset");
       }
+
+      syncNativeReferenceSpectrum();
     }
 
     function loadBuiltInSmoothTarget(key) {
-      const preset = builtInSmoothTargets[key];
+      const preset = getSmoothPresetByKey(key);
       if (!preset || !Array.isArray(preset.bins) || preset.bins.length === 0) {
         setPresetStatus(`Preset '${key}' unavailable.`);
         return false;
       }
 
-      builtInPresetLocked = true;
+      builtInPresetLocked = Object.prototype.hasOwnProperty.call(builtInSmoothTargets, key);
       activeBuiltInPresetKey = key;
       applySmoothPreset(preset.bins, true);
       lastReferenceRevisionSeen = Math.max(lastReferenceRevisionSeen, 1);
@@ -1518,26 +2780,21 @@
 
     function ensureBuiltInPresetActive() {
       const selectedSource = getSelectedSmoothSource();
-      if (selectedSource === "folder")
-        return;
-
-      const preset = builtInSmoothTargets[selectedSource];
+      const preset = getSmoothPresetByKey(selectedSource);
       if (!preset || !Array.isArray(preset.bins) || preset.bins.length === 0)
         return;
 
-      if (!hasSmoothPreset || !builtInPresetLocked || activeBuiltInPresetKey !== selectedSource) {
-        builtInPresetLocked = true;
+      if (!hasSmoothPreset || activeBuiltInPresetKey !== selectedSource) {
+        builtInPresetLocked = Object.prototype.hasOwnProperty.call(builtInSmoothTargets, selectedSource);
         activeBuiltInPresetKey = selectedSource;
         applySmoothPreset(preset.bins, true);
       }
     }
 
-    function drawSmoothPreset(width, height) {
-      if (!hasSmoothPreset) return;
+    function buildSmoothPresetGeometry(width, height) {
+      if (!hasSmoothPreset)
+        return null;
 
-      const overlayTop = state.oscilloscopeOn
-        ? ((0 - (-24)) / 96) * height
-        : 0;
       const overlayProfile = getOverlayProfileForSource(getSelectedSmoothSource());
       const overlayLiftDb = overlayProfile.liftDb;
       const manualOverlayLevelDb = Number.isFinite(state.overlayLevelDb) ? state.overlayLevelDb : 0.0;
@@ -1546,17 +2803,41 @@
         : overlayProfile.bandWidthDb;
       const overlayWidthDb = clampValue(manualOverlayWidthDb, overlayWidthBounds.min, overlayWidthBounds.max);
       const halfWidthDb = 0.5 * overlayWidthDb;
-
-      const centerPoints = [];
-      const upperPoints = [];
-      const lowerPoints = [];
       const upperRaw = new Float32Array(BINS);
       const lowerRaw = new Float32Array(BINS);
       const centerRaw = new Float32Array(BINS);
-      let maxUpperDb = -Infinity;
+      const smoothingAmount = clampValue(
+        Math.round(Number.isFinite(state.presetSmoothing) ? state.presetSmoothing : FIXED_PRESET_SMOOTHING),
+        presetSmoothingBounds.min,
+        presetSmoothingBounds.max);
+      const smoothingPasses = Math.max(0, Math.round((smoothingAmount / 16) * 20));
+      const sideTarget = 0.06 + (smoothingAmount / 16) * 0.36;
+      const centerTarget = Math.max(0.08, 1.0 - (2.0 * sideTarget));
+      const normalize = Math.max(1.0e-6, centerTarget + (2.0 * sideTarget));
+      const sideWeight = sideTarget / normalize;
+      const centerWeight = centerTarget / normalize;
 
+      let overlaySource = smoothPreset;
+      if (smoothingPasses > 0) {
+        overlaySmoothA.set(smoothPreset);
+        let src = overlaySmoothA;
+        let dst = overlaySmoothB;
+        for (let pass = 0; pass < smoothingPasses; pass++) {
+          for (let i = 0; i < BINS; i++) {
+            const iPrev = i > 0 ? (i - 1) : 0;
+            const iNext = i + 1 < BINS ? (i + 1) : (BINS - 1);
+            dst[i] = (src[iPrev] * sideWeight) + (src[i] * centerWeight) + (src[iNext] * sideWeight);
+          }
+          const temp = src;
+          src = dst;
+          dst = temp;
+        }
+        overlaySource = src;
+      }
+
+      let maxUpperDb = -Infinity;
       for (let i = 0; i < BINS; i++) {
-        const center = offsetNormByDb(applyAnalyzerTiltToNorm(smoothPreset[i], i), overlayLiftDb);
+        const center = offsetNormByDb(applyAnalyzerTiltToNorm(overlaySource[i], i), overlayLiftDb);
         const centerDb = normToDb(center);
         const upper = dbToNorm(centerDb + halfWidthDb);
         const lower = dbToNorm(centerDb - halfWidthDb);
@@ -1568,39 +2849,38 @@
           maxUpperDb = upperDb;
       }
 
-      // Keep the top edge anchored to the displayed 0 dB grid line.
-      // In this UI mapping, displayed 0 dB corresponds to internal -24 dB.
       const targetTopDb = -dbDisplayOffset;
       const alignToZeroDb = Number.isFinite(maxUpperDb) ? (targetTopDb - maxUpperDb) : 0.0;
-
       const finalOffsetDb = alignToZeroDb + manualOverlayLevelDb;
+
+      const upperPoints = [];
+      const lowerPoints = [];
+      const centerPoints = [];
       for (let i = 0; i < BINS; i++) {
         const x = (i / (BINS - 1)) * width;
         const upper = offsetNormByDb(upperRaw[i], finalOffsetDb);
         const lower = offsetNormByDb(lowerRaw[i], finalOffsetDb);
         const center = offsetNormByDb(centerRaw[i], finalOffsetDb);
-        upperPoints.push({
-          x,
-          y: (1 - upper) * height
-        });
-        lowerPoints.push({
-          x,
-          y: (1 - lower) * height
-        });
-        centerPoints.push({
-          x,
-          y: (1 - center) * height
-        });
+        overlayUpperDisplay[i] = upper;
+        overlayLowerDisplay[i] = lower;
+        overlayCenterDisplay[i] = center;
+        upperPoints.push({ x, y: (1 - upper) * height });
+        lowerPoints.push({ x, y: (1 - lower) * height });
+        centerPoints.push({ x, y: (1 - center) * height });
       }
 
-      if (upperPoints.length === 0) return;
+      return { upperPoints, lowerPoints, centerPoints };
+    }
 
+    function drawSmoothPreset(width, height, overlayGeometry = null) {
+      const geometry = overlayGeometry || buildSmoothPresetGeometry(width, height);
+      if (!geometry || geometry.upperPoints.length === 0)
+        return;
+
+      const upperPoints = geometry.upperPoints;
+      const lowerPoints = geometry.lowerPoints;
+      const centerPoints = geometry.centerPoints;
       ctx.save();
-      if (overlayTop > 0) {
-        ctx.beginPath();
-        ctx.rect(0, overlayTop, width, Math.max(1, height - overlayTop));
-        ctx.clip();
-      }
       const reversedLower = lowerPoints.slice().reverse();
       let minUpperY = Infinity;
       let maxLowerY = -Infinity;
@@ -1611,7 +2891,6 @@
       const gradientTop = Number.isFinite(minUpperY) ? minUpperY : 0;
       const gradientBottom = Number.isFinite(maxLowerY) ? maxLowerY : height;
 
-      // Draw tonal-balance target range band first.
       ctx.beginPath();
       ctx.moveTo(upperPoints[0].x, upperPoints[0].y);
       traceSpectrumCurve(upperPoints, false);
@@ -1628,24 +2907,16 @@
       ctx.fillStyle = fillGradient;
       ctx.fill();
 
-      const strokeColor = activeCanvasTheme.referenceStroke || "rgba(211, 249, 255, 0.96)";
-
       ctx.beginPath();
       traceSpectrumCurve(centerPoints, true);
+      const overlayStrokeColor = activeCanvasTheme.oscStroke
+        || activeCanvasTheme.referenceStroke
+        || "rgba(211, 249, 255, 0.96)";
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      ctx.lineWidth = 6.0;
-      ctx.strokeStyle = rgbaWithAlpha(activeCanvasTheme.referenceGlow || "rgba(48, 205, 220, 0.30)", 0.17);
+      ctx.lineWidth = 2.0;
+      ctx.strokeStyle = overlayStrokeColor;
       ctx.stroke();
-
-      ctx.beginPath();
-      traceSpectrumCurve(centerPoints, true);
-      ctx.lineWidth = 1.6;
-      ctx.strokeStyle = rgbaWithAlpha(strokeColor, 0.32);
-      ctx.shadowColor = rgbaWithAlpha(activeCanvasTheme.referenceGlow || "rgba(48, 205, 220, 0.30)", 0.30);
-      ctx.shadowBlur = 3;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
       ctx.restore();
     }
 
@@ -1702,7 +2973,230 @@
       ctx.quadraticCurveTo(points[n - 1].x, points[n - 1].y, points[n].x, points[n].y);
     }
 
-    function drawSpectrum(width, height) {
+    function drawPeakWarningSegments(points, overlayGeometry) {
+      if (!state.peakWarningOn || !overlayGeometry || points.length < 2 || !hasSmoothPreset)
+        return;
+
+      const clamp01 = (value) => Math.max(0, Math.min(1, value));
+      const lerp = (a, b, t) => a + ((b - a) * t);
+      const toRgba = (r, g, b, a) => `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${a.toFixed(3)})`;
+      const orange = { r: 255, g: 176, b: 76 };
+      const red = { r: 255, g: 86, b: 86 };
+      const thresholdDb = 0.08;
+      const pointExceedDb = new Float32Array(points.length);
+      const pointColor = new Array(points.length);
+
+      const warningColorForDb = (exceedDb) => {
+        if (!Number.isFinite(exceedDb) || exceedDb <= thresholdDb)
+          return null;
+
+        if (exceedDb <= 3.0) {
+          const t = clamp01((exceedDb - thresholdDb) / (3.0 - thresholdDb));
+          const alpha = lerp(0.78, 0.94, t);
+          const g = lerp(orange.g + 8, orange.g - 10, t);
+          const b = lerp(orange.b + 6, orange.b - 10, t);
+          return toRgba(orange.r, g, b, alpha);
+        }
+
+        const t = clamp01((exceedDb - 3.0) / 3.0);
+        const alpha = lerp(0.92, 0.99, t);
+        const g = lerp(orange.g - 10, red.g, t);
+        const b = lerp(orange.b - 10, red.b, t);
+        return toRgba(red.r, g, b, alpha);
+      };
+
+      for (let i = 0; i < points.length; i++) {
+        const bin = Math.max(0, Math.min(BINS - 1, points[i].bin | 0));
+        const overlayUpper = overlayUpperDisplay[bin];
+        const overlayNorm = Math.max(1.0e-6, Number.isFinite(overlayUpper) ? overlayUpper : 0);
+        const spectrumNorm = Math.max(1.0e-6, display[bin]);
+        const exceedDb = Number.isFinite(overlayUpper)
+          ? (normToDb(spectrumNorm) - normToDb(overlayNorm))
+          : Number.NEGATIVE_INFINITY;
+        pointExceedDb[i] = exceedDb;
+        pointColor[i] = warningColorForDb(exceedDb);
+      }
+
+      const drawSegment = (segmentStart, segmentEnd) => {
+        const start = Math.max(0, segmentStart - 1);
+        const end = Math.min(points.length - 1, segmentEnd + 1);
+        if (end - start < 1)
+          return;
+
+        const segment = points.slice(start, end + 1);
+        let strokeStyle = pointColor[start] || toRgba(orange.r, orange.g, orange.b, 0.9);
+        if (segment.length > 1) {
+          const first = segment[0];
+          const last = segment[segment.length - 1];
+          const gradient = ctx.createLinearGradient(first.x, first.y, last.x, last.y);
+          const stopStep = Math.max(1, Math.floor(segment.length / 20));
+          gradient.addColorStop(0, pointColor[start] || toRgba(orange.r, orange.g, orange.b, 0.9));
+          for (let local = stopStep; local < segment.length - 1; local += stopStep) {
+            const globalIndex = start + local;
+            const t = local / (segment.length - 1);
+            gradient.addColorStop(clamp01(t), pointColor[globalIndex] || toRgba(orange.r, orange.g, orange.b, 0.9));
+          }
+          gradient.addColorStop(1, pointColor[end] || toRgba(red.r, red.g, red.b, 0.98));
+          strokeStyle = gradient;
+        }
+
+        let maxExceedDb = 0;
+        for (let i = start; i <= end; i++)
+          maxExceedDb = Math.max(maxExceedDb, pointExceedDb[i]);
+
+        const redThresholdDb = 3.0;
+        const drawRedUnderGlowRun = (runStart, runEnd) => {
+          const glowStart = Math.max(start, runStart - 1);
+          const glowEnd = Math.min(end, runEnd + 1);
+          if (glowEnd - glowStart < 1)
+            return;
+
+          const underGlowPoints = [];
+          for (let i = glowStart; i <= glowEnd; i++) {
+            underGlowPoints.push({
+              x: points[i].x,
+              y: points[i].y + 1.9
+            });
+          }
+
+          let runMaxDb = redThresholdDb;
+          for (let i = glowStart; i <= glowEnd; i++)
+            runMaxDb = Math.max(runMaxDb, pointExceedDb[i]);
+
+          const hotMix = clamp01((runMaxDb - redThresholdDb) / 4.0);
+          const baseAlpha = lerp(0.20, 0.34, hotMix);
+          const peakAlpha = lerp(0.34, 0.52, hotMix);
+          const colorForDb = (value) => {
+            const t = clamp01((value - redThresholdDb) / 4.0);
+            const g = lerp(126, red.g, t);
+            const b = lerp(104, red.b, t);
+            const a = lerp(baseAlpha, peakAlpha, t);
+            return toRgba(red.r, g, b, a);
+          };
+
+          let underGlowStyle = colorForDb(pointExceedDb[glowStart]);
+          if (underGlowPoints.length > 1) {
+            const first = underGlowPoints[0];
+            const last = underGlowPoints[underGlowPoints.length - 1];
+            const gradient = ctx.createLinearGradient(first.x, first.y, last.x, last.y);
+            const stopStep = Math.max(1, Math.floor(underGlowPoints.length / 16));
+            gradient.addColorStop(0, colorForDb(pointExceedDb[glowStart]));
+            for (let local = stopStep; local < underGlowPoints.length - 1; local += stopStep) {
+              const globalIndex = glowStart + local;
+              const t = local / (underGlowPoints.length - 1);
+              gradient.addColorStop(clamp01(t), colorForDb(pointExceedDb[globalIndex]));
+            }
+            gradient.addColorStop(1, colorForDb(pointExceedDb[glowEnd]));
+            underGlowStyle = gradient;
+          }
+
+          ctx.beginPath();
+          traceSpectrumCurve(underGlowPoints, true);
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.lineWidth = 4.8;
+          ctx.strokeStyle = underGlowStyle;
+          ctx.shadowColor = toRgba(red.r, lerp(104, red.g, hotMix), lerp(94, red.b, hotMix), lerp(0.30, 0.52, hotMix));
+          ctx.shadowBlur = lerp(9, 15, hotMix);
+          ctx.stroke();
+        };
+
+        let redRunStart = -1;
+        for (let i = start; i <= end; i++) {
+          const isRed = Number.isFinite(pointExceedDb[i]) && pointExceedDb[i] > redThresholdDb;
+          if (isRed) {
+            if (redRunStart < 0)
+              redRunStart = i;
+          } else if (redRunStart >= 0) {
+            drawRedUnderGlowRun(redRunStart, i - 1);
+            redRunStart = -1;
+          }
+        }
+        if (redRunStart >= 0)
+          drawRedUnderGlowRun(redRunStart, end);
+
+        const glowMix = clamp01((maxExceedDb - 3.0) / 3.0);
+        const glowG = lerp(orange.g, red.g, glowMix);
+        const glowB = lerp(orange.b, red.b, glowMix);
+        ctx.beginPath();
+        traceSpectrumCurve(segment, true);
+        ctx.lineWidth = 2.25;
+        ctx.strokeStyle = strokeStyle;
+        ctx.shadowColor = toRgba(red.r, glowG, glowB, 0.35);
+        ctx.shadowBlur = maxExceedDb > 3.0 ? 11 : 8;
+        ctx.stroke();
+      };
+
+      let segmentStart = -1;
+      for (let i = 0; i < points.length; i++) {
+        const aboveOverlay = Number.isFinite(pointExceedDb[i]) && pointExceedDb[i] > thresholdDb;
+        if (aboveOverlay) {
+          if (segmentStart < 0)
+            segmentStart = i;
+        } else if (segmentStart >= 0) {
+          drawSegment(segmentStart, i - 1);
+          segmentStart = -1;
+        }
+      }
+      if (segmentStart >= 0)
+        drawSegment(segmentStart, points.length - 1);
+    }
+
+    function drawResonanceSuppressorCues(width, height) {
+      if (!state.peakWarningOn || !state.suppressorOn || !hasSmoothPreset)
+        return;
+
+      const zeroDbY = ((0 - (-24)) / 96) * height;
+      const bandTop = Math.max(4, (state.oscilloscopeOn ? zeroDbY : 0) + 6);
+      const bandBottom = Math.max(bandTop + 24, height - 10);
+      const cueColor = activeCanvasTheme.oscStroke || activeCanvasTheme.referenceStroke || "rgba(210, 236, 255, 0.95)";
+      let drewAny = false;
+
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+
+      for (let i = 0; i < RESONANCE_SUPPRESSOR_BANDS; i++) {
+        const frequencyHz = Number(suppressorFrequencyHz[i]);
+        const gainDb = Number(suppressorGainDb[i]);
+        if (!Number.isFinite(frequencyHz) || frequencyHz < 20 || !Number.isFinite(gainDb))
+          continue;
+
+        const suppressionAmount = clampValue((-gainDb) / 12.0, 0, 1);
+        if (suppressionAmount <= 0.02)
+          continue;
+
+        drewAny = true;
+        const x = freqToX(frequencyHz, width);
+        const coreWidth = 1.2 + suppressionAmount * 1.8;
+        const glowRadius = 8 + suppressionAmount * 18;
+        const beamHeight = bandBottom - bandTop;
+
+        const beamGradient = ctx.createLinearGradient(0, bandTop, 0, bandBottom);
+        beamGradient.addColorStop(0.00, rgbaWithAlpha(cueColor, 0.26 * suppressionAmount));
+        beamGradient.addColorStop(0.36, rgbaWithAlpha(cueColor, 0.16 * suppressionAmount));
+        beamGradient.addColorStop(1.00, rgbaWithAlpha(cueColor, 0.00));
+        ctx.fillStyle = beamGradient;
+        ctx.fillRect(x - (coreWidth * 0.5), bandTop, coreWidth, beamHeight);
+
+        const halo = ctx.createRadialGradient(x, bandTop + 8, 0, x, bandTop + 8, glowRadius);
+        halo.addColorStop(0.0, rgbaWithAlpha(cueColor, 0.24 * suppressionAmount));
+        halo.addColorStop(1.0, rgbaWithAlpha(cueColor, 0.0));
+        ctx.fillStyle = halo;
+        ctx.fillRect(x - glowRadius, bandTop - glowRadius * 0.2, glowRadius * 2, glowRadius * 1.5);
+
+        ctx.beginPath();
+        ctx.arc(x, bandTop - 1, 1.5 + suppressionAmount * 1.3, 0, Math.PI * 2);
+        ctx.fillStyle = rgbaWithAlpha(cueColor, 0.72 * suppressionAmount);
+        ctx.fill();
+      }
+
+      ctx.restore();
+
+      if (!drewAny)
+        return;
+    }
+
+    function drawSpectrum(width, height, overlayGeometry = null) {
       updateDisplayResponse();
       const step = resolutionMap[state.resolution].step;
       const points = [];
@@ -1710,13 +3204,14 @@
       for (let i = 0; i < BINS; i += step) {
         points.push({
           x: (i / (BINS - 1)) * width,
-          y: (1 - display[i]) * height
+          y: (1 - display[i]) * height,
+          bin: i
         });
       }
 
       if (points.length === 0) return;
       const lastY = (1 - display[BINS - 1]) * height;
-      if (points[points.length - 1].x < width) points.push({ x: width, y: lastY });
+      if (points[points.length - 1].x < width) points.push({ x: width, y: lastY, bin: BINS - 1 });
 
       ctx.beginPath();
       ctx.moveTo(points[0].x, height);
@@ -1745,6 +3240,9 @@
       ctx.lineWidth = 1;
       ctx.strokeStyle = activeCanvasTheme.spectrumStrokeLight;
       ctx.stroke();
+
+      drawPeakWarningSegments(points, overlayGeometry);
+      ctx.shadowBlur = 0;
     }
 
     function drawOscilloscope(width, height) {
@@ -1755,48 +3253,113 @@
       const bottom = Math.max(top + 22, zeroDbY - 6);
       const centerY = (top + bottom) * 0.5;
       const amplitude = (bottom - top) * 0.48;
-      const points = [];
-      let peak = 0;
+      const stereoCenterL = top + ((bottom - top) * 0.25);
+      const stereoCenterR = top + ((bottom - top) * 0.75);
+      const stereoAmplitude = amplitude * 0.5;
+      const pointsL = [];
+      const pointsR = [];
 
-      for (let i = 0; i < BINS; i++) {
-        const sample = oscTarget[i];
-        oscDc += (sample - oscDc) * 0.004;
-        const centered = sample - oscDc;
-        oscWork[i] = centered;
-        const abs = Math.abs(centered);
-        if (abs > peak) peak = abs;
-      }
+      if (state.oscStereo) {
+        let peakL = 0;
+        let peakR = 0;
 
-      const targetGain = Math.max(1.0, Math.min(24.0, 0.72 / Math.max(0.02, peak)));
-      oscAutoGain += (targetGain - oscAutoGain) * 0.1;
+        for (let i = 0; i < BINS; i++) {
+          const sampleL = oscTargetL[i];
+          const sampleR = oscTargetR[i];
+          oscDcL += (sampleL - oscDcL) * 0.004;
+          oscDcR += (sampleR - oscDcR) * 0.004;
+          const centeredL = sampleL - oscDcL;
+          const centeredR = sampleR - oscDcR;
+          oscWorkL[i] = centeredL;
+          oscWorkR[i] = centeredR;
+          const absL = Math.abs(centeredL);
+          const absR = Math.abs(centeredR);
+          if (absL > peakL) peakL = absL;
+          if (absR > peakR) peakR = absR;
+        }
 
-      for (let i = 0; i < BINS; i++) {
-        const boosted = Math.max(-1, Math.min(1, oscWork[i] * oscAutoGain));
-        oscDisplay[i] += (boosted - oscDisplay[i]) * 0.55;
-        points.push({
-          x: (i / (BINS - 1)) * width,
-          y: centerY - oscDisplay[i] * amplitude
-        });
+        const targetGainL = Math.max(1.0, Math.min(24.0, 0.72 / Math.max(0.02, peakL)));
+        const targetGainR = Math.max(1.0, Math.min(24.0, 0.72 / Math.max(0.02, peakR)));
+        oscAutoGainL += (targetGainL - oscAutoGainL) * 0.1;
+        oscAutoGainR += (targetGainR - oscAutoGainR) * 0.1;
+
+        for (let i = 0; i < BINS; i++) {
+          const boostedL = Math.max(-1, Math.min(1, oscWorkL[i] * oscAutoGainL));
+          const boostedR = Math.max(-1, Math.min(1, oscWorkR[i] * oscAutoGainR));
+          oscDisplayL[i] += (boostedL - oscDisplayL[i]) * 0.55;
+          oscDisplayR[i] += (boostedR - oscDisplayR[i]) * 0.55;
+          const x = (i / (BINS - 1)) * width;
+          pointsL.push({ x, y: stereoCenterL - oscDisplayL[i] * stereoAmplitude });
+          pointsR.push({ x, y: stereoCenterR - oscDisplayR[i] * stereoAmplitude });
+        }
+      } else {
+        let peakMono = 0;
+
+        for (let i = 0; i < BINS; i++) {
+          const sampleMono = 0.5 * (oscTargetL[i] + oscTargetR[i]);
+          oscDcL += (sampleMono - oscDcL) * 0.004;
+          const centeredMono = sampleMono - oscDcL;
+          oscWorkL[i] = centeredMono;
+          const abs = Math.abs(centeredMono);
+          if (abs > peakMono) peakMono = abs;
+        }
+
+        const targetGainMono = Math.max(1.0, Math.min(24.0, 0.72 / Math.max(0.02, peakMono)));
+        oscAutoGainL += (targetGainMono - oscAutoGainL) * 0.1;
+
+        for (let i = 0; i < BINS; i++) {
+          const boostedMono = Math.max(-1, Math.min(1, oscWorkL[i] * oscAutoGainL));
+          oscDisplayL[i] += (boostedMono - oscDisplayL[i]) * 0.55;
+          pointsL.push({
+            x: (i / (BINS - 1)) * width,
+            y: centerY - oscDisplayL[i] * amplitude
+          });
+        }
       }
 
       ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(0, centerY);
-      ctx.lineTo(width, centerY);
-      ctx.strokeStyle = activeCanvasTheme.oscCenterLine;
-      ctx.lineWidth = 1;
+      if (state.oscStereo) {
+        ctx.beginPath();
+        ctx.moveTo(0, stereoCenterL);
+        ctx.lineTo(width, stereoCenterL);
+        ctx.moveTo(0, stereoCenterR);
+        ctx.lineTo(width, stereoCenterR);
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+        ctx.lineTo(width, centerY);
+      }
+      ctx.strokeStyle = rgbaWithAlpha(activeCanvasTheme.oscCenterLine, 0.12);
+      ctx.lineWidth = 0.9;
       ctx.stroke();
 
-      ctx.beginPath();
-      traceSpectrumCurve(points, true);
-      ctx.strokeStyle = activeCanvasTheme.oscStroke;
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      if (state.oscStereo) {
+        ctx.beginPath();
+        traceSpectrumCurve(pointsL, true);
+        ctx.strokeStyle = activeCanvasTheme.oscStroke;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.beginPath();
+        traceSpectrumCurve(pointsR, true);
+        ctx.strokeStyle = rgbaWithAlpha(activeCanvasTheme.oscStroke, 0.62);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        traceSpectrumCurve(pointsL, true);
+        ctx.strokeStyle = activeCanvasTheme.oscStroke;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
       ctx.restore();
     }
 
     function drawCrosshair(width, height) {
       if (!mouseInside) return;
+      const alpha = clampValue(crosshairAlpha, 0, 1);
+      if (alpha <= 0.01)
+        return;
 
       const x = Math.max(0, Math.min(width, mouseX));
       const y = Math.max(0, Math.min(height, mouseY));
@@ -1804,6 +3367,7 @@
       const loudnessDb = yToDb(y, height);
 
       ctx.save();
+      ctx.globalAlpha = alpha;
       ctx.setLineDash([5, 5]);
       ctx.lineWidth = 1;
       ctx.strokeStyle = activeCanvasTheme.crosshair;
@@ -1821,7 +3385,7 @@
 
       const note = quantizeNote(freq);
       const label = `${note.name}   ${formatFreqValue(freq)}   ${loudnessDb.toFixed(1)} dB`;
-      ctx.font = "12px Segoe UI";
+      ctx.font = "13px SPRoboto, Roboto Condensed, Roboto, Segoe UI, Arial, sans-serif";
       const textW = ctx.measureText(label).width;
       const padX = 10;
       const boxW = textW + padX * 2;
@@ -1896,8 +3460,13 @@
     }
 
     function updateCornerHover(clientX, clientY) {
-      cornerHoverActive = clientX <= cornerRevealSizePx
-          && clientY >= (window.innerHeight - cornerRevealSizePx);
+      const rect = leftToolbar.getBoundingClientRect();
+      const revealRight = Math.max(cornerRevealWidthPx, rect.right + 220);
+      const revealTop = rect.top - cornerRevealVerticalPaddingPx;
+      const revealBottom = rect.bottom + cornerRevealVerticalPaddingPx;
+      cornerHoverActive = clientX <= revealRight
+          && clientY >= revealTop
+          && clientY <= revealBottom;
       refreshToolbarVisibility();
     }
 
@@ -1948,24 +3517,39 @@
       refreshPresetCenterVisibility();
     }
 
-    function initializeCustomSelect(root, initialValue, onChange) {
+    function setCustomSelectValue(root, value, notify) {
+      if (!root)
+        return;
+
       const trigger = root.querySelector(".select-trigger");
       const options = Array.from(root.querySelectorAll(".select-option"));
-      if (!trigger || options.length === 0) return;
+      if (!trigger || options.length === 0)
+        return;
 
-      const applySelection = (value, notify) => {
-        let active = options.find((option) => option.dataset.value === value);
-        if (!active) active = options[0];
+      let active = options.find((option) => option.dataset.value === value);
+      if (!active)
+        active = options[0];
 
-        for (const option of options)
-          option.classList.toggle("is-active", option === active);
+      for (const option of options)
+        option.classList.toggle("is-active", option === active);
 
-        trigger.textContent = active.textContent.trim();
-        root.dataset.value = active.dataset.value;
-        if (notify) onChange(active.dataset.value);
-      };
+      trigger.textContent = active.textContent.trim();
+      root.dataset.value = active.dataset.value;
+      if (notify) {
+        const handler = selectChangeHandlers.get(root);
+        if (typeof handler === "function")
+          handler(active.dataset.value);
+      }
+    }
 
-      applySelection(initialValue, false);
+    function initializeCustomSelect(root, initialValue, onChange) {
+      const trigger = root.querySelector(".select-trigger");
+      const menu = root.querySelector(".select-menu");
+      if (!trigger || !menu)
+        return;
+
+      selectChangeHandlers.set(root, onChange);
+      setCustomSelectValue(root, initialValue, false);
 
       trigger.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -1977,17 +3561,63 @@
         }
       });
 
-      for (const option of options) {
-        option.addEventListener("click", (event) => {
+      menu.addEventListener("click", (event) => {
+        const deleteBtn = event.target.closest(".preset-delete-btn");
+        if (deleteBtn && menu.contains(deleteBtn)) {
+          event.preventDefault();
           event.stopPropagation();
-          applySelection(option.dataset.value, true);
-          closeAllSelectMenus();
-        });
-      }
+          const key = deleteBtn.dataset.value || "";
+          const row = deleteBtn.closest(".preset-user-row");
+          const optionText = row ? row.querySelector(".select-option") : null;
+          const deletedLabel = optionText ? optionText.textContent.trim() : key;
+          const removed = deleteUserSmoothPresetByKey(key);
+          if (removed)
+            setPresetStatus(`Deleted preset '${deletedLabel}'.`);
+          return;
+        }
+
+        const option = event.target.closest(".select-option");
+        if (!option || !menu.contains(option))
+          return;
+        event.stopPropagation();
+        setCustomSelectValue(root, option.dataset.value, true);
+        closeAllSelectMenus();
+      });
     }
 
     function hideTooltip() {
       uiTooltip.classList.add("is-hidden");
+    }
+
+    function clearCreditSplashTimers() {
+      if (creditSplashFadeTimerId !== null) {
+        window.clearTimeout(creditSplashFadeTimerId);
+        creditSplashFadeTimerId = null;
+      }
+      if (creditSplashHideTimerId !== null) {
+        window.clearTimeout(creditSplashHideTimerId);
+        creditSplashHideTimerId = null;
+      }
+    }
+
+    function showCreditSplash() {
+      if (!creditSplash)
+        return;
+
+      clearCreditSplashTimers();
+      creditSplash.classList.remove("is-fading");
+      creditSplash.classList.add("is-visible");
+
+      creditSplashFadeTimerId = window.setTimeout(() => {
+        creditSplash.classList.add("is-fading");
+        creditSplashFadeTimerId = null;
+
+        creditSplashHideTimerId = window.setTimeout(() => {
+          creditSplash.classList.remove("is-fading");
+          creditSplash.classList.remove("is-visible");
+          creditSplashHideTimerId = null;
+        }, 650);
+      }, 2000);
     }
 
     function positionTooltip(clientX, clientY) {
@@ -2032,7 +3662,147 @@
 
     function refreshOscLengthButton() {
       oscLengthBtn.textContent = state.oscLengthMode === 0 ? "1/4" : "1B";
+      oscLengthBtn.classList.toggle("mode-bar", state.oscLengthMode !== 0);
       oscLengthBtn.classList.toggle("is-hidden", !state.oscilloscopeOn);
+      refreshOscModeButton();
+    }
+
+    function refreshOscModeButton() {
+      if (!oscModeHub || !oscModeBtn)
+        return;
+      const isVisible = !!state.oscilloscopeOn;
+      oscModeHub.classList.toggle("is-visible", isVisible);
+      oscModeBtn.classList.toggle("is-off", !state.oscStereo);
+      oscModeBtn.classList.toggle("is-active", !!state.oscStereo);
+      const label = state.oscStereo ? "Oscilloscope mode: Stereo" : "Oscilloscope mode: Mono";
+      oscModeBtn.dataset.tooltip = label;
+      oscModeBtn.setAttribute("aria-label", label);
+    }
+
+    function refreshPeakWarningButton() {
+      if (!peakWarningBtn)
+        return;
+      peakWarningBtn.classList.toggle("is-off", !state.peakWarningOn);
+    }
+
+    function refreshSuppressorButton() {
+      if (!suppressorBtn)
+        return;
+      const suppressorAvailable = !!state.peakWarningOn;
+      suppressorBtn.classList.toggle("is-hidden", !suppressorAvailable);
+      if (!suppressorAvailable) {
+        suppressorBtn.classList.add("is-off");
+        suppressorBtn.classList.remove("is-disabled");
+        suppressorBtn.dataset.tooltip = "Resonance suppressor";
+        return;
+      }
+      suppressorBtn.classList.remove("is-disabled");
+      suppressorBtn.classList.toggle("is-off", !state.suppressorOn);
+      suppressorBtn.dataset.tooltip = "Resonance suppressor";
+    }
+
+    function updateBandSoloUi() {
+      for (const button of bandSoloButtons) {
+        const index = Number(button.dataset.bandIndex);
+        button.classList.toggle("is-active", Number.isFinite(index) && index === state.soloBand);
+      }
+    }
+
+    function setSoloBandSelection(index, emitNative = true, force = false) {
+      const numeric = Number(index);
+      const next = Number.isFinite(numeric) && numeric >= 0 && numeric <= 3
+        ? Math.floor(numeric)
+        : -1;
+
+      if (!force && state.soloBand === next)
+        return;
+
+      state.soloBand = next;
+      updateBandSoloUi();
+
+      if (emitNative)
+        callNative("setSoloBand", next);
+    }
+
+    function getSoloBandGeometry(index, width) {
+      if (!Number.isFinite(index) || index < 0 || index >= soloBandRanges.length)
+        return null;
+
+      const spec = soloBandRanges[index];
+      const maxFreq = Math.min(20000, sampleRate * 0.5);
+      const safeStart = Math.max(20, Math.min(spec.startHz, maxFreq));
+      const safeEndRaw = Math.max(20, Math.min(spec.endHz, maxFreq));
+      const safeEnd = Math.max(safeStart + 1, safeEndRaw);
+      const left = freqToX(safeStart, width);
+      const right = freqToX(safeEnd, width);
+      const x1 = Math.max(0, Math.min(width, left));
+      const x2 = Math.max(x1 + 1, Math.min(width, right));
+      return { x1, x2 };
+    }
+
+    function layoutBandSoloStrip(width, height) {
+      if (!bandSoloStrip || !Array.isArray(bandSoloItems) || bandSoloItems.length === 0)
+        return;
+
+      const zeroDbY = ((0 - (-24)) / 96) * Math.max(1, height);
+      const topPx = Math.max(0, Math.round(zeroDbY - 12));
+      bandSoloStrip.style.top = `${topPx}px`;
+
+      for (const item of bandSoloItems) {
+        const rangeIndex = Number(item.dataset.bandIndex);
+        if (!Number.isFinite(rangeIndex))
+          continue;
+
+        const geometry = getSoloBandGeometry(rangeIndex, width);
+        if (!geometry)
+          continue;
+
+        item.style.left = `${geometry.x1}px`;
+        item.style.width = `${geometry.x2 - geometry.x1}px`;
+      }
+    }
+
+    function drawSoloBandHighlight(width, height) {
+      if (state.soloBand < 0 || state.soloBand >= soloBandRanges.length)
+        return;
+
+      const geometry = getSoloBandGeometry(state.soloBand, width);
+      if (!geometry)
+        return;
+
+      const bandColor = activeCanvasTheme.referenceBand || "rgba(56, 214, 255, 0.24)";
+      const x = geometry.x1;
+      const w = Math.max(1, geometry.x2 - geometry.x1);
+      const zeroDbY = ((0 - (-24)) / 96) * Math.max(1, height);
+      const yStart = 0;
+      const drawHeight = Math.max(1, height - yStart);
+      const fadeEndY = Math.max(yStart, Math.min(height, zeroDbY + 34));
+      const fadeEndT = Math.max(0, Math.min(1, (fadeEndY - yStart) / drawHeight));
+
+      ctx.save();
+      const fillGradient = ctx.createLinearGradient(0, yStart, 0, yStart + drawHeight);
+      fillGradient.addColorStop(0.0, rgbaWithAlpha(bandColor, 0.0));
+      fillGradient.addColorStop(fadeEndT, rgbaWithAlpha(bandColor, 0.0));
+      fillGradient.addColorStop(Math.min(0.78, fadeEndT + 0.34), rgbaWithAlpha(bandColor, 0.09));
+      fillGradient.addColorStop(1.0, rgbaWithAlpha(bandColor, 0.05));
+      ctx.fillStyle = fillGradient;
+      ctx.fillRect(x, yStart, w, drawHeight);
+
+      ctx.lineWidth = 1;
+      const borderGradient = ctx.createLinearGradient(0, yStart, 0, yStart + drawHeight);
+      borderGradient.addColorStop(0.0, rgbaWithAlpha(activeCanvasTheme.gridFreqStrong, 0.0));
+      borderGradient.addColorStop(fadeEndT, rgbaWithAlpha(activeCanvasTheme.gridFreqStrong, 0.0));
+      borderGradient.addColorStop(1.0, rgbaWithAlpha(activeCanvasTheme.gridFreqStrong, 0.26));
+      ctx.strokeStyle = borderGradient;
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, yStart);
+      ctx.lineTo(x + 0.5, yStart + drawHeight);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + w - 0.5, yStart);
+      ctx.lineTo(x + w - 0.5, yStart + drawHeight);
+      ctx.stroke();
+      ctx.restore();
     }
 
     function drawFrame() {
@@ -2042,24 +3812,59 @@
         const rect = ensureCanvasSize();
         const w = rect.width;
         const h = rect.height;
+        layoutBandSoloStrip(w, h);
 
         const bg = ctx.createLinearGradient(0, 0, 0, h);
         bg.addColorStop(0, activeCanvasTheme.bgTop);
         bg.addColorStop(1, activeCanvasTheme.bgBottom);
         ctx.fillStyle = bg;
         ctx.fillRect(0, 0, w, h);
+        const overlayGeometry = buildSmoothPresetGeometry(w, h);
 
+        drawSoloBandHighlight(w, h);
         drawGrid(w, h);
-        drawSpectrum(w, h);
-        drawSmoothPreset(w, h);
+        drawSpectrum(w, h, overlayGeometry);
+        drawSmoothPreset(w, h, overlayGeometry);
+        drawResonanceSuppressorCues(w, h);
         drawOscilloscope(w, h);
+        const nowMs = (typeof performance !== "undefined" && typeof performance.now === "function")
+          ? performance.now()
+          : Date.now();
+        const overlayInteractionActive = overlayLevelDragActive
+          || nowMs < overlayWheelInteractionUntil;
+        const zeroDbY = ((0 - (-24)) / 96) * h;
+        const oscHoverActive = state.oscilloscopeOn
+          && mouseInside
+          && mouseY >= 0
+          && mouseY <= zeroDbY;
+        crosshairTargetAlpha = (overlayInteractionActive || oscHoverActive) ? 0.0 : 1.0;
+        const elapsedMs = lastCrosshairUpdateMs > 0
+          ? Math.max(0, Math.min(100, nowMs - lastCrosshairUpdateMs))
+          : 16.67;
+        lastCrosshairUpdateMs = nowMs;
+        const fadeDurationMs = overlayInteractionActive ? CROSSHAIR_FADE_OUT_MS : CROSSHAIR_FADE_IN_MS;
+        const maxStep = Math.max(0.001, elapsedMs / Math.max(1, fadeDurationMs));
+        if (crosshairAlpha < crosshairTargetAlpha)
+          crosshairAlpha = Math.min(crosshairTargetAlpha, crosshairAlpha + maxStep);
+        else if (crosshairAlpha > crosshairTargetAlpha)
+          crosshairAlpha = Math.max(crosshairTargetAlpha, crosshairAlpha - maxStep);
         drawCrosshair(w, h);
+        if (mouseInside || overlayLevelDragActive)
+          refreshOverlayLevelCursor();
       } catch (error) {
         reportUiError("draw", error);
       } finally {
         requestAnimationFrame(drawFrame);
       }
     }
+
+    loadUserSmoothPresets();
+
+    const savedUiDefaults = loadSavedUiDefaults();
+    if (savedUiDefaults)
+      Object.assign(state, savedUiDefaults);
+    if (!state.peakWarningOn)
+      state.suppressorOn = false;
 
     initializeCustomSelect(resolutionSel, state.resolution, (value) => {
       state.resolution = value;
@@ -2074,17 +3879,12 @@
       const tiltValue = Number(value);
       state.tiltDb = Number.isFinite(tiltValue) ? tiltValue : 5.0;
       rebuildShapedTarget();
+      syncNativeResonanceSuppressorConfig();
     });
 
     initializeCustomSelect(smoothSourceSel, state.smoothSource, (value) => {
       state.smoothSource = value;
-      if (value === "folder") {
-        builtInPresetLocked = false;
-        activeBuiltInPresetKey = "";
-        setPresetStatus("Folder scan mode");
-      } else {
-        loadBuiltInSmoothTarget(value);
-      }
+      loadBuiltInSmoothTarget(value);
     });
 
     initializeOverlayKnobs();
@@ -2115,19 +3915,17 @@
       });
     }
 
-    if (smoothPresetBtn) {
-      smoothPresetBtn.addEventListener("click", () => {
+    if (newSmoothPresetBtn) {
+      newSmoothPresetBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         if (smoothPresetScanInProgress)
           return;
 
-        if (getSelectedSmoothSource() !== "folder") {
-          setPresetStatus("Built-in preset is already active. Switch source to Folder Scan to build a new one.");
-          return;
-        }
-
+        closeAllSelectMenus();
         setSmoothScanBusy(true);
-        setPresetStatus("Scanning folder...");
-        const started = callNative("buildSmoothPresetFromFolder");
+        setPresetStatus(`Scanning folder for new preset (smoothing ${FIXED_PRESET_SMOOTHING})...`);
+        const started = callNative("buildSmoothPresetFromFolder", FIXED_PRESET_SMOOTHING);
         if (!started) {
           setSmoothScanBusy(false);
           setPresetStatus(`Native scan is unavailable (${nativeBridgeStatus()}).`);
@@ -2143,6 +3941,71 @@
       if (!show) closeAllSelectMenus();
       refreshToolbarVisibility();
     });
+
+    if (helpBtn) {
+      helpBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        showCreditSplash();
+      });
+    }
+
+    if (saveDefaultsBtn) {
+      saveDefaultsBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const success = saveCurrentUiDefaults();
+        flashSaveDefaultsButton(success);
+        setPresetStatus(success ? "Saved current state as default." : "Could not save defaults.");
+      });
+    }
+
+    if (peakWarningBtn) {
+      peakWarningBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        state.peakWarningOn = !state.peakWarningOn;
+        if (!state.peakWarningOn)
+          state.suppressorOn = false;
+        refreshPeakWarningButton();
+        refreshSuppressorButton();
+        syncNativeResonanceSuppressorConfig();
+        setPresetStatus(state.peakWarningOn
+          ? "Peak warning on."
+          : "Peak warning off. Resonance suppressor off.");
+      });
+    }
+
+    if (suppressorBtn) {
+      suppressorBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!state.peakWarningOn) {
+          state.suppressorOn = false;
+          refreshSuppressorButton();
+          syncNativeResonanceSuppressorConfig();
+          setPresetStatus("Enable peak warning first.");
+          return;
+        }
+        state.suppressorOn = !state.suppressorOn;
+        refreshSuppressorButton();
+        syncNativeResonanceSuppressorConfig();
+        setPresetStatus(state.suppressorOn ? "Resonance suppressor on." : "Resonance suppressor off.");
+      });
+    }
+
+    for (const button of bandSoloButtons) {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const index = Number(button.dataset.bandIndex);
+        if (!Number.isFinite(index))
+          return;
+
+        const next = state.soloBand === index ? -1 : index;
+        setSoloBandSelection(next, true);
+      });
+    }
 
     document.addEventListener("pointerdown", (event) => {
       if (!event.target.closest(".control-select"))
@@ -2176,21 +4039,181 @@
       refreshOscLengthButton();
     });
 
+    if (oscModeBtn) {
+      oscModeBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        state.oscStereo = !state.oscStereo;
+        refreshOscModeButton();
+        setPresetStatus(state.oscStereo ? "Oscilloscope mode: Stereo" : "Oscilloscope mode: Mono");
+      });
+    }
+
     oscLengthBtn.addEventListener("click", () => {
       state.oscLengthMode = state.oscLengthMode === 0 ? 1 : 0;
       refreshOscLengthButton();
       callNative("setOscilloscopeLengthMode", state.oscLengthMode);
     });
 
-    canvas.addEventListener("mouseenter", () => { mouseInside = true; });
-    canvas.addEventListener("mouseleave", () => { mouseInside = false; });
+    canvas.addEventListener("mouseenter", () => {
+      mouseInside = true;
+      refreshOverlayLevelCursor();
+    });
+    canvas.addEventListener("mouseleave", () => {
+      mouseInside = false;
+      if (!overlayLevelDragActive)
+        refreshOverlayLevelCursor();
+    });
     canvas.addEventListener("mousemove", (event) => {
       const rect = canvas.getBoundingClientRect();
       mouseX = event.clientX - rect.left;
       mouseY = event.clientY - rect.top;
+      refreshOverlayLevelCursor();
     });
 
-    window.updateSpectrum = function (bins, sr, osc, rms, lufs, referenceBins, hasReference, referenceRevision) {
+    canvas.addEventListener("wheel", (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      if (!hitTestOverlayBand(localX, localY, rect.width, rect.height))
+        return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      const step = overlayWidthBounds.wheelStep;
+      const delta = event.deltaY < 0 ? step : -step;
+      setOverlayWidthDb(state.overlayWidthDb + delta);
+      const nowMs = (typeof performance !== "undefined" && typeof performance.now === "function")
+        ? performance.now()
+        : Date.now();
+      overlayWheelInteractionUntil = nowMs + 180;
+      showOverlayReadout("width", 900);
+    }, { passive: false });
+
+    canvas.addEventListener("contextmenu", (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      if (overlayLevelDragActive
+          || hitTestOverlayBand(localX, localY, rect.width, rect.height))
+        event.preventDefault();
+    });
+
+    const startOverlayLevelDrag = (clientY, pointerId = null) => {
+      overlayLevelDragActive = true;
+      overlayLevelDragPointerId = pointerId;
+      overlayLevelDragStartY = clientY;
+      overlayLevelDragStartValue = state.overlayLevelDb;
+      showOverlayReadout("level", 0);
+      overlayLevelHoverActive = true;
+      canvas.style.cursor = "ns-resize";
+    };
+
+    function endOverlayLevelDrag(event = null) {
+      if (!overlayLevelDragActive)
+        return;
+      if (event && overlayLevelDragPointerId !== null && typeof event.pointerId === "number"
+          && event.pointerId !== overlayLevelDragPointerId)
+        return;
+
+      const pointerIdToRelease = overlayLevelDragPointerId;
+      overlayLevelDragActive = false;
+      overlayLevelDragPointerId = null;
+      hideOverlayReadout();
+      if (pointerIdToRelease !== null
+          && typeof canvas.hasPointerCapture === "function"
+          && canvas.hasPointerCapture(pointerIdToRelease)
+          && typeof canvas.releasePointerCapture === "function")
+        canvas.releasePointerCapture(pointerIdToRelease);
+      refreshOverlayLevelCursor();
+    }
+
+    canvas.addEventListener("pointerdown", (event) => {
+      const overlayDragButtonDown = event.button === 0
+        || event.button === 2
+        || event.buttons === 2
+        || event.buttons === 1
+        || event.which === 3
+        || (event.ctrlKey && event.button === 0);
+      if (!overlayDragButtonDown)
+        return;
+
+      const rect = canvas.getBoundingClientRect();
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      if (!hitTestOverlayBand(localX, localY, rect.width, rect.height))
+        return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      startOverlayLevelDrag(event.clientY, event.pointerId);
+      if (typeof canvas.setPointerCapture === "function")
+        canvas.setPointerCapture(event.pointerId);
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (!overlayLevelDragActive)
+        return;
+      if (overlayLevelDragPointerId !== null && event.pointerId !== overlayLevelDragPointerId)
+        return;
+
+      event.preventDefault();
+      const deltaY = overlayLevelDragStartY - event.clientY;
+      setOverlayLevelDb(overlayLevelDragStartValue + (deltaY * overlayLevelBounds.dragScale));
+    });
+
+    canvas.addEventListener("mousedown", (event) => {
+      if (overlayLevelDragActive)
+        return;
+      const overlayDragButtonDown = event.button === 0
+        || event.button === 2
+        || event.buttons === 2
+        || event.buttons === 1
+        || event.which === 3
+        || (event.ctrlKey && event.button === 0);
+      if (!overlayDragButtonDown)
+        return;
+
+      const rect = canvas.getBoundingClientRect();
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      if (!hitTestOverlayBand(localX, localY, rect.width, rect.height))
+        return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      startOverlayLevelDrag(event.clientY, null);
+    });
+
+    window.addEventListener("mousemove", (event) => {
+      if (!overlayLevelDragActive || overlayLevelDragPointerId !== null)
+        return;
+
+      event.preventDefault();
+      const deltaY = overlayLevelDragStartY - event.clientY;
+      setOverlayLevelDb(overlayLevelDragStartValue + (deltaY * overlayLevelBounds.dragScale));
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (!overlayLevelDragActive || overlayLevelDragPointerId !== null)
+        return;
+      endOverlayLevelDrag();
+    });
+
+    canvas.addEventListener("pointerup", (event) => {
+      endOverlayLevelDrag(event);
+    });
+    canvas.addEventListener("pointercancel", (event) => {
+      endOverlayLevelDrag(event);
+    });
+    canvas.addEventListener("lostpointercapture", () => {
+      overlayLevelDragActive = false;
+      overlayLevelDragPointerId = null;
+      hideOverlayReadout();
+      refreshOverlayLevelCursor();
+    });
+
+    window.updateSpectrum = function (bins, sr, osc, oscRight, rms, lufs, referenceBins, hasReference, referenceRevision) {
       try {
         if (Array.isArray(bins)) {
           const n = Math.min(BINS, bins.length);
@@ -2205,10 +4228,25 @@
           const n = Math.min(BINS, osc.length);
           for (let i = 0; i < n; i++) {
             const v = Number(osc[i]);
-            oscTarget[i] = Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0;
+            oscTargetL[i] = Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0;
           }
           for (let i = n; i < BINS; i++) {
-            oscTarget[i] = 0;
+            oscTargetL[i] = 0;
+          }
+        }
+
+        if (Array.isArray(oscRight)) {
+          const n = Math.min(BINS, oscRight.length);
+          for (let i = 0; i < n; i++) {
+            const v = Number(oscRight[i]);
+            oscTargetR[i] = Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0;
+          }
+          for (let i = n; i < BINS; i++) {
+            oscTargetR[i] = 0;
+          }
+        } else if (Array.isArray(osc)) {
+          for (let i = 0; i < BINS; i++) {
+            oscTargetR[i] = oscTargetL[i];
           }
         }
 
@@ -2216,34 +4254,28 @@
           sampleRate = sr;
         }
 
-        if (typeof referenceRevision === "number" && Number.isFinite(referenceRevision)) {
-          const selectedSource = getSelectedSmoothSource();
-          if (selectedSource !== "folder")
-            return;
-
-          const revision = Math.max(0, Math.floor(referenceRevision));
-          if (revision !== lastReferenceRevisionSeen) {
-            lastReferenceRevisionSeen = revision;
-
-            let values = [];
-            if (Array.isArray(referenceBins)) {
-              values = referenceBins;
-            } else if (referenceBins && typeof referenceBins.length === "number") {
-              values = Array.from(referenceBins);
-            }
-
-            const hasUsableReference = values.length > 0 && (revision > 0 || !!hasReference);
-            if (hasUsableReference) {
-              builtInPresetLocked = false;
-              activeBuiltInPresetKey = "";
-              applySmoothPreset(values, !!hasReference || revision > 0);
-            } else if (revision === 0 && selectedSource === "folder") {
-              applySmoothPreset([], false);
-            }
-          }
-        }
       } catch (error) {
         reportUiError("updateSpectrum", error);
+      }
+    };
+
+    window.updateResonanceSuppressor = function (frequencies, gains) {
+      try {
+        const freqValues = Array.isArray(frequencies) ? frequencies : [];
+        const gainValues = Array.isArray(gains) ? gains : [];
+        const count = Math.min(RESONANCE_SUPPRESSOR_BANDS, Math.max(freqValues.length, gainValues.length));
+        for (let i = 0; i < count; i++) {
+          const frequencyHz = Number(freqValues[i]);
+          const gainDb = Number(gainValues[i]);
+          suppressorFrequencyHz[i] = Number.isFinite(frequencyHz) ? Math.max(20, frequencyHz) : 0;
+          suppressorGainDb[i] = Number.isFinite(gainDb) ? Math.min(0, gainDb) : 0;
+        }
+        for (let i = count; i < RESONANCE_SUPPRESSOR_BANDS; i++) {
+          suppressorFrequencyHz[i] = 0;
+          suppressorGainDb[i] = 0;
+        }
+      } catch (error) {
+        reportUiError("updateResonanceSuppressor", error);
       }
     };
 
@@ -2251,15 +4283,21 @@
       applySmoothPreset(bins, hasPreset);
     };
 
-    window.onSmoothPresetScanFinished = function (success, message, bins, hasPreset, referenceRevision) {
-      if (getSelectedSmoothSource() === "folder" && success)
-      {
-        builtInPresetLocked = false;
-        activeBuiltInPresetKey = "";
-      }
-
+    window.onSmoothPresetScanFinished = function (success, message, bins, hasPreset, referenceRevision, folderName) {
       const gotBinsArray = Array.isArray(bins) || (bins && typeof bins.length === "number");
-      if (gotBinsArray) {
+      let createdPreset = null;
+
+      if (success && gotBinsArray) {
+        createdPreset = createUserPresetFromScan(
+          bins,
+          typeof folderName === "string" ? folderName : "",
+          message);
+        if (createdPreset) {
+          setCustomSelectValue(smoothSourceSel, createdPreset.key, true);
+        } else {
+          applySmoothPreset(bins, !!hasPreset);
+        }
+      } else if (gotBinsArray) {
         applySmoothPreset(bins, !!hasPreset);
       }
 
@@ -2276,6 +4314,12 @@
           : "Scan failed.";
         setPresetStatus(text);
       }
+      else if (createdPreset) {
+        const suffix = createdPreset.limited ? ", limited scan" : "";
+        setPresetStatus(
+          `Created ${createdPreset.label} (${createdPreset.filesAnalysed} file(s)${suffix})`
+        );
+      }
       else if (typeof message === "string" && message.length > 0) {
         window.setTimeout(() => {
           setPresetStatus(
@@ -2290,23 +4334,42 @@
     window.addEventListener("blur", () => {
       cornerHoverActive = false;
       presetHoverActive = false;
+      overlayLevelHoverActive = false;
+      overlayLevelDragActive = false;
+      overlayLevelDragPointerId = null;
+      overlayWheelInteractionUntil = 0;
+      crosshairTargetAlpha = 1.0;
+      crosshairAlpha = 1.0;
+      lastCrosshairUpdateMs = 0;
+      hideOverlayReadout();
+      if (canvas)
+        canvas.style.cursor = "";
       closeAllSelectMenus();
       closeThemePicker();
       hideTooltip();
       refreshPresetCenterVisibility();
     });
     initializeJuceBackendBridge();
-    ensureCanvasSize();
+    const initialCanvasRect = ensureCanvasSize();
     applyTheme(state.theme);
     closeThemePicker();
     bindTooltips();
     setSmoothScanBusy(false);
     setPresetStatus("No smooth preset");
+    oscToggleBtn.classList.toggle("is-off", !state.oscilloscopeOn);
     refreshOscLengthButton();
+    refreshPeakWarningButton();
+    refreshSuppressorButton();
     callNative("setOscilloscopeLengthMode", state.oscLengthMode);
+    setSoloBandSelection(state.soloBand, true, true);
+    updateBandSoloUi();
+    layoutBandSoloStrip(initialCanvasRect.width, initialCanvasRect.height);
     rebuildShapedTarget();
     refreshPresetCenterVisibility();
     requestAnimationFrame(drawFrame);
   </script>
 </body>
 </html>
+
+
+

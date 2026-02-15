@@ -41,15 +41,24 @@ public:
     std::array<float, spectrumBins> getSpectrumSnapshot() const;
     std::array<float, spectrumBins> getReferenceSpectrumSnapshot() const;
     std::array<float, oscilloscopeSamples> getOscilloscopeSnapshot() const;
+    std::array<float, oscilloscopeSamples> getOscilloscopeSnapshotRight() const;
     void setOscilloscopeLengthMode (int mode) noexcept;
     int getOscilloscopeLengthMode() const noexcept;
+    void setSoloBand (int bandIndex) noexcept;
     double getCurrentAnalysisSampleRate() const noexcept;
     float getRmsDb() const noexcept;
     float getLufsIntegrated() const noexcept;
-    bool buildSmoothPresetFromFolder (const juce::File& folder, juce::String& outMessage);
+    bool buildSmoothPresetFromFolder (const juce::File& folder, juce::String& outMessage, int smoothingAmount);
     bool hasReferenceSpectrumData() const noexcept;
     std::uint32_t getReferenceSpectrumRevision() const noexcept;
     void clearReferenceSpectrum() noexcept;
+    void setReferenceSpectrumFromUi (const std::array<float, spectrumBins>& bins, bool hasData) noexcept;
+    void setResonanceSuppressorConfig (bool enabled,
+                                       float overlayLevelDb,
+                                       float overlayWidthDb,
+                                       float tiltDb) noexcept;
+    std::array<float, 6> getResonanceSuppressorFrequencySnapshot() const noexcept;
+    std::array<float, 6> getResonanceSuppressorGainSnapshot() const noexcept;
 
 private:
     juce::AudioProcessorValueTreeState parameters;
@@ -62,6 +71,7 @@ private:
     std::array<std::atomic<float>, spectrumBins> spectrumData {};
     std::array<std::atomic<float>, spectrumBins> referenceSpectrumData {};
     std::array<std::atomic<float>, oscilloscopeSamples> oscilloscopeData {};
+    std::array<std::atomic<float>, oscilloscopeSamples> oscilloscopeDataRight {};
     std::array<float, spectrumBins> spectrumBinPosition {};
     std::atomic<bool> hasReferenceSpectrum { false };
     std::atomic<std::uint32_t> referenceSpectrumRevision { 0 };
@@ -75,10 +85,34 @@ private:
     std::atomic<int> oscilloscopeLengthMode { 0 };
     std::atomic<float> rmsDb { -96.0f };
     std::atomic<float> lufsIntegrated { -96.0f };
+    std::atomic<int> soloBand { -1 };
     float rmsSmoothedDb = -96.0f;
+    std::array<float, spectrumBins> spectrumBinFrequencyHz {};
+    std::atomic<bool> resonanceSuppressorEnabled { false };
+    std::atomic<float> resonanceOverlayLevelDb { 0.0f };
+    std::atomic<float> resonanceOverlayWidthDb { 12.0f };
+    std::atomic<float> resonanceOverlayTiltDb { 5.0f };
+
+    static constexpr int resonanceSuppressorBands = 6;
+    struct ResonanceSuppressorBandState
+    {
+        std::array<juce::dsp::IIR::Filter<float>, 2> filters;
+        float currentFrequencyHz = 1000.0f;
+        float currentGainDb = 0.0f;
+        float currentQ = 5.0f;
+    };
+    std::array<ResonanceSuppressorBandState, resonanceSuppressorBands> resonanceBands;
+    std::array<std::atomic<float>, resonanceSuppressorBands> resonanceBandFrequencyUi {};
+    std::array<std::atomic<float>, resonanceSuppressorBands> resonanceBandGainUi {};
 
     juce::dsp::IIR::Filter<float> lufsHighPass;
     juce::dsp::IIR::Filter<float> lufsHighShelf;
+    std::array<juce::dsp::IIR::Filter<float>, 2> soloHighPass200;
+    std::array<juce::dsp::IIR::Filter<float>, 2> soloLowPass200;
+    std::array<juce::dsp::IIR::Filter<float>, 2> soloHighPass2k;
+    std::array<juce::dsp::IIR::Filter<float>, 2> soloLowPass2k;
+    std::array<juce::dsp::IIR::Filter<float>, 2> soloHighPass5k;
+    std::array<juce::dsp::IIR::Filter<float>, 2> soloLowPass5k;
     double lufsWeightedEnergySum = 0.0;
     double lufsWeightedSampleCount = 0.0;
 
@@ -86,6 +120,12 @@ private:
     void pushAnalyserSample (float sample) noexcept;
     void buildSpectrumFrame() noexcept;
     void updateSpectrumLayout (double sampleRate) noexcept;
+    void updateSoloBandFilters (double sampleRate) noexcept;
+    void resetSoloBandFilters() noexcept;
+    void applySoloBandToBuffer (juce::AudioBuffer<float>& buffer) noexcept;
+    void resetResonanceSuppressor() noexcept;
+    void updateResonanceSuppressorTargets (int numSamples) noexcept;
+    void applyResonanceSuppressorToBuffer (juce::AudioBuffer<float>& buffer) noexcept;
     static std::array<float, spectrumBins> buildSpectrumBinPositions (double sampleRate) noexcept;
     static float computeFftMagnitudeScale();
 

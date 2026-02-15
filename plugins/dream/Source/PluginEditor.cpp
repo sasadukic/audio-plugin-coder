@@ -51,11 +51,7 @@ DreamAudioProcessorEditor::DreamAudioProcessorEditor (DreamAudioProcessor& p)
     webView = std::make_unique<juce::WebBrowserComponent> (createWebOptions (*this));
     addAndMakeVisible (*webView);
 
-    auto startUrl = juce::WebBrowserComponent::getResourceProviderRoot();
-    if (! startUrl.endsWithChar ('/'))
-        startUrl << '/';
-    startUrl << "index.html";
-    webView->goToURL (startUrl);
+    webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
     setSize (980, 620);
     startTimerHz (30);
@@ -106,7 +102,10 @@ void DreamAudioProcessorEditor::timerCallback()
 
     const auto spectrum = processorRef.getSpectrumSnapshot();
     const auto oscilloscope = processorRef.getOscilloscopeSnapshot();
+    const auto oscilloscopeRight = processorRef.getOscilloscopeSnapshotRight();
     const auto reference = processorRef.getReferenceSpectrumSnapshot();
+    const auto suppressorFrequencies = processorRef.getResonanceSuppressorFrequencySnapshot();
+    const auto suppressorGains = processorRef.getResonanceSuppressorGainSnapshot();
     const auto referenceRevision = processorRef.getReferenceSpectrumRevision();
     bool hasReference = processorRef.hasReferenceSpectrumData() || referenceRevision > 0;
     if (! hasReference)
@@ -117,16 +116,24 @@ void DreamAudioProcessorEditor::timerCallback()
 
     const auto arr = makeJsFloatArray (spectrum);
     const auto oscilloscopeArr = makeJsFloatArray (oscilloscope);
+    const auto oscilloscopeRightArr = makeJsFloatArray (oscilloscopeRight);
     const auto referenceArrForTick = makeJsFloatArray (reference);
+    const auto suppressorFrequencyArr = makeJsFloatArray (suppressorFrequencies);
+    const auto suppressorGainArr = makeJsFloatArray (suppressorGains);
 
     webView->evaluateJavascript ("if (window.updateSpectrum) window.updateSpectrum(" + arr + ","
                                  + juce::String (processorRef.getCurrentAnalysisSampleRate(), 2) + ","
                                  + oscilloscopeArr + ","
+                                 + oscilloscopeRightArr + ","
                                  + juce::String (processorRef.getRmsDb(), 2) + ","
                                  + juce::String (processorRef.getLufsIntegrated(), 2) + ","
                                  + referenceArrForTick + ","
                                  + juce::String (hasReference ? "true" : "false") + ","
                                  + juce::String (static_cast<int> (referenceRevision)) + ");");
+
+    webView->evaluateJavascript ("if (window.updateResonanceSuppressor) window.updateResonanceSuppressor("
+                                 + suppressorFrequencyArr + ","
+                                 + suppressorGainArr + ");");
 
     const auto currentRevision = processorRef.getReferenceSpectrumRevision();
     if (currentRevision != lastReferenceRevision)
@@ -173,10 +180,85 @@ juce::WebBrowserComponent::Options DreamAudioProcessorEditor::createWebOptions (
                 editor.processorRef.setOscilloscopeLengthMode (mode);
                 done (true);
             })
+        .withNativeFunction ("setSoloBand",
+            [&editor] (const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion done)
+            {
+                int bandIndex = -1;
+                if (args.size() > 0)
+                {
+                    if (args[0].isInt() || args[0].isDouble() || args[0].isBool())
+                        bandIndex = static_cast<int> (args[0]);
+                }
+
+                editor.processorRef.setSoloBand (bandIndex);
+                done (true);
+            })
+        .withNativeFunction ("setReferenceSpectrum",
+            [&editor] (const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion done)
+            {
+                std::array<float, DreamAudioProcessor::spectrumBins> bins {};
+                bool hasData = false;
+
+                if (args.size() > 0)
+                {
+                    if (auto* values = args[0].getArray())
+                    {
+                        const int num = juce::jmin (values->size(), DreamAudioProcessor::spectrumBins);
+                        for (int i = 0; i < num; ++i)
+                        {
+                            const auto& value = values->getReference (i);
+                            float parsed = 0.0f;
+                            if (value.isInt() || value.isDouble() || value.isBool())
+                                parsed = static_cast<float> (value);
+                            else if (value.isString())
+                                parsed = value.toString().getFloatValue();
+
+                            bins[static_cast<size_t> (i)] = juce::jlimit (0.0f, 1.0f, parsed);
+                            if (bins[static_cast<size_t> (i)] > 1.0e-6f)
+                                hasData = true;
+                        }
+                    }
+                }
+
+                editor.processorRef.setReferenceSpectrumFromUi (bins, hasData);
+                done (true);
+            })
+        .withNativeFunction ("setResonanceSuppressorConfig",
+            [&editor] (const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion done)
+            {
+                bool enabled = false;
+                float overlayLevelDb = 0.0f;
+                float overlayWidthDb = 12.0f;
+                float tiltDb = 5.0f;
+
+                if (args.size() > 0)
+                    enabled = static_cast<bool> (args[0]);
+                if (args.size() > 1 && (args[1].isInt() || args[1].isDouble() || args[1].isBool()))
+                    overlayLevelDb = static_cast<float> (args[1]);
+                if (args.size() > 2 && (args[2].isInt() || args[2].isDouble() || args[2].isBool()))
+                    overlayWidthDb = static_cast<float> (args[2]);
+                if (args.size() > 3 && (args[3].isInt() || args[3].isDouble() || args[3].isBool()))
+                    tiltDb = static_cast<float> (args[3]);
+
+                editor.processorRef.setResonanceSuppressorConfig (
+                    enabled,
+                    overlayLevelDb,
+                    overlayWidthDb,
+                    tiltDb);
+                done (true);
+            })
         .withNativeFunction ("buildSmoothPresetFromFolder",
             [&editor] (const juce::Array<juce::var>& args, juce::WebBrowserComponent::NativeFunctionCompletion done)
             {
-                juce::ignoreUnused (args);
+                int smoothingAmount = 16;
+                if (args.size() > 0)
+                {
+                    if (args[0].isInt() || args[0].isDouble() || args[0].isBool())
+                        smoothingAmount = static_cast<int> (args[0]);
+                    else if (args[0].isString())
+                        smoothingAmount = args[0].toString().getIntValue();
+                }
+                smoothingAmount = juce::jlimit (0, 16, smoothingAmount);
 
                 editor.folderChooser = std::make_unique<juce::FileChooser> (
                     "Select a folder with songs",
@@ -187,7 +269,7 @@ juce::WebBrowserComponent::Options DreamAudioProcessorEditor::createWebOptions (
                     | juce::FileBrowserComponent::canSelectDirectories;
 
                 editor.folderChooser->launchAsync (chooserFlags,
-                    [&editor, done] (const juce::FileChooser& chooser)
+                    [&editor, done, smoothingAmount] (const juce::FileChooser& chooser)
                     {
                         const auto folder = chooser.getResult();
                         editor.folderChooser.reset();
@@ -198,7 +280,7 @@ juce::WebBrowserComponent::Options DreamAudioProcessorEditor::createWebOptions (
                         if (folder.isDirectory())
                         {
                             juce::MouseCursor::showWaitCursor();
-                            success = editor.processorRef.buildSmoothPresetFromFolder (folder, message);
+                            success = editor.processorRef.buildSmoothPresetFromFolder (folder, message, smoothingAmount);
                             juce::MouseCursor::hideWaitCursor();
                             editor.lastReferenceRevision = (std::numeric_limits<std::uint32_t>::max)();
                         }
@@ -210,6 +292,7 @@ juce::WebBrowserComponent::Options DreamAudioProcessorEditor::createWebOptions (
                         if (editor.webView != nullptr)
                         {
                             juce::String referenceArr = "[]";
+                            const juce::String scannedFolderName = folder.isDirectory() ? folder.getFileName() : juce::String();
                             bool hasReference = false;
                             const auto reference = editor.processorRef.getReferenceSpectrumSnapshot();
                             const auto referenceRevision = editor.processorRef.getReferenceSpectrumRevision();
@@ -239,7 +322,8 @@ juce::WebBrowserComponent::Options DreamAudioProcessorEditor::createWebOptions (
                                 + juce::JSON::toString (juce::var (message)) + ","
                                 + referenceArr + ","
                                 + juce::String (hasReference ? "true" : "false") + ","
-                                + juce::String (static_cast<int> (referenceRevision)) + ");");
+                                + juce::String (static_cast<int> (referenceRevision)) + ","
+                                + juce::JSON::toString (juce::var (scannedFolderName)) + ");");
                         }
 
                         done (success);
@@ -259,7 +343,7 @@ juce::WebBrowserComponent::Options DreamAudioProcessorEditor::createWebOptions (
     options = options.withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
         .withWinWebView2Options (
             juce::WebBrowserComponent::Options::WinWebView2{}
-                .withUserDataFolder (juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("NPS_SPECRUM")));
+                .withUserDataFolder (juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("NPS_SPECRAUM_UI")));
 #endif
 
     return options;
@@ -281,12 +365,17 @@ std::optional<juce::WebBrowserComponent::Resource> DreamAudioProcessorEditor::ge
     if (path.startsWithIgnoreCase (root))
         path = path.fromFirstOccurrenceOf (root, false, false);
 
-    if (path.startsWithChar ('/'))
+    path = path.upToFirstOccurrenceOf ("?", false, false);
+    path = path.upToFirstOccurrenceOf ("#", false, false);
+    while (path.startsWithChar ('/'))
         path = path.substring (1);
-    if (path.isEmpty())
-        path = "index.html";
 
-    if (path == "index.html")
+    const bool isIndexPath = path.isEmpty()
+        || path.equalsIgnoreCase ("index")
+        || path.equalsIgnoreCase ("index.html")
+        || path.equalsIgnoreCase ("index.htm");
+
+    if (isIndexPath)
     {
         return makeResource (dream_BinaryData::index_html,
                              dream_BinaryData::index_htmlSize,
