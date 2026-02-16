@@ -63,6 +63,8 @@ jobs:
         run: |
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
             -DAPC_ENABLE_VISAGE=ON `
+            -DAPC_AUTO_COPY_VST3_TO_SYSTEM_DIR=OFF `
+            -DAPC_OPEN_BUILD_FOLDER_AFTER_BUILD=OFF `
             -DJUCE_WEBVIEW2_PACKAGE_LOCATION="$env:JUCE_WEBVIEW2_PACKAGE_LOCATION"
 
       - name: Build VST3
@@ -112,6 +114,8 @@ jobs:
             -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 \
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_OBJCXX_STANDARD=20 \
+            -DAPC_AUTO_COPY_VST3_TO_SYSTEM_DIR=OFF \
+            -DAPC_OPEN_BUILD_FOLDER_AFTER_BUILD=OFF \
             -DAPC_ENABLE_VISAGE=ON
 
       - name: Build VST3
@@ -180,7 +184,10 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAPC_ENABLE_VISAGE=ON
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            -DAPC_AUTO_COPY_VST3_TO_SYSTEM_DIR=OFF \
+            -DAPC_OPEN_BUILD_FOLDER_AFTER_BUILD=OFF \
+            -DAPC_ENABLE_VISAGE=ON
 
       - name: Build VST3
         run: |
