@@ -45,15 +45,21 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DAPC_ENABLE_VISAGE=ON
 
       - name: Build VST3
         run: |
           cmake --build build --config Release --target "${{ inputs.plugin_name }}_VST3"
 
       - name: Build Standalone
+        shell: pwsh
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_Standalone"
+          $targets = cmake --build build --target help
+          if ($targets -match "${{ inputs.plugin_name }}_Standalone") {
+            cmake --build build --config Release --target "${{ inputs.plugin_name }}_Standalone"
+          } else {
+            Write-Host "Standalone target ${{ inputs.plugin_name }}_Standalone is not available; skipping."
+          }
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
@@ -85,7 +91,8 @@ jobs:
         run: |
           cmake -S . -B build -G Xcode \
             -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13 \
+            -DAPC_ENABLE_VISAGE=ON
 
       - name: Build VST3
         run: |
@@ -93,11 +100,21 @@ jobs:
 
       - name: Build AU
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_AU"
+          targets="$(cmake --build build --target help)"
+          if echo "$targets" | grep -q "${{ inputs.plugin_name }}_AU"; then
+            cmake --build build --config Release --target "${{ inputs.plugin_name }}_AU"
+          else
+            echo "AU target ${{ inputs.plugin_name }}_AU is not available; skipping."
+          fi
 
       - name: Build Standalone
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_Standalone"
+          targets="$(cmake --build build --target help)"
+          if echo "$targets" | grep -q "${{ inputs.plugin_name }}_Standalone"; then
+            cmake --build build --config Release --target "${{ inputs.plugin_name }}_Standalone"
+          else
+            echo "Standalone target ${{ inputs.plugin_name }}_Standalone is not available; skipping."
+          fi
 
       - name: Upload macOS Artifacts
         uses: actions/upload-artifact@v4
@@ -142,7 +159,7 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAPC_ENABLE_VISAGE=ON
 
       - name: Build VST3
         run: |
@@ -150,11 +167,21 @@ jobs:
 
       - name: Build LV2
         run: |
-          xvfb-run cmake --build build --target "${{ inputs.plugin_name }}_LV2"
+          targets="$(cmake --build build --target help)"
+          if echo "$targets" | grep -q "${{ inputs.plugin_name }}_LV2"; then
+            xvfb-run cmake --build build --target "${{ inputs.plugin_name }}_LV2"
+          else
+            echo "LV2 target ${{ inputs.plugin_name }}_LV2 is not available; skipping."
+          fi
 
       - name: Build Standalone
         run: |
-          xvfb-run cmake --build build --target "${{ inputs.plugin_name }}_Standalone"
+          targets="$(cmake --build build --target help)"
+          if echo "$targets" | grep -q "${{ inputs.plugin_name }}_Standalone"; then
+            xvfb-run cmake --build build --target "${{ inputs.plugin_name }}_Standalone"
+          else
+            echo "Standalone target ${{ inputs.plugin_name }}_Standalone is not available; skipping."
+          fi
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
