@@ -23,12 +23,11 @@ jobs:
         shell: pwsh
         run: |
           $pkgRoot = Join-Path $env:RUNNER_TEMP "nuget-packages"
-          nuget install Microsoft.Web.WebView2 -Version 1.0.3485.44 -OutputDirectory $pkgRoot -ExcludeVersion
-          $webViewSdk = Join-Path $pkgRoot "Microsoft.Web.WebView2"
-          if (!(Test-Path $webViewSdk)) {
-            throw "WebView2 SDK not found at $webViewSdk"
+          nuget install Microsoft.Web.WebView2 -Version 1.0.3485.44 -OutputDirectory $pkgRoot
+          if (!(Test-Path $pkgRoot)) {
+            throw "WebView2 package root not found at $pkgRoot"
           }
-          "JUCE_WEBVIEW2_PACKAGE_LOCATION=$webViewSdk" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "JUCE_WEBVIEW2_PACKAGE_LOCATION=$pkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Configure CMake
         shell: pwsh
@@ -76,7 +75,9 @@ jobs:
         run: |
           cmake -S . -B build -G Xcode \
             -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 \
+            -DCMAKE_CXX_STANDARD=20 \
+            -DCMAKE_OBJCXX_STANDARD=20
 
       - name: Build VST3
         run: |
