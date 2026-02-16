@@ -71,23 +71,17 @@ jobs:
         run: |
           cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_VST3"
 
-      - name: Build Standalone
-        shell: pwsh
+      - name: Build CLAP
         run: |
-          $targets = cmake --build build --target help
-          if ($targets -match "${{ env.PLUGIN_NAME }}_Standalone") {
-            cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_Standalone"
-          } else {
-            Write-Host "Standalone target ${{ env.PLUGIN_NAME }}_Standalone is not available; skipping."
-          }
+          cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_CLAP"
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{ env.PLUGIN_NAME }}
           path: |
-            build/*_artefacts/Release/*.vst3
-            build/*_artefacts/Release/*.exe
+            build/**/*.vst3
+            build/**/*.clap
           retention-days: 30
 
   # ============================================
@@ -122,32 +116,23 @@ jobs:
         run: |
           cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_VST3"
 
-      - name: Build AU
+      - name: Build CLAP
         run: |
-          targets="$(cmake --build build --target help)"
-          if echo "$targets" | grep -q "${{ env.PLUGIN_NAME }}_AU"; then
-            cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_AU"
-          else
-            echo "AU target ${{ env.PLUGIN_NAME }}_AU is not available; skipping."
-          fi
+          cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_CLAP"
 
-      - name: Build Standalone
+      - name: Build AU (BASSic only)
+        if: env.PLUGIN_NAME == 'bassic'
         run: |
-          targets="$(cmake --build build --target help)"
-          if echo "$targets" | grep -q "${{ env.PLUGIN_NAME }}_Standalone"; then
-            cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_Standalone"
-          else
-            echo "Standalone target ${{ env.PLUGIN_NAME }}_Standalone is not available; skipping."
-          fi
+          cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_AU"
 
       - name: Upload macOS Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-${{ env.PLUGIN_NAME }}
           path: |
-            build/*_artefacts/Release/*.vst3
-            build/*_artefacts/Release/*.component
-            build/*_artefacts/Release/*.app
+            build/**/*.vst3
+            build/**/*.clap
+            build/**/*.component
           retention-days: 30
 
   # ============================================
@@ -193,32 +178,17 @@ jobs:
         run: |
           cmake --build build --target "${{ env.PLUGIN_NAME }}_VST3"
 
-      - name: Build LV2
+      - name: Build CLAP
         run: |
-          targets="$(cmake --build build --target help)"
-          if echo "$targets" | grep -q "${{ env.PLUGIN_NAME }}_LV2"; then
-            xvfb-run cmake --build build --target "${{ env.PLUGIN_NAME }}_LV2"
-          else
-            echo "LV2 target ${{ env.PLUGIN_NAME }}_LV2 is not available; skipping."
-          fi
-
-      - name: Build Standalone
-        run: |
-          targets="$(cmake --build build --target help)"
-          if echo "$targets" | grep -q "${{ env.PLUGIN_NAME }}_Standalone"; then
-            xvfb-run cmake --build build --target "${{ env.PLUGIN_NAME }}_Standalone"
-          else
-            echo "Standalone target ${{ env.PLUGIN_NAME }}_Standalone is not available; skipping."
-          fi
+          cmake --build build --target "${{ env.PLUGIN_NAME }}_CLAP"
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{ env.PLUGIN_NAME }}
           path: |
-            build/**/Release/VST3/
-            build/**/Release/LV2/
-            build/**/Release/Standalone/${{ env.PLUGIN_NAME }}
+            build/**/*.vst3
+            build/**/*.clap
           retention-days: 30
 
   # ============================================
@@ -286,15 +256,14 @@ jobs:
             ## ${{ env.PLUGIN_NAME }} Release
             
             ### Installation
-            - **Windows**: Extract the ZIP and run the installer or copy VST3 to your plugins folder
-            - **macOS**: Extract the ZIP and install VST3/AU components to the appropriate folders
-            - **Linux**: Extract the ZIP and copy VST3/LV2 to your plugins folder
+            - **Windows**: Extract the ZIP and copy VST3/CLAP to your plugins folder
+            - **macOS**: Extract the ZIP and install VST3/CLAP components (plus AU for BASSic)
+            - **Linux**: Extract the ZIP and copy VST3/CLAP to your plugins folder
             
             ### Supported Formats
             - VST3 (All platforms)
-            - AU (macOS only)
-            - LV2 (Linux only)
-            - Standalone (All platforms)
+            - CLAP (All platforms)
+            - AU (macOS, BASSic only)
             
             ### System Requirements
             - **Windows**: Windows 10/11, 64-bit, WebView2 Runtime

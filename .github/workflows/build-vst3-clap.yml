@@ -40,21 +40,12 @@ jobs:
       - name: Build VST3
         shell: pwsh
         run: |
-          $targets = cmake --build build --target help
-          if (-not ($targets -match "specraum_VST3")) {
-            throw "Missing target specraum_VST3"
-          }
           cmake --build build --config Release --target specraum_VST3
 
       - name: Build CLAP
         shell: pwsh
         run: |
-          $targets = cmake --build build --target help
-          if ($targets -match "specraum_CLAP") {
-            cmake --build build --config Release --target specraum_CLAP
-          } else {
-            Write-Host "CLAP target specraum_CLAP is not available in this JUCE/CMake setup."
-          }
+          cmake --build build --config Release --target specraum_CLAP
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -85,18 +76,11 @@ jobs:
 
       - name: Build VST3
         run: |
-          targets="$(cmake --build build --target help)"
-          echo "$targets" | grep -q "specraum_VST3"
           cmake --build build --config Release --target specraum_VST3
 
       - name: Build CLAP
         run: |
-          targets="$(cmake --build build --target help)"
-          if echo "$targets" | grep -q "specraum_CLAP"; then
-            cmake --build build --config Release --target specraum_CLAP
-          else
-            echo "CLAP target specraum_CLAP is not available in this JUCE/CMake setup."
-          fi
+          cmake --build build --config Release --target specraum_CLAP
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
@@ -141,18 +125,11 @@ jobs:
 
       - name: Build VST3
         run: |
-          targets="$(cmake --build build --target help)"
-          echo "$targets" | grep -q "specraum_VST3"
           cmake --build build --target specraum_VST3
 
       - name: Build CLAP
         run: |
-          targets="$(cmake --build build --target help)"
-          if echo "$targets" | grep -q "specraum_CLAP"; then
-            cmake --build build --target specraum_CLAP
-          else
-            echo "CLAP target specraum_CLAP is not available in this JUCE/CMake setup."
-          fi
+          cmake --build build --target specraum_CLAP
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
