@@ -72,8 +72,17 @@ jobs:
           cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_VST3"
 
       - name: Build CLAP
+        shell: pwsh
         run: |
-          cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_CLAP"
+          $targetsFile = Get-ChildItem -Path build -Recurse -Filter TargetDirectories.txt | Select-Object -First 1
+          if ($null -eq $targetsFile) {
+            throw "TargetDirectories.txt not found under build/"
+          }
+          if (Select-String -Path $targetsFile.FullName -SimpleMatch -Pattern "${{ env.PLUGIN_NAME }}_CLAP.dir" -Quiet) {
+            cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_CLAP"
+          } else {
+            Write-Host "CLAP target ${{ env.PLUGIN_NAME }}_CLAP is not available; skipping."
+          }
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
@@ -118,12 +127,26 @@ jobs:
 
       - name: Build CLAP
         run: |
-          cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_CLAP"
+          targets_file="$(find build -name TargetDirectories.txt | head -n 1)"
+          if [ -z "$targets_file" ]; then
+            echo "TargetDirectories.txt not found under build/; skipping CLAP."
+          elif grep -q "${{ env.PLUGIN_NAME }}_CLAP.dir" "$targets_file"; then
+            cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_CLAP"
+          else
+            echo "CLAP target ${{ env.PLUGIN_NAME }}_CLAP is not available; skipping."
+          fi
 
       - name: Build AU (BASSic only)
         if: env.PLUGIN_NAME == 'bassic'
         run: |
-          cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_AU"
+          targets_file="$(find build -name TargetDirectories.txt | head -n 1)"
+          if [ -z "$targets_file" ]; then
+            echo "TargetDirectories.txt not found under build/; skipping AU."
+          elif grep -q "${{ env.PLUGIN_NAME }}_AU.dir" "$targets_file"; then
+            cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_AU"
+          else
+            echo "AU target ${{ env.PLUGIN_NAME }}_AU is not available; skipping."
+          fi
 
       - name: Upload macOS Artifacts
         uses: actions/upload-artifact@v4
@@ -180,7 +203,14 @@ jobs:
 
       - name: Build CLAP
         run: |
-          cmake --build build --target "${{ env.PLUGIN_NAME }}_CLAP"
+          targets_file="$(find build -name TargetDirectories.txt | head -n 1)"
+          if [ -z "$targets_file" ]; then
+            echo "TargetDirectories.txt not found under build/; skipping CLAP."
+          elif grep -q "${{ env.PLUGIN_NAME }}_CLAP.dir" "$targets_file"; then
+            cmake --build build --target "${{ env.PLUGIN_NAME }}_CLAP"
+          else
+            echo "CLAP target ${{ env.PLUGIN_NAME }}_CLAP is not available; skipping."
+          fi
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
