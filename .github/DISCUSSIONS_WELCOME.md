@@ -4,7 +4,7 @@ Welcome to the APC community! This is a space for audio developers, AI enthusias
 
 ## About APC
 
-**Audio Plugin Coder (APC)** is an AI-powered framework for building professional audio plugins from concept to shipped product. Using a structured five-phase workflow (Dream → Plan → Design → Implement → Ship), APC guides you through the entire plugin development lifecycle with the help of AI agents.
+**Audio Plugin Coder (APC)** is an AI-powered framework for building professional audio plugins from concept to shipped product. Using a structured five-phase workflow (Ideate → Plan → Design → Implement → Ship), APC guides you through the entire plugin development lifecycle with the help of AI agents.
 
 ### Key Features
 - 🤖 **AI-Driven Development** - Works with Claude Code, Antigravity, Kilo, and other agents
@@ -135,7 +135,7 @@ Get help with errors, bugs, and technical issues.
 
 3. **Create Your First Plugin**
    ```
-   /dream MyFirstPlugin
+   /create-plugin MyFirstPlugin
    ```
 
 4. **Join the Conversation**

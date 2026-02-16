@@ -1,0 +1,4474 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SPECRAUM</title>
+  <style>
+    @font-face {
+      font-family: "SPRoboto";
+      src:
+        url("./fonts/RobotoCondensed-VariableFont_wght.ttf") format("truetype-variations"),
+        url("./fonts/RobotoCondensed-VariableFont_wght.ttf") format("truetype");
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: swap;
+    }
+
+    :root {
+      --bg-top: #16181d;
+      --bg-mid: #1a1d24;
+      --bg-bot: #11141a;
+      --grid-strong: rgba(130, 158, 208, 0.24);
+      --grid-soft: rgba(130, 158, 208, 0.10);
+      --grid-top: rgba(170, 196, 238, 0.52);
+      --line-main: #a9c6d8;
+      --line-light: rgba(230, 236, 246, 0.82);
+      --icon-fg: rgba(178, 190, 208, 0.96);
+      --panel-bg: rgba(24, 28, 35, 0.76);
+      --panel-bg-strong: rgba(24, 28, 35, 0.88);
+      --panel-outline: rgba(169, 198, 216, 0.28);
+      --panel-outline-soft: rgba(169, 198, 216, 0.18);
+      --option-hover-bg: rgba(169, 198, 216, 0.16);
+      --tooltip-bg: rgba(24, 28, 35, 0.90);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: "SPRoboto", "Roboto Condensed", "Roboto", "Segoe UI", "SF Pro Display", Arial, sans-serif;
+      font-style: normal;
+      font-size: 11px;
+      background:
+        radial-gradient(900px 460px at 15% 0%, #2a2f39 0%, transparent 58%),
+        radial-gradient(1000px 520px at 100% 0%, #232730 0%, transparent 60%),
+        linear-gradient(180deg, var(--bg-top), var(--bg-mid), var(--bg-bot));
+    }
+
+    button, input, select, textarea {
+      font-family: inherit;
+      font-style: normal;
+    }
+
+    .app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    #spectrum {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .band-solo-strip {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 24px;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .band-solo-item {
+      position: absolute;
+      top: 0;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding-left: 0;
+      pointer-events: auto;
+      overflow: hidden;
+    }
+
+    .band-solo-btn {
+      width: 16px;
+      height: 16px;
+      border: 1px solid var(--panel-outline);
+      border-radius: 999px;
+      background: var(--panel-bg);
+      color: var(--icon-fg);
+      opacity: 0.44;
+      font-size: 0;
+      line-height: 1;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      padding: 0;
+    }
+
+    .band-solo-btn::before {
+      content: "S";
+      color: inherit;
+      font-family: "SPRoboto", "Roboto Condensed", "Roboto", "Segoe UI", "SF Pro Display", Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+      transform: translateY(-0.4px);
+      pointer-events: none;
+    }
+
+    .band-solo-btn:hover {
+      background: var(--option-hover-bg);
+      opacity: 0.62;
+    }
+
+    .band-solo-btn.is-active {
+      border-color: var(--icon-fg);
+      background: var(--option-hover-bg);
+      color: var(--icon-fg);
+      opacity: 0.82;
+    }
+
+    .band-solo-label {
+      color: var(--icon-fg);
+      opacity: 0.74;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      line-height: 1;
+      white-space: nowrap;
+      text-shadow: 0 2px 8px rgba(2, 8, 18, 0.55);
+      pointer-events: none;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      z-index: 3;
+      pointer-events: auto;
+      align-items: center;
+    }
+
+    .left-toolbar .controls {
+      position: absolute;
+      left: 44px;
+      top: 0;
+      transform: translateY(-50%);
+    }
+
+    .preset-center {
+      position: absolute;
+      left: 50%;
+      bottom: 10px;
+      transform: translateX(-50%) translateY(8px) scale(0.96);
+      z-index: 3;
+      pointer-events: none;
+      opacity: 0;
+      transition:
+        opacity 120ms ease,
+        transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .preset-center.is-visible {
+      pointer-events: auto;
+      opacity: 1;
+      transform: translateX(-50%) translateY(0) scale(1);
+      transition:
+        opacity 130ms ease-out,
+        transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1.2);
+    }
+
+    .preset-center .select-trigger {
+      min-width: 124px;
+      text-align: center;
+      justify-content: center;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .preset-center .select-menu {
+      left: 50%;
+      transform-origin: center bottom;
+      transform: translate(-50%, 6px) scale(0.96);
+    }
+
+    .preset-center .control-select.open .select-menu {
+      transform: translate(-50%, 0) scale(1);
+    }
+
+    .preset-center #smoothSourceSel {
+      width: 152px;
+    }
+
+    .preset-center #smoothSourceSel .select-trigger {
+      width: 100%;
+      min-width: 0;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .preset-center #smoothSourceSel .select-menu {
+      left: 0;
+      bottom: calc(100% - 1px);
+      width: 100%;
+      min-width: 100%;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      transform-origin: center bottom;
+      transform: translateY(6px) scale(0.96);
+    }
+
+    .preset-center #smoothSourceSel.open .select-menu {
+      transform: translateY(0) scale(1);
+    }
+
+    .preset-center #smoothSourceSel.open .select-trigger {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+
+    .preset-center #smoothSourceSel .select-option {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 8px;
+      text-align: center;
+    }
+
+    .preset-center #smoothSourceSel .select-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 8px;
+      text-align: center;
+    }
+
+    .preset-inline-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .overlay-knob {
+      position: relative;
+      width: 22px;
+      height: 22px;
+      border: 1px solid var(--panel-outline-soft);
+      border-radius: 999px;
+      padding: 0;
+      cursor: ns-resize;
+      outline: none;
+      background: rgba(255, 255, 255, 0.03);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+      backdrop-filter: blur(3px);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: middle;
+    }
+
+    .overlay-knob:hover,
+    .overlay-knob:focus-visible {
+      border-color: var(--panel-outline);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    }
+
+    .overlay-knob.is-dragging {
+      border-color: var(--panel-outline);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    }
+
+    .overlay-knob-indicator {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 1.6px;
+      height: 7px;
+      border-radius: 2px;
+      background: var(--icon-fg);
+      transform-origin: 50% 100%;
+      transform: translate(-50%, -100%) rotate(var(--knob-angle, 0deg));
+      opacity: 0.9;
+      pointer-events: none;
+    }
+
+    .control-select {
+      position: relative;
+      min-width: 0;
+    }
+
+    .select-trigger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: 6px;
+      background: var(--panel-bg);
+      color: var(--icon-fg);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      height: 22px;
+      padding: 0 9px;
+      outline: none;
+      cursor: pointer;
+      backdrop-filter: blur(3px);
+      line-height: 1;
+      white-space: nowrap;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .control-select.open .select-trigger {
+      box-shadow: inset 0 0 0 1px var(--panel-outline);
+    }
+
+    .select-menu {
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 6px);
+      min-width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      padding: 2px;
+      border-radius: 6px;
+      background: var(--panel-bg-strong);
+      backdrop-filter: blur(3px);
+      box-shadow: inset 0 0 0 1px var(--panel-outline-soft);
+      z-index: 6;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform-origin: left bottom;
+      transform: translateY(6px) scale(0.96);
+      transition:
+        opacity 120ms ease,
+        transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+        visibility 0s linear 180ms;
+    }
+
+    .control-select.open .select-menu {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+      transition:
+        opacity 130ms ease-out,
+        transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1.25),
+        visibility 0s linear 0s;
+    }
+
+    .select-option {
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      color: var(--icon-fg);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      line-height: 1;
+      height: 22px;
+      padding: 0 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      text-align: left;
+      transition: background-color 70ms ease-out;
+    }
+
+    .select-option:first-child {
+      border-top-left-radius: 4px;
+      border-top-right-radius: 4px;
+    }
+
+    .select-option:last-child {
+      border-bottom-left-radius: 4px;
+      border-bottom-right-radius: 4px;
+    }
+
+    .select-option:hover,
+    .select-option.is-active {
+      background: var(--option-hover-bg);
+    }
+
+    .select-action {
+      border: none;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--icon-fg);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      line-height: 1;
+      height: 22px;
+      padding: 0 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      transition: background-color 70ms ease-out, opacity 90ms ease-out;
+    }
+
+    .select-action:hover {
+      background: var(--option-hover-bg);
+    }
+
+    .select-action.is-busy {
+      opacity: 0.72;
+      cursor: progress;
+    }
+
+    .preset-user-row {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .preset-user-row .select-option {
+      flex: 1 1 auto;
+    }
+
+    .preset-delete-btn {
+      border: none;
+      border-radius: 4px;
+      width: 18px;
+      height: 18px;
+      margin-right: 2px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--icon-fg);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      opacity: 0.72;
+      transition: opacity 70ms ease-out, background-color 70ms ease-out;
+    }
+
+    .preset-delete-btn:hover {
+      opacity: 1;
+      background: var(--option-hover-bg);
+    }
+
+    .action-btn {
+      min-width: 74px;
+      text-align: center;
+      justify-content: center;
+      display: inline-flex;
+      align-items: center;
+      font-size: 10px;
+      letter-spacing: 0.02em;
+    }
+
+    .action-btn.is-busy {
+      opacity: 0.74;
+      cursor: progress;
+    }
+
+    .preset-status {
+      min-width: 126px;
+      max-width: 200px;
+      padding: 0 8px;
+      height: 22px;
+      border-radius: 6px;
+      background: var(--panel-bg);
+      color: var(--icon-fg);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      line-height: 22px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      opacity: 0.92;
+    }
+
+    .left-toolbar {
+      position: absolute;
+      top: 50%;
+      left: 10px;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(calc(-50% + 8px)) scale(0.96);
+      transform-origin: left center;
+      transition:
+        opacity 120ms ease,
+        transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .left-toolbar.is-visible {
+      pointer-events: auto;
+      opacity: 1;
+      transform: translateY(-50%) scale(1);
+      transition:
+        opacity 130ms ease-out,
+        transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1.2);
+    }
+
+    .osc-mode-hub {
+      position: absolute;
+      left: 80px;
+      top: 0;
+      width: 36px;
+      height: 36px;
+      z-index: 5;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+    }
+
+    .osc-mode-hub.is-visible {
+      display: inline-flex;
+    }
+
+    .osc-mode-btn {
+      --osc-stereo-spread: 0px;
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 8px;
+      background-color: transparent;
+      opacity: 1;
+      cursor: pointer;
+      position: relative;
+      transition: opacity 130ms ease, filter 160ms ease;
+    }
+
+    .osc-mode-btn::before,
+    .osc-mode-btn::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--icon-fg);
+      border-radius: 50%;
+      transform: translate(calc(-50% - var(--osc-stereo-spread)), -50%);
+      transition:
+        transform 320ms cubic-bezier(0.22, 1.45, 0.3, 1),
+        opacity 220ms ease,
+        filter 260ms ease;
+      pointer-events: none;
+    }
+
+    .osc-mode-btn::after {
+      opacity: 0;
+      transform: translate(calc(-50% + var(--osc-stereo-spread)), -50%) scale(0.84);
+    }
+
+    .osc-mode-btn.is-active {
+      --osc-stereo-spread: 4px;
+      filter: drop-shadow(0 0 3px rgba(188, 216, 255, 0.45));
+    }
+
+    .osc-mode-btn.is-active::after {
+      opacity: 1;
+      transform: translate(calc(-50% + var(--osc-stereo-spread)), -50%) scale(1);
+    }
+
+    .osc-mode-btn.is-off {
+      filter: none;
+    }
+
+    .button-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      width: 78px;
+      gap: 6px;
+    }
+
+    .osc-stack {
+      position: relative;
+      display: inline-flex;
+      width: 116px;
+      min-height: 36px;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .warning-stack {
+      display: inline-flex;
+      align-items: center;
+      min-width: 76px;
+      gap: 4px;
+    }
+
+    .theme-picker {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .theme-toggle-btn .theme-indicator {
+      position: relative;
+      width: 12px;
+      height: 12px;
+      display: block;
+      transform: rotate(-22deg);
+    }
+
+    .theme-toggle-btn .theme-indicator::before {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: 2px;
+      width: 8px;
+      height: 7px;
+      border-radius: 1px;
+      border: 1px solid var(--icon-fg);
+      background: linear-gradient(
+        to bottom,
+        transparent 0 46%,
+        var(--swatch-color, #a9c6d8) 46% 100%
+      );
+      box-sizing: border-box;
+    }
+
+    .theme-toggle-btn .theme-indicator::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 1px;
+      width: 5px;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--swatch-color, #a9c6d8);
+    }
+
+    .theme-choices {
+      position: absolute;
+      left: calc(100% + 6px);
+      top: 50%;
+      display: flex;
+      gap: 4px;
+      padding: 0;
+      border-radius: 6px;
+      background: transparent;
+      backdrop-filter: none;
+      box-shadow: none;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-50%) translateX(-4px) scale(0.96);
+      transform-origin: left center;
+      transition:
+        opacity 120ms ease,
+        transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+        visibility 0s linear 180ms;
+      z-index: 7;
+    }
+
+    .theme-picker.open .theme-choices {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(-50%) translateX(0) scale(1);
+      transition:
+        opacity 130ms ease-out,
+        transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1.25),
+        visibility 0s linear 0s;
+    }
+
+    .theme-choice::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 1px;
+      background: var(--swatch-color, #a9c6d8);
+    }
+
+    .theme-choice {
+      border: none;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    .theme-choice.is-active {
+      box-shadow: none;
+    }
+
+    .theme-choice.is-disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    .is-hidden {
+      display: none !important;
+    }
+
+    .icon-btn {
+      width: 22px;
+      height: 22px;
+      border: none;
+      border-radius: 6px;
+      background: var(--panel-bg);
+      cursor: pointer;
+      backdrop-filter: blur(3px);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .left-toolbar .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: transparent;
+      backdrop-filter: none;
+      box-shadow: none;
+    }
+
+    .left-toolbar .menu-toggle .triangle {
+      width: 18px;
+      height: 18px;
+    }
+
+    .left-toolbar .help-btn::before {
+      font-size: 18px;
+    }
+
+    .left-toolbar .save-default-btn::before {
+      width: 14px;
+      height: 14px;
+    }
+
+    .left-toolbar .save-default-btn::after {
+      left: 50%;
+      bottom: 5px;
+      top: auto;
+      right: auto;
+      width: 6px;
+      height: 3px;
+      transform: translateX(-50%);
+    }
+
+    .left-toolbar .peak-warning-btn::before {
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 12px solid var(--icon-fg);
+    }
+
+    .left-toolbar .peak-warning-btn::after {
+      top: 8px;
+      font-size: 9px;
+    }
+
+    .left-toolbar .suppressor-btn::before {
+      top: 7px;
+      width: 14px;
+      height: 9px;
+      border-top-width: 2px;
+      border-left-width: 2px;
+      border-right-width: 2px;
+    }
+
+    .left-toolbar .suppressor-btn::after {
+      top: 14px;
+      width: 3px;
+      height: 4px;
+    }
+
+    .left-toolbar .fullscreen-btn::before {
+      width: 10px;
+      height: 10px;
+    }
+
+    .left-toolbar .osc-btn .osc-icon {
+      width: 13px;
+      height: 10px;
+    }
+
+    .left-toolbar .len-btn {
+      position: absolute;
+      left: 40px;
+      top: 0;
+      font-size: 11px;
+      min-width: 36px;
+    }
+
+    .left-toolbar .theme-toggle-btn .theme-indicator {
+      width: 16px;
+      height: 16px;
+    }
+
+    .left-toolbar .theme-toggle-btn .theme-indicator::before {
+      left: 3px;
+      top: 3px;
+      width: 10px;
+      height: 9px;
+    }
+
+    .left-toolbar .theme-toggle-btn .theme-indicator::after {
+      width: 6px;
+      height: 3px;
+    }
+
+    .left-toolbar .theme-choice::before {
+      width: 12px;
+      height: 12px;
+    }
+
+    .icon-btn.is-off {
+      opacity: 0.52;
+    }
+
+    .menu-toggle .triangle {
+      position: relative;
+      width: 14px;
+      height: 14px;
+      border: 1.6px solid var(--icon-fg);
+      border-radius: 50%;
+      box-sizing: border-box;
+      transform-origin: 50% 50%;
+      transition: transform 150ms ease;
+    }
+
+    .menu-toggle .triangle::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 4px;
+      height: 4px;
+      border: 1.5px solid var(--icon-fg);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.94;
+    }
+
+    .menu-toggle .triangle::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 18px;
+      height: 18px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background:
+        conic-gradient(from 0deg,
+          var(--icon-fg) 0 8deg,
+          transparent 8deg 45deg,
+          var(--icon-fg) 45deg 53deg,
+          transparent 53deg 90deg,
+          var(--icon-fg) 90deg 98deg,
+          transparent 98deg 135deg,
+          var(--icon-fg) 135deg 143deg,
+          transparent 143deg 180deg,
+          var(--icon-fg) 180deg 188deg,
+          transparent 188deg 225deg,
+          var(--icon-fg) 225deg 233deg,
+          transparent 233deg 270deg,
+          var(--icon-fg) 270deg 278deg,
+          transparent 278deg 315deg,
+          var(--icon-fg) 315deg 323deg,
+          transparent 323deg 360deg);
+      -webkit-mask: radial-gradient(circle, transparent 0 7px, #000 7px 100%);
+      mask: radial-gradient(circle, transparent 0 7px, #000 7px 100%);
+      opacity: 0.88;
+      pointer-events: none;
+    }
+
+    .menu-toggle.open .triangle {
+      transform: rotate(24deg);
+    }
+
+    .help-btn::before {
+      content: "?";
+      color: var(--icon-fg);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .save-default-btn {
+      position: relative;
+    }
+
+    .save-default-btn::before {
+      content: "";
+      position: relative;
+      width: 10px;
+      height: 10px;
+      border: 1.2px solid var(--icon-fg);
+      border-radius: 1.5px;
+      box-sizing: border-box;
+      background: linear-gradient(
+        to bottom,
+        var(--icon-fg) 0 30%,
+        transparent 30% 100%
+      ),
+      linear-gradient(
+        to right,
+        transparent 0 66%,
+        var(--icon-fg) 66% 100%
+      );
+      opacity: 0.95;
+    }
+
+    .save-default-btn::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 4px;
+      width: 4px;
+      height: 2px;
+      border: 1px solid var(--icon-fg);
+      border-radius: 1px;
+      background: transparent;
+      transform: translateX(-50%);
+      opacity: 0.95;
+    }
+
+    .save-default-btn.is-saving {
+      opacity: 1 !important;
+    }
+
+    .peak-warning-btn {
+      position: relative;
+    }
+
+    .peak-warning-btn::before {
+      content: "";
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-bottom: 9px solid var(--icon-fg);
+      transform: translateY(-1px);
+      opacity: 0.94;
+    }
+
+    .peak-warning-btn::after {
+      content: "!";
+      position: absolute;
+      left: 50%;
+      top: 6px;
+      transform: translateX(-50%);
+      color: var(--panel-bg-strong);
+      font-size: 8px;
+      font-weight: 800;
+      line-height: 1;
+      pointer-events: none;
+      opacity: 0.95;
+    }
+
+    .suppressor-btn {
+      position: relative;
+    }
+
+    .suppressor-btn::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 5px;
+      width: 11px;
+      height: 7px;
+      transform: translateX(-50%);
+      border-top: 1.6px solid var(--icon-fg);
+      border-left: 1.6px solid var(--icon-fg);
+      border-right: 1.6px solid var(--icon-fg);
+      border-radius: 8px 8px 0 0;
+      opacity: 0.95;
+    }
+
+    .suppressor-btn::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 11px;
+      width: 2px;
+      height: 3px;
+      border-radius: 1px;
+      background: var(--icon-fg);
+      transform: translateX(-50%);
+      opacity: 0.90;
+      pointer-events: none;
+    }
+
+    .suppressor-btn.is-disabled {
+      opacity: 0.42 !important;
+    }
+
+    .fullscreen-btn::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      background: var(--icon-fg);
+      border-radius: 1px;
+    }
+
+    .osc-btn .osc-icon {
+      width: 10px;
+      height: 8px;
+      background:
+        linear-gradient(135deg,
+          transparent 0 12%,
+          var(--icon-fg) 12% 24%,
+          transparent 24% 36%,
+          var(--icon-fg) 36% 48%,
+          transparent 48% 60%,
+          var(--icon-fg) 60% 72%,
+          transparent 72% 100%);
+      border-radius: 1px;
+      opacity: 0.96;
+    }
+
+    .len-btn {
+      color: var(--icon-fg);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      line-height: 1;
+      opacity: 1 !important;
+      min-width: 22px;
+    }
+
+        /* Embedded left-toolbar SVG icons */
+    .left-toolbar .fullscreen-btn,
+    .left-toolbar .osc-btn,
+    .left-toolbar .theme-toggle-btn,
+    .left-toolbar .help-btn,
+    .left-toolbar .save-default-btn,
+    .left-toolbar .peak-warning-btn,
+    .left-toolbar .suppressor-btn,
+    .left-toolbar .menu-toggle,
+    .left-toolbar .len-btn {
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 24px 24px;
+    }
+    .left-toolbar .fullscreen-btn { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNMTIwLTEyMHYtMTk1LjMzaDY2LjY3djEyOC42NmgxMjguNjZWLTEyMEgxMjBabTUyNC42NyAwdi02Ni42N2gxMjguNjZ2LTEyOC42Nkg4NDBWLTEyMEg2NDQuNjdaTTEyMC02NDQuNjdWLTg0MGgxOTUuMzN2NjYuNjdIMTg2LjY3djEyOC42NkgxMjBabTY1My4zMyAwdi0xMjguNjZINjQ0LjY3Vi04NDBIODQwdjE5NS4zM2gtNjYuNjdaIi8+PC9zdmc+"); }
+    .left-toolbar .fullscreen-btn:not(.is-off) { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNMjQ4LjY3LTEyMHYtMTI4LjY3SDEyMHYtNjYuNjZoMTk1LjMzVi0xMjBoLTY2LjY2Wm0zOTYgMHYtMTk1LjMzSDg0MHY2Ni42Nkg3MTEuMzNWLTEyMGgtNjYuNjZaTTEyMC02NDQuNjd2LTY2LjY2aDEyOC42N1YtODQwaDY2LjY2djE5NS4zM0gxMjBabTUyNC42NyAwVi04NDBoNjYuNjZ2MTI4LjY3SDg0MHY2Ni42Nkg2NDQuNjdaIi8+PC9zdmc+"); }
+    .left-toolbar .osc-btn { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNMjgzLjMzLTI0MHYtNDgwSDM1MHY0ODBoLTY2LjY3Wk00NDYuNjctODB2LTgwMGg2Ni42NnY4MDBoLTY2LjY2Wk0xMjAtNDAwdi0xNjBoNjYuNjd2MTYwSDEyMFptNDkwIDE2MHYtNDgwaDY2LjY3djQ4MEg2MTBabTE2My4zMy0xNjB2LTE2MEg4NDB2MTYwaC02Ni42N1oiLz48L3N2Zz4="); }
+    .left-toolbar .theme-toggle-btn { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNNDgwLTgwcS04MiAwLTE1NS0zMS41dC0xMjcuNS04NlExNDMtMjUyIDExMS41LTMyNVQ4MC00ODBxMC04NC4zMyAzMi4xNy0xNTcuMzMgMzIuMTYtNzMgODcuNjYtMTI3dDEyOS44NC04NC44NFE0MDQtODgwIDQ4OC42Ny04ODAgNTY4LTg4MCA2MzktODUzLjE3cTcxIDI2Ljg0IDEyNC41IDc0LjM0dDg1IDExMi42NlE4ODAtNjAxIDg4MC01MjRxMCAxMTAuMzMtNjUuMzMgMTcyLjUtNjUuMzQgNjIuMTctMTY4IDYyLjE3SDU3MnEtMTUgMC0yNC44MyAxMS05Ljg0IDExLTkuODQgMjQuMzMgMCAyMiAxNC42NyA0Mi4xNyAxNC42NyAyMC4xNiAxNC42NyA0Ni41IDAgNDItMjMuMTcgNjMuNjZRNTIwLjMzLTgwIDQ4MC04MFptMC00MDBabS0xOTEgMTVxMTUuNjctMTUuNjcgMTUuNjctMzcuNjdUMjg5LTU0MC4zM1EyNzMuMzMtNTU2IDI1MS4zMy01NTZ0LTM3LjY2IDE1LjY3UTE5OC01MjQuNjcgMTk4LTUwMi42N3EwIDIyIDE1LjY3IDM3LjY3IDE1LjY2IDE1LjY3IDM3LjY2IDE1LjY3IDIyIDAgMzcuNjctMTUuNjdabTEyNC0xNjYuNjdxMTUuNjctMTUuNjYgMTUuNjctMzcuNjYgMC0yMi0xNS42Ny0zNy42Ny0xNS42Ny0xNS42Ny0zNy42Ny0xNS42N1QzMzcuNjctNzA3UTMyMi02OTEuMzMgMzIyLTY2OS4zM3QxNS42NyAzNy42NlEzNTMuMzMtNjE2IDM3NS4zMy02MTZxMjIgMCAzNy42Ny0xNS42N1ptMjA5LjMzIDBRNjM4LTY0Ny4zMyA2MzgtNjY5LjMzcTAtMjItMTUuNjctMzcuNjctMTUuNjYtMTUuNjctMzcuNjYtMTUuNjctMjIgMC0zNy42NyAxNS42Ny0xNS42NyAxNS42Ny0xNS42NyAzNy42N1Q1NDctNjMxLjY3UTU2Mi42Ny02MTYgNTg0LjY3LTYxNnQzNy42Ni0xNS42N1pNNzQ5LjY3LTQ2NXExNS42Ni0xNS42NyAxNS42Ni0zNy42N3QtMTUuNjYtMzcuNjZRNzM0LTU1NiA3MTItNTU2dC0zNy42NyAxNS42N3EtMTUuNjYgMTUuNjYtMTUuNjYgMzcuNjYgMCAyMiAxNS42NiAzNy42N1E2OTAtNDQ5LjMzIDcxMi00NDkuMzNUNzQ5LjY3LTQ2NVpNNDgwLTE0Ni42N3ExMC4zMyAwIDE1LjE3LTQuNjYgNC44My00LjY3IDQuODMtMTQgMC0xNC0xNC42Ny0yOC4zNFE0NzAuNjctMjA4IDQ3MC42Ny0yNDhxMC00NC42NyAyOS42Ni03Ni4zM1E1MzAtMzU2IDU3NC42Ny0zNTZoNzJxNzIuNjYgMCAxMTkuNjYtNDIuNXQ0Ny0xMjUuNXEwLTEyOC4zMy05Ny41LTIwOC44M3QtMjI3LjE2LTgwLjVxLTE0Mi42NyAwLTI0Mi4zNCA5Ni42NlExNDYuNjctNjIwIDE0Ni42Ny00ODBxMCAxMzguMzMgOTcuNSAyMzUuODNUNDgwLTE0Ni42N1oiLz48L3N2Zz4="); }
+    .left-toolbar .help-btn { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNNDI4LjY3LTMyNi42N3EuNjYtNzUgMTUuODMtMTA4LjgzdDU5LjUtNzMuODNxNDEuNjctMzcuMzQgNjMuODMtNjcuODQgMjIuMTctMzAuNSAyMi4xNy02Ni41IDAtNDMuNjYtMjkuMTctNzIuNjYtMjkuMTYtMjktODEuNS0yOS01MS42NiAwLTc5LjE2IDMwdC0zOS44NCA2MkwyNzAtNjkyLjY3cTIxLjY3LTYwLjY2IDc1LjMzLTEwNFEzOTktODQwIDQ3OS4zMy04NDBxMTAxLjY3IDAgMTU2LjUgNTYuNSA1NC44NCA1Ni41IDU0Ljg0IDEzNS44MyAwIDQ4LjY3LTIwLjg0IDg2LjUtMjAuODMgMzcuODQtNjYuMTYgODEuNS00OSA0Ny01OS4xNyA3MS44NC0xMC4xNyAyNC44My0xMC44MyA4MS4xNmgtMTA1Wk00NzkuMzMtODBRNDQ5LTgwIDQyNy41LTEwMS41VDQwNi0xNTMuMzNxMC0zMC4zNCAyMS41LTUxLjg0IDIxLjUtMjEuNSA1MS44My0yMS41IDMwLjM0IDAgNTEuODQgMjEuNSAyMS41IDIxLjUgMjEuNSA1MS44NCAwIDMwLjMzLTIxLjUgNTEuODNUNDc5LjMzLTgwWiIvPjwvc3ZnPg=="); }
+    .left-toolbar .save-default-btn { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNODQwLTY4MnY0OTUuMzNxMCAyNy0xOS44MyA0Ni44NFE4MDAuMzMtMTIwIDc3My4zMy0xMjBIMTg2LjY3cS0yNyAwLTQ2Ljg0LTE5LjgzUTEyMC0xNTkuNjcgMTIwLTE4Ni42N3YtNTg2LjY2cTAtMjcgMTkuODMtNDYuODRRMTU5LjY3LTg0MCAxODYuNjctODQwSDY4MmwxNTggMTU4Wm0tNjYuNjcgMjkuMzNMNjUyLjY3LTc3My4zM2gtNDY2djU4Ni42Nmg1ODYuNjZ2LTQ2NlptLTIxNiAzNzcuNDlxMzItMzEuODQgMzItNzcuMzMgMC00NS40OS0zMS44NC03Ny40OS0zMS44NC0zMi03Ny4zMy0zMi00NS40OSAwLTc3LjQ5IDMxLjg0LTMyIDMxLjg1LTMyIDc3LjM0dDMxLjg0IDc3LjQ5cTMxLjg0IDMyIDc3LjMzIDMyIDQ1LjQ5IDAgNzcuNDktMzEuODVaTTIzNS4zMy01NzZINTk0di0xNDguNjdIMjM1LjMzVi01NzZabS00OC42Ni03Ni42N3Y0NjYtNTg2LjY2IDEyMC42NloiLz48L3N2Zz4="); }
+    .left-toolbar .peak-warning-btn { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJtNDAtMTIwIDQ0MC03NjAgNDQwIDc2MEg0MFptMTE1LjMzLTY2LjY3aDY0OS4zNEw0ODAtNzQ2LjY3bC0zMjQuNjcgNTYwWm0zNTEuMTctNjAuOTVxOS41LTkuNjEgOS41LTIzLjgzIDAtMTQuMjItOS42Mi0yMy43Mi05LjYxLTkuNS0yMy44My05LjUtMTQuMjIgMC0yMy43MiA5LjYyLTkuNSA5LjYyLTkuNSAyMy44MyAwIDE0LjIyIDkuNjIgMjMuNzIgOS42MiA5LjUgMjMuODMgOS41IDE0LjIyIDAgMjMuNzItOS42MlpNNDQ5LjMzLTM1Mkg1MTZ2LTIxNmgtNjYuNjd2MjE2Wk00ODAtNDY2LjY3WiIvPjwvc3ZnPg=="); }
+    .left-toolbar .suppressor-btn { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJtNDAtMjQwIDI0MC0zMjAgMTkwIDI1My4zM2gzMTYuNjdMNTYwLTYwOCA0NDMuMzMtNDUzLjMzbC00Mi01NS4zNEw1NjAtNzIwbDM2MCA0ODBINDBabTUxMy42Ny02Ni42N1ptLTM4MC4zNCAwaDIxMy4zNEwyODAtNDQ5IDE3My4zMy0zMDYuNjdabTAgMGgyMTMuMzQtMjEzLjM0WiIvPjwvc3ZnPg=="); }
+    .left-toolbar .menu-toggle { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJtMzgyLTgwLTE4LjY3LTEyNi42N3EtMTctNi4zMy0zNC44My0xNi42Ni0xNy44My0xMC4zNC0zMi4xNy0yMS42N0wxNzgtMTkyLjMzIDc5LjMzLTM2NWwxMDYuMzQtNzguNjdxLTEuNjctOC4zMy0yLTE4LjE2LS4zNC05Ljg0LS4zNC0xOC4xNyAwLTguMzMuMzQtMTguMTcuMzMtOS44MyAyLTE4LjE2TDc5LjMzLTU5NSAxNzgtNzY3LjY3IDI5Ni4zMy03MTVxMTQuMzQtMTEuMzMgMzIuMzQtMjEuNjcgMTgtMTAuMzMgMzQuNjYtMTZMMzgyLTg4MGgxOTZsMTguNjcgMTI2LjY3cTE3IDYuMzMgMzUuMTYgMTYuMzMgMTguMTcgMTAgMzEuODQgMjJMNzgyLTc2Ny42NyA4ODAuNjctNTk1bC0xMDYuMzQgNzcuMzNxMS42NyA5IDIgMTguODQuMzQgOS44My4zNCAxOC44MyAwIDktLjM0IDE4LjVRNzc2LTQ1MiA3NzQtNDQzbDEwNi4zMyA3OC05OC42NiAxNzIuNjctMTE4LTUyLjY3cS0xNC4zNCAxMS4zMy0zMiAyMi0xNy42NyAxMC42Ny0zNSAxNi4zM0w1NzgtODBIMzgyWm01NS4zMy02Ni42N2g4NWwxNC0xMTBxMzIuMzQtOCA2MC44NC0yNC41VDY0OS0zMjFsMTAzLjY3IDQ0LjMzIDM5LjY2LTcwLjY2TDcwMS00MTVxNC4zMy0xNiA2LjY3LTMyLjE3UTcxMC00NjMuMzMgNzEwLTQ4MHEwLTE2LjY3LTItMzIuODMtMi0xNi4xNy03LTMyLjE3bDkxLjMzLTY3LjY3LTM5LjY2LTcwLjY2TDY0OS02MzguNjdxLTIyLjY3LTI1LTUwLjgzLTQxLjgzLTI4LjE3LTE2LjgzLTYxLjg0LTIyLjgzbC0xMy42Ni0xMTBoLTg1bC0xNCAxMTBxLTMzIDcuMzMtNjEuNSAyMy44M1QzMTEtNjM5bC0xMDMuNjctNDQuMzMtMzkuNjYgNzAuNjZMMjU5LTU0NS4zM1EyNTQuNjctNTI5IDI1Mi4zMy01MTMgMjUwLTQ5NyAyNTAtNDgwcTAgMTYuNjcgMi4zMyAzMi42NyAyLjM0IDE2IDYuNjcgMzIuMzNsLTkxLjMzIDY3LjY3IDM5LjY2IDcwLjY2TDMxMS0zMjEuMzNxMjMuMzMgMjMuNjYgNTEuODMgNDAuMTYgMjguNSAxNi41IDYwLjg0IDI0LjVsMTMuNjYgMTEwWm00My4zNC0yMDBxNTUuMzMgMCA5NC4zMy0zOVQ2MTQtNDgwcTAtNTUuMzMtMzktOTQuMzN0LTk0LjMzLTM5cS01NS42NyAwLTk0LjUgMzktMzguODQgMzktMzguODQgOTQuMzN0MzguODQgOTQuMzNxMzguODMgMzkgOTQuNSAzOVpNNDgwLTQ4MFoiLz48L3N2Zz4="); }
+    .left-toolbar .len-btn {
+      background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNNTgwLTEyMHEtMjcgMC00Ni44My0xOS44My0xOS44NC0xOS44NC0xOS44NC00Ni44NHYtNTg2LjY2cTAtMjcgMTkuODQtNDYuODRRNTUzLTg0MCA1ODAtODQwaDE5My4zM3EyNyAwIDQ2Ljg0IDE5LjgzUTg0MC04MDAuMzMgODQwLTc3My4zM3Y1ODYuNjZxMCAyNy0xOS44MyA0Ni44NFE4MDAuMzMtMTIwIDc3My4zMy0xMjBINTgwWm0wLTY1My4zM3Y1ODYuNjZoMTkzLjMzdi01ODYuNjZINTgwWk0xODYuNjctMTIwcS0yNyAwLTQ2Ljg0LTE5LjgzUTEyMC0xNTkuNjcgMTIwLTE4Ni42N3YtNTg2LjY2cTAtMjcgMTkuODMtNDYuODRRMTU5LjY3LTg0MCAxODYuNjctODQwSDM4MHEyNyAwIDQ2LjgzIDE5LjgzIDE5Ljg0IDE5Ljg0IDE5Ljg0IDQ2Ljg0djU4Ni42NnEwIDI3LTE5Ljg0IDQ2Ljg0UTQwNy0xMjAgMzgwLTEyMEgxODYuNjdabTAtNjUzLjMzdjU4Ni42NkgzODB2LTU4Ni42NkgxODYuNjdabTU4Ni42NiAwSDU4MGgxOTMuMzNabS0zOTMuMzMgMEgxODYuNjcgMzgwWiIvPjwvc3ZnPg==");
+      color: transparent;
+      font-size: 0;
+      line-height: 0;
+      text-indent: -9999px;
+      overflow: hidden;
+    }
+    .left-toolbar .len-btn.mode-bar {
+      background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNDBweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSI0MHB4IiBmaWxsPSIjRkZGRkZGIj48cGF0aCBkPSJNMTQ2LjY3LTE2MHEtMjcgMC00Ni44NC0xOS44M1E4MC0xOTkuNjcgODAtMjI2LjY3di01MDYuNjZxMC0yNyAxOS44My00Ni44NFExMTkuNjctODAwIDE0Ni42Ny04MDBoNjY2LjY2cTI3IDAgNDYuODQgMTkuODNRODgwLTc2MC4zMyA4ODAtNzMzLjMzdjUwNi42NnEwIDI3LTE5LjgzIDQ2Ljg0UTg0MC4zMy0xNjAgODEzLjMzLTE2MEgxNDYuNjdaTTUxNi0yMjYuNjdoMTE1LjMzdi01MDYuNjZINTE2djUwNi42NlptLTE4Ni42NyAwaDExNS4zNHYtNTA2LjY2SDMyOS4zM3Y1MDYuNjZabS0xODIuNjYgMGgxMTZ2LTUwNi42NmgtMTE2djUwNi42NlptNTUxLjMzIDBoMTE1LjMzdi01MDYuNjZINjk4djUwNi42NloiLz48L3N2Zz4=");
+    }
+    .left-toolbar .help-btn::before,
+    .left-toolbar .save-default-btn::before,
+    .left-toolbar .save-default-btn::after,
+    .left-toolbar .peak-warning-btn::before,
+    .left-toolbar .peak-warning-btn::after,
+    .left-toolbar .suppressor-btn::before,
+    .left-toolbar .suppressor-btn::after,
+    .left-toolbar .fullscreen-btn::before {
+      content: none;
+    }
+    .left-toolbar .osc-btn .osc-icon {
+      display: none;
+    }
+    .left-toolbar .theme-toggle-btn .theme-indicator,
+    .left-toolbar .menu-toggle .triangle {
+      display: none;
+    }
+        /* End embedded left-toolbar SVG icons */
+    .ui-tooltip {
+      position: fixed;
+      z-index: 10;
+      pointer-events: none;
+      border: none;
+      border-radius: 6px;
+      background: var(--tooltip-bg);
+      color: var(--icon-fg);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      line-height: 1;
+      padding: 6px 8px;
+      backdrop-filter: blur(3px);
+      white-space: nowrap;
+    }
+
+    .credit-splash {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 180ms ease, visibility 0s linear 180ms;
+    }
+
+    .credit-splash.is-visible {
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 140ms ease-out;
+    }
+
+    .credit-splash.is-fading {
+      opacity: 0;
+      visibility: visible;
+      transition: opacity 650ms ease-out;
+    }
+
+    .credit-splash-content {
+      text-align: center;
+      transform: translateY(-4%);
+      text-shadow: 0 8px 28px rgba(2, 6, 15, 0.75);
+    }
+
+    .credit-title {
+      color: var(--icon-fg);
+      font-size: clamp(40px, 8.2vw, 118px);
+      line-height: 0.92;
+      letter-spacing: 0.10em;
+      font-weight: 800;
+    }
+
+    .credit-subtitle {
+      margin-top: 14px;
+      color: rgba(224, 235, 252, 0.86);
+      font-size: clamp(11px, 1.5vw, 19px);
+      letter-spacing: 0.16em;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <canvas id="spectrum"></canvas>
+    <div class="band-solo-strip" id="bandSoloStrip">
+      <div class="band-solo-item" data-band-index="0" data-start-hz="20" data-end-hz="200">
+        <button class="band-solo-btn" type="button" data-band-index="0" data-tooltip="Solo low band">S</button>
+      </div>
+      <div class="band-solo-item" data-band-index="1" data-start-hz="200" data-end-hz="2000">
+        <button class="band-solo-btn" type="button" data-band-index="1" data-tooltip="Solo low-mid band">S</button>
+      </div>
+      <div class="band-solo-item" data-band-index="2" data-start-hz="2000" data-end-hz="5000">
+        <button class="band-solo-btn" type="button" data-band-index="2" data-tooltip="Solo high-mid band">S</button>
+      </div>
+      <div class="band-solo-item" data-band-index="3" data-start-hz="5000" data-end-hz="20000">
+        <button class="band-solo-btn" type="button" data-band-index="3" data-tooltip="Solo high band">S</button>
+      </div>
+    </div>
+
+    <div class="left-toolbar" id="leftToolbar">
+      <div class="button-stack">
+        <button class="icon-btn fullscreen-btn is-off" id="fullscreenBtn" aria-label="Fullscreen" data-tooltip="Fullscreen"></button>
+        <div class="osc-stack">
+          <button class="icon-btn osc-btn" id="oscToggleBtn" aria-label="Oscilloscope" data-tooltip="Oscilloscope">
+            <span class="osc-icon"></span>
+          </button>
+          <button class="icon-btn len-btn" id="oscLengthBtn" type="button" aria-label="Oscilloscope Length" data-tooltip="Oscilloscope Length">1/4</button>
+          <div class="osc-mode-hub" id="oscModeHub">
+            <button class="osc-mode-btn is-off" id="oscModeBtn" type="button" aria-label="Oscilloscope mode" data-tooltip="Oscilloscope mode: Mono"></button>
+          </div>
+        </div>
+        <div class="warning-stack">
+          <button class="icon-btn peak-warning-btn" id="peakWarningBtn" type="button" aria-label="Peak warning" data-tooltip="Peak warning"></button>
+          <button class="icon-btn suppressor-btn" id="suppressorBtn" type="button" aria-label="Resonance suppressor" data-tooltip="Resonance suppressor"></button>
+        </div>
+        <div class="theme-picker" id="themePicker">
+          <button class="icon-btn theme-toggle-btn is-off" id="themeToggleBtn" type="button" aria-label="Color Theme" data-tooltip="Color Theme">
+            <span class="theme-indicator"></span>
+          </button>
+          <div class="theme-choices" id="themeChoices">
+            <button class="icon-btn theme-choice" type="button" data-theme="mono" style="--swatch-color: #ffffff;" data-tooltip="Monochrome"></button>
+            <button class="icon-btn theme-choice" type="button" data-theme="blue" style="--swatch-color: #5e88bf;" data-tooltip="Blue"></button>
+            <button class="icon-btn theme-choice" type="button" data-theme="green" style="--swatch-color: #4f9a63;" data-tooltip="Green"></button>
+            <button class="icon-btn theme-choice" type="button" data-theme="orange" style="--swatch-color: #c27a37;" data-tooltip="Orange"></button>
+            <button class="icon-btn theme-choice" type="button" data-theme="purple" style="--swatch-color: #8a64c7;" data-tooltip="Purple"></button>
+          </div>
+        </div>
+        <button class="icon-btn save-default-btn is-off" id="saveDefaultsBtn" type="button" aria-label="Save as default" data-tooltip="Save current state as default"></button>
+        <button class="icon-btn menu-toggle is-off" id="menuToggle" aria-label="Analyzer options" data-tooltip="Analyzer options">
+          <span class="triangle"></span>
+        </button>
+        <button class="icon-btn help-btn is-off" id="helpBtn" type="button" aria-label="About" data-tooltip="About"></button>
+      </div>
+
+      <div class="controls is-hidden" id="controlsPanel">
+        <div class="control-select" id="resolutionSel">
+          <button class="select-trigger" type="button" aria-label="Resolution" aria-haspopup="listbox" aria-expanded="false" data-tooltip="Resolution">High</button>
+          <div class="select-menu" role="listbox" aria-label="Resolution">
+            <button class="select-option is-active" type="button" data-value="high">High</button>
+            <button class="select-option" type="button" data-value="medium">Medium</button>
+            <button class="select-option" type="button" data-value="low">Low</button>
+          </div>
+        </div>
+        <div class="control-select" id="speedSel">
+          <button class="select-trigger" type="button" aria-label="Speed" aria-haspopup="listbox" aria-expanded="false" data-tooltip="Speed">Medium</button>
+          <div class="select-menu" role="listbox" aria-label="Speed">
+            <button class="select-option" type="button" data-value="fast">Fast</button>
+            <button class="select-option is-active" type="button" data-value="medium">Medium</button>
+            <button class="select-option" type="button" data-value="slow">Slow</button>
+          </div>
+        </div>
+        <div class="control-select" id="tiltSel">
+          <button class="select-trigger" type="button" aria-label="Tilt" aria-haspopup="listbox" aria-expanded="false" data-tooltip="Tilt">5 dB</button>
+          <div class="select-menu" role="listbox" aria-label="Tilt">
+            <button class="select-option" type="button" data-value="0">0 dB</button>
+            <button class="select-option" type="button" data-value="0.5">0.5 dB</button>
+            <button class="select-option" type="button" data-value="1">1 dB</button>
+            <button class="select-option" type="button" data-value="1.5">1.5 dB</button>
+            <button class="select-option" type="button" data-value="2">2 dB</button>
+            <button class="select-option" type="button" data-value="2.5">2.5 dB</button>
+            <button class="select-option" type="button" data-value="3">3 dB</button>
+            <button class="select-option" type="button" data-value="3.5">3.5 dB</button>
+            <button class="select-option" type="button" data-value="4">4 dB</button>
+            <button class="select-option" type="button" data-value="4.5">4.5 dB</button>
+            <button class="select-option is-active" type="button" data-value="5">5 dB</button>
+            <button class="select-option" type="button" data-value="5.5">5.5 dB</button>
+            <button class="select-option" type="button" data-value="6">6 dB</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preset-center" id="presetCenter">
+      <div class="preset-inline-controls">
+        <div class="control-select" id="smoothSourceSel">
+          <button class="select-trigger" type="button" aria-label="Target Preset" aria-haspopup="listbox" aria-expanded="false" data-tooltip="Target preset">PSYTRANCE</button>
+          <div class="select-menu" role="listbox" aria-label="Target Preset">
+            <button class="select-action" id="newSmoothPresetBtn" type="button" data-tooltip="Scan folder and create a new preset">New Preset</button>
+            <button class="select-option is-active" type="button" data-value="psytrance">PSYTRANCE</button>
+            <button class="select-option" type="button" data-value="dubtechno">DUBTECHNO</button>
+            <button class="select-option" type="button" data-value="orchestral">ORCHESTRAL</button>
+            <button class="select-option" type="button" data-value="orchestralgame">ORCHESTRAL GAME</button>
+            <button class="select-option" type="button" data-value="progressive">PROGRESSIVE</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="credit-splash" id="creditSplash" aria-hidden="true">
+      <div class="credit-splash-content">
+        <div class="credit-title">SPECRAUM</div>
+        <div class="credit-subtitle">SASHAD / PsiloCybian</div>
+      </div>
+    </div>
+  </div>
+  <div class="ui-tooltip is-hidden" id="uiTooltip"></div>
+
+  <script>
+    const BINS = 256;
+    const rawTarget = new Float32Array(BINS);
+    const shapedTarget = new Float32Array(BINS);
+    const display = new Float32Array(BINS);
+    const oscTargetL = new Float32Array(BINS);
+    const oscTargetR = new Float32Array(BINS);
+    const oscWorkL = new Float32Array(BINS);
+    const oscWorkR = new Float32Array(BINS);
+    const oscDisplayL = new Float32Array(BINS);
+    const oscDisplayR = new Float32Array(BINS);
+    let sampleRate = 44100;
+    let oscAutoGainL = 1.0;
+    let oscAutoGainR = 1.0;
+    let oscDcL = 0.0;
+    let oscDcR = 0.0;
+    let oscVisualAlpha = 1.0;
+    let lastOscFadeUpdateMs = 0;
+
+    const state = {
+      resolution: "high",
+      speed: "medium",
+      tiltDb: 5.0,
+      oscilloscopeOn: true,
+      oscStereo: false,
+      fullscreenOn: false,
+      oscLengthMode: 0,
+      theme: "blue",
+      smoothSource: "psytrance",
+      overlayLevelDb: 0.0,
+      overlayWidthDb: 12.0,
+      presetSmoothing: 16,
+      soloBand: -1,
+      peakWarningOn: true,
+      suppressorOn: true
+    };
+    const builtInSmoothTargets = {
+    "psytrance":  {
+                       "label":  "PSYTRANCE",
+                       "path":  "C:\\Users\\psilo\\Documents\\iZotope\\Tonal Balance Control 2\\Target Curves\\PSYTRANCE.json",
+                       "filesAnalysed":  1,
+                       "limited":  false,
+                       "bins":  [
+                                    0.56519705, 0.56694270, 0.56873628, 0.57052775, 0.57223002, 0.57397903, 0.57577607, 0.57762246, 0.57951954, 0.58146872, 0.58347142, 0.58552912, 0.58764332, 0.58981557, 0.59204747, 0.59434066, 0.59669682, 0.59911768, 0.60140486, 0.60329374, 0.60523449, 0.60722852, 0.60927732, 0.61138237, 0.61354523, 0.61576748, 0.61805075, 0.62039672, 0.62280710, 0.62426404, 0.62528739, 0.62633883, 0.62741916, 0.62852914, 0.62966961, 0.63084139, 0.63204535, 0.63266547, 0.63253342, 0.63239774, 0.63225834, 0.63211511, 0.63196794, 0.63181674, 0.63134989, 0.63074622, 0.63012598, 0.62948871, 0.62883393, 0.62815248, 0.62714085, 0.62610145, 0.62503350, 0.62393623, 0.62276958, 0.62120568, 0.61959883, 0.61794786, 0.61625156, 0.61423233, 0.61206443, 0.60983699, 0.60754839, 0.60503952, 0.60243596, 0.59976092, 0.59704261, 0.59430841, 0.59149912, 0.58864322, 0.58591509, 0.58311205, 0.58025889, 0.57745510, 0.57457431, 0.57160528, 0.56854293, 0.56539649, 0.56225456, 0.55903738, 0.55584763, 0.55268275, 0.54949751, 0.54640467, 0.54325384, 0.54015707, 0.53699608, 0.53385368, 0.53067759, 0.52755603, 0.52448586, 0.52148670, 0.51865937, 0.51586868, 0.51324266, 0.51063777, 0.50805411, 0.50575837, 0.50364891, 0.50168316, 0.49976672, 0.49774886, 0.49572668, 0.49382299, 0.49218045, 0.49071701, 0.48917695, 0.48762910, 0.48626181, 0.48508611, 0.48378887, 0.48227338, 0.48075235, 0.47933300, 0.47791732, 0.47641896, 0.47501689, 0.47353878, 0.47207739, 0.47076977, 0.46965742, 0.46836279, 0.46695023, 0.46570296, 0.46467454, 0.46362219, 0.46243922, 0.46121995, 0.45980529, 0.45842935, 0.45699487, 0.45558298, 0.45388275, 0.45218890, 0.45047764, 0.44903339, 0.44726964, 0.44553058, 0.44378430, 0.44211970, 0.44040996, 0.43856487, 0.43682190, 0.43488047, 0.43301112, 0.43116540, 0.42944586, 0.42744091, 0.42549179, 0.42356735, 0.42179634, 0.41986233, 0.41792817, 0.41578438, 0.41354792, 0.41128228, 0.40903698, 0.40676646, 0.40427458, 0.40180150, 0.39926311, 0.39677140, 0.39400170, 0.39131327, 0.38849813, 0.38581235, 0.38298914, 0.38028537, 0.37749650, 0.37476213, 0.37207772, 0.36949858, 0.36684280, 0.36402463, 0.36124476, 0.35848689, 0.35576028, 0.35293010, 0.35017633, 0.34737680, 0.34469267, 0.34201812, 0.33945107, 0.33689297, 0.33444069, 0.33202429, 0.32974178, 0.32747604, 0.32522312, 0.32302214, 0.32091925, 0.31896698, 0.31706435, 0.31528226, 0.31343245, 0.31142664, 0.30927248, 0.30703101, 0.30491550, 0.30300519, 0.30123269, 0.29963708, 0.29815797, 0.29680578, 0.29557308, 0.29443220, 0.29346701, 0.29256359, 0.29171093, 0.29094263, 0.28998496, 0.28877637, 0.28769721, 0.28671582, 0.28585172, 0.28512143, 0.28440353, 0.28347408, 0.28210839, 0.28053923, 0.27881146, 0.27695130, 0.27499005, 0.27285613, 0.27076823, 0.26870040, 0.26658658, 0.26432023, 0.26203053, 0.25969309, 0.25730897, 0.25471478, 0.25187373, 0.24875255, 0.24536844, 0.24176310, 0.23778099, 0.23335302, 0.22862688, 0.22347493, 0.21786697, 0.21179647, 0.20514909, 0.19771156, 0.18968977, 0.18122909, 0.17222144, 0.16266208, 0.15254926, 0.14192264, 0.13090300, 0.11954468, 0.10795907, 0.09638430, 0.08516726, 0.07480357
+                                ]
+                   },
+    "dubtechno":  {
+                        "label":  "DUBTECHNO",
+                        "path":  "C:\\Users\\psilo\\Documents\\iZotope\\Tonal Balance Control 2\\Target Curves\\DUBTECHNO.json",
+                        "filesAnalysed":  1,
+                        "limited":  false,
+                        "bins":  [
+                                     0.64187133, 0.64337601, 0.64492201, 0.64643175, 0.64777083, 0.64914669, 0.65056032, 0.65201277, 0.65350510, 0.65503841, 0.65661382, 0.65823250, 0.65989562, 0.66160441, 0.66336013, 0.66516405, 0.66701751, 0.66892187, 0.67065717, 0.67193019, 0.67323817, 0.67458206, 0.67596286, 0.67738157, 0.67883924, 0.68033694, 0.68187576, 0.68345684, 0.68508133, 0.68591236, 0.68637694, 0.68685428, 0.68734473, 0.68784865, 0.68836640, 0.68889838, 0.68944496, 0.68943542, 0.68871353, 0.68797181, 0.68720972, 0.68642671, 0.68562219, 0.68479558, 0.68357575, 0.68217492, 0.68073562, 0.67925679, 0.67773736, 0.67616892, 0.67429620, 0.67237206, 0.67039508, 0.66836382, 0.66625639, 0.66390129, 0.66148152, 0.65899530, 0.65644081, 0.65389933, 0.65131613, 0.64866199, 0.64593497, 0.64320703, 0.64041630, 0.63754893, 0.63464980, 0.63176247, 0.62879586, 0.62577107, 0.62282059, 0.61978909, 0.61674867, 0.61397825, 0.61113176, 0.60840825, 0.60586945, 0.60326094, 0.60043274, 0.59750892, 0.59453678, 0.59151407, 0.58854901, 0.58588274, 0.58313348, 0.58025773, 0.57732300, 0.57440888, 0.57150329, 0.56875659, 0.56608218, 0.56350167, 0.56095112, 0.55832974, 0.55536881, 0.55231667, 0.54918609, 0.54634502, 0.54376897, 0.54137166, 0.53893348, 0.53662313, 0.53459414, 0.53260504, 0.53013674, 0.52694477, 0.52395266, 0.52124141, 0.51879451, 0.51651605, 0.51389488, 0.51075878, 0.50758319, 0.50464989, 0.50194673, 0.49913164, 0.49652899, 0.49402724, 0.49157378, 0.48851947, 0.48507533, 0.48160998, 0.47830671, 0.47535787, 0.47280333, 0.47018611, 0.46691712, 0.46395546, 0.46131917, 0.45887297, 0.45542168, 0.45207663, 0.44901188, 0.44658478, 0.44415321, 0.44187386, 0.43900411, 0.43602355, 0.43313088, 0.43066359, 0.42826808, 0.42536829, 0.42270643, 0.42029328, 0.41804818, 0.41478459, 0.41177442, 0.40859089, 0.40560176, 0.40257972, 0.39991133, 0.39653892, 0.39311555, 0.38998826, 0.38728786, 0.38438017, 0.38106474, 0.37799301, 0.37503831, 0.37227429, 0.36925747, 0.36651292, 0.36336924, 0.36043314, 0.35735962, 0.35459533, 0.35158186, 0.34857345, 0.34564438, 0.34301553, 0.34018625, 0.33722229, 0.33434987, 0.33143011, 0.32859651, 0.32583914, 0.32315331, 0.32015894, 0.31720656, 0.31426092, 0.31153853, 0.30863679, 0.30597772, 0.30345027, 0.30115410, 0.29894847, 0.29677931, 0.29467253, 0.29264351, 0.29062848, 0.28864478, 0.28682581, 0.28510899, 0.28347083, 0.28177870, 0.28010457, 0.27840603, 0.27677493, 0.27512098, 0.27344407, 0.27177050, 0.27020232, 0.26877471, 0.26741833, 0.26605416, 0.26474050, 0.26346741, 0.26231629, 0.26123821, 0.25996251, 0.25858728, 0.25713851, 0.25565542, 0.25404655, 0.25231668, 0.25050665, 0.24856944, 0.24640817, 0.24404270, 0.24144232, 0.23864887, 0.23576292, 0.23290422, 0.22994024, 0.22678312, 0.22341927, 0.21987549, 0.21620720, 0.21242617, 0.20859259, 0.20481945, 0.20111564, 0.19743690, 0.19366098, 0.18983830, 0.18580667, 0.18144449, 0.17663473, 0.17132024, 0.16534782, 0.15854997, 0.15085689, 0.14195786, 0.13145378, 0.11917668, 0.10483892, 0.09030703, 0.07479550, 0.05932614, 0.04509770, 0.03224554, 0.02084997, 0.01095703, 0.00257756, 0.00000000, 0.00000000
+                                 ]
+                    },
+    "orchestral":  {
+                        "label":  "ORCHESTRAL",
+                        "path":  "C:\\Users\\psilo\\Documents\\iZotope\\Tonal Balance Control 2\\Target Curves\\ORCHESTRAL.json",
+                        "filesAnalysed":  1,
+                        "limited":  false,
+                        "bins":  [
+                                     0.56044705, 0.56164832, 0.56288257, 0.56409837, 0.56520647, 0.56634500, 0.56751479, 0.56871671, 0.56995163, 0.57122045, 0.57252413, 0.57386359, 0.57523984, 0.57665389, 0.57810676, 0.57959952,
+                                     0.58113328, 0.58270915, 0.58418134, 0.58535542, 0.58656174, 0.58780119, 0.58907467, 0.59038312, 0.59172750, 0.59310879, 0.59452802, 0.59598621, 0.59748445, 0.59858957, 0.59952332, 0.60048272,
+                                     0.60146847, 0.60248128, 0.60352190, 0.60459110, 0.60568966, 0.60654015, 0.60706710, 0.60760852, 0.60816480, 0.60873636, 0.60932361, 0.60992699, 0.61015361, 0.61022988, 0.61030824, 0.61038875,
+                                     0.61047147, 0.61055011, 0.61040319, 0.61025224, 0.61009714, 0.60993778, 0.60975109, 0.60934561, 0.60892899, 0.60850094, 0.60806113, 0.60727443, 0.60635316, 0.60540659, 0.60443402, 0.60329855,
+                                     0.60210957, 0.60088796, 0.59969126, 0.59857548, 0.59742907, 0.59626727, 0.59518234, 0.59406761, 0.59296745, 0.59205194, 0.59111129, 0.59022359, 0.58941316, 0.58858048, 0.58788061, 0.58718042,
+                                     0.58639920, 0.58553650, 0.58467931, 0.58387751, 0.58302714, 0.58201495, 0.58100664, 0.58013099, 0.57921254, 0.57821833, 0.57711740, 0.57589626, 0.57495260, 0.57411127, 0.57345104, 0.57248542,
+                                     0.57124593, 0.56991191, 0.56893799, 0.56815701, 0.56709537, 0.56591285, 0.56499836, 0.56427901, 0.56342195, 0.56217990, 0.56075560, 0.55923237, 0.55777856, 0.55648970, 0.55484575, 0.55246774,
+                                     0.55000414, 0.54796252, 0.54618259, 0.54373134, 0.54124546, 0.53900874, 0.53722946, 0.53541426, 0.53348444, 0.53078163, 0.52721395, 0.52401098, 0.52141115, 0.51901548, 0.51556938, 0.51244539,
+                                     0.50941574, 0.50691343, 0.50344902, 0.50031197, 0.49710128, 0.49435857, 0.49174746, 0.48967842, 0.48651285, 0.48221773, 0.47872673, 0.47607404, 0.47367354, 0.46991920, 0.46680279, 0.46375842,
+                                     0.46158583, 0.45847153, 0.45586612, 0.45169433, 0.44779777, 0.44421373, 0.44171813, 0.43858628, 0.43494780, 0.43162671, 0.42877829, 0.42601993, 0.42218744, 0.41906038, 0.41551628, 0.41272826,
+                                     0.40955492, 0.40736921, 0.40342748, 0.39987342, 0.39642583, 0.39417270, 0.39098905, 0.38775304, 0.38453681, 0.38196808, 0.37943703, 0.37656793, 0.37381354, 0.37005639, 0.36692810, 0.36370589,
+                                     0.36129319, 0.35759992, 0.35447615, 0.35116506, 0.34867460, 0.34501704, 0.34124205, 0.33726412, 0.33357416, 0.32985459, 0.32635833, 0.32265601, 0.31778214, 0.31329131, 0.30899459, 0.30522359,
+                                     0.30038575, 0.29568632, 0.29063829, 0.28608937, 0.28073089, 0.27553471, 0.26976054, 0.26393701, 0.25803087, 0.25257149, 0.24722934, 0.24174242, 0.23665319, 0.23199554, 0.22795659, 0.22358489,
+                                     0.21965530, 0.21558003, 0.21186090, 0.20792484, 0.20439179, 0.20041171, 0.19644984, 0.19249410, 0.18884471, 0.18506961, 0.18114360, 0.17718962, 0.17329798, 0.16962793, 0.16585723, 0.16244017,
+                                     0.15898273, 0.15573769, 0.15249083, 0.14948152, 0.14619580, 0.14280133, 0.13926110, 0.13583950, 0.13243147, 0.12904698, 0.12565483, 0.12231515, 0.11912420, 0.11606801, 0.11328535, 0.11065651,
+                                     0.10827697, 0.10606200, 0.10411148, 0.10235433, 0.10085639, 0.09960240, 0.09867173, 0.09768751, 0.09695957, 0.09649599, 0.09621068, 0.09606941, 0.09599866, 0.09591437, 0.09570368, 0.09523428
+                                 ]
+                     },
+    "orchestralgame":  {
+                        "label":  "ORCHESTRAL GAME",
+                        "path":  "C:\\Users\\psilo\\Documents\\iZotope\\Tonal Balance Control 2\\Target Curves\\ORCHESTRAL GAME.json",
+                        "filesAnalysed":  1,
+                        "limited":  false,
+                        "bins":  [
+                                    0.52972574, 0.53119880, 0.53271230, 0.53419379, 0.53551766, 0.53687788, 0.53827545, 0.53971140, 0.54118678, 0.54270268, 0.54426020, 0.54586048,
+                                    0.54750471, 0.54919410, 0.55092987, 0.55271330, 0.55454570, 0.55642843, 0.55814399, 0.55940247, 0.56069552, 0.56202407, 0.56338910, 0.56479161,
+                                    0.56623264, 0.56771323, 0.56923448, 0.57079751, 0.57240345, 0.57364702, 0.57473595, 0.57585477, 0.57700432, 0.57818544, 0.57939898, 0.58064585,
+                                    0.58192696, 0.58309749, 0.58411840, 0.58516735, 0.58624511, 0.58735246, 0.58849022, 0.58965922, 0.59060829, 0.59148310, 0.59238193, 0.59330545,
+                                    0.59425432, 0.59521630, 0.59574124, 0.59628059, 0.59683475, 0.59740413, 0.59793558, 0.59798306, 0.59803185, 0.59808197, 0.59813348, 0.59779797,
+                                    0.59732219, 0.59683335, 0.59633108, 0.59553437, 0.59466981, 0.59378151, 0.59287043, 0.59193746, 0.59097887, 0.59001053, 0.58912755, 0.58822031,
+                                    0.58732026, 0.58654813, 0.58575480, 0.58501438, 0.58434999, 0.58366736, 0.58309354, 0.58251944, 0.58186148, 0.58111931, 0.58035502, 0.57956505,
+                                    0.57874149, 0.57783324, 0.57692740, 0.57613516, 0.57534084, 0.57457776, 0.57371683, 0.57274514, 0.57182768, 0.57095305, 0.57038050, 0.56978268,
+                                    0.56916093, 0.56853873, 0.56807189, 0.56766154, 0.56701755, 0.56621147, 0.56551427, 0.56493924, 0.56437607, 0.56372474, 0.56268760, 0.56138743,
+                                    0.56007554, 0.55890790, 0.55756293, 0.55587633, 0.55423426, 0.55289822, 0.55170201, 0.54996787, 0.54817294, 0.54601261, 0.54391759, 0.54185831,
+                                    0.53990921, 0.53742595, 0.53452007, 0.53184892, 0.52946875, 0.52708896, 0.52394314, 0.52113189, 0.51845964, 0.51626491, 0.51354720, 0.51115677,
+                                    0.50811935, 0.50530762, 0.50268931, 0.50074740, 0.49830421, 0.49559210, 0.49317576, 0.49112585, 0.48907385, 0.48622311, 0.48362442, 0.48045266,
+                                    0.47774067, 0.47461929, 0.47206494, 0.46828573, 0.46472111, 0.46106926, 0.45819500, 0.45454997, 0.45085751, 0.44735362, 0.44431221, 0.44127543,
+                                    0.43783240, 0.43471154, 0.43109409, 0.42812300, 0.42520489, 0.42292942, 0.41946401, 0.41645949, 0.41317812, 0.41058733, 0.40703225, 0.40370792,
+                                    0.40022813, 0.39715559, 0.39378669, 0.39027974, 0.38676831, 0.38267536, 0.37884446, 0.37488671, 0.37133606, 0.36686146, 0.36283873, 0.35849226,
+                                    0.35484250, 0.35050920, 0.34653419, 0.34229057, 0.33832307, 0.33424585, 0.33036109, 0.32616802, 0.32152572, 0.31711421, 0.31264971, 0.30852087,
+                                    0.30343902, 0.29847052, 0.29296306, 0.28780870, 0.28205476, 0.27656636, 0.27041808, 0.26423753, 0.25785924, 0.25171340, 0.24545577, 0.23918269,
+                                    0.23322013, 0.22751452, 0.22215864, 0.21653582, 0.21127360, 0.20577562, 0.20055804, 0.19510944, 0.19000453, 0.18468822, 0.17963019, 0.17449832,
+                                    0.16962054, 0.16464001, 0.15960618, 0.15447993, 0.14932550, 0.14432305, 0.13933108, 0.13452902, 0.12965032, 0.12488362, 0.12004628, 0.11531845,
+                                    0.11041084, 0.10555137, 0.10069733, 0.09597370, 0.09126134, 0.08660466, 0.08204506, 0.07763489, 0.07343621, 0.06948648, 0.06583042, 0.06242477,
+                                    0.05929568, 0.05643930, 0.05388930, 0.05161808, 0.04968318, 0.04806671, 0.04682871, 0.04603370, 0.04573025, 0.04585193, 0.04634648, 0.04717166,
+                                    0.04824721, 0.04945452, 0.05073061, 0.05195989
+
+                                 ]
+                     },
+    "progressive":  {
+                        "label":  "PROGRESSIVE",
+                        "path":  "C:\\Users\\psilo\\Documents\\iZotope\\Tonal Balance Control 2\\Target Curves\\PROGRESSIVE.json",
+                        "filesAnalysed":  1,
+                        "limited":  false,
+                        "bins":  [
+                                     0.56804869, 0.56968067, 0.57135746, 0.57303715, 0.57464669, 0.57630042, 0.57799956, 0.57974536, 0.58153909, 0.58338209, 0.58527569, 0.58722128, 0.58922031, 0.59127422, 0.59338454, 0.59555280,
+                                     0.59778060, 0.60006958, 0.60223249, 0.60401958, 0.60585575, 0.60774233, 0.60968072, 0.61167233, 0.61371864, 0.61582114, 0.61798136, 0.62020091, 0.62248141, 0.62374419, 0.62453988, 0.62535741,
+                                     0.62619739, 0.62706044, 0.62794719, 0.62885828, 0.62979440, 0.63011640, 0.62964948, 0.62916973, 0.62867681, 0.62817036, 0.62765000, 0.62711535, 0.62619994, 0.62511366, 0.62399755, 0.62285079,
+                                     0.62167255, 0.62045276, 0.61887055, 0.61724488, 0.61557458, 0.61385842, 0.61208114, 0.61012491, 0.60811497, 0.60604983, 0.60392798, 0.60181210, 0.59965978, 0.59744837, 0.59517623, 0.59294271,
+                                     0.59066441, 0.58832354, 0.58602549, 0.58387273, 0.58166085, 0.57943276, 0.57744428, 0.57540119, 0.57332921, 0.57132974, 0.56927536, 0.56711999, 0.56484792, 0.56251345, 0.56004525, 0.55750084,
+                                     0.55492980, 0.55233016, 0.54974132, 0.54730357, 0.54484538, 0.54256222, 0.54024833, 0.53803276, 0.53573714, 0.53332670, 0.53087058, 0.52837025, 0.52589277, 0.52338466, 0.52086510, 0.51834574,
+                                     0.51582720, 0.51353283, 0.51138423, 0.50934395, 0.50732763, 0.50534154, 0.50343232, 0.50156177, 0.49962538, 0.49755684, 0.49541946, 0.49331030, 0.49131426, 0.48947702, 0.48766638, 0.48584217,
+                                     0.48409863, 0.48247134, 0.48075967, 0.47872675, 0.47668688, 0.47467534, 0.47268510, 0.47053443, 0.46829225, 0.46586792, 0.46344668, 0.46120302, 0.45931767, 0.45741331, 0.45542212, 0.45359467,
+                                     0.45188773, 0.45027986, 0.44817966, 0.44610722, 0.44379256, 0.44160448, 0.43932525, 0.43735487, 0.43518562, 0.43311702, 0.43116640, 0.42948147, 0.42770387, 0.42557793, 0.42360206, 0.42155442,
+                                     0.41954058, 0.41707556, 0.41460502, 0.41177462, 0.40902650, 0.40631173, 0.40377279, 0.40084324, 0.39783571, 0.39477908, 0.39186387, 0.38870448, 0.38509280, 0.38143910, 0.37765598, 0.37411760,
+                                     0.37071107, 0.36785566, 0.36527355, 0.36339877, 0.36206787, 0.36125445, 0.36044826, 0.35990435, 0.35949325, 0.35936092, 0.35912150, 0.35872040, 0.35821399, 0.35744471, 0.35655354, 0.35549987,
+                                     0.35442568, 0.35304592, 0.35159495, 0.34999726, 0.34848028, 0.34669304, 0.34489978, 0.34306117, 0.34129273, 0.33946469, 0.33771707, 0.33604650, 0.33433340, 0.33263113, 0.33094479, 0.32928560,
+                                     0.32755241, 0.32586630, 0.32410700, 0.32233072, 0.32049401, 0.31880884, 0.31714325, 0.31552972, 0.31394928, 0.31249013, 0.31106675, 0.30977607, 0.30858297, 0.30746956, 0.30639952, 0.30532988,
+                                     0.30431917, 0.30332136, 0.30236130, 0.30134220, 0.30041282, 0.29947876, 0.29853210, 0.29743566, 0.29614990, 0.29467320, 0.29300433, 0.29116748, 0.28913408, 0.28705194, 0.28489560, 0.28270201,
+                                     0.28042321, 0.27801656, 0.27547302, 0.27273289, 0.26974436, 0.26662526, 0.26329110, 0.25972637, 0.25589127, 0.25180963, 0.24751194, 0.24295450, 0.23813695, 0.23302452, 0.22757673, 0.22178805,
+                                     0.21564261, 0.20914519, 0.20229485, 0.19510202, 0.18764465, 0.17990675, 0.17190713, 0.16401274, 0.15637657, 0.14889013, 0.14151035, 0.13425506, 0.12712201, 0.12008041, 0.11313885, 0.10639923
+                                 ]
+                     }
+};
+    const themes = {
+      blue: {
+        swatch: "#5e88bf",
+        css: {
+          "--bg-top": "#121724",
+          "--bg-mid": "#141a28",
+          "--bg-bot": "#0d121b",
+          "--icon-fg": "rgba(186, 206, 234, 0.96)",
+          "--panel-bg": "rgba(16, 24, 36, 0.80)",
+          "--panel-bg-strong": "rgba(16, 24, 36, 0.92)",
+          "--panel-outline": "rgba(121, 165, 221, 0.30)",
+          "--panel-outline-soft": "rgba(121, 165, 221, 0.20)",
+          "--option-hover-bg": "rgba(121, 165, 221, 0.18)",
+          "--tooltip-bg": "rgba(14, 21, 33, 0.92)"
+        },
+        canvas: {
+          gridDbZero: "rgba(158, 194, 244, 0.54)",
+          gridDbMajor: "rgba(102, 139, 198, 0.18)",
+          gridDbMinor: "rgba(90, 124, 177, 0.08)",
+          gridLabelPrimary: "rgba(218, 233, 255, 0.78)",
+          gridLabelSecondary: "rgba(190, 214, 244, 0.46)",
+          gridFreqStrong: "rgba(111, 149, 208, 0.17)",
+          gridFreqSoft: "rgba(95, 131, 186, 0.08)",
+          gridFreqLabel: "rgba(187, 214, 244, 0.36)",
+          oscGridStrong: "rgba(121, 163, 224, 0.22)",
+          oscGridSoft: "rgba(110, 149, 205, 0.12)",
+          spectrumFillTop: "rgba(108, 171, 255, 0.30)",
+          spectrumFillMid: "rgba(52, 95, 165, 0.16)",
+          spectrumFillBottom: "rgba(18, 33, 74, 0.05)",
+          spectrumGlow: "rgba(118, 190, 255, 0.34)",
+          spectrumStrokeMain: "rgba(176, 214, 250, 0.98)",
+          spectrumStrokeLight: "rgba(228, 241, 255, 0.84)",
+          referenceStroke: "rgba(214, 229, 250, 0.88)",
+          referenceGlow: "rgba(105, 153, 224, 0.24)",
+          referenceBand: "rgba(98, 145, 218, 0.17)",
+          oscCenterLine: "rgba(150, 183, 224, 0.18)",
+          oscStroke: "rgba(174, 213, 248, 0.98)",
+          crosshair: "rgba(222, 237, 255, 0.30)",
+          readoutBg: "rgba(16, 22, 32, 0.70)",
+          readoutText: "rgba(238, 245, 255, 0.92)",
+          bgTop: "rgba(17, 24, 36, 0.96)",
+          bgBottom: "rgba(10, 15, 24, 0.99)"
+        }
+      },
+      mono: {
+        swatch: "#ffffff",
+        css: {
+          "--bg-top": "#171717",
+          "--bg-mid": "#151515",
+          "--bg-bot": "#101010",
+          "--icon-fg": "rgba(236, 236, 236, 0.96)",
+          "--panel-bg": "rgba(30, 30, 30, 0.82)",
+          "--panel-bg-strong": "rgba(30, 30, 30, 0.92)",
+          "--panel-outline": "rgba(218, 218, 218, 0.24)",
+          "--panel-outline-soft": "rgba(218, 218, 218, 0.14)",
+          "--option-hover-bg": "rgba(230, 230, 230, 0.16)",
+          "--tooltip-bg": "rgba(24, 24, 24, 0.92)"
+        },
+        canvas: {
+          gridDbZero: "rgba(210, 210, 210, 0.52)",
+          gridDbMajor: "rgba(175, 175, 175, 0.18)",
+          gridDbMinor: "rgba(145, 145, 145, 0.08)",
+          gridLabelPrimary: "rgba(236, 236, 236, 0.75)",
+          gridLabelSecondary: "rgba(210, 210, 210, 0.44)",
+          gridFreqStrong: "rgba(176, 176, 176, 0.16)",
+          gridFreqSoft: "rgba(146, 146, 146, 0.08)",
+          gridFreqLabel: "rgba(214, 214, 214, 0.34)",
+          oscGridStrong: "rgba(192, 192, 192, 0.22)",
+          oscGridSoft: "rgba(166, 166, 166, 0.12)",
+          spectrumFillTop: "rgba(236, 236, 236, 0.24)",
+          spectrumFillMid: "rgba(168, 168, 168, 0.12)",
+          spectrumFillBottom: "rgba(98, 98, 98, 0.04)",
+          spectrumGlow: "rgba(236, 236, 236, 0.30)",
+          spectrumStrokeMain: "rgba(238, 238, 238, 0.98)",
+          spectrumStrokeLight: "rgba(244, 244, 244, 0.82)",
+          referenceStroke: "rgba(244, 244, 244, 0.94)",
+          referenceGlow: "rgba(220, 220, 220, 0.24)",
+          referenceBand: "rgba(220, 220, 220, 0.18)",
+          oscCenterLine: "rgba(190, 190, 190, 0.20)",
+          oscStroke: "rgba(236, 236, 236, 0.96)",
+          crosshair: "rgba(236, 236, 236, 0.28)",
+          readoutBg: "rgba(20, 20, 20, 0.68)",
+          readoutText: "rgba(244, 244, 244, 0.92)",
+          bgTop: "rgba(24, 24, 24, 0.96)",
+          bgBottom: "rgba(14, 14, 14, 0.99)"
+        }
+      },
+      green: {
+        swatch: "#4f9a63",
+        css: {
+          "--bg-top": "#111b14",
+          "--bg-mid": "#132016",
+          "--bg-bot": "#0d1510",
+          "--icon-fg": "rgba(190, 225, 199, 0.96)",
+          "--panel-bg": "rgba(18, 33, 23, 0.80)",
+          "--panel-bg-strong": "rgba(18, 33, 23, 0.92)",
+          "--panel-outline": "rgba(106, 187, 127, 0.30)",
+          "--panel-outline-soft": "rgba(106, 187, 127, 0.20)",
+          "--option-hover-bg": "rgba(106, 187, 127, 0.18)",
+          "--tooltip-bg": "rgba(14, 27, 18, 0.92)"
+        },
+        canvas: {
+          gridDbZero: "rgba(167, 229, 182, 0.54)",
+          gridDbMajor: "rgba(95, 161, 113, 0.18)",
+          gridDbMinor: "rgba(74, 128, 90, 0.08)",
+          gridLabelPrimary: "rgba(223, 250, 229, 0.78)",
+          gridLabelSecondary: "rgba(189, 226, 198, 0.46)",
+          gridFreqStrong: "rgba(103, 174, 123, 0.17)",
+          gridFreqSoft: "rgba(82, 142, 101, 0.08)",
+          gridFreqLabel: "rgba(184, 229, 195, 0.36)",
+          oscGridStrong: "rgba(110, 188, 133, 0.22)",
+          oscGridSoft: "rgba(95, 160, 116, 0.12)",
+          spectrumFillTop: "rgba(111, 224, 146, 0.28)",
+          spectrumFillMid: "rgba(52, 139, 84, 0.16)",
+          spectrumFillBottom: "rgba(19, 75, 43, 0.05)",
+          spectrumGlow: "rgba(131, 241, 165, 0.32)",
+          spectrumStrokeMain: "rgba(184, 241, 201, 0.98)",
+          spectrumStrokeLight: "rgba(230, 255, 239, 0.84)",
+          referenceStroke: "rgba(227, 255, 236, 0.95)",
+          referenceGlow: "rgba(74, 214, 132, 0.30)",
+          referenceBand: "rgba(74, 214, 132, 0.22)",
+          oscCenterLine: "rgba(145, 203, 160, 0.18)",
+          oscStroke: "rgba(181, 238, 197, 0.98)",
+          crosshair: "rgba(220, 250, 229, 0.30)",
+          readoutBg: "rgba(15, 28, 19, 0.70)",
+          readoutText: "rgba(236, 255, 242, 0.92)",
+          bgTop: "rgba(16, 29, 20, 0.96)",
+          bgBottom: "rgba(10, 18, 12, 0.99)"
+        }
+      },
+      orange: {
+        swatch: "#c27a37",
+        css: {
+          "--bg-top": "#21160d",
+          "--bg-mid": "#271b10",
+          "--bg-bot": "#181007",
+          "--icon-fg": "rgba(240, 205, 166, 0.96)",
+          "--panel-bg": "rgba(43, 28, 15, 0.80)",
+          "--panel-bg-strong": "rgba(43, 28, 15, 0.92)",
+          "--panel-outline": "rgba(213, 145, 83, 0.30)",
+          "--panel-outline-soft": "rgba(213, 145, 83, 0.20)",
+          "--option-hover-bg": "rgba(213, 145, 83, 0.18)",
+          "--tooltip-bg": "rgba(36, 23, 13, 0.92)"
+        },
+        canvas: {
+          gridDbZero: "rgba(248, 197, 141, 0.56)",
+          gridDbMajor: "rgba(183, 123, 64, 0.20)",
+          gridDbMinor: "rgba(145, 96, 46, 0.09)",
+          gridLabelPrimary: "rgba(255, 233, 205, 0.78)",
+          gridLabelSecondary: "rgba(244, 202, 158, 0.48)",
+          gridFreqStrong: "rgba(197, 132, 70, 0.19)",
+          gridFreqSoft: "rgba(157, 105, 52, 0.10)",
+          gridFreqLabel: "rgba(244, 205, 166, 0.36)",
+          oscGridStrong: "rgba(211, 146, 80, 0.23)",
+          oscGridSoft: "rgba(170, 118, 64, 0.13)",
+          spectrumFillTop: "rgba(255, 188, 111, 0.30)",
+          spectrumFillMid: "rgba(176, 109, 50, 0.17)",
+          spectrumFillBottom: "rgba(88, 51, 21, 0.06)",
+          spectrumGlow: "rgba(255, 193, 125, 0.33)",
+          spectrumStrokeMain: "rgba(255, 220, 180, 0.98)",
+          spectrumStrokeLight: "rgba(255, 240, 221, 0.84)",
+          referenceStroke: "rgba(255, 237, 215, 0.95)",
+          referenceGlow: "rgba(236, 156, 66, 0.30)",
+          referenceBand: "rgba(236, 156, 66, 0.22)",
+          oscCenterLine: "rgba(219, 160, 99, 0.20)",
+          oscStroke: "rgba(255, 216, 174, 0.98)",
+          crosshair: "rgba(255, 228, 196, 0.31)",
+          readoutBg: "rgba(34, 22, 13, 0.72)",
+          readoutText: "rgba(255, 243, 228, 0.92)",
+          bgTop: "rgba(35, 23, 13, 0.96)",
+          bgBottom: "rgba(20, 13, 7, 0.99)"
+        }
+      },
+      purple: {
+        swatch: "#8a64c7",
+        css: {
+          "--bg-top": "#191327",
+          "--bg-mid": "#1e1730",
+          "--bg-bot": "#130f20",
+          "--icon-fg": "rgba(213, 196, 242, 0.96)",
+          "--panel-bg": "rgba(29, 23, 46, 0.80)",
+          "--panel-bg-strong": "rgba(29, 23, 46, 0.92)",
+          "--panel-outline": "rgba(154, 124, 209, 0.30)",
+          "--panel-outline-soft": "rgba(154, 124, 209, 0.20)",
+          "--option-hover-bg": "rgba(154, 124, 209, 0.18)",
+          "--tooltip-bg": "rgba(23, 18, 38, 0.92)"
+        },
+        canvas: {
+          gridDbZero: "rgba(201, 176, 248, 0.56)",
+          gridDbMajor: "rgba(136, 108, 194, 0.20)",
+          gridDbMinor: "rgba(108, 85, 157, 0.09)",
+          gridLabelPrimary: "rgba(241, 230, 255, 0.78)",
+          gridLabelSecondary: "rgba(215, 197, 246, 0.48)",
+          gridFreqStrong: "rgba(148, 117, 210, 0.19)",
+          gridFreqSoft: "rgba(118, 94, 174, 0.10)",
+          gridFreqLabel: "rgba(217, 199, 248, 0.36)",
+          oscGridStrong: "rgba(159, 127, 223, 0.23)",
+          oscGridSoft: "rgba(128, 102, 186, 0.13)",
+          spectrumFillTop: "rgba(197, 156, 255, 0.30)",
+          spectrumFillMid: "rgba(126, 92, 197, 0.17)",
+          spectrumFillBottom: "rgba(58, 40, 101, 0.06)",
+          spectrumGlow: "rgba(206, 171, 255, 0.33)",
+          spectrumStrokeMain: "rgba(228, 207, 255, 0.98)",
+          spectrumStrokeLight: "rgba(244, 236, 255, 0.84)",
+          referenceStroke: "rgba(239, 224, 255, 0.95)",
+          referenceGlow: "rgba(170, 116, 242, 0.30)",
+          referenceBand: "rgba(170, 116, 242, 0.22)",
+          oscCenterLine: "rgba(170, 141, 224, 0.20)",
+          oscStroke: "rgba(226, 203, 255, 0.98)",
+          crosshair: "rgba(238, 226, 255, 0.31)",
+          readoutBg: "rgba(22, 18, 36, 0.72)",
+          readoutText: "rgba(246, 239, 255, 0.92)",
+          bgTop: "rgba(25, 20, 40, 0.96)",
+          bgBottom: "rgba(14, 11, 24, 0.99)"
+        }
+      }
+    };
+
+    let activeCanvasTheme = themes.blue.canvas;
+
+    const resolutionMap = {
+      high: { radius: 1, step: 1 },
+      medium: { radius: 2, step: 1 },
+      low: { radius: 4, step: 2 }
+    };
+
+    const speedMap = {
+      fast: { attack: 0.58, release: 0.20 },
+      medium: { attack: 0.32, release: 0.09 },
+      slow: { attack: 0.16, release: 0.045 }
+    };
+
+    const freqGridTicks = [200, 2000, 5000];
+    const freqLabelTicks = [40, 100, 200, 400, 600, 1000, 2000, 4000, 6000, 10000];
+    const soloBandRanges = [
+      { startHz: 20, endHz: 200 },
+      { startHz: 200, endHz: 2000 },
+      { startHz: 2000, endHz: 5000 },
+      { startHz: 5000, endHz: 20000 }
+    ];
+    const dbTicks = [-96, -78, -60, -42, -24, -12, -6, 0];
+    const dbDisplayOffset = 24;
+
+    const canvas = document.getElementById("spectrum");
+    const ctx = canvas.getContext("2d");
+    const bandSoloStrip = document.getElementById("bandSoloStrip");
+    const bandSoloItems = Array.from(document.querySelectorAll(".band-solo-item"));
+    const bandSoloButtons = Array.from(document.querySelectorAll(".band-solo-btn"));
+    const resolutionSel = document.getElementById("resolutionSel");
+    const speedSel = document.getElementById("speedSel");
+    const tiltSel = document.getElementById("tiltSel");
+    const smoothSourceSel = document.getElementById("smoothSourceSel");
+    const smoothSourceMenu = smoothSourceSel ? smoothSourceSel.querySelector(".select-menu") : null;
+    const newSmoothPresetBtn = document.getElementById("newSmoothPresetBtn");
+    const leftToolbar = document.getElementById("leftToolbar");
+    const menuToggle = document.getElementById("menuToggle");
+    const helpBtn = document.getElementById("helpBtn");
+    const saveDefaultsBtn = document.getElementById("saveDefaultsBtn");
+    const peakWarningBtn = document.getElementById("peakWarningBtn");
+    const suppressorBtn = document.getElementById("suppressorBtn");
+    const controlsPanel = document.getElementById("controlsPanel");
+    const fullscreenBtn = document.getElementById("fullscreenBtn");
+    const oscToggleBtn = document.getElementById("oscToggleBtn");
+    const oscLengthBtn = document.getElementById("oscLengthBtn");
+    const oscModeHub = document.getElementById("oscModeHub");
+    const oscModeBtn = document.getElementById("oscModeBtn");
+    const themePicker = document.getElementById("themePicker");
+    const themeToggleBtn = document.getElementById("themeToggleBtn");
+    const themeChoiceButtons = Array.from(document.querySelectorAll(".theme-choice"));
+    const presetStatus = document.getElementById("presetStatus");
+    const uiTooltip = document.getElementById("uiTooltip");
+    const creditSplash = document.getElementById("creditSplash");
+    const presetCenter = document.getElementById("presetCenter");
+    const overlayWidthKnob = document.getElementById("overlayWidthKnob");
+    const overlayLevelKnob = document.getElementById("overlayLevelKnob");
+    const presetSmoothingKnob = document.getElementById("presetSmoothingKnob");
+    const toolbarSelectRoots = [resolutionSel, speedSel, tiltSel];
+    const customSelectRoots = [resolutionSel, speedSel, tiltSel, smoothSourceSel];
+    const UI_DEFAULTS_STORAGE_KEY = "speccraum.ui.defaults.v1";
+    const USER_SMOOTH_PRESETS_STORAGE_KEY = "speccraum.user.smooth.presets.v1";
+    const FIXED_PRESET_SMOOTHING = 16;
+    const overlayWidthBounds = {
+      min: 3.0,
+      max: 18.0,
+      wheelStep: 1.0,
+      dragScale: 0.2
+    };
+    const overlayLevelBounds = {
+      min: -23.0,
+      max: 0.0,
+      wheelStep: 1.0,
+      dragScale: 0.2
+    };
+    const presetSmoothingBounds = {
+      min: FIXED_PRESET_SMOOTHING,
+      max: FIXED_PRESET_SMOOTHING,
+      wheelStep: 0,
+      dragScale: 0
+    };
+
+    let mouseInside = false;
+    let mouseX = 0;
+    let mouseY = 0;
+    let overlayLevelHoverActive = false;
+    let overlayLevelDragActive = false;
+    let overlayLevelDragPointerId = null;
+    let overlayLevelDragStartY = 0;
+    let overlayLevelDragStartValue = 0;
+    let overlayReadoutMode = "level";
+    let overlayReadoutVisible = false;
+    let overlayReadoutHideTimerId = null;
+    let overlayWheelInteractionUntil = 0;
+    let crosshairAlpha = 1.0;
+    let crosshairTargetAlpha = 1.0;
+    let lastCrosshairUpdateMs = 0;
+    const CROSSHAIR_FADE_OUT_MS = 140;
+    const CROSSHAIR_FADE_IN_MS = 1000;
+    let cornerHoverActive = false;
+    let presetHoverActive = false;
+    let controlsAutoCloseTimer = null;
+    const cornerRevealWidthPx = 320;
+    const cornerRevealVerticalPaddingPx = 140;
+    const presetRevealWidthPx = 300;
+    const presetRevealHeightPx = 148;
+    const smoothPreset = new Float32Array(BINS);
+    const overlaySmoothA = new Float32Array(BINS);
+    const overlaySmoothB = new Float32Array(BINS);
+    const overlayUpperDisplay = new Float32Array(BINS);
+    const overlayLowerDisplay = new Float32Array(BINS);
+    const overlayCenterDisplay = new Float32Array(BINS);
+    const RESONANCE_SUPPRESSOR_BANDS = 6;
+    const suppressorFrequencyHz = new Float32Array(RESONANCE_SUPPRESSOR_BANDS);
+    const suppressorGainDb = new Float32Array(RESONANCE_SUPPRESSOR_BANDS);
+    let hasSmoothPreset = false;
+    let smoothPresetScanInProgress = false;
+    let lastReferenceRevisionSeen = -1;
+    let lastReferenceBinsReceived = 0;
+    let lastReferenceHasFlag = false;
+    let smoothScanWatchdogId = null;
+    let builtInPresetLocked = false;
+    let activeBuiltInPresetKey = "";
+    let lastUiError = "";
+    let creditSplashFadeTimerId = null;
+    let creditSplashHideTimerId = null;
+    let saveDefaultsFlashTimerId = null;
+    const userSmoothTargets = {};
+    const userSmoothPresetOrder = [];
+    const selectChangeHandlers = new WeakMap();
+
+    function initializeJuceBackendBridge() {
+      if (typeof window.__JUCE__ !== "undefined"
+          && typeof window.__JUCE__.getAndroidUserScripts === "function"
+          && typeof window.inAndroidUserScriptEval === "undefined") {
+        window.inAndroidUserScriptEval = true;
+        try {
+          eval(window.__JUCE__.getAndroidUserScripts());
+        } catch (error) {
+          console.warn("SPECRAUM: failed to evaluate Android JUCE bridge scripts.", error);
+        }
+      }
+
+      if (typeof window.__JUCE__ === "undefined")
+        window.__JUCE__ = {};
+
+      if (typeof window.__JUCE__.backend === "undefined") {
+        const eventListeners = new Map();
+
+        window.__JUCE__.backend = {
+          addEventListener(eventId, listener) {
+            if (!eventListeners.has(eventId))
+              eventListeners.set(eventId, new Set());
+            eventListeners.get(eventId).add(listener);
+          },
+
+          removeEventListener(eventId, listener) {
+            if (!eventListeners.has(eventId))
+              return;
+            eventListeners.get(eventId).delete(listener);
+          },
+
+          emitEvent(eventId, payload) {
+            if (typeof window.__JUCE__.postMessage !== "function")
+              return false;
+
+            window.__JUCE__.postMessage(JSON.stringify({ eventId, payload }));
+            return true;
+          },
+
+          emitByBackend(eventId, payload) {
+            if (!eventListeners.has(eventId))
+              return;
+
+            let parsed = payload;
+            if (typeof payload === "string") {
+              try { parsed = JSON.parse(payload); } catch (_) {}
+            }
+
+            for (const listener of eventListeners.get(eventId))
+              listener(parsed);
+          }
+        };
+      }
+    }
+
+    function hasNativeBridge() {
+      if (typeof window.__JUCE__ === "undefined")
+        return false;
+
+      const backend = window.__JUCE__.backend;
+      if (backend && typeof backend.emitEvent === "function")
+        return true;
+
+      return typeof window.__JUCE__.postMessage === "function";
+    }
+
+    function nativeBridgeStatus() {
+      if (typeof window.__JUCE__ === "undefined")
+        return "missing __JUCE__";
+      if (window.__JUCE__.backend && typeof window.__JUCE__.backend.emitEvent === "function")
+        return "backend.emitEvent";
+      if (typeof window.__JUCE__.postMessage === "function")
+        return "postMessage";
+      return "no transport";
+    }
+
+    function formatFreqLabel(freq) {
+      if (freq >= 1000) {
+        const k = freq / 1000;
+        return (Number.isInteger(k) ? k.toFixed(0) : k.toFixed(1)) + "k";
+      }
+      return String(freq);
+    }
+
+    function formatFreqValue(freq) {
+      if (freq >= 1000) return `${(freq / 1000).toFixed(2)} kHz`;
+      return `${Math.round(freq)} Hz`;
+    }
+
+    function quantizeNote(freq) {
+      if (!Number.isFinite(freq) || freq <= 0)
+        return { name: "--", frequency: 0 };
+
+      const midi = Math.max(0, Math.min(127, Math.round(69 + 12 * Math.log2(freq / 440))));
+      const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+      const name = `${noteNames[midi % 12]}${Math.floor(midi / 12) - 1}`;
+      const noteFreq = 440 * Math.pow(2, (midi - 69) / 12);
+      return { name, frequency: noteFreq };
+    }
+
+    function ensureCanvasSize() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const targetW = Math.max(1, Math.floor(rect.width * dpr));
+      const targetH = Math.max(1, Math.floor(rect.height * dpr));
+
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      return rect;
+    }
+
+    function resizeCanvas() {
+      ensureCanvasSize();
+    }
+
+    function normToDb(norm) {
+      return -96 + (Math.max(0, Math.min(1, norm)) * 96);
+    }
+
+    function dbToNorm(db) {
+      return Math.max(0, Math.min(1, (db + 96) / 96));
+    }
+
+    function applyAnalyzerTiltToNorm(norm, binIndex) {
+      const clamped = Math.max(0, Math.min(1, Number(norm)));
+      const db = normToDb(clamped);
+      const freq = binToFreq(Math.max(0, Math.min(BINS - 1, binIndex)));
+      const octFrom1k = Math.log2(freq / 1000);
+      return dbToNorm(db + (state.tiltDb * octFrom1k));
+    }
+
+    function offsetNormByDb(norm, dbOffset) {
+      return dbToNorm(normToDb(norm) + dbOffset);
+    }
+
+    function rgbaWithAlpha(color, alpha) {
+      const safeAlpha = Math.max(0, Math.min(1, Number(alpha)));
+      if (typeof color === "string") {
+        const match = color.match(/rgba?\s*\(\s*([^)]+)\)/i);
+        if (match && match[1]) {
+          const parts = match[1].split(",").map((x) => Number(x.trim()));
+          if (parts.length >= 3) {
+            const r = Math.max(0, Math.min(255, Math.round(parts[0])));
+            const g = Math.max(0, Math.min(255, Math.round(parts[1])));
+            const b = Math.max(0, Math.min(255, Math.round(parts[2])));
+            return `rgba(${r}, ${g}, ${b}, ${safeAlpha})`;
+          }
+        }
+      }
+      return `rgba(56, 214, 255, ${safeAlpha})`;
+    }
+
+    function binToFreq(bin) {
+      const minF = 20;
+      const maxF = Math.min(20000, sampleRate * 0.5);
+      return minF * Math.pow(maxF / minF, bin / (BINS - 1));
+    }
+
+    function freqToX(freq, width) {
+      const minF = 20;
+      const maxF = Math.min(20000, sampleRate * 0.5);
+      const n = Math.log(freq / minF) / Math.log(maxF / minF);
+      return Math.max(0, Math.min(width, n * width));
+    }
+
+    function xToFreq(x, width) {
+      const minF = 20;
+      const maxF = Math.min(20000, sampleRate * 0.5);
+      const t = Math.max(0, Math.min(1, x / Math.max(1, width)));
+      return minF * Math.pow(maxF / minF, t);
+    }
+
+    function yToDb(y, height) {
+      const t = Math.max(0, Math.min(1, y / Math.max(1, height)));
+      return (0 - (t * 96)) + dbDisplayOffset;
+    }
+
+    function formatTickDbLabel(db) {
+      if (db === -24) return "0 dB";
+      return "";
+    }
+
+    function clampValue(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function sanitizeSmoothSourceKey(value) {
+      const key = typeof value === "string" ? value.trim().toLowerCase() : "";
+      if (Object.prototype.hasOwnProperty.call(builtInSmoothTargets, key)
+          || Object.prototype.hasOwnProperty.call(userSmoothTargets, key))
+        return key;
+      return "psytrance";
+    }
+
+    function getSmoothPresetByKey(key) {
+      const safeKey = typeof key === "string" ? key.trim().toLowerCase() : "";
+      if (Object.prototype.hasOwnProperty.call(builtInSmoothTargets, safeKey))
+        return builtInSmoothTargets[safeKey];
+      if (Object.prototype.hasOwnProperty.call(userSmoothTargets, safeKey))
+        return userSmoothTargets[safeKey];
+      return null;
+    }
+
+    function hasSmoothSourceOption(value) {
+      if (!smoothSourceMenu)
+        return false;
+      const safeValue = String(value || "");
+      return Array.from(smoothSourceMenu.querySelectorAll(".select-option"))
+        .some((option) => option.dataset.value === safeValue);
+    }
+
+    function appendSmoothSourceOption(value, label) {
+      if (!smoothSourceMenu || hasSmoothSourceOption(value))
+        return;
+
+      const optionValue = String(value || "");
+      const optionLabel = String(label || value).toUpperCase();
+
+      const row = document.createElement("div");
+      row.className = "preset-user-row";
+      row.dataset.value = optionValue;
+
+      const option = document.createElement("button");
+      option.className = "select-option";
+      option.type = "button";
+      option.dataset.value = optionValue;
+      option.textContent = optionLabel;
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "preset-delete-btn";
+      deleteBtn.type = "button";
+      deleteBtn.dataset.value = optionValue;
+      deleteBtn.setAttribute("aria-label", `Delete ${optionLabel}`);
+      deleteBtn.textContent = "x";
+
+      row.appendChild(option);
+      row.appendChild(deleteBtn);
+      smoothSourceMenu.appendChild(row);
+    }
+
+    function extractFilesAnalysedFromMessage(message) {
+      const text = typeof message === "string" ? message : "";
+      const match = text.match(/(\d+)\s+file\(s\)/i);
+      if (!match)
+        return 0;
+      const value = Number(match[1]);
+      return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+    }
+
+    function normalizeBinsToArray(bins) {
+      let values = null;
+      if (Array.isArray(bins))
+        values = bins;
+      else if (bins && typeof bins.length === "number")
+        values = Array.from(bins);
+
+      if (!Array.isArray(values) || values.length <= 0)
+        return null;
+
+      const normalized = new Array(BINS);
+      const n = Math.min(BINS, values.length);
+      for (let i = 0; i < n; i++) {
+        const numeric = Number(values[i]);
+        normalized[i] = Number.isFinite(numeric) ? clampValue(numeric, 0, 1) : 0;
+      }
+
+      const edge = n > 0 ? normalized[n - 1] : 0;
+      for (let i = n; i < BINS; i++)
+        normalized[i] = edge;
+      return normalized;
+    }
+
+    function makeUniqueUserPresetLabel(baseLabel) {
+      const maxLabelLength = 18;
+      const normalizedBase = String(baseLabel || "NEW PRESET")
+        .trim()
+        .replace(/\s+/g, " ")
+        .slice(0, maxLabelLength)
+        .toUpperCase();
+      const base = normalizedBase.length > 0 ? normalizedBase : "NEW PRESET";
+
+      const existingLabels = new Set();
+      for (const preset of Object.values(builtInSmoothTargets)) {
+        if (preset && typeof preset.label === "string")
+          existingLabels.add(preset.label.trim().toUpperCase());
+      }
+      for (const key of userSmoothPresetOrder) {
+        const preset = userSmoothTargets[key];
+        if (preset && typeof preset.label === "string")
+          existingLabels.add(preset.label.trim().toUpperCase());
+      }
+
+      if (!existingLabels.has(base))
+        return base;
+
+      let index = 2;
+      while (index < 1000) {
+        const suffix = ` ${index}`;
+        const headMaxLength = Math.max(1, maxLabelLength - suffix.length);
+        const candidateBase = base.slice(0, headMaxLength).trimEnd();
+        const candidate = `${candidateBase}${suffix}`;
+        if (!existingLabels.has(candidate))
+          return candidate;
+        index++;
+      }
+
+      const fallbackSuffix = ` ${Date.now() % 1000}`;
+      const fallbackHeadMaxLength = Math.max(1, maxLabelLength - fallbackSuffix.length);
+      return `${base.slice(0, fallbackHeadMaxLength).trimEnd()}${fallbackSuffix}`;
+    }
+
+    function makeUniqueUserPresetKey(label) {
+      const slug = String(label || "preset")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "")
+        .slice(0, 20);
+      let key = `user_${slug || "preset"}`;
+      let suffix = 2;
+      while (Object.prototype.hasOwnProperty.call(builtInSmoothTargets, key)
+             || Object.prototype.hasOwnProperty.call(userSmoothTargets, key)) {
+        key = `user_${slug || "preset"}${suffix}`;
+        suffix++;
+      }
+      return key;
+    }
+
+    function persistUserSmoothPresets() {
+      if (typeof window.localStorage === "undefined")
+        return;
+
+      const payload = [];
+      for (const key of userSmoothPresetOrder) {
+        const preset = userSmoothTargets[key];
+        if (!preset || !Array.isArray(preset.bins))
+          continue;
+        payload.push({
+          key,
+          label: preset.label,
+          filesAnalysed: Number.isFinite(Number(preset.filesAnalysed))
+            ? Math.max(0, Math.floor(Number(preset.filesAnalysed)))
+            : 0,
+          limited: !!preset.limited,
+          bins: preset.bins.map((v) => clampValue(Number(v), 0, 1))
+        });
+      }
+
+      try {
+        window.localStorage.setItem(USER_SMOOTH_PRESETS_STORAGE_KEY, JSON.stringify(payload));
+      } catch (error) {
+        console.warn("SPECRAUM: failed to persist user presets.", error);
+      }
+    }
+
+    function loadUserSmoothPresets() {
+      if (typeof window.localStorage === "undefined")
+        return;
+
+      try {
+        const raw = window.localStorage.getItem(USER_SMOOTH_PRESETS_STORAGE_KEY);
+        if (!raw)
+          return;
+
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed))
+          return;
+
+        for (const entry of parsed) {
+          if (!entry || typeof entry !== "object")
+            continue;
+
+          const key = typeof entry.key === "string" ? entry.key.trim().toLowerCase() : "";
+          if (!key || Object.prototype.hasOwnProperty.call(builtInSmoothTargets, key)
+              || Object.prototype.hasOwnProperty.call(userSmoothTargets, key))
+            continue;
+
+          const bins = normalizeBinsToArray(entry.bins);
+          if (!bins)
+            continue;
+
+          const label = makeUniqueUserPresetLabel(
+            typeof entry.label === "string" ? entry.label : "NEW PRESET");
+          const filesAnalysed = Number.isFinite(Number(entry.filesAnalysed))
+            ? Math.max(0, Math.floor(Number(entry.filesAnalysed)))
+            : 0;
+          const limited = !!entry.limited;
+
+          userSmoothTargets[key] = {
+            label,
+            path: "Generated from folder scan",
+            filesAnalysed,
+            limited,
+            bins
+          };
+          userSmoothPresetOrder.push(key);
+          appendSmoothSourceOption(key, label);
+        }
+      } catch (error) {
+        console.warn("SPECRAUM: failed to load user presets.", error);
+      }
+    }
+
+    function createUserPresetFromScan(bins, folderName, message) {
+      const normalizedBins = normalizeBinsToArray(bins);
+      if (!normalizedBins)
+        return null;
+
+      const labelBase = (typeof folderName === "string" && folderName.trim().length > 0)
+        ? folderName.trim()
+        : "NEW PRESET";
+      const label = makeUniqueUserPresetLabel(labelBase);
+      const key = makeUniqueUserPresetKey(label);
+      const filesAnalysed = extractFilesAnalysedFromMessage(message);
+      const limited = /limited scan/i.test(String(message || ""));
+
+      userSmoothTargets[key] = {
+        label,
+        path: (typeof folderName === "string" && folderName.trim().length > 0)
+          ? folderName.trim()
+          : "Generated from folder scan",
+        filesAnalysed,
+        limited,
+        bins: normalizedBins
+      };
+      userSmoothPresetOrder.push(key);
+      appendSmoothSourceOption(key, label);
+      persistUserSmoothPresets();
+      return { key, label, filesAnalysed, limited };
+    }
+
+    function deleteUserSmoothPresetByKey(key) {
+      const safeKey = typeof key === "string" ? key.trim().toLowerCase() : "";
+      if (!safeKey || !Object.prototype.hasOwnProperty.call(userSmoothTargets, safeKey))
+        return false;
+
+      delete userSmoothTargets[safeKey];
+      const idx = userSmoothPresetOrder.indexOf(safeKey);
+      if (idx >= 0)
+        userSmoothPresetOrder.splice(idx, 1);
+
+      if (smoothSourceMenu) {
+        const row = smoothSourceMenu.querySelector(`.preset-user-row[data-value="${safeKey}"]`);
+        if (row)
+          row.remove();
+      }
+
+      const selected = getSelectedSmoothSource();
+      if (selected === safeKey) {
+        const fallback = userSmoothPresetOrder.length > 0 ? userSmoothPresetOrder[userSmoothPresetOrder.length - 1] : "psytrance";
+        setCustomSelectValue(smoothSourceSel, fallback, true);
+      }
+
+      persistUserSmoothPresets();
+      return true;
+    }
+
+    function quantizeTiltDb(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric))
+        return 5.0;
+      return clampValue(Math.round(numeric * 2) * 0.5, 0.0, 6.0);
+    }
+
+    function loadSavedUiDefaults() {
+      if (typeof window.localStorage === "undefined")
+        return null;
+
+      try {
+        const raw = window.localStorage.getItem(UI_DEFAULTS_STORAGE_KEY);
+        if (!raw)
+          return null;
+
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object")
+          return null;
+
+        const nextState = {};
+        if (typeof parsed.resolution === "string" && Object.prototype.hasOwnProperty.call(resolutionMap, parsed.resolution))
+          nextState.resolution = parsed.resolution;
+        if (typeof parsed.speed === "string" && Object.prototype.hasOwnProperty.call(speedMap, parsed.speed))
+          nextState.speed = parsed.speed;
+        if (typeof parsed.theme === "string" && Object.prototype.hasOwnProperty.call(themes, parsed.theme))
+          nextState.theme = parsed.theme;
+
+        nextState.tiltDb = quantizeTiltDb(parsed.tiltDb);
+        if (typeof parsed.oscilloscopeOn === "boolean")
+          nextState.oscilloscopeOn = parsed.oscilloscopeOn;
+        if (typeof parsed.oscStereo === "boolean")
+          nextState.oscStereo = parsed.oscStereo;
+        if (typeof parsed.peakWarningOn === "boolean")
+          nextState.peakWarningOn = parsed.peakWarningOn;
+        if (typeof parsed.suppressorOn === "boolean")
+          nextState.suppressorOn = parsed.suppressorOn;
+        nextState.oscLengthMode = Number(parsed.oscLengthMode) === 1 ? 1 : 0;
+        nextState.smoothSource = sanitizeSmoothSourceKey(parsed.smoothSource);
+
+        const overlayLevelValue = Number(parsed.overlayLevelDb);
+        if (Number.isFinite(overlayLevelValue))
+          nextState.overlayLevelDb = clampValue(Math.round(overlayLevelValue), overlayLevelBounds.min, overlayLevelBounds.max);
+
+        const overlayWidthValue = Number(parsed.overlayWidthDb);
+        if (Number.isFinite(overlayWidthValue))
+          nextState.overlayWidthDb = clampValue(Math.round(overlayWidthValue), overlayWidthBounds.min, overlayWidthBounds.max);
+
+        const presetSmoothingValue = Number(parsed.presetSmoothing);
+        if (Number.isFinite(presetSmoothingValue))
+          nextState.presetSmoothing = clampValue(
+            Math.round(presetSmoothingValue),
+            presetSmoothingBounds.min,
+            presetSmoothingBounds.max);
+        return nextState;
+      } catch (error) {
+        console.warn("SPECRAUM: failed to load saved defaults.", error);
+        return null;
+      }
+    }
+
+    function saveCurrentUiDefaults() {
+      if (typeof window.localStorage === "undefined")
+        return false;
+
+      try {
+        const payload = {
+          resolution: state.resolution,
+          speed: state.speed,
+          tiltDb: quantizeTiltDb(state.tiltDb),
+          oscilloscopeOn: !!state.oscilloscopeOn,
+          oscStereo: !!state.oscStereo,
+          peakWarningOn: !!state.peakWarningOn,
+          suppressorOn: !!state.suppressorOn,
+          oscLengthMode: state.oscLengthMode === 1 ? 1 : 0,
+          theme: state.theme,
+          smoothSource: sanitizeSmoothSourceKey(getSelectedSmoothSource()),
+          overlayLevelDb: clampValue(Math.round(state.overlayLevelDb), overlayLevelBounds.min, overlayLevelBounds.max),
+          overlayWidthDb: clampValue(Math.round(state.overlayWidthDb), overlayWidthBounds.min, overlayWidthBounds.max),
+          presetSmoothing: clampValue(
+            Math.round(state.presetSmoothing),
+            presetSmoothingBounds.min,
+            presetSmoothingBounds.max)
+        };
+        window.localStorage.setItem(UI_DEFAULTS_STORAGE_KEY, JSON.stringify(payload));
+        return true;
+      } catch (error) {
+        console.warn("SPECRAUM: failed to save defaults.", error);
+        return false;
+      }
+    }
+
+    function flashSaveDefaultsButton(success) {
+      if (!saveDefaultsBtn)
+        return;
+
+      if (saveDefaultsFlashTimerId !== null) {
+        window.clearTimeout(saveDefaultsFlashTimerId);
+        saveDefaultsFlashTimerId = null;
+      }
+
+      saveDefaultsBtn.classList.toggle("is-saving", success);
+      saveDefaultsBtn.classList.remove("is-off");
+
+      saveDefaultsFlashTimerId = window.setTimeout(() => {
+        saveDefaultsBtn.classList.remove("is-saving");
+        saveDefaultsBtn.classList.add("is-off");
+        saveDefaultsFlashTimerId = null;
+      }, success ? 850 : 520);
+    }
+
+    function formatDb(value, includePlus = false) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric))
+        return "0 dB";
+      const rounded = Math.round(numeric);
+      const sign = includePlus && rounded > 0 ? "+" : "";
+      return `${sign}${rounded} dB`;
+    }
+
+    function applyKnobVisual(knob, value, bounds, tooltipPrefix, includePlus = false, formatter = null) {
+      if (!knob)
+        return;
+      const span = bounds.max - bounds.min;
+      const normalized = span > 0
+        ? (value - bounds.min) / span
+        : 0.5;
+      const angle = -135 + normalized * 270;
+      knob.style.setProperty("--knob-angle", `${angle.toFixed(1)}deg`);
+      const label = typeof formatter === "function"
+        ? formatter(value)
+        : formatDb(value, includePlus);
+      knob.dataset.tooltip = `${tooltipPrefix}: ${label}`;
+      knob.setAttribute("aria-valuenow", String(Math.round(value)));
+      knob.setAttribute("aria-valuetext", label);
+      if (uiTooltip && !uiTooltip.classList.contains("is-hidden")) {
+        const shouldUpdateTooltip = knob.classList.contains("is-dragging")
+          || knob.matches(":hover")
+          || document.activeElement === knob;
+        if (shouldUpdateTooltip)
+          uiTooltip.textContent = knob.dataset.tooltip;
+      }
+    }
+
+    function updateOverlayLevelKnobVisual() {
+      applyKnobVisual(overlayLevelKnob, state.overlayLevelDb, overlayLevelBounds, "Overlay level");
+    }
+
+    function updateOverlayWidthKnobVisual() {
+      applyKnobVisual(overlayWidthKnob, state.overlayWidthDb, overlayWidthBounds, "Overlay width");
+    }
+
+    function updatePresetSmoothingKnobVisual() {
+      applyKnobVisual(
+        presetSmoothingKnob,
+        state.presetSmoothing,
+        presetSmoothingBounds,
+        "Overlay smoothing",
+        false,
+        (value) => String(Math.round(value)));
+    }
+
+    function syncNativeResonanceSuppressorConfig() {
+      const enabled = hasSmoothPreset && !!state.peakWarningOn && !!state.suppressorOn;
+      callNative(
+        "setResonanceSuppressorConfig",
+        enabled,
+        Math.round(state.overlayLevelDb),
+        Math.round(state.overlayWidthDb),
+        Number.isFinite(state.tiltDb) ? state.tiltDb : 5.0
+      );
+    }
+
+    function syncNativeReferenceSpectrum() {
+      if (!hasSmoothPreset) {
+        callNative("setReferenceSpectrum", []);
+        syncNativeResonanceSuppressorConfig();
+        return;
+      }
+
+      const bins = Array.from(smoothPreset, (value) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric))
+          return 0;
+        return clampValue(numeric, 0, 1);
+      });
+      callNative("setReferenceSpectrum", bins);
+      syncNativeResonanceSuppressorConfig();
+    }
+
+    function setOverlayLevelDb(value) {
+      const numeric = Number(value);
+      const bounded = clampValue(Number.isFinite(numeric) ? numeric : 0, overlayLevelBounds.min, overlayLevelBounds.max);
+      const quantized = Math.round(bounded);
+      state.overlayLevelDb = quantized;
+      updateOverlayLevelKnobVisual();
+      syncNativeResonanceSuppressorConfig();
+    }
+
+    function setOverlayWidthDb(value) {
+      const numeric = Number(value);
+      const bounded = clampValue(Number.isFinite(numeric) ? numeric : 12, overlayWidthBounds.min, overlayWidthBounds.max);
+      const quantized = Math.round(bounded);
+      state.overlayWidthDb = quantized;
+      updateOverlayWidthKnobVisual();
+      syncNativeResonanceSuppressorConfig();
+    }
+
+    function setPresetSmoothing(value) {
+      void value;
+      state.presetSmoothing = FIXED_PRESET_SMOOTHING;
+      updatePresetSmoothingKnobVisual();
+    }
+
+    function initializeDbKnob(knob, bounds, readValue, applyValue, resetValue) {
+      if (!knob)
+        return;
+
+      let dragPointerId = null;
+      let dragStartY = 0;
+      let dragStartValue = 0;
+
+      knob.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dragPointerId = event.pointerId;
+        dragStartY = event.clientY;
+        dragStartValue = readValue();
+        knob.classList.add("is-dragging");
+        knob.setPointerCapture(event.pointerId);
+      });
+
+      knob.addEventListener("pointermove", (event) => {
+        if (dragPointerId !== event.pointerId)
+          return;
+        const deltaY = dragStartY - event.clientY;
+        const nextValue = dragStartValue + deltaY * bounds.dragScale;
+        applyValue(nextValue);
+      });
+
+      const endDrag = (event) => {
+        if (dragPointerId !== null && event.pointerId === dragPointerId) {
+          dragPointerId = null;
+          knob.classList.remove("is-dragging");
+          if (knob.hasPointerCapture(event.pointerId))
+            knob.releasePointerCapture(event.pointerId);
+        }
+      };
+
+      knob.addEventListener("pointerup", endDrag);
+      knob.addEventListener("pointercancel", endDrag);
+      knob.addEventListener("lostpointercapture", () => {
+        dragPointerId = null;
+        knob.classList.remove("is-dragging");
+      });
+
+      knob.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const step = bounds.wheelStep;
+        const delta = event.deltaY < 0 ? step : -step;
+        applyValue(readValue() + delta);
+      }, { passive: false });
+
+      knob.addEventListener("keydown", (event) => {
+        const fine = bounds.wheelStep;
+        if (event.key === "ArrowUp" || event.key === "ArrowRight") {
+          event.preventDefault();
+          applyValue(readValue() + fine);
+        } else if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
+          event.preventDefault();
+          applyValue(readValue() - fine);
+        } else if (event.key === "Home") {
+          event.preventDefault();
+          applyValue(bounds.min);
+        } else if (event.key === "End") {
+          event.preventDefault();
+          applyValue(bounds.max);
+        } else if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          applyValue(resetValue);
+        }
+      });
+
+      knob.addEventListener("dblclick", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        applyValue(resetValue);
+      });
+    }
+
+    function initializeOverlayKnobs() {
+      initializeDbKnob(overlayWidthKnob, overlayWidthBounds, () => state.overlayWidthDb, setOverlayWidthDb, 12.0);
+      initializeDbKnob(overlayLevelKnob, overlayLevelBounds, () => state.overlayLevelDb, setOverlayLevelDb, 0.0);
+      setOverlayWidthDb(state.overlayWidthDb);
+      setOverlayLevelDb(state.overlayLevelDb);
+      setPresetSmoothing(FIXED_PRESET_SMOOTHING);
+    }
+
+    function hitTestOverlayBand(localX, localY, width, height, tolerancePx = 14) {
+      if (!hasSmoothPreset)
+        return false;
+      if (!Number.isFinite(localX) || !Number.isFinite(localY) || width <= 0 || height <= 0)
+        return false;
+      if (localX < 0 || localY < 0 || localX > width || localY > height)
+        return false;
+
+      const normalizedX = clampValue(localX / Math.max(1, width), 0, 1);
+      const bin = Math.max(0, Math.min(BINS - 1, Math.round(normalizedX * (BINS - 1))));
+      const upperNorm = overlayUpperDisplay[bin];
+      const lowerNorm = overlayLowerDisplay[bin];
+      if (!Number.isFinite(upperNorm) || !Number.isFinite(lowerNorm))
+        return false;
+
+      const upperY = (1 - upperNorm) * height;
+      const lowerY = (1 - lowerNorm) * height;
+      const top = Math.min(upperY, lowerY) - tolerancePx;
+      const bottom = Math.max(upperY, lowerY) + tolerancePx;
+      return localY >= top && localY <= bottom;
+    }
+
+    function refreshOverlayLevelCursor() {
+      if (!canvas)
+        return;
+      if (overlayLevelDragActive) {
+        canvas.style.cursor = "ns-resize";
+        return;
+      }
+      if (!mouseInside) {
+        overlayLevelHoverActive = false;
+        canvas.style.cursor = "";
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      overlayLevelHoverActive = hitTestOverlayBand(mouseX, mouseY, rect.width, rect.height);
+      canvas.style.cursor = overlayLevelHoverActive ? "ns-resize" : "";
+    }
+
+    function hideOverlayReadout() {
+      if (overlayReadoutHideTimerId !== null) {
+        window.clearTimeout(overlayReadoutHideTimerId);
+        overlayReadoutHideTimerId = null;
+      }
+      overlayReadoutVisible = false;
+    }
+
+    function showOverlayReadout(mode, holdMs = 0) {
+      overlayReadoutMode = mode === "width" ? "width" : "level";
+      overlayReadoutVisible = true;
+      if (overlayReadoutHideTimerId !== null) {
+        window.clearTimeout(overlayReadoutHideTimerId);
+        overlayReadoutHideTimerId = null;
+      }
+      if (holdMs > 0) {
+        overlayReadoutHideTimerId = window.setTimeout(() => {
+          overlayReadoutVisible = false;
+          overlayReadoutHideTimerId = null;
+        }, holdMs);
+      }
+    }
+
+    function drawGrid(width, height) {
+      ctx.save();
+      ctx.lineWidth = 1;
+      const zeroDbY = ((0 - (-24)) / 96) * height;
+      const hidePresetOverlappingLabels = (
+        presetHoverActive
+        || (presetCenter && presetCenter.matches(":hover"))
+        || (smoothSourceSel && smoothSourceSel.classList.contains("open"))
+      );
+
+      for (const db of dbTicks) {
+        if (db !== -24)
+          continue;
+        const y = ((0 - db) / 96) * height;
+        ctx.strokeStyle = rgbaWithAlpha(activeCanvasTheme.gridDbZero, 0.20);
+        ctx.lineWidth = 1;
+        if (state.oscilloscopeOn) {
+          ctx.shadowColor = rgbaWithAlpha(activeCanvasTheme.gridDbZero, 0.24);
+          ctx.shadowBlur = 5;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 2;
+        }
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+
+        const label = formatTickDbLabel(db);
+        if (label !== "") {
+          ctx.fillStyle = rgbaWithAlpha(
+            db === -24 ? activeCanvasTheme.gridLabelPrimary : activeCanvasTheme.gridLabelSecondary,
+            0.55);
+          ctx.font = "12px SPRoboto, Roboto Condensed, Roboto, Segoe UI, Arial, sans-serif";
+          ctx.textAlign = "right";
+          ctx.textBaseline = "middle";
+          const labelY = y + 1;
+          ctx.fillText(label, width - 8, labelY);
+          if (overlayLevelDragActive || overlayReadoutVisible) {
+            const readoutIsWidth = overlayReadoutMode === "width";
+            const readoutValue = readoutIsWidth
+              ? Math.round(state.overlayWidthDb)
+              : Math.round(state.overlayLevelDb);
+            const readoutText = readoutIsWidth
+              ? `WIDTH ${readoutValue} dB`
+              : `LEVEL ${readoutValue} dB`;
+            ctx.fillStyle = rgbaWithAlpha(activeCanvasTheme.gridLabelPrimary, 0.76);
+            ctx.textAlign = "left";
+            ctx.fillText(readoutText, 8, labelY);
+          }
+          ctx.textBaseline = "alphabetic";
+        }
+      }
+
+      for (const freq of freqGridTicks) {
+        const x = freqToX(freq, width);
+        const lineTop = state.oscilloscopeOn ? zeroDbY : 0;
+        const lineBottom = height;
+        const fadeEndY = Math.max(lineTop, Math.min(lineBottom, zeroDbY + 34));
+        const lineSpan = Math.max(1, lineBottom - lineTop);
+        const fadeEndT = Math.max(0, Math.min(1, (fadeEndY - lineTop) / lineSpan));
+        const lineGradient = ctx.createLinearGradient(0, lineTop, 0, lineBottom);
+        lineGradient.addColorStop(0.0, rgbaWithAlpha(activeCanvasTheme.gridFreqStrong, 0.0));
+        lineGradient.addColorStop(fadeEndT, rgbaWithAlpha(activeCanvasTheme.gridFreqStrong, 0.0));
+        lineGradient.addColorStop(1.0, activeCanvasTheme.gridFreqStrong);
+        ctx.strokeStyle = lineGradient;
+        ctx.beginPath();
+        ctx.moveTo(x, lineTop);
+        ctx.lineTo(x, lineBottom);
+        ctx.stroke();
+      }
+
+      for (const freq of freqLabelTicks) {
+        const x = freqToX(freq, width);
+        const overlapsPresetControls = freq === 400 || freq === 600 || freq === 1000;
+        if (hidePresetOverlappingLabels && overlapsPresetControls)
+          continue;
+        ctx.fillStyle = activeCanvasTheme.gridFreqLabel;
+        ctx.font = "12px SPRoboto, Roboto Condensed, Roboto, Segoe UI, Arial, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(formatFreqLabel(freq), x, height - 10);
+      }
+
+      if (state.oscilloscopeOn) {
+        const sixteenthCount = state.oscLengthMode === 0 ? 4 : 16;
+        for (let i = 0; i <= sixteenthCount; i++) {
+          const x = (i / sixteenthCount) * width;
+          const strong = (i % 4) === 0;
+          ctx.strokeStyle = strong ? activeCanvasTheme.oscGridStrong : activeCanvasTheme.oscGridSoft;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, zeroDbY);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function setPresetStatus(message) {
+      if (!presetStatus)
+        return;
+      presetStatus.textContent = message;
+      presetStatus.dataset.tooltip = message;
+    }
+
+    function getOverlayProfileForSource(sourceKey) {
+      const key = String(sourceKey || "");
+      if (key === "psytrance" || key === "dubtechno") {
+        return {
+          liftDb: -6.0,
+          bandWidthDb: 12.0
+        };
+      }
+
+      return {
+        liftDb: -6.0,
+        bandWidthDb: 12.0
+      };
+    }
+
+    function reportUiError(context, error) {
+      const message = (error && typeof error.message === "string" && error.message.length > 0)
+        ? error.message
+        : String(error);
+      const key = `${context}:${message}`;
+      if (lastUiError === key)
+        return;
+
+      lastUiError = key;
+      console.error(`SPECRAUM ${context} error`, error);
+      setPresetStatus(`UI error (${context}): ${message}`);
+    }
+
+    function getSelectedSmoothSource() {
+      let selected = state.smoothSource;
+
+      if (smoothSourceSel && smoothSourceSel.dataset && typeof smoothSourceSel.dataset.value === "string"
+          && smoothSourceSel.dataset.value.length > 0) {
+        selected = smoothSourceSel.dataset.value;
+      }
+
+      if (state.smoothSource !== selected)
+        state.smoothSource = selected;
+
+      return selected;
+    }
+
+    function setSmoothScanBusy(isBusy) {
+      smoothPresetScanInProgress = isBusy;
+      if (newSmoothPresetBtn) {
+        newSmoothPresetBtn.classList.toggle("is-busy", isBusy);
+        newSmoothPresetBtn.textContent = isBusy ? "Scanning..." : "New Preset";
+      }
+
+      if (smoothScanWatchdogId !== null) {
+        window.clearTimeout(smoothScanWatchdogId);
+        smoothScanWatchdogId = null;
+      }
+
+      if (isBusy) {
+        smoothScanWatchdogId = window.setTimeout(() => {
+          smoothScanWatchdogId = null;
+          smoothPresetScanInProgress = false;
+          if (newSmoothPresetBtn) {
+            newSmoothPresetBtn.classList.remove("is-busy");
+            newSmoothPresetBtn.textContent = "New Preset";
+          }
+          setPresetStatus("Scan timed out. Try a smaller folder.");
+        }, 180000);
+      }
+    }
+
+    function applySmoothPreset(bins, hasPreset) {
+      let values = null;
+      if (Array.isArray(bins)) {
+        values = bins;
+      } else if (bins && typeof bins.length === "number") {
+        values = Array.from(bins);
+      }
+
+      const hasValues = Array.isArray(values) && values.length > 0;
+      lastReferenceBinsReceived = hasValues ? values.length : 0;
+      lastReferenceHasFlag = !!hasPreset;
+      hasSmoothPreset = hasValues;
+
+      if (hasSmoothPreset) {
+        const n = Math.min(BINS, values.length);
+        for (let i = 0; i < n; i++) {
+          const v = Number(values[i]);
+          smoothPreset[i] = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+        }
+        for (let i = n; i < BINS; i++) {
+          const edgeValue = n > 0 ? smoothPreset[n - 1] : 0;
+          smoothPreset[i] = edgeValue;
+        }
+
+        setPresetStatus("Smooth preset ready");
+      }
+      else {
+        for (let i = 0; i < BINS; i++) {
+          smoothPreset[i] = 0;
+        }
+        setPresetStatus("No smooth preset");
+      }
+
+      syncNativeReferenceSpectrum();
+    }
+
+    function loadBuiltInSmoothTarget(key) {
+      const preset = getSmoothPresetByKey(key);
+      if (!preset || !Array.isArray(preset.bins) || preset.bins.length === 0) {
+        setPresetStatus(`Preset '${key}' unavailable.`);
+        return false;
+      }
+
+      builtInPresetLocked = Object.prototype.hasOwnProperty.call(builtInSmoothTargets, key);
+      activeBuiltInPresetKey = key;
+      applySmoothPreset(preset.bins, true);
+      lastReferenceRevisionSeen = Math.max(lastReferenceRevisionSeen, 1);
+
+      const label = typeof preset.label === "string" && preset.label.length > 0
+        ? preset.label
+        : key;
+      const filesAnalysed = Number.isFinite(Number(preset.filesAnalysed))
+        ? Math.max(0, Math.floor(Number(preset.filesAnalysed)))
+        : 0;
+      const limited = !!preset.limited;
+      const suffix = limited ? ", limited scan" : "";
+      setPresetStatus(`Loaded ${label} (${filesAnalysed} file(s)${suffix})`);
+      return true;
+    }
+
+    function ensureBuiltInPresetActive() {
+      const selectedSource = getSelectedSmoothSource();
+      const preset = getSmoothPresetByKey(selectedSource);
+      if (!preset || !Array.isArray(preset.bins) || preset.bins.length === 0)
+        return;
+
+      if (!hasSmoothPreset || activeBuiltInPresetKey !== selectedSource) {
+        builtInPresetLocked = Object.prototype.hasOwnProperty.call(builtInSmoothTargets, selectedSource);
+        activeBuiltInPresetKey = selectedSource;
+        applySmoothPreset(preset.bins, true);
+      }
+    }
+
+    function buildSmoothPresetGeometry(width, height) {
+      if (!hasSmoothPreset)
+        return null;
+
+      const overlayProfile = getOverlayProfileForSource(getSelectedSmoothSource());
+      const overlayLiftDb = overlayProfile.liftDb;
+      const manualOverlayLevelDb = Number.isFinite(state.overlayLevelDb) ? state.overlayLevelDb : 0.0;
+      const manualOverlayWidthDb = Number.isFinite(state.overlayWidthDb)
+        ? state.overlayWidthDb
+        : overlayProfile.bandWidthDb;
+      const overlayWidthDb = clampValue(manualOverlayWidthDb, overlayWidthBounds.min, overlayWidthBounds.max);
+      const halfWidthDb = 0.5 * overlayWidthDb;
+      const upperRaw = new Float32Array(BINS);
+      const lowerRaw = new Float32Array(BINS);
+      const centerRaw = new Float32Array(BINS);
+      const smoothingAmount = clampValue(
+        Math.round(Number.isFinite(state.presetSmoothing) ? state.presetSmoothing : FIXED_PRESET_SMOOTHING),
+        presetSmoothingBounds.min,
+        presetSmoothingBounds.max);
+      const smoothingPasses = Math.max(0, Math.round((smoothingAmount / 16) * 20));
+      const sideTarget = 0.06 + (smoothingAmount / 16) * 0.36;
+      const centerTarget = Math.max(0.08, 1.0 - (2.0 * sideTarget));
+      const normalize = Math.max(1.0e-6, centerTarget + (2.0 * sideTarget));
+      const sideWeight = sideTarget / normalize;
+      const centerWeight = centerTarget / normalize;
+
+      let overlaySource = smoothPreset;
+      if (smoothingPasses > 0) {
+        overlaySmoothA.set(smoothPreset);
+        let src = overlaySmoothA;
+        let dst = overlaySmoothB;
+        for (let pass = 0; pass < smoothingPasses; pass++) {
+          for (let i = 0; i < BINS; i++) {
+            const iPrev = i > 0 ? (i - 1) : 0;
+            const iNext = i + 1 < BINS ? (i + 1) : (BINS - 1);
+            dst[i] = (src[iPrev] * sideWeight) + (src[i] * centerWeight) + (src[iNext] * sideWeight);
+          }
+          const temp = src;
+          src = dst;
+          dst = temp;
+        }
+        overlaySource = src;
+      }
+
+      let maxUpperDb = -Infinity;
+      for (let i = 0; i < BINS; i++) {
+        const center = offsetNormByDb(applyAnalyzerTiltToNorm(overlaySource[i], i), overlayLiftDb);
+        const centerDb = normToDb(center);
+        const upper = dbToNorm(centerDb + halfWidthDb);
+        const lower = dbToNorm(centerDb - halfWidthDb);
+        upperRaw[i] = upper;
+        lowerRaw[i] = lower;
+        centerRaw[i] = center;
+        const upperDb = normToDb(upper);
+        if (upperDb > maxUpperDb)
+          maxUpperDb = upperDb;
+      }
+
+      const targetTopDb = -dbDisplayOffset;
+      const alignToZeroDb = Number.isFinite(maxUpperDb) ? (targetTopDb - maxUpperDb) : 0.0;
+      const finalOffsetDb = alignToZeroDb + manualOverlayLevelDb;
+
+      const upperPoints = [];
+      const lowerPoints = [];
+      const centerPoints = [];
+      for (let i = 0; i < BINS; i++) {
+        const x = (i / (BINS - 1)) * width;
+        const upper = offsetNormByDb(upperRaw[i], finalOffsetDb);
+        const lower = offsetNormByDb(lowerRaw[i], finalOffsetDb);
+        const center = offsetNormByDb(centerRaw[i], finalOffsetDb);
+        overlayUpperDisplay[i] = upper;
+        overlayLowerDisplay[i] = lower;
+        overlayCenterDisplay[i] = center;
+        upperPoints.push({ x, y: (1 - upper) * height });
+        lowerPoints.push({ x, y: (1 - lower) * height });
+        centerPoints.push({ x, y: (1 - center) * height });
+      }
+
+      return { upperPoints, lowerPoints, centerPoints };
+    }
+
+    function drawSmoothPreset(width, height, overlayGeometry = null) {
+      const geometry = overlayGeometry || buildSmoothPresetGeometry(width, height);
+      if (!geometry || geometry.upperPoints.length === 0)
+        return;
+
+      const upperPoints = geometry.upperPoints;
+      const lowerPoints = geometry.lowerPoints;
+      const centerPoints = geometry.centerPoints;
+      ctx.save();
+      const reversedLower = lowerPoints.slice().reverse();
+      let minUpperY = Infinity;
+      let maxLowerY = -Infinity;
+      for (let i = 0; i < upperPoints.length; i++) {
+        minUpperY = Math.min(minUpperY, upperPoints[i].y);
+        maxLowerY = Math.max(maxLowerY, lowerPoints[i].y);
+      }
+      const gradientTop = Number.isFinite(minUpperY) ? minUpperY : 0;
+      const gradientBottom = Number.isFinite(maxLowerY) ? maxLowerY : height;
+
+      ctx.beginPath();
+      ctx.moveTo(upperPoints[0].x, upperPoints[0].y);
+      traceSpectrumCurve(upperPoints, false);
+      ctx.lineTo(reversedLower[0].x, reversedLower[0].y);
+      traceSpectrumCurve(reversedLower, false);
+      ctx.closePath();
+      const bandColor = activeCanvasTheme.referenceBand || "rgba(56, 214, 255, 0.24)";
+      const fillGradient = ctx.createLinearGradient(0, gradientTop, 0, gradientBottom);
+      fillGradient.addColorStop(0.00, rgbaWithAlpha(bandColor, 0.00));
+      fillGradient.addColorStop(0.20, rgbaWithAlpha(bandColor, 0.07));
+      fillGradient.addColorStop(0.50, rgbaWithAlpha(bandColor, 0.12));
+      fillGradient.addColorStop(0.80, rgbaWithAlpha(bandColor, 0.07));
+      fillGradient.addColorStop(1.00, rgbaWithAlpha(bandColor, 0.00));
+      ctx.fillStyle = fillGradient;
+      ctx.fill();
+
+      ctx.beginPath();
+      traceSpectrumCurve(centerPoints, true);
+      const overlayStrokeColor = activeCanvasTheme.oscStroke
+        || activeCanvasTheme.referenceStroke
+        || "rgba(211, 249, 255, 0.96)";
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 2.0;
+      ctx.strokeStyle = overlayStrokeColor;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function rebuildShapedTarget() {
+      const cfg = resolutionMap[state.resolution];
+      const radius = cfg.radius;
+      for (let i = 0; i < BINS; i++) {
+        let sum = 0;
+        let count = 0;
+        for (let j = i - radius; j <= i + radius; j++) {
+          if (j >= 0 && j < BINS) {
+            sum += rawTarget[j];
+            count++;
+          }
+        }
+        const norm = count > 0 ? sum / count : rawTarget[i];
+        if (norm <= 1.0e-6) {
+          shapedTarget[i] = 0;
+          continue;
+        }
+        let db = normToDb(norm);
+        const freq = binToFreq(i);
+        const octFrom1k = Math.log2(freq / 1000);
+        db += state.tiltDb * octFrom1k;
+        shapedTarget[i] = dbToNorm(db);
+      }
+    }
+
+    function updateDisplayResponse() {
+      const speed = speedMap[state.speed];
+      for (let i = 0; i < BINS; i++) {
+        const target = shapedTarget[i];
+        const coeff = target >= display[i] ? speed.attack : speed.release;
+        display[i] += (target - display[i]) * coeff;
+      }
+    }
+
+    function traceSpectrumCurve(points, moveToStart = true) {
+      if (points.length === 0) return;
+      if (moveToStart) ctx.moveTo(points[0].x, points[0].y);
+      if (points.length === 1) return;
+      if (points.length === 2) {
+        ctx.lineTo(points[1].x, points[1].y);
+        return;
+      }
+
+      for (let i = 1; i < points.length - 1; i++) {
+        const mx = (points[i].x + points[i + 1].x) * 0.5;
+        const my = (points[i].y + points[i + 1].y) * 0.5;
+        ctx.quadraticCurveTo(points[i].x, points[i].y, mx, my);
+      }
+
+      const n = points.length - 1;
+      ctx.quadraticCurveTo(points[n - 1].x, points[n - 1].y, points[n].x, points[n].y);
+    }
+
+    function drawPeakWarningSegments(points, overlayGeometry) {
+      if (!state.peakWarningOn || !overlayGeometry || points.length < 2 || !hasSmoothPreset)
+        return;
+
+      const clamp01 = (value) => Math.max(0, Math.min(1, value));
+      const lerp = (a, b, t) => a + ((b - a) * t);
+      const toRgba = (r, g, b, a) => `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${a.toFixed(3)})`;
+      const orange = { r: 255, g: 176, b: 76 };
+      const red = { r: 255, g: 86, b: 86 };
+      const thresholdDb = 0.08;
+      const pointExceedDb = new Float32Array(points.length);
+      const pointColor = new Array(points.length);
+
+      const warningColorForDb = (exceedDb) => {
+        if (!Number.isFinite(exceedDb) || exceedDb <= thresholdDb)
+          return null;
+
+        if (exceedDb <= 3.0) {
+          const t = clamp01((exceedDb - thresholdDb) / (3.0 - thresholdDb));
+          const alpha = lerp(0.78, 0.94, t);
+          const g = lerp(orange.g + 8, orange.g - 10, t);
+          const b = lerp(orange.b + 6, orange.b - 10, t);
+          return toRgba(orange.r, g, b, alpha);
+        }
+
+        const t = clamp01((exceedDb - 3.0) / 3.0);
+        const alpha = lerp(0.92, 0.99, t);
+        const g = lerp(orange.g - 10, red.g, t);
+        const b = lerp(orange.b - 10, red.b, t);
+        return toRgba(red.r, g, b, alpha);
+      };
+
+      for (let i = 0; i < points.length; i++) {
+        const bin = Math.max(0, Math.min(BINS - 1, points[i].bin | 0));
+        const overlayUpper = overlayUpperDisplay[bin];
+        const overlayNorm = Math.max(1.0e-6, Number.isFinite(overlayUpper) ? overlayUpper : 0);
+        const spectrumNorm = Math.max(1.0e-6, display[bin]);
+        const exceedDb = Number.isFinite(overlayUpper)
+          ? (normToDb(spectrumNorm) - normToDb(overlayNorm))
+          : Number.NEGATIVE_INFINITY;
+        pointExceedDb[i] = exceedDb;
+        pointColor[i] = warningColorForDb(exceedDb);
+      }
+
+      const drawSegment = (segmentStart, segmentEnd) => {
+        const start = Math.max(0, segmentStart - 1);
+        const end = Math.min(points.length - 1, segmentEnd + 1);
+        if (end - start < 1)
+          return;
+
+        const segment = points.slice(start, end + 1);
+        let strokeStyle = pointColor[start] || toRgba(orange.r, orange.g, orange.b, 0.9);
+        if (segment.length > 1) {
+          const first = segment[0];
+          const last = segment[segment.length - 1];
+          const gradient = ctx.createLinearGradient(first.x, first.y, last.x, last.y);
+          const stopStep = Math.max(1, Math.floor(segment.length / 20));
+          gradient.addColorStop(0, pointColor[start] || toRgba(orange.r, orange.g, orange.b, 0.9));
+          for (let local = stopStep; local < segment.length - 1; local += stopStep) {
+            const globalIndex = start + local;
+            const t = local / (segment.length - 1);
+            gradient.addColorStop(clamp01(t), pointColor[globalIndex] || toRgba(orange.r, orange.g, orange.b, 0.9));
+          }
+          gradient.addColorStop(1, pointColor[end] || toRgba(red.r, red.g, red.b, 0.98));
+          strokeStyle = gradient;
+        }
+
+        let maxExceedDb = 0;
+        for (let i = start; i <= end; i++)
+          maxExceedDb = Math.max(maxExceedDb, pointExceedDb[i]);
+
+        const redThresholdDb = 3.0;
+        const drawRedUnderGlowRun = (runStart, runEnd) => {
+          const glowStart = Math.max(start, runStart - 1);
+          const glowEnd = Math.min(end, runEnd + 1);
+          if (glowEnd - glowStart < 1)
+            return;
+
+          const underGlowPoints = [];
+          for (let i = glowStart; i <= glowEnd; i++) {
+            underGlowPoints.push({
+              x: points[i].x,
+              y: points[i].y + 1.9
+            });
+          }
+
+          let runMaxDb = redThresholdDb;
+          for (let i = glowStart; i <= glowEnd; i++)
+            runMaxDb = Math.max(runMaxDb, pointExceedDb[i]);
+
+          const hotMix = clamp01((runMaxDb - redThresholdDb) / 4.0);
+          const baseAlpha = lerp(0.20, 0.34, hotMix);
+          const peakAlpha = lerp(0.34, 0.52, hotMix);
+          const colorForDb = (value) => {
+            const t = clamp01((value - redThresholdDb) / 4.0);
+            const g = lerp(126, red.g, t);
+            const b = lerp(104, red.b, t);
+            const a = lerp(baseAlpha, peakAlpha, t);
+            return toRgba(red.r, g, b, a);
+          };
+
+          let underGlowStyle = colorForDb(pointExceedDb[glowStart]);
+          if (underGlowPoints.length > 1) {
+            const first = underGlowPoints[0];
+            const last = underGlowPoints[underGlowPoints.length - 1];
+            const gradient = ctx.createLinearGradient(first.x, first.y, last.x, last.y);
+            const stopStep = Math.max(1, Math.floor(underGlowPoints.length / 16));
+            gradient.addColorStop(0, colorForDb(pointExceedDb[glowStart]));
+            for (let local = stopStep; local < underGlowPoints.length - 1; local += stopStep) {
+              const globalIndex = glowStart + local;
+              const t = local / (underGlowPoints.length - 1);
+              gradient.addColorStop(clamp01(t), colorForDb(pointExceedDb[globalIndex]));
+            }
+            gradient.addColorStop(1, colorForDb(pointExceedDb[glowEnd]));
+            underGlowStyle = gradient;
+          }
+
+          ctx.beginPath();
+          traceSpectrumCurve(underGlowPoints, true);
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.lineWidth = 4.8;
+          ctx.strokeStyle = underGlowStyle;
+          ctx.shadowColor = toRgba(red.r, lerp(104, red.g, hotMix), lerp(94, red.b, hotMix), lerp(0.30, 0.52, hotMix));
+          ctx.shadowBlur = lerp(9, 15, hotMix);
+          ctx.stroke();
+        };
+
+        let redRunStart = -1;
+        for (let i = start; i <= end; i++) {
+          const isRed = Number.isFinite(pointExceedDb[i]) && pointExceedDb[i] > redThresholdDb;
+          if (isRed) {
+            if (redRunStart < 0)
+              redRunStart = i;
+          } else if (redRunStart >= 0) {
+            drawRedUnderGlowRun(redRunStart, i - 1);
+            redRunStart = -1;
+          }
+        }
+        if (redRunStart >= 0)
+          drawRedUnderGlowRun(redRunStart, end);
+
+        const glowMix = clamp01((maxExceedDb - 3.0) / 3.0);
+        const glowG = lerp(orange.g, red.g, glowMix);
+        const glowB = lerp(orange.b, red.b, glowMix);
+        ctx.beginPath();
+        traceSpectrumCurve(segment, true);
+        ctx.lineWidth = 2.25;
+        ctx.strokeStyle = strokeStyle;
+        ctx.shadowColor = toRgba(red.r, glowG, glowB, 0.35);
+        ctx.shadowBlur = maxExceedDb > 3.0 ? 11 : 8;
+        ctx.stroke();
+      };
+
+      let segmentStart = -1;
+      for (let i = 0; i < points.length; i++) {
+        const aboveOverlay = Number.isFinite(pointExceedDb[i]) && pointExceedDb[i] > thresholdDb;
+        if (aboveOverlay) {
+          if (segmentStart < 0)
+            segmentStart = i;
+        } else if (segmentStart >= 0) {
+          drawSegment(segmentStart, i - 1);
+          segmentStart = -1;
+        }
+      }
+      if (segmentStart >= 0)
+        drawSegment(segmentStart, points.length - 1);
+    }
+
+    function drawResonanceSuppressorCues(width, height) {
+      if (!state.peakWarningOn || !state.suppressorOn || !hasSmoothPreset)
+        return;
+
+      const zeroDbY = ((0 - (-24)) / 96) * height;
+      const bandTop = Math.max(4, (state.oscilloscopeOn ? zeroDbY : 0) + 6);
+      const bandBottom = Math.max(bandTop + 24, height - 10);
+      const cueColor = activeCanvasTheme.oscStroke || activeCanvasTheme.referenceStroke || "rgba(210, 236, 255, 0.95)";
+      let drewAny = false;
+
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+
+      for (let i = 0; i < RESONANCE_SUPPRESSOR_BANDS; i++) {
+        const frequencyHz = Number(suppressorFrequencyHz[i]);
+        const gainDb = Number(suppressorGainDb[i]);
+        if (!Number.isFinite(frequencyHz) || frequencyHz < 20 || !Number.isFinite(gainDb))
+          continue;
+
+        const suppressionAmount = clampValue((-gainDb) / 12.0, 0, 1);
+        if (suppressionAmount <= 0.02)
+          continue;
+
+        drewAny = true;
+        const x = freqToX(frequencyHz, width);
+        const coreWidth = 1.2 + suppressionAmount * 1.8;
+        const glowRadius = 8 + suppressionAmount * 18;
+        const beamHeight = bandBottom - bandTop;
+
+        const beamGradient = ctx.createLinearGradient(0, bandTop, 0, bandBottom);
+        beamGradient.addColorStop(0.00, rgbaWithAlpha(cueColor, 0.26 * suppressionAmount));
+        beamGradient.addColorStop(0.36, rgbaWithAlpha(cueColor, 0.16 * suppressionAmount));
+        beamGradient.addColorStop(1.00, rgbaWithAlpha(cueColor, 0.00));
+        ctx.fillStyle = beamGradient;
+        ctx.fillRect(x - (coreWidth * 0.5), bandTop, coreWidth, beamHeight);
+
+        const halo = ctx.createRadialGradient(x, bandTop + 8, 0, x, bandTop + 8, glowRadius);
+        halo.addColorStop(0.0, rgbaWithAlpha(cueColor, 0.24 * suppressionAmount));
+        halo.addColorStop(1.0, rgbaWithAlpha(cueColor, 0.0));
+        ctx.fillStyle = halo;
+        ctx.fillRect(x - glowRadius, bandTop - glowRadius * 0.2, glowRadius * 2, glowRadius * 1.5);
+
+        ctx.beginPath();
+        ctx.arc(x, bandTop - 1, 1.5 + suppressionAmount * 1.3, 0, Math.PI * 2);
+        ctx.fillStyle = rgbaWithAlpha(cueColor, 0.72 * suppressionAmount);
+        ctx.fill();
+      }
+
+      ctx.restore();
+
+      if (!drewAny)
+        return;
+    }
+
+    function drawSpectrum(width, height, overlayGeometry = null) {
+      updateDisplayResponse();
+      const step = resolutionMap[state.resolution].step;
+      const points = [];
+
+      for (let i = 0; i < BINS; i += step) {
+        points.push({
+          x: (i / (BINS - 1)) * width,
+          y: (1 - display[i]) * height,
+          bin: i
+        });
+      }
+
+      if (points.length === 0) return;
+      const lastY = (1 - display[BINS - 1]) * height;
+      if (points[points.length - 1].x < width) points.push({ x: width, y: lastY, bin: BINS - 1 });
+
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, height);
+      ctx.lineTo(points[0].x, points[0].y);
+      traceSpectrumCurve(points, false);
+      ctx.lineTo(points[points.length - 1].x, height);
+      ctx.closePath();
+
+      const fill = ctx.createLinearGradient(0, 0, 0, height);
+      fill.addColorStop(0, activeCanvasTheme.spectrumFillTop);
+      fill.addColorStop(0.55, activeCanvasTheme.spectrumFillMid);
+      fill.addColorStop(1, activeCanvasTheme.spectrumFillBottom);
+      ctx.fillStyle = fill;
+      ctx.fill();
+
+      ctx.beginPath();
+      traceSpectrumCurve(points, true);
+
+      ctx.shadowColor = activeCanvasTheme.spectrumGlow;
+      ctx.shadowBlur = 16;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = activeCanvasTheme.spectrumStrokeMain;
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = activeCanvasTheme.spectrumStrokeLight;
+      ctx.stroke();
+
+      drawPeakWarningSegments(points, overlayGeometry);
+      ctx.shadowBlur = 0;
+    }
+
+    function drawOscilloscope(width, height, visualAlpha = 1.0) {
+      if (visualAlpha <= 0.001) return;
+
+      const zeroDbY = ((0 - (-24)) / 96) * height;
+      const top = 6;
+      const bottom = Math.max(top + 22, zeroDbY - 6);
+      const centerY = (top + bottom) * 0.5;
+      const amplitude = (bottom - top) * 0.48;
+      const stereoCenterL = top + ((bottom - top) * 0.25);
+      const stereoCenterR = top + ((bottom - top) * 0.75);
+      const stereoAmplitude = amplitude * 0.5;
+      const pointsL = [];
+      const pointsR = [];
+
+      if (state.oscStereo) {
+        let peakL = 0;
+        let peakR = 0;
+
+        for (let i = 0; i < BINS; i++) {
+          const sampleL = oscTargetL[i];
+          const sampleR = oscTargetR[i];
+          oscDcL += (sampleL - oscDcL) * 0.004;
+          oscDcR += (sampleR - oscDcR) * 0.004;
+          const centeredL = sampleL - oscDcL;
+          const centeredR = sampleR - oscDcR;
+          oscWorkL[i] = centeredL;
+          oscWorkR[i] = centeredR;
+          const absL = Math.abs(centeredL);
+          const absR = Math.abs(centeredR);
+          if (absL > peakL) peakL = absL;
+          if (absR > peakR) peakR = absR;
+        }
+
+        const targetGainL = Math.max(1.0, Math.min(24.0, 0.72 / Math.max(0.02, peakL)));
+        const targetGainR = Math.max(1.0, Math.min(24.0, 0.72 / Math.max(0.02, peakR)));
+        oscAutoGainL += (targetGainL - oscAutoGainL) * 0.1;
+        oscAutoGainR += (targetGainR - oscAutoGainR) * 0.1;
+
+        for (let i = 0; i < BINS; i++) {
+          const boostedL = Math.max(-1, Math.min(1, oscWorkL[i] * oscAutoGainL));
+          const boostedR = Math.max(-1, Math.min(1, oscWorkR[i] * oscAutoGainR));
+          oscDisplayL[i] += (boostedL - oscDisplayL[i]) * 0.55;
+          oscDisplayR[i] += (boostedR - oscDisplayR[i]) * 0.55;
+          const x = (i / (BINS - 1)) * width;
+          pointsL.push({ x, y: stereoCenterL - oscDisplayL[i] * stereoAmplitude });
+          pointsR.push({ x, y: stereoCenterR - oscDisplayR[i] * stereoAmplitude });
+        }
+      } else {
+        let peakMono = 0;
+
+        for (let i = 0; i < BINS; i++) {
+          const sampleMono = 0.5 * (oscTargetL[i] + oscTargetR[i]);
+          oscDcL += (sampleMono - oscDcL) * 0.004;
+          const centeredMono = sampleMono - oscDcL;
+          oscWorkL[i] = centeredMono;
+          const abs = Math.abs(centeredMono);
+          if (abs > peakMono) peakMono = abs;
+        }
+
+        const targetGainMono = Math.max(1.0, Math.min(24.0, 0.72 / Math.max(0.02, peakMono)));
+        oscAutoGainL += (targetGainMono - oscAutoGainL) * 0.1;
+
+        for (let i = 0; i < BINS; i++) {
+          const boostedMono = Math.max(-1, Math.min(1, oscWorkL[i] * oscAutoGainL));
+          oscDisplayL[i] += (boostedMono - oscDisplayL[i]) * 0.55;
+          pointsL.push({
+            x: (i / (BINS - 1)) * width,
+            y: centerY - oscDisplayL[i] * amplitude
+          });
+        }
+      }
+
+      ctx.save();
+      ctx.globalAlpha = clampValue(visualAlpha, 0, 1);
+      if (state.oscStereo) {
+        ctx.beginPath();
+        ctx.moveTo(0, stereoCenterL);
+        ctx.lineTo(width, stereoCenterL);
+        ctx.moveTo(0, stereoCenterR);
+        ctx.lineTo(width, stereoCenterR);
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+        ctx.lineTo(width, centerY);
+      }
+      ctx.strokeStyle = rgbaWithAlpha(activeCanvasTheme.oscCenterLine, 0.12);
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+
+      if (state.oscStereo) {
+        ctx.beginPath();
+        traceSpectrumCurve(pointsL, true);
+        ctx.strokeStyle = activeCanvasTheme.oscStroke;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.beginPath();
+        traceSpectrumCurve(pointsR, true);
+        ctx.strokeStyle = rgbaWithAlpha(activeCanvasTheme.oscStroke, 0.62);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        traceSpectrumCurve(pointsL, true);
+        ctx.strokeStyle = activeCanvasTheme.oscStroke;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawCrosshair(width, height) {
+      if (!mouseInside) return;
+      const alpha = clampValue(crosshairAlpha, 0, 1);
+      if (alpha <= 0.01)
+        return;
+
+      const x = Math.max(0, Math.min(width, mouseX));
+      const y = Math.max(0, Math.min(height, mouseY));
+      const zeroDbY = ((0 - (-24)) / 96) * height;
+      const verticalLineTop = state.oscilloscopeOn ? Math.max(0, Math.min(height, zeroDbY)) : 0;
+      const freq = xToFreq(x, width);
+      const loudnessDb = yToDb(y, height);
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = activeCanvasTheme.crosshair;
+
+      ctx.beginPath();
+      ctx.moveTo(x, verticalLineTop);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const note = quantizeNote(freq);
+      const label = `${note.name}   ${formatFreqValue(freq)}   ${loudnessDb.toFixed(1)} dB`;
+      ctx.font = "13px SPRoboto, Roboto Condensed, Roboto, Segoe UI, Arial, sans-serif";
+      const textW = ctx.measureText(label).width;
+      const padX = 10;
+      const boxW = textW + padX * 2;
+      const boxH = 24;
+      let boxX = x + 12;
+      let boxY = y - 32;
+
+      if (boxX + boxW > width - 6) boxX = x - boxW - 12;
+      if (boxX < 6) boxX = 6;
+      if (boxY < 6) boxY = y + 10;
+      if (boxY + boxH > height - 6) boxY = height - boxH - 6;
+
+      const radius = 6;
+      ctx.beginPath();
+      ctx.moveTo(boxX + radius, boxY);
+      ctx.lineTo(boxX + boxW - radius, boxY);
+      ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + radius);
+      ctx.lineTo(boxX + boxW, boxY + boxH - radius);
+      ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - radius, boxY + boxH);
+      ctx.lineTo(boxX + radius, boxY + boxH);
+      ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - radius);
+      ctx.lineTo(boxX, boxY + radius);
+      ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+      ctx.closePath();
+      ctx.fillStyle = activeCanvasTheme.readoutBg;
+      ctx.fill();
+
+      ctx.fillStyle = activeCanvasTheme.readoutText;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, boxX + padX, boxY + boxH * 0.5);
+      ctx.restore();
+    }
+
+    function callNative(name, ...params) {
+      if (!hasNativeBridge())
+        return false;
+      const resultId = Math.floor(Math.random() * 2147483647);
+      const payload = { name, params, resultId };
+
+      if (window.__JUCE__.backend && typeof window.__JUCE__.backend.emitEvent === "function") {
+        const emitted = window.__JUCE__.backend.emitEvent("__juce__invoke", payload);
+        if (emitted !== false)
+          return true;
+      }
+
+      if (typeof window.__JUCE__.postMessage === "function") {
+        window.__JUCE__.postMessage(JSON.stringify({ eventId: "__juce__invoke", payload }));
+        return true;
+      }
+
+      return false;
+    }
+
+    function hasOpenSelectMenu(roots = customSelectRoots) {
+      return roots.some((root) => root.classList.contains("open"));
+    }
+
+    function refreshToolbarVisibility() {
+      const keepVisible = cornerHoverActive
+          || !controlsPanel.classList.contains("is-hidden")
+          || themePicker.classList.contains("open")
+          || hasOpenSelectMenu(toolbarSelectRoots);
+      leftToolbar.classList.toggle("is-visible", keepVisible);
+      alignControlsToAnalyzerSettings();
+    }
+
+    function closeAnalyzerOptionsPanel() {
+      controlsPanel.classList.add("is-hidden");
+      menuToggle.classList.remove("open");
+      menuToggle.classList.add("is-off");
+    }
+
+    function scheduleAnalyzerOptionsAutoClose() {
+      if (controlsAutoCloseTimer !== null) {
+        clearTimeout(controlsAutoCloseTimer);
+        controlsAutoCloseTimer = null;
+      }
+
+      if (controlsPanel.classList.contains("is-hidden"))
+        return;
+
+      controlsAutoCloseTimer = setTimeout(() => {
+        controlsAutoCloseTimer = null;
+        const stillAway = !cornerHoverActive
+          && !themePicker.classList.contains("open")
+          && !hasOpenSelectMenu(toolbarSelectRoots);
+        if (!stillAway)
+          return;
+
+        closeAnalyzerOptionsPanel();
+        closeAllSelectMenus();
+        refreshToolbarVisibility();
+      }, 180);
+    }
+
+    function alignControlsToAnalyzerSettings() {
+      if (!controlsPanel || !menuToggle)
+        return;
+
+      const centerY = menuToggle.offsetTop + (menuToggle.offsetHeight * 0.5);
+      controlsPanel.style.top = `${centerY}px`;
+    }
+
+    function refreshPresetCenterVisibility() {
+      if (!presetCenter)
+        return;
+      const keepVisible = presetHoverActive || (smoothSourceSel && smoothSourceSel.classList.contains("open"));
+      presetCenter.classList.toggle("is-visible", !!keepVisible);
+    }
+
+    function updateCornerHover(clientX, clientY) {
+      const rect = leftToolbar.getBoundingClientRect();
+      const revealRight = Math.max(cornerRevealWidthPx, rect.right + 120);
+      const revealTop = rect.top - cornerRevealVerticalPaddingPx;
+      const revealBottom = rect.bottom + cornerRevealVerticalPaddingPx;
+      cornerHoverActive = clientX <= revealRight
+          && clientY >= revealTop
+          && clientY <= revealBottom;
+      refreshToolbarVisibility();
+      if (!cornerHoverActive)
+        scheduleAnalyzerOptionsAutoClose();
+      else if (controlsAutoCloseTimer !== null) {
+        clearTimeout(controlsAutoCloseTimer);
+        controlsAutoCloseTimer = null;
+      }
+    }
+
+    function updatePresetHover(clientX, clientY) {
+      const centerX = window.innerWidth * 0.5;
+      const dx = Math.abs(clientX - centerX);
+      const withinX = dx <= (presetRevealWidthPx * 0.5);
+      const withinY = clientY >= (window.innerHeight - presetRevealHeightPx);
+      presetHoverActive = withinX && withinY;
+      refreshPresetCenterVisibility();
+    }
+
+    function updateThemeChoiceState() {
+      for (const button of themeChoiceButtons) {
+        const key = button.dataset.theme;
+        button.classList.toggle("is-active", key === state.theme);
+      }
+    }
+
+    function applyTheme(key) {
+      const theme = themes[key];
+      if (!theme) return;
+
+      state.theme = key;
+      activeCanvasTheme = theme.canvas;
+
+      const rootStyle = document.documentElement.style;
+      for (const [name, value] of Object.entries(theme.css))
+        rootStyle.setProperty(name, value);
+
+      themeToggleBtn.style.setProperty("--swatch-color", theme.swatch);
+      updateThemeChoiceState();
+    }
+
+    function closeThemePicker() {
+      themePicker.classList.remove("open");
+      themeToggleBtn.classList.add("is-off");
+      refreshToolbarVisibility();
+    }
+
+    function closeAllSelectMenus() {
+      for (const root of customSelectRoots) {
+        root.classList.remove("open");
+        const trigger = root.querySelector(".select-trigger");
+        if (trigger) trigger.setAttribute("aria-expanded", "false");
+      }
+      refreshToolbarVisibility();
+      refreshPresetCenterVisibility();
+    }
+
+    function setCustomSelectValue(root, value, notify) {
+      if (!root)
+        return;
+
+      const trigger = root.querySelector(".select-trigger");
+      const options = Array.from(root.querySelectorAll(".select-option"));
+      if (!trigger || options.length === 0)
+        return;
+
+      let active = options.find((option) => option.dataset.value === value);
+      if (!active)
+        active = options[0];
+
+      for (const option of options)
+        option.classList.toggle("is-active", option === active);
+
+      trigger.textContent = active.textContent.trim();
+      root.dataset.value = active.dataset.value;
+      if (notify) {
+        const handler = selectChangeHandlers.get(root);
+        if (typeof handler === "function")
+          handler(active.dataset.value);
+      }
+    }
+
+    function initializeCustomSelect(root, initialValue, onChange) {
+      const trigger = root.querySelector(".select-trigger");
+      const menu = root.querySelector(".select-menu");
+      if (!trigger || !menu)
+        return;
+
+      selectChangeHandlers.set(root, onChange);
+      setCustomSelectValue(root, initialValue, false);
+
+      trigger.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const alreadyOpen = root.classList.contains("open");
+        closeAllSelectMenus();
+        if (!alreadyOpen) {
+          root.classList.add("open");
+          trigger.setAttribute("aria-expanded", "true");
+        }
+      });
+
+      menu.addEventListener("click", (event) => {
+        const deleteBtn = event.target.closest(".preset-delete-btn");
+        if (deleteBtn && menu.contains(deleteBtn)) {
+          event.preventDefault();
+          event.stopPropagation();
+          const key = deleteBtn.dataset.value || "";
+          const row = deleteBtn.closest(".preset-user-row");
+          const optionText = row ? row.querySelector(".select-option") : null;
+          const deletedLabel = optionText ? optionText.textContent.trim() : key;
+          const removed = deleteUserSmoothPresetByKey(key);
+          if (removed)
+            setPresetStatus(`Deleted preset '${deletedLabel}'.`);
+          return;
+        }
+
+        const option = event.target.closest(".select-option");
+        if (!option || !menu.contains(option))
+          return;
+        event.stopPropagation();
+        setCustomSelectValue(root, option.dataset.value, true);
+        closeAllSelectMenus();
+      });
+    }
+
+    function hideTooltip() {
+      uiTooltip.classList.add("is-hidden");
+    }
+
+    function clearCreditSplashTimers() {
+      if (creditSplashFadeTimerId !== null) {
+        window.clearTimeout(creditSplashFadeTimerId);
+        creditSplashFadeTimerId = null;
+      }
+      if (creditSplashHideTimerId !== null) {
+        window.clearTimeout(creditSplashHideTimerId);
+        creditSplashHideTimerId = null;
+      }
+    }
+
+    function showCreditSplash() {
+      if (!creditSplash)
+        return;
+
+      clearCreditSplashTimers();
+      creditSplash.classList.remove("is-fading");
+      creditSplash.classList.add("is-visible");
+
+      creditSplashFadeTimerId = window.setTimeout(() => {
+        creditSplash.classList.add("is-fading");
+        creditSplashFadeTimerId = null;
+
+        creditSplashHideTimerId = window.setTimeout(() => {
+          creditSplash.classList.remove("is-fading");
+          creditSplash.classList.remove("is-visible");
+          creditSplashHideTimerId = null;
+        }, 650);
+      }, 2000);
+    }
+
+    function positionTooltip(clientX, clientY) {
+      const margin = 8;
+      const rect = uiTooltip.getBoundingClientRect();
+      let left = clientX + 12;
+      let top = clientY - rect.height - 10;
+
+      if (left + rect.width > window.innerWidth - margin)
+        left = window.innerWidth - rect.width - margin;
+      if (left < margin)
+        left = margin;
+
+      if (top < margin)
+        top = clientY + 14;
+
+      uiTooltip.style.left = `${left}px`;
+      uiTooltip.style.top = `${top}px`;
+    }
+
+    function bindTooltips() {
+      const tooltipTargets = Array.from(document.querySelectorAll("[data-tooltip]"));
+      for (const target of tooltipTargets) {
+        target.addEventListener("mouseenter", (event) => {
+          const text = target.dataset.tooltip;
+          if (!text) return;
+          uiTooltip.textContent = text;
+          uiTooltip.classList.remove("is-hidden");
+          positionTooltip(event.clientX, event.clientY);
+        });
+
+        target.addEventListener("mousemove", (event) => {
+          if (!uiTooltip.classList.contains("is-hidden"))
+            positionTooltip(event.clientX, event.clientY);
+        });
+
+        target.addEventListener("mouseleave", () => {
+          hideTooltip();
+        });
+      }
+    }
+
+    function refreshOscLengthButton() {
+      oscLengthBtn.textContent = state.oscLengthMode === 0 ? "1/4" : "1B";
+      oscLengthBtn.classList.toggle("mode-bar", state.oscLengthMode !== 0);
+      oscLengthBtn.classList.toggle("is-hidden", !state.oscilloscopeOn);
+      refreshOscModeButton();
+    }
+
+    function refreshOscModeButton() {
+      if (!oscModeHub || !oscModeBtn)
+        return;
+      const isVisible = !!state.oscilloscopeOn;
+      oscModeHub.classList.toggle("is-visible", isVisible);
+      oscModeBtn.classList.toggle("is-off", !state.oscStereo);
+      oscModeBtn.classList.toggle("is-active", !!state.oscStereo);
+      const label = state.oscStereo ? "Oscilloscope mode: Stereo" : "Oscilloscope mode: Mono";
+      oscModeBtn.dataset.tooltip = label;
+      oscModeBtn.setAttribute("aria-label", label);
+    }
+
+    function refreshPeakWarningButton() {
+      if (!peakWarningBtn)
+        return;
+      peakWarningBtn.classList.toggle("is-off", !state.peakWarningOn);
+    }
+
+    function refreshSuppressorButton() {
+      if (!suppressorBtn)
+        return;
+      const suppressorAvailable = !!state.peakWarningOn;
+      suppressorBtn.classList.toggle("is-hidden", !suppressorAvailable);
+      if (!suppressorAvailable) {
+        suppressorBtn.classList.add("is-off");
+        suppressorBtn.classList.remove("is-disabled");
+        suppressorBtn.dataset.tooltip = "Resonance suppressor";
+        return;
+      }
+      suppressorBtn.classList.remove("is-disabled");
+      suppressorBtn.classList.toggle("is-off", !state.suppressorOn);
+      suppressorBtn.dataset.tooltip = "Resonance suppressor";
+    }
+
+    function updateBandSoloUi() {
+      for (const button of bandSoloButtons) {
+        const index = Number(button.dataset.bandIndex);
+        button.classList.toggle("is-active", Number.isFinite(index) && index === state.soloBand);
+      }
+    }
+
+    function setSoloBandSelection(index, emitNative = true, force = false) {
+      const numeric = Number(index);
+      const next = Number.isFinite(numeric) && numeric >= 0 && numeric <= 3
+        ? Math.floor(numeric)
+        : -1;
+
+      if (!force && state.soloBand === next)
+        return;
+
+      state.soloBand = next;
+      updateBandSoloUi();
+
+      if (emitNative)
+        callNative("setSoloBand", next);
+    }
+
+    function getSoloBandGeometry(index, width) {
+      if (!Number.isFinite(index) || index < 0 || index >= soloBandRanges.length)
+        return null;
+
+      const spec = soloBandRanges[index];
+      const maxFreq = Math.min(20000, sampleRate * 0.5);
+      const safeStart = Math.max(20, Math.min(spec.startHz, maxFreq));
+      const safeEndRaw = Math.max(20, Math.min(spec.endHz, maxFreq));
+      const safeEnd = Math.max(safeStart + 1, safeEndRaw);
+      const left = freqToX(safeStart, width);
+      const right = freqToX(safeEnd, width);
+      const x1 = Math.max(0, Math.min(width, left));
+      const x2 = Math.max(x1 + 1, Math.min(width, right));
+      return { x1, x2 };
+    }
+
+    function layoutBandSoloStrip(width, height) {
+      if (!bandSoloStrip || !Array.isArray(bandSoloItems) || bandSoloItems.length === 0)
+        return;
+
+      const zeroDbY = ((0 - (-24)) / 96) * Math.max(1, height);
+      const topPx = Math.max(0, Math.round(zeroDbY - 12));
+      bandSoloStrip.style.top = `${topPx}px`;
+
+      for (const item of bandSoloItems) {
+        const rangeIndex = Number(item.dataset.bandIndex);
+        if (!Number.isFinite(rangeIndex))
+          continue;
+
+        const geometry = getSoloBandGeometry(rangeIndex, width);
+        if (!geometry)
+          continue;
+
+        item.style.left = `${geometry.x1}px`;
+        item.style.width = `${geometry.x2 - geometry.x1}px`;
+      }
+    }
+
+    function drawSoloBandHighlight(width, height) {
+      if (state.soloBand < 0 || state.soloBand >= soloBandRanges.length)
+        return;
+
+      const geometry = getSoloBandGeometry(state.soloBand, width);
+      if (!geometry)
+        return;
+
+      const bandColor = activeCanvasTheme.referenceBand || "rgba(56, 214, 255, 0.24)";
+      const x = geometry.x1;
+      const w = Math.max(1, geometry.x2 - geometry.x1);
+      const zeroDbY = ((0 - (-24)) / 96) * Math.max(1, height);
+      const yStart = 0;
+      const drawHeight = Math.max(1, height - yStart);
+      const fadeEndY = Math.max(yStart, Math.min(height, zeroDbY + 34));
+      const fadeEndT = Math.max(0, Math.min(1, (fadeEndY - yStart) / drawHeight));
+
+      ctx.save();
+      const fillGradient = ctx.createLinearGradient(0, yStart, 0, yStart + drawHeight);
+      fillGradient.addColorStop(0.0, rgbaWithAlpha(bandColor, 0.0));
+      fillGradient.addColorStop(fadeEndT, rgbaWithAlpha(bandColor, 0.0));
+      fillGradient.addColorStop(Math.min(0.78, fadeEndT + 0.34), rgbaWithAlpha(bandColor, 0.09));
+      fillGradient.addColorStop(1.0, rgbaWithAlpha(bandColor, 0.05));
+      ctx.fillStyle = fillGradient;
+      ctx.fillRect(x, yStart, w, drawHeight);
+
+      ctx.lineWidth = 1;
+      const borderGradient = ctx.createLinearGradient(0, yStart, 0, yStart + drawHeight);
+      borderGradient.addColorStop(0.0, rgbaWithAlpha(activeCanvasTheme.gridFreqStrong, 0.0));
+      borderGradient.addColorStop(fadeEndT, rgbaWithAlpha(activeCanvasTheme.gridFreqStrong, 0.0));
+      borderGradient.addColorStop(1.0, rgbaWithAlpha(activeCanvasTheme.gridFreqStrong, 0.26));
+      ctx.strokeStyle = borderGradient;
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, yStart);
+      ctx.lineTo(x + 0.5, yStart + drawHeight);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + w - 0.5, yStart);
+      ctx.lineTo(x + w - 0.5, yStart + drawHeight);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawFrame() {
+      try {
+        ensureBuiltInPresetActive();
+        const nowMs = (typeof performance !== "undefined" && typeof performance.now === "function")
+          ? performance.now()
+          : Date.now();
+        const oscElapsedMs = lastOscFadeUpdateMs > 0
+          ? Math.max(0, Math.min(200, nowMs - lastOscFadeUpdateMs))
+          : 16.67;
+        lastOscFadeUpdateMs = nowMs;
+        const oscFadeDurationMs = state.oscilloscopeOn ? 300.0 : 1000.0;
+        const oscFadeStep = oscElapsedMs / oscFadeDurationMs;
+        const oscTargetAlpha = state.oscilloscopeOn ? 1.0 : 0.0;
+        if (oscVisualAlpha < oscTargetAlpha)
+          oscVisualAlpha = Math.min(oscTargetAlpha, oscVisualAlpha + oscFadeStep);
+        else if (oscVisualAlpha > oscTargetAlpha)
+          oscVisualAlpha = Math.max(oscTargetAlpha, oscVisualAlpha - oscFadeStep);
+
+        const rect = ensureCanvasSize();
+        const w = rect.width;
+        const h = rect.height;
+        layoutBandSoloStrip(w, h);
+
+        const bg = ctx.createLinearGradient(0, 0, 0, h);
+        bg.addColorStop(0, activeCanvasTheme.bgTop);
+        bg.addColorStop(1, activeCanvasTheme.bgBottom);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, w, h);
+        const overlayGeometry = buildSmoothPresetGeometry(w, h);
+
+        drawSoloBandHighlight(w, h);
+        drawGrid(w, h);
+        drawSpectrum(w, h, overlayGeometry);
+        drawSmoothPreset(w, h, overlayGeometry);
+        drawResonanceSuppressorCues(w, h);
+        drawOscilloscope(w, h, oscVisualAlpha);
+        const overlayInteractionActive = overlayLevelDragActive
+          || nowMs < overlayWheelInteractionUntil;
+        const zeroDbY = ((0 - (-24)) / 96) * h;
+        const oscHoverActive = state.oscilloscopeOn
+          && mouseInside
+          && mouseY >= 0
+          && mouseY <= zeroDbY;
+        crosshairTargetAlpha = (overlayInteractionActive || oscHoverActive) ? 0.0 : 1.0;
+        const elapsedMs = lastCrosshairUpdateMs > 0
+          ? Math.max(0, Math.min(100, nowMs - lastCrosshairUpdateMs))
+          : 16.67;
+        lastCrosshairUpdateMs = nowMs;
+        const fadeDurationMs = overlayInteractionActive ? CROSSHAIR_FADE_OUT_MS : CROSSHAIR_FADE_IN_MS;
+        const maxStep = Math.max(0.001, elapsedMs / Math.max(1, fadeDurationMs));
+        if (crosshairAlpha < crosshairTargetAlpha)
+          crosshairAlpha = Math.min(crosshairTargetAlpha, crosshairAlpha + maxStep);
+        else if (crosshairAlpha > crosshairTargetAlpha)
+          crosshairAlpha = Math.max(crosshairTargetAlpha, crosshairAlpha - maxStep);
+        drawCrosshair(w, h);
+        if (mouseInside || overlayLevelDragActive)
+          refreshOverlayLevelCursor();
+      } catch (error) {
+        reportUiError("draw", error);
+      } finally {
+        requestAnimationFrame(drawFrame);
+      }
+    }
+
+    loadUserSmoothPresets();
+
+    const savedUiDefaults = loadSavedUiDefaults();
+    if (savedUiDefaults)
+      Object.assign(state, savedUiDefaults);
+    if (!state.peakWarningOn)
+      state.suppressorOn = false;
+
+    initializeCustomSelect(resolutionSel, state.resolution, (value) => {
+      state.resolution = value;
+      rebuildShapedTarget();
+    });
+
+    initializeCustomSelect(speedSel, state.speed, (value) => {
+      state.speed = value;
+    });
+
+    initializeCustomSelect(tiltSel, String(state.tiltDb), (value) => {
+      const tiltValue = Number(value);
+      state.tiltDb = Number.isFinite(tiltValue) ? tiltValue : 5.0;
+      rebuildShapedTarget();
+      syncNativeResonanceSuppressorConfig();
+    });
+
+    initializeCustomSelect(smoothSourceSel, state.smoothSource, (value) => {
+      state.smoothSource = value;
+      loadBuiltInSmoothTarget(value);
+    });
+
+    initializeOverlayKnobs();
+
+    themeToggleBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const willOpen = !themePicker.classList.contains("open");
+      closeAllSelectMenus();
+      if (willOpen) {
+        themePicker.classList.add("open");
+        themeToggleBtn.classList.remove("is-off");
+        refreshToolbarVisibility();
+      }
+      else {
+        closeThemePicker();
+      }
+    });
+
+    for (const button of themeChoiceButtons) {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (button.classList.contains("is-disabled"))
+          return;
+
+        const key = button.dataset.theme;
+        if (key) applyTheme(key);
+        closeThemePicker();
+      });
+    }
+
+    if (newSmoothPresetBtn) {
+      newSmoothPresetBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (smoothPresetScanInProgress)
+          return;
+
+        closeAllSelectMenus();
+        setSmoothScanBusy(true);
+        setPresetStatus(`Scanning folder for new preset (smoothing ${FIXED_PRESET_SMOOTHING})...`);
+        const started = callNative("buildSmoothPresetFromFolder", FIXED_PRESET_SMOOTHING);
+        if (!started) {
+          setSmoothScanBusy(false);
+          setPresetStatus(`Native scan is unavailable (${nativeBridgeStatus()}).`);
+        }
+      });
+    }
+
+    menuToggle.addEventListener("click", () => {
+      const show = controlsPanel.classList.contains("is-hidden");
+      controlsPanel.classList.toggle("is-hidden", !show);
+      menuToggle.classList.toggle("open", show);
+      menuToggle.classList.toggle("is-off", !show);
+      if (!show) {
+        closeAllSelectMenus();
+      } else if (controlsAutoCloseTimer !== null) {
+        clearTimeout(controlsAutoCloseTimer);
+        controlsAutoCloseTimer = null;
+      }
+      refreshToolbarVisibility();
+    });
+
+    if (helpBtn) {
+      helpBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        showCreditSplash();
+      });
+    }
+
+    if (saveDefaultsBtn) {
+      saveDefaultsBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const success = saveCurrentUiDefaults();
+        flashSaveDefaultsButton(success);
+        setPresetStatus(success ? "Saved current state as default." : "Could not save defaults.");
+      });
+    }
+
+    if (peakWarningBtn) {
+      peakWarningBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        state.peakWarningOn = !state.peakWarningOn;
+        if (!state.peakWarningOn)
+          state.suppressorOn = false;
+        refreshPeakWarningButton();
+        refreshSuppressorButton();
+        syncNativeResonanceSuppressorConfig();
+        setPresetStatus(state.peakWarningOn
+          ? "Peak warning on."
+          : "Peak warning off. Resonance suppressor off.");
+      });
+    }
+
+    if (suppressorBtn) {
+      suppressorBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!state.peakWarningOn) {
+          state.suppressorOn = false;
+          refreshSuppressorButton();
+          syncNativeResonanceSuppressorConfig();
+          setPresetStatus("Enable peak warning first.");
+          return;
+        }
+        state.suppressorOn = !state.suppressorOn;
+        refreshSuppressorButton();
+        syncNativeResonanceSuppressorConfig();
+        setPresetStatus(state.suppressorOn ? "Resonance suppressor on." : "Resonance suppressor off.");
+      });
+    }
+
+    for (const button of bandSoloButtons) {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const index = Number(button.dataset.bandIndex);
+        if (!Number.isFinite(index))
+          return;
+
+        const next = state.soloBand === index ? -1 : index;
+        setSoloBandSelection(next, true);
+      });
+    }
+
+    document.addEventListener("pointerdown", (event) => {
+      if (!event.target.closest(".control-select"))
+        closeAllSelectMenus();
+      if (!event.target.closest(".theme-picker"))
+        closeThemePicker();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeAllSelectMenus();
+        closeThemePicker();
+        hideTooltip();
+      }
+    });
+
+    window.addEventListener("mousemove", (event) => {
+      updateCornerHover(event.clientX, event.clientY);
+      updatePresetHover(event.clientX, event.clientY);
+    });
+
+    fullscreenBtn.addEventListener("click", () => {
+      state.fullscreenOn = !state.fullscreenOn;
+      fullscreenBtn.classList.toggle("is-off", !state.fullscreenOn);
+      callNative("toggleFullscreen");
+    });
+
+    oscToggleBtn.addEventListener("click", () => {
+      state.oscilloscopeOn = !state.oscilloscopeOn;
+      oscToggleBtn.classList.toggle("is-off", !state.oscilloscopeOn);
+      refreshOscLengthButton();
+    });
+
+    if (oscModeBtn) {
+      oscModeBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        state.oscStereo = !state.oscStereo;
+        refreshOscModeButton();
+        setPresetStatus(state.oscStereo ? "Oscilloscope mode: Stereo" : "Oscilloscope mode: Mono");
+      });
+    }
+
+    oscLengthBtn.addEventListener("click", () => {
+      state.oscLengthMode = state.oscLengthMode === 0 ? 1 : 0;
+      refreshOscLengthButton();
+      callNative("setOscilloscopeLengthMode", state.oscLengthMode);
+    });
+
+    canvas.addEventListener("mouseenter", () => {
+      mouseInside = true;
+      refreshOverlayLevelCursor();
+    });
+    canvas.addEventListener("mouseleave", () => {
+      mouseInside = false;
+      if (!overlayLevelDragActive)
+        refreshOverlayLevelCursor();
+    });
+    canvas.addEventListener("mousemove", (event) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = event.clientX - rect.left;
+      mouseY = event.clientY - rect.top;
+      refreshOverlayLevelCursor();
+    });
+
+    canvas.addEventListener("wheel", (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      if (!hitTestOverlayBand(localX, localY, rect.width, rect.height))
+        return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      const step = overlayWidthBounds.wheelStep;
+      const delta = event.deltaY < 0 ? step : -step;
+      setOverlayWidthDb(state.overlayWidthDb + delta);
+      const nowMs = (typeof performance !== "undefined" && typeof performance.now === "function")
+        ? performance.now()
+        : Date.now();
+      overlayWheelInteractionUntil = nowMs + 180;
+      showOverlayReadout("width", 900);
+    }, { passive: false });
+
+    canvas.addEventListener("contextmenu", (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      if (overlayLevelDragActive
+          || hitTestOverlayBand(localX, localY, rect.width, rect.height))
+        event.preventDefault();
+    });
+
+    const startOverlayLevelDrag = (clientY, pointerId = null) => {
+      overlayLevelDragActive = true;
+      overlayLevelDragPointerId = pointerId;
+      overlayLevelDragStartY = clientY;
+      overlayLevelDragStartValue = state.overlayLevelDb;
+      showOverlayReadout("level", 0);
+      overlayLevelHoverActive = true;
+      canvas.style.cursor = "ns-resize";
+    };
+
+    function endOverlayLevelDrag(event = null) {
+      if (!overlayLevelDragActive)
+        return;
+      if (event && overlayLevelDragPointerId !== null && typeof event.pointerId === "number"
+          && event.pointerId !== overlayLevelDragPointerId)
+        return;
+
+      const pointerIdToRelease = overlayLevelDragPointerId;
+      overlayLevelDragActive = false;
+      overlayLevelDragPointerId = null;
+      hideOverlayReadout();
+      if (pointerIdToRelease !== null
+          && typeof canvas.hasPointerCapture === "function"
+          && canvas.hasPointerCapture(pointerIdToRelease)
+          && typeof canvas.releasePointerCapture === "function")
+        canvas.releasePointerCapture(pointerIdToRelease);
+      refreshOverlayLevelCursor();
+    }
+
+    canvas.addEventListener("pointerdown", (event) => {
+      const overlayDragButtonDown = event.button === 0
+        || event.button === 2
+        || event.buttons === 2
+        || event.buttons === 1
+        || event.which === 3
+        || (event.ctrlKey && event.button === 0);
+      if (!overlayDragButtonDown)
+        return;
+
+      const rect = canvas.getBoundingClientRect();
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      if (!hitTestOverlayBand(localX, localY, rect.width, rect.height))
+        return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      startOverlayLevelDrag(event.clientY, event.pointerId);
+      if (typeof canvas.setPointerCapture === "function")
+        canvas.setPointerCapture(event.pointerId);
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (!overlayLevelDragActive)
+        return;
+      if (overlayLevelDragPointerId !== null && event.pointerId !== overlayLevelDragPointerId)
+        return;
+
+      event.preventDefault();
+      const deltaY = overlayLevelDragStartY - event.clientY;
+      setOverlayLevelDb(overlayLevelDragStartValue + (deltaY * overlayLevelBounds.dragScale));
+    });
+
+    canvas.addEventListener("mousedown", (event) => {
+      if (overlayLevelDragActive)
+        return;
+      const overlayDragButtonDown = event.button === 0
+        || event.button === 2
+        || event.buttons === 2
+        || event.buttons === 1
+        || event.which === 3
+        || (event.ctrlKey && event.button === 0);
+      if (!overlayDragButtonDown)
+        return;
+
+      const rect = canvas.getBoundingClientRect();
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      if (!hitTestOverlayBand(localX, localY, rect.width, rect.height))
+        return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      startOverlayLevelDrag(event.clientY, null);
+    });
+
+    window.addEventListener("mousemove", (event) => {
+      if (!overlayLevelDragActive || overlayLevelDragPointerId !== null)
+        return;
+
+      event.preventDefault();
+      const deltaY = overlayLevelDragStartY - event.clientY;
+      setOverlayLevelDb(overlayLevelDragStartValue + (deltaY * overlayLevelBounds.dragScale));
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (!overlayLevelDragActive || overlayLevelDragPointerId !== null)
+        return;
+      endOverlayLevelDrag();
+    });
+
+    canvas.addEventListener("pointerup", (event) => {
+      endOverlayLevelDrag(event);
+      refreshOverlayLevelCursor();
+    });
+    canvas.addEventListener("pointercancel", (event) => {
+      endOverlayLevelDrag(event);
+      refreshOverlayLevelCursor();
+    });
+    canvas.addEventListener("lostpointercapture", () => {
+      overlayLevelDragActive = false;
+      overlayLevelDragPointerId = null;
+      hideOverlayReadout();
+      refreshOverlayLevelCursor();
+    });
+
+    window.updateSpectrum = function (bins, sr, osc, oscRight, rms, lufs, referenceBins, hasReference, referenceRevision) {
+      try {
+        if (Array.isArray(bins)) {
+          const n = Math.min(BINS, bins.length);
+          for (let i = 0; i < n; i++) {
+            const v = Number(bins[i]);
+            rawTarget[i] = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+          }
+          rebuildShapedTarget();
+        }
+
+        if (Array.isArray(osc)) {
+          const n = Math.min(BINS, osc.length);
+          for (let i = 0; i < n; i++) {
+            const v = Number(osc[i]);
+            oscTargetL[i] = Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0;
+          }
+          for (let i = n; i < BINS; i++) {
+            oscTargetL[i] = 0;
+          }
+        }
+
+        if (Array.isArray(oscRight)) {
+          const n = Math.min(BINS, oscRight.length);
+          for (let i = 0; i < n; i++) {
+            const v = Number(oscRight[i]);
+            oscTargetR[i] = Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0;
+          }
+          for (let i = n; i < BINS; i++) {
+            oscTargetR[i] = 0;
+          }
+        } else if (Array.isArray(osc)) {
+          for (let i = 0; i < BINS; i++) {
+            oscTargetR[i] = oscTargetL[i];
+          }
+        }
+
+        if (typeof sr === "number" && Number.isFinite(sr) && sr > 1000) {
+          sampleRate = sr;
+        }
+
+      } catch (error) {
+        reportUiError("updateSpectrum", error);
+      }
+    };
+
+    window.updateResonanceSuppressor = function (frequencies, gains) {
+      try {
+        const freqValues = Array.isArray(frequencies) ? frequencies : [];
+        const gainValues = Array.isArray(gains) ? gains : [];
+        const count = Math.min(RESONANCE_SUPPRESSOR_BANDS, Math.max(freqValues.length, gainValues.length));
+        for (let i = 0; i < count; i++) {
+          const frequencyHz = Number(freqValues[i]);
+          const gainDb = Number(gainValues[i]);
+          suppressorFrequencyHz[i] = Number.isFinite(frequencyHz) ? Math.max(20, frequencyHz) : 0;
+          suppressorGainDb[i] = Number.isFinite(gainDb) ? Math.min(0, gainDb) : 0;
+        }
+        for (let i = count; i < RESONANCE_SUPPRESSOR_BANDS; i++) {
+          suppressorFrequencyHz[i] = 0;
+          suppressorGainDb[i] = 0;
+        }
+      } catch (error) {
+        reportUiError("updateResonanceSuppressor", error);
+      }
+    };
+
+    window.setSmoothPreset = function (bins, hasPreset) {
+      applySmoothPreset(bins, hasPreset);
+    };
+
+    window.onSmoothPresetScanFinished = function (success, message, bins, hasPreset, referenceRevision, folderName) {
+      const gotBinsArray = Array.isArray(bins) || (bins && typeof bins.length === "number");
+      let createdPreset = null;
+
+      if (success && gotBinsArray) {
+        createdPreset = createUserPresetFromScan(
+          bins,
+          typeof folderName === "string" ? folderName : "",
+          message);
+        if (createdPreset) {
+          setCustomSelectValue(smoothSourceSel, createdPreset.key, true);
+        } else {
+          applySmoothPreset(bins, !!hasPreset);
+        }
+      } else if (gotBinsArray) {
+        applySmoothPreset(bins, !!hasPreset);
+      }
+
+      if (typeof referenceRevision === "number" && Number.isFinite(referenceRevision)) {
+        const revision = Math.max(0, Math.floor(referenceRevision));
+        if (revision > lastReferenceRevisionSeen)
+          lastReferenceRevisionSeen = revision;
+      }
+
+      setSmoothScanBusy(false);
+      if (!success) {
+        const text = (typeof message === "string" && message.length > 0)
+          ? message
+          : "Scan failed.";
+        setPresetStatus(text);
+      }
+      else if (createdPreset) {
+        const suffix = createdPreset.limited ? ", limited scan" : "";
+        setPresetStatus(
+          `Created ${createdPreset.label} (${createdPreset.filesAnalysed} file(s)${suffix})`
+        );
+      }
+      else if (typeof message === "string" && message.length > 0) {
+        window.setTimeout(() => {
+          setPresetStatus(
+            `${message}${hasSmoothPreset ? " - overlay on" : " - no overlay data"}`
+            + ` (rev:${lastReferenceRevisionSeen}, bins:${lastReferenceBinsReceived}, flag:${lastReferenceHasFlag ? "1" : "0"})`
+          );
+        }, 140);
+      }
+    };
+
+    window.addEventListener("resize", () => {
+      resizeCanvas();
+      alignControlsToAnalyzerSettings();
+    });
+    window.addEventListener("blur", () => {
+      cornerHoverActive = false;
+      presetHoverActive = false;
+      overlayLevelHoverActive = false;
+      overlayLevelDragActive = false;
+      overlayLevelDragPointerId = null;
+      overlayWheelInteractionUntil = 0;
+      crosshairTargetAlpha = 1.0;
+      crosshairAlpha = 1.0;
+      lastCrosshairUpdateMs = 0;
+      hideOverlayReadout();
+      if (canvas)
+        canvas.style.cursor = "";
+      closeAllSelectMenus();
+      closeThemePicker();
+      hideTooltip();
+      refreshPresetCenterVisibility();
+    });
+    initializeJuceBackendBridge();
+    const initialCanvasRect = ensureCanvasSize();
+    applyTheme(state.theme);
+    closeThemePicker();
+    bindTooltips();
+    setSmoothScanBusy(false);
+    setPresetStatus("No smooth preset");
+    oscToggleBtn.classList.toggle("is-off", !state.oscilloscopeOn);
+    oscVisualAlpha = state.oscilloscopeOn ? 1.0 : 0.0;
+    refreshOscLengthButton();
+    refreshPeakWarningButton();
+    refreshSuppressorButton();
+    callNative("setOscilloscopeLengthMode", state.oscLengthMode);
+    setSoloBandSelection(state.soloBand, true, true);
+    updateBandSoloUi();
+    layoutBandSoloStrip(initialCanvasRect.width, initialCanvasRect.height);
+    rebuildShapedTarget();
+    refreshPresetCenterVisibility();
+    alignControlsToAnalyzerSettings();
+    requestAnimationFrame(drawFrame);
+  </script>
+</body>
+</html>

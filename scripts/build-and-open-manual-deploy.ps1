@@ -2,7 +2,7 @@
 param(
     [string]$BuildDir = "build",
     [string]$Config = "Release",
-    [string]$Target = "dream_VST3"
+    [string]$Target = "specraum_VST3"
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,7 +26,7 @@ try {
         throw "Build failed with exit code $LASTEXITCODE."
     }
 
-    $sourceBundle = Join-Path $repoRoot "$BuildDir\plugins\dream\dream_artefacts\$Config\VST3\SPECRAUM.vst3"
+    $sourceBundle = Join-Path $repoRoot "$BuildDir\plugins\psilocybian\specraum_artefacts\$Config\VST3\SPECRAUM.vst3"
     if (!(Test-Path $sourceBundle)) {
         throw "Built plugin not found at '$sourceBundle'."
     }

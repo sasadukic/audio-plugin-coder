@@ -1,0 +1,156 @@
+name: Build SPECRAUM (VST3 + CLAP)
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install WebView2 SDK
+        shell: pwsh
+        run: |
+          $pkgRoot = Join-Path $env:RUNNER_TEMP "nuget-packages"
+          nuget install Microsoft.Web.WebView2 -Version 1.0.3485.44 -OutputDirectory $pkgRoot -ExcludeVersion
+          $webViewSdk = Join-Path $pkgRoot "Microsoft.Web.WebView2"
+          if (!(Test-Path $webViewSdk)) {
+            throw "WebView2 SDK not found at $webViewSdk"
+          }
+          "JUCE_WEBVIEW2_PACKAGE_LOCATION=$webViewSdk" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
+            -DJUCE_WEBVIEW2_PACKAGE_LOCATION="$env:JUCE_WEBVIEW2_PACKAGE_LOCATION"
+
+      - name: Build VST3
+        shell: pwsh
+        run: |
+          $targets = cmake --build build --target help
+          if (-not ($targets -match "specraum_VST3")) {
+            throw "Missing target specraum_VST3"
+          }
+          cmake --build build --config Release --target specraum_VST3
+
+      - name: Build CLAP
+        shell: pwsh
+        run: |
+          $targets = cmake --build build --target help
+          if ($targets -match "specraum_CLAP") {
+            cmake --build build --config Release --target specraum_CLAP
+          } else {
+            Write-Host "CLAP target specraum_CLAP is not available in this JUCE/CMake setup."
+          }
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: SPECRAUM-windows-vst3-clap
+          path: |
+            build/**/*.vst3
+            build/**/*.clap
+          retention-days: 14
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure CMake
+        run: |
+          cmake -S . -B build -G Xcode \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15
+
+      - name: Build VST3
+        run: |
+          targets="$(cmake --build build --target help)"
+          echo "$targets" | grep -q "specraum_VST3"
+          cmake --build build --config Release --target specraum_VST3
+
+      - name: Build CLAP
+        run: |
+          targets="$(cmake --build build --target help)"
+          if echo "$targets" | grep -q "specraum_CLAP"; then
+            cmake --build build --config Release --target specraum_CLAP
+          else
+            echo "CLAP target specraum_CLAP is not available in this JUCE/CMake setup."
+          fi
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: SPECRAUM-macos-vst3-clap
+          path: |
+            build/**/*.vst3
+            build/**/*.clap
+          retention-days: 14
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            libasound2-dev \
+            libfreetype6-dev \
+            libgl1-mesa-dev \
+            libx11-dev \
+            libxcomposite-dev \
+            libxcursor-dev \
+            libxext-dev \
+            libxinerama-dev \
+            libxrandr-dev \
+            libwebkit2gtk-4.1-dev \
+            libjack-jackd2-dev \
+            libcurl4-openssl-dev
+
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build VST3
+        run: |
+          targets="$(cmake --build build --target help)"
+          echo "$targets" | grep -q "specraum_VST3"
+          cmake --build build --target specraum_VST3
+
+      - name: Build CLAP
+        run: |
+          targets="$(cmake --build build --target help)"
+          if echo "$targets" | grep -q "specraum_CLAP"; then
+            cmake --build build --target specraum_CLAP
+          else
+            echo "CLAP target specraum_CLAP is not available in this JUCE/CMake setup."
+          fi
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: SPECRAUM-linux-vst3-clap
+          path: |
+            build/**/*.vst3
+            build/**/*.clap
+          retention-days: 14

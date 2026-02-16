@@ -19,10 +19,10 @@
     Plugin website URL (default: "https://github.com/noizefield/audio-plugin-coder")
 
 .EXAMPLE
-    .\create-windows-installer.ps1 -PluginName "CloudWash" -Version "1.0.0"
+    .\create-windows-installer.ps1 -PluginName "SPECRAUM" -Version "1.0.0"
 
 .EXAMPLE
-    .\create-windows-installer.ps1 -PluginName "CloudWash" -Version "1.0.0" -CompanyName "MyCompany"
+    .\create-windows-installer.ps1 -PluginName "SPECRAUM" -Version "1.0.0" -CompanyName "MyCompany"
 #>
 [CmdletBinding()]
 param(

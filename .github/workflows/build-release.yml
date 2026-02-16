@@ -9,7 +9,11 @@ on:
       plugin_name:
         description: 'Plugin name to build'
         required: true
-        type: string
+        default: specraum
+        type: choice
+        options:
+          - specraum
+          - bassic
       platforms:
         description: 'Platforms to build (windows,macos,linux,all)'
         default: 'all'
@@ -25,6 +29,7 @@ on:
 
 env:
   BUILD_TYPE: Release
+  PLUGIN_NAME: ${{ github.event.inputs.plugin_name || 'specraum' }}
 
 jobs:
   # ============================================
@@ -43,28 +48,42 @@ jobs:
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Configure CMake
+      - name: Install WebView2 SDK
+        shell: pwsh
         run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DAPC_ENABLE_VISAGE=ON
+          $pkgRoot = Join-Path $env:RUNNER_TEMP "nuget-packages"
+          nuget install Microsoft.Web.WebView2 -Version 1.0.3485.44 -OutputDirectory $pkgRoot -ExcludeVersion
+          $webViewSdk = Join-Path $pkgRoot "Microsoft.Web.WebView2"
+          if (!(Test-Path $webViewSdk)) {
+            throw "WebView2 SDK not found at $webViewSdk"
+          }
+          "JUCE_WEBVIEW2_PACKAGE_LOCATION=$webViewSdk" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
+            -DAPC_ENABLE_VISAGE=ON `
+            -DJUCE_WEBVIEW2_PACKAGE_LOCATION="$env:JUCE_WEBVIEW2_PACKAGE_LOCATION"
 
       - name: Build VST3
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_VST3"
+          cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_VST3"
 
       - name: Build Standalone
         shell: pwsh
         run: |
           $targets = cmake --build build --target help
-          if ($targets -match "${{ inputs.plugin_name }}_Standalone") {
-            cmake --build build --config Release --target "${{ inputs.plugin_name }}_Standalone"
+          if ($targets -match "${{ env.PLUGIN_NAME }}_Standalone") {
+            cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_Standalone"
           } else {
-            Write-Host "Standalone target ${{ inputs.plugin_name }}_Standalone is not available; skipping."
+            Write-Host "Standalone target ${{ env.PLUGIN_NAME }}_Standalone is not available; skipping."
           }
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-${{ inputs.plugin_name }}
+          name: windows-${{ env.PLUGIN_NAME }}
           path: |
             build/*_artefacts/Release/*.vst3
             build/*_artefacts/Release/*.exe
@@ -91,35 +110,35 @@ jobs:
         run: |
           cmake -S . -B build -G Xcode \
             -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 \
             -DAPC_ENABLE_VISAGE=ON
 
       - name: Build VST3
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_VST3"
+          cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_VST3"
 
       - name: Build AU
         run: |
           targets="$(cmake --build build --target help)"
-          if echo "$targets" | grep -q "${{ inputs.plugin_name }}_AU"; then
-            cmake --build build --config Release --target "${{ inputs.plugin_name }}_AU"
+          if echo "$targets" | grep -q "${{ env.PLUGIN_NAME }}_AU"; then
+            cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_AU"
           else
-            echo "AU target ${{ inputs.plugin_name }}_AU is not available; skipping."
+            echo "AU target ${{ env.PLUGIN_NAME }}_AU is not available; skipping."
           fi
 
       - name: Build Standalone
         run: |
           targets="$(cmake --build build --target help)"
-          if echo "$targets" | grep -q "${{ inputs.plugin_name }}_Standalone"; then
-            cmake --build build --config Release --target "${{ inputs.plugin_name }}_Standalone"
+          if echo "$targets" | grep -q "${{ env.PLUGIN_NAME }}_Standalone"; then
+            cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_Standalone"
           else
-            echo "Standalone target ${{ inputs.plugin_name }}_Standalone is not available; skipping."
+            echo "Standalone target ${{ env.PLUGIN_NAME }}_Standalone is not available; skipping."
           fi
 
       - name: Upload macOS Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-${{ inputs.plugin_name }}
+          name: macos-${{ env.PLUGIN_NAME }}
           path: |
             build/*_artefacts/Release/*.vst3
             build/*_artefacts/Release/*.component
@@ -155,6 +174,7 @@ jobs:
             libxrandr-dev \
             libwebkit2gtk-4.1-dev \
             libjack-jackd2-dev \
+            libcurl4-openssl-dev \
             xvfb
 
       - name: Configure CMake
@@ -163,34 +183,34 @@ jobs:
 
       - name: Build VST3
         run: |
-          cmake --build build --target "${{ inputs.plugin_name }}_VST3"
+          cmake --build build --target "${{ env.PLUGIN_NAME }}_VST3"
 
       - name: Build LV2
         run: |
           targets="$(cmake --build build --target help)"
-          if echo "$targets" | grep -q "${{ inputs.plugin_name }}_LV2"; then
-            xvfb-run cmake --build build --target "${{ inputs.plugin_name }}_LV2"
+          if echo "$targets" | grep -q "${{ env.PLUGIN_NAME }}_LV2"; then
+            xvfb-run cmake --build build --target "${{ env.PLUGIN_NAME }}_LV2"
           else
-            echo "LV2 target ${{ inputs.plugin_name }}_LV2 is not available; skipping."
+            echo "LV2 target ${{ env.PLUGIN_NAME }}_LV2 is not available; skipping."
           fi
 
       - name: Build Standalone
         run: |
           targets="$(cmake --build build --target help)"
-          if echo "$targets" | grep -q "${{ inputs.plugin_name }}_Standalone"; then
-            xvfb-run cmake --build build --target "${{ inputs.plugin_name }}_Standalone"
+          if echo "$targets" | grep -q "${{ env.PLUGIN_NAME }}_Standalone"; then
+            xvfb-run cmake --build build --target "${{ env.PLUGIN_NAME }}_Standalone"
           else
-            echo "Standalone target ${{ inputs.plugin_name }}_Standalone is not available; skipping."
+            echo "Standalone target ${{ env.PLUGIN_NAME }}_Standalone is not available; skipping."
           fi
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-${{ inputs.plugin_name }}
+          name: linux-${{ env.PLUGIN_NAME }}
           path: |
             build/**/Release/VST3/
             build/**/Release/LV2/
-            build/**/Release/Standalone/${{ inputs.plugin_name }}
+            build/**/Release/Standalone/${{ env.PLUGIN_NAME }}
           retention-days: 30
 
   # ============================================
@@ -210,7 +230,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          pattern: "*-${{ inputs.plugin_name }}"
+          pattern: "*-${{ env.PLUGIN_NAME }}"
 
       - name: List Downloaded Artifacts
         run: |
@@ -219,7 +239,7 @@ jobs:
 
       - name: Create Release Archives
         run: |
-          PLUGIN_NAME="${{ inputs.plugin_name }}"
+          PLUGIN_NAME="${{ env.PLUGIN_NAME }}"
           VERSION="${{ github.ref_name }}"
           
           mkdir -p release
@@ -255,7 +275,7 @@ jobs:
           files: release/*
           generate_release_notes: true
           body: |
-            ## ${{ inputs.plugin_name }} Release
+            ## ${{ env.PLUGIN_NAME }} Release
             
             ### Installation
             - **Windows**: Extract the ZIP and run the installer or copy VST3 to your plugins folder
@@ -270,13 +290,13 @@ jobs:
             
             ### System Requirements
             - **Windows**: Windows 10/11, 64-bit, WebView2 Runtime
-            - **macOS**: macOS 10.13+, Intel or Apple Silicon
+            - **macOS**: macOS 10.15+, Intel or Apple Silicon
             - **Linux**: Ubuntu 20.04+ or equivalent, WebKitGTK
 
       - name: Upload Release Artifacts (Manual Trigger)
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ inputs.plugin_name }}
+          name: release-${{ env.PLUGIN_NAME }}
           path: release/*
           retention-days: 30
