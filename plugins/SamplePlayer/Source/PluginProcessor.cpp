@@ -53,7 +53,9 @@ int msToSamples (double sampleRate, float timeMs)
 } // namespace
 
 SamplePlayerAudioProcessor::SamplePlayerAudioProcessor()
-    : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
+    : AudioProcessor (BusesProperties()
+        .withInput ("Input", juce::AudioChannelSet::stereo(), true)
+        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       parameters (*this, nullptr, juce::Identifier ("SamplePlayer"), createParameterLayout())
 {
     formatManager.registerBasicFormats();
@@ -229,7 +231,7 @@ bool SamplePlayerAudioProcessor::acceptsMidi() const
 
 bool SamplePlayerAudioProcessor::producesMidi() const
 {
-    return false;
+    return true;
 }
 
 bool SamplePlayerAudioProcessor::isMidiEffect() const
@@ -239,7 +241,7 @@ bool SamplePlayerAudioProcessor::isMidiEffect() const
 
 double SamplePlayerAudioProcessor::getTailLengthSeconds() const
 {
-    return 7.0;
+    return std::numeric_limits<double>::infinity();
 }
 
 int SamplePlayerAudioProcessor::getNumPrograms()
@@ -275,6 +277,23 @@ void SamplePlayerAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
 
     stopAllVoices();
     roundRobinCounters.clear();
+
+    const juce::ScopedLock lock (autoSamplerLock);
+    activeAutoCaptures.clear();
+    triggeredAutoCaptures.clear();
+    completedAutoCaptures.clear();
+    autoSamplerMidiSchedule.clear();
+    autoSamplerMidiScheduleIndex = 0;
+    autoSamplerTimelineSample = 0;
+    autoSamplerStartWallMs = 0.0;
+    autoSamplerHeldNotes.fill (false);
+    autoSamplerSendAllNotesOff = false;
+    autoSamplerInputHistory[0].clear();
+    autoSamplerInputHistory[1].clear();
+    autoSamplerHistoryWrite = 0;
+    autoSamplerHistoryValid = 0;
+    autoSamplerHistorySize = 0;
+    autoSamplerInputDetected = false;
 }
 
 void SamplePlayerAudioProcessor::releaseResources()
@@ -287,7 +306,10 @@ bool SamplePlayerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layo
         && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
 
-    if (! layouts.getMainInputChannelSet().isDisabled())
+    const auto input = layouts.getMainInputChannelSet();
+    if (! input.isDisabled()
+        && input != juce::AudioChannelSet::mono()
+        && input != juce::AudioChannelSet::stereo())
         return false;
 
     return true;
@@ -296,8 +318,6 @@ bool SamplePlayerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layo
 void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
-
-    buffer.clear();
 
     if (buffer.getNumSamples() <= 0)
     {
@@ -311,25 +331,80 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         roundRobinCounters.clear();
     }
 
+    juce::MidiBuffer incomingMidi;
+    incomingMidi.swapWith (midiMessages);
+
+    juce::MidiBuffer generatedMidi;
+    appendAutoSamplerMidiOutput (generatedMidi, buffer.getNumSamples());
+
+    auto inputBuffer = getBusBuffer (buffer, true, 0);
+    // Capture only the internally scheduled autosampler notes so host/user MIDI
+    // on this track can't shift RR counters or remap capture roots.
+    processAutoSamplerCapture (inputBuffer, generatedMidi);
+
+    juce::MidiBuffer outgoingMidi = incomingMidi;
+    outgoingMidi.addEvents (generatedMidi, 0, buffer.getNumSamples(), 0);
+
+    bool keepAutoSamplerAwake = false;
+    {
+        const juce::ScopedLock lock (autoSamplerLock);
+        keepAutoSamplerAwake = autoSamplerActive;
+    }
+
+    juce::AudioBuffer<float> monitorBuffer;
+    if (keepAutoSamplerAwake
+        && inputBuffer.getNumChannels() > 0
+        && inputBuffer.getNumSamples() > 0)
+    {
+        const int monitorChannels = juce::jmax (1, juce::jmin (2, inputBuffer.getNumChannels()));
+        monitorBuffer.setSize (monitorChannels, inputBuffer.getNumSamples(), false, false, true);
+        for (int ch = 0; ch < monitorChannels; ++ch)
+            monitorBuffer.copyFrom (ch, 0, inputBuffer, ch, 0, inputBuffer.getNumSamples());
+    }
+
+    auto outputBuffer = getBusBuffer (buffer, false, 0);
+    outputBuffer.clear();
+
+    if (keepAutoSamplerAwake
+        && monitorBuffer.getNumChannels() > 0
+        && outputBuffer.getNumChannels() > 0
+        && outputBuffer.getNumSamples() > 0)
+    {
+        const int monitorSamples = juce::jmin (outputBuffer.getNumSamples(), monitorBuffer.getNumSamples());
+        for (int ch = 0; ch < outputBuffer.getNumChannels(); ++ch)
+        {
+            const int sourceChannel = juce::jmin (ch, monitorBuffer.getNumChannels() - 1);
+            outputBuffer.addFrom (ch, 0, monitorBuffer, sourceChannel, 0, monitorSamples, 1.0f);
+        }
+    }
+
     const auto settings = getBlockSettingsSnapshot();
 
     int renderStart = 0;
 
-    for (const auto metadata : midiMessages)
+    for (const auto metadata : incomingMidi)
     {
         const auto eventSample = juce::jlimit (0, buffer.getNumSamples(), metadata.samplePosition);
 
         if (eventSample > renderStart)
-            renderVoices (buffer, renderStart, eventSample - renderStart, settings);
+            renderVoices (outputBuffer, renderStart, eventSample - renderStart, settings);
 
         handleMidiMessage (metadata.getMessage(), settings);
         renderStart = eventSample;
     }
 
-    if (renderStart < buffer.getNumSamples())
-        renderVoices (buffer, renderStart, buffer.getNumSamples() - renderStart, settings);
+    if (renderStart < outputBuffer.getNumSamples())
+        renderVoices (outputBuffer, renderStart, outputBuffer.getNumSamples() - renderStart, settings);
 
-    midiMessages.clear();
+    if (keepAutoSamplerAwake && outputBuffer.getNumChannels() > 0 && outputBuffer.getNumSamples() > 0)
+    {
+        // Keep the host process callback alive while autosampler MIDI is being generated.
+        constexpr float keepAliveLevel = 1.0e-9f;
+        for (int ch = 0; ch < outputBuffer.getNumChannels(); ++ch)
+            outputBuffer.addSample (ch, 0, keepAliveLevel);
+    }
+
+    midiMessages.swapWith (outgoingMidi);
 }
 
 bool SamplePlayerAudioProcessor::hasEditor() const
@@ -686,6 +761,527 @@ juce::File SamplePlayerAudioProcessor::getWallpaperFile() const
 {
     const juce::ScopedLock lock (wallpaperLock);
     return wallpaperFile;
+}
+
+int SamplePlayerAudioProcessor::velocityToLayer (int velocity127, int totalLayers)
+{
+    const int safeLayers = juce::jlimit (1, 5, totalLayers);
+    const int v0 = juce::jlimit (0, 127, velocity127 - 1);
+    return 1 + ((v0 * safeLayers) / 128);
+}
+
+std::pair<int, int> SamplePlayerAudioProcessor::velocityBoundsForLayer (int layer, int totalLayers)
+{
+    const int safeLayers = juce::jlimit (1, 5, totalLayers);
+    const int safeLayer = juce::jlimit (1, safeLayers, layer);
+
+    const int low0 = ((safeLayer - 1) * 128) / safeLayers;
+    const int high0 = ((safeLayer * 128) / safeLayers) - 1;
+
+    const int low = juce::jlimit (1, 127, low0 + 1);
+    const int high = juce::jlimit (low, 127, high0 + 1);
+    return { low, high };
+}
+
+int SamplePlayerAudioProcessor::velocityForLayer (int layer, int totalLayers)
+{
+    const auto [low, high] = velocityBoundsForLayer (layer, totalLayers);
+    return juce::jlimit (1, 127, low + ((high - low) / 2));
+}
+
+juce::String SamplePlayerAudioProcessor::midiToNoteToken (int midiNote)
+{
+    static constexpr const char* noteNames[12] =
+    {
+        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
+    };
+
+    const int clamped = juce::jlimit (0, 127, midiNote);
+    const int semitone = clamped % 12;
+    const int octave = (clamped / 12) - 1;
+    return juce::String (noteNames[semitone]) + juce::String (octave);
+}
+
+void SamplePlayerAudioProcessor::appendAutoSamplerMidiOutput (juce::MidiBuffer& midiOutput, int blockNumSamples)
+{
+    if (blockNumSamples <= 0)
+        return;
+
+    const juce::ScopedLock lock (autoSamplerLock);
+
+    if (autoSamplerSendAllNotesOff)
+    {
+        for (int note = 0; note < static_cast<int> (autoSamplerHeldNotes.size()); ++note)
+        {
+            if (! autoSamplerHeldNotes[static_cast<size_t> (note)])
+                continue;
+
+            midiOutput.addEvent (juce::MidiMessage::noteOff (1, note), 0);
+            autoSamplerHeldNotes[static_cast<size_t> (note)] = false;
+        }
+
+        autoSamplerSendAllNotesOff = false;
+    }
+
+    if (! autoSamplerActive || autoSamplerMidiSchedule.empty())
+        return;
+
+    const juce::int64 blockStart = autoSamplerTimelineSample;
+    const juce::int64 blockEnd = blockStart + blockNumSamples;
+
+    while (autoSamplerMidiScheduleIndex < autoSamplerMidiSchedule.size())
+    {
+        const auto& event = autoSamplerMidiSchedule[autoSamplerMidiScheduleIndex];
+
+        if (event.samplePosition < blockStart)
+        {
+            ++autoSamplerMidiScheduleIndex;
+            continue;
+        }
+
+        if (event.samplePosition >= blockEnd)
+            break;
+
+        const int sampleOffset = static_cast<int> (event.samplePosition - blockStart);
+        if (event.noteOn)
+        {
+            const auto velocity01 = juce::jlimit (0.0f, 1.0f, static_cast<float> (event.velocity127) / 127.0f);
+            midiOutput.addEvent (juce::MidiMessage::noteOn (1, event.midiNote, velocity01), sampleOffset);
+            autoSamplerHeldNotes[static_cast<size_t> (juce::jlimit (0, 127, event.midiNote))] = true;
+
+            AutoSamplerTriggeredTake triggered;
+            triggered.rootMidi = juce::jlimit (0, 127, event.midiNote);
+            triggered.velocity127 = juce::jlimit (1, 127, event.velocity127);
+            triggered.velocityLayer = juce::jlimit (1, 5, event.velocityLayer);
+            triggered.velocityLow = juce::jlimit (1, 127, event.velocityLow);
+            triggered.velocityHigh = juce::jlimit (triggered.velocityLow, 127, event.velocityHigh);
+            triggered.rrIndex = juce::jmax (1, event.rrIndex);
+            triggered.loopSamples = autoSamplerSettings.loopSamples;
+            triggered.autoLoopMode = autoSamplerSettings.autoLoopMode;
+            triggered.loopStartPercent = autoSamplerSettings.loopStartPercent;
+            triggered.loopEndPercent = autoSamplerSettings.loopEndPercent;
+            triggered.cutLoopAtEnd = autoSamplerSettings.cutLoopAtEnd;
+            triggered.loopCrossfadeMs = autoSamplerSettings.loopCrossfadeMs;
+            triggered.normalized = autoSamplerSettings.normalizeRecorded;
+            triggered.fileName = "AUTO_" + midiToNoteToken (triggered.rootMidi)
+                               + "_V" + juce::String (triggered.velocityLayer)
+                               + "_RR" + juce::String (triggered.rrIndex) + ".wav";
+            triggeredAutoCaptures.push_back (std::move (triggered));
+        }
+        else
+        {
+            midiOutput.addEvent (juce::MidiMessage::noteOff (1, event.midiNote), sampleOffset);
+            autoSamplerHeldNotes[static_cast<size_t> (juce::jlimit (0, 127, event.midiNote))] = false;
+        }
+
+        ++autoSamplerMidiScheduleIndex;
+    }
+
+    autoSamplerTimelineSample = blockEnd;
+}
+
+bool SamplePlayerAudioProcessor::startAutoSamplerCapture (const AutoSamplerSettings& settings, juce::String& errorMessage)
+{
+    AutoSamplerSettings next = settings;
+    next.startMidi = juce::jlimit (0, 127, next.startMidi);
+    next.endMidi = juce::jlimit (0, 127, next.endMidi);
+    next.intervalSemitones = juce::jlimit (1, 12, next.intervalSemitones);
+    next.velocityLayers = juce::jlimit (1, 5, next.velocityLayers);
+    next.roundRobinsPerNote = juce::jlimit (1, 8, next.roundRobinsPerNote);
+    next.sustainMs = juce::jlimit (1.0f, 60000.0f, next.sustainMs);
+    next.releaseTailMs = juce::jlimit (0.0f, 60000.0f, next.releaseTailMs);
+    next.prerollMs = juce::jlimit (0.0f, 60000.0f, next.prerollMs);
+    next.loopStartPercent = juce::jlimit (0.0f, 100.0f, next.loopStartPercent);
+    next.loopEndPercent = juce::jlimit (0.0f, 100.0f, next.loopEndPercent);
+    if (next.loopEndPercent <= next.loopStartPercent + 0.1f)
+        next.loopEndPercent = juce::jmin (100.0f, next.loopStartPercent + 0.1f);
+    next.loopCrossfadeMs = juce::jlimit (0.0f, 60000.0f, next.loopCrossfadeMs);
+
+    const int low = juce::jmin (next.startMidi, next.endMidi);
+    const int high = juce::jmax (next.startMidi, next.endMidi);
+
+    std::array<bool, 128> noteMask {};
+    std::vector<int> scheduledNotes;
+    int noteCount = 0;
+
+    for (int midi = low; midi <= high; midi += next.intervalSemitones)
+    {
+        if (! noteMask[static_cast<size_t> (midi)])
+        {
+            noteMask[static_cast<size_t> (midi)] = true;
+            scheduledNotes.push_back (midi);
+            ++noteCount;
+        }
+    }
+
+    if (! noteMask[static_cast<size_t> (high)])
+    {
+        noteMask[static_cast<size_t> (high)] = true;
+        scheduledNotes.push_back (high);
+        ++noteCount;
+    }
+
+    if (noteCount <= 0)
+    {
+        errorMessage = "No notes available for capture.";
+        return false;
+    }
+
+    const int preRollSamples = msToSamples (currentSampleRate, next.prerollMs);
+    const int historySize = juce::jmax (1, preRollSamples + 4);
+    const int sustainSamples = msToSamples (currentSampleRate, next.sustainMs);
+    const int tailSamples = msToSamples (currentSampleRate, next.releaseTailMs);
+    const int takeSamples = juce::jmax (4, preRollSamples + sustainSamples + tailSamples);
+
+    std::vector<AutoSamplerMidiEvent> midiSchedule;
+    midiSchedule.reserve (static_cast<size_t> (noteCount * next.velocityLayers * next.roundRobinsPerNote * 2));
+
+    juce::int64 timelineSample = 0;
+    for (const int note : scheduledNotes)
+    {
+        for (int layer = 1; layer <= next.velocityLayers; ++layer)
+        {
+            const int velocity127 = velocityForLayer (layer, next.velocityLayers);
+            const auto [velocityLow, velocityHigh] = velocityBoundsForLayer (layer, next.velocityLayers);
+            for (int rr = 1; rr <= next.roundRobinsPerNote; ++rr)
+            {
+                AutoSamplerMidiEvent noteOn;
+                // Emit the note immediately at take start so hosts see MIDI out activity right away.
+                // Preroll is still preserved in captured audio via input-history padding.
+                noteOn.samplePosition = timelineSample;
+                noteOn.midiNote = note;
+                noteOn.velocity127 = velocity127;
+                noteOn.velocityLayer = layer;
+                noteOn.velocityLow = velocityLow;
+                noteOn.velocityHigh = velocityHigh;
+                noteOn.rrIndex = rr;
+                noteOn.noteOn = true;
+                midiSchedule.push_back (noteOn);
+
+                AutoSamplerMidiEvent noteOff;
+                noteOff.samplePosition = noteOn.samplePosition + sustainSamples;
+                noteOff.midiNote = note;
+                noteOff.velocity127 = velocity127;
+                noteOff.velocityLayer = layer;
+                noteOff.velocityLow = velocityLow;
+                noteOff.velocityHigh = velocityHigh;
+                noteOff.rrIndex = rr;
+                noteOff.noteOn = false;
+                midiSchedule.push_back (noteOff);
+
+                timelineSample += takeSamples;
+            }
+        }
+    }
+
+    const juce::ScopedLock lock (autoSamplerLock);
+    autoSamplerSettings = next;
+    autoSamplerNoteMask = noteMask;
+    autoSamplerExpectedTakes = noteCount * next.velocityLayers * next.roundRobinsPerNote;
+    autoSamplerCapturedTakes = 0;
+    autoSamplerInputDetected = false;
+    autoSamplerStatusMessage = "Sampling armed. Sending MIDI notes to target instrument.";
+    autoSamplerActive = true;
+    activeAutoCaptures.clear();
+    triggeredAutoCaptures.clear();
+    completedAutoCaptures.clear();
+    autoSamplerMidiSchedule = std::move (midiSchedule);
+    autoSamplerMidiScheduleIndex = 0;
+    autoSamplerTimelineSample = 0;
+    autoSamplerStartWallMs = juce::Time::getMillisecondCounterHiRes();
+    autoSamplerHeldNotes.fill (false);
+    autoSamplerSendAllNotesOff = false;
+    autoSamplerRrCounters.clear();
+    autoSamplerHistorySize = historySize;
+    autoSamplerHistoryWrite = 0;
+    autoSamplerHistoryValid = 0;
+    autoSamplerInputHistory[0].assign (static_cast<size_t> (historySize), 0.0f);
+    autoSamplerInputHistory[1].assign (static_cast<size_t> (historySize), 0.0f);
+    return true;
+}
+
+void SamplePlayerAudioProcessor::stopAutoSamplerCapture (bool cancelled)
+{
+    const juce::ScopedLock lock (autoSamplerLock);
+    autoSamplerActive = false;
+    activeAutoCaptures.clear();
+    triggeredAutoCaptures.clear();
+    autoSamplerMidiSchedule.clear();
+    autoSamplerMidiScheduleIndex = 0;
+    autoSamplerTimelineSample = 0;
+    autoSamplerStartWallMs = 0.0;
+    autoSamplerSendAllNotesOff = true;
+    autoSamplerStatusMessage = cancelled ? "Sampling cancelled." : "Sampling stopped.";
+}
+
+SamplePlayerAudioProcessor::AutoSamplerProgress SamplePlayerAudioProcessor::getAutoSamplerProgress() const
+{
+    const juce::ScopedLock lock (autoSamplerLock);
+    AutoSamplerProgress progress;
+    progress.active = autoSamplerActive;
+    progress.expectedTakes = autoSamplerExpectedTakes;
+    progress.capturedTakes = autoSamplerCapturedTakes;
+    progress.inputDetected = autoSamplerInputDetected;
+    progress.statusMessage = autoSamplerStatusMessage;
+
+    if (progress.active
+        && autoSamplerTimelineSample <= 0
+        && autoSamplerStartWallMs > 0.0
+        && (juce::Time::getMillisecondCounterHiRes() - autoSamplerStartWallMs) > 1200.0)
+    {
+        progress.statusMessage = "Waiting for host processing. In Ableton: set track Monitor to In or press Play.";
+    }
+
+    return progress;
+}
+
+std::vector<SamplePlayerAudioProcessor::AutoSamplerCompletedTake> SamplePlayerAudioProcessor::popCompletedAutoSamplerTakes()
+{
+    const juce::ScopedLock lock (autoSamplerLock);
+    auto popped = std::move (completedAutoCaptures);
+    completedAutoCaptures.clear();
+    return popped;
+}
+
+std::vector<SamplePlayerAudioProcessor::AutoSamplerTriggeredTake> SamplePlayerAudioProcessor::popTriggeredAutoSamplerTakes()
+{
+    const juce::ScopedLock lock (autoSamplerLock);
+    auto popped = std::move (triggeredAutoCaptures);
+    triggeredAutoCaptures.clear();
+    return popped;
+}
+
+bool SamplePlayerAudioProcessor::shouldCaptureMidiNote (int midiNote) const
+{
+    const int clamped = juce::jlimit (0, 127, midiNote);
+    return autoSamplerNoteMask[static_cast<size_t> (clamped)];
+}
+
+void SamplePlayerAudioProcessor::writeInputHistorySample (float left, float right)
+{
+    if (autoSamplerHistorySize <= 0
+        || autoSamplerInputHistory[0].empty()
+        || autoSamplerInputHistory[1].empty())
+        return;
+
+    autoSamplerInputHistory[0][static_cast<size_t> (autoSamplerHistoryWrite)] = left;
+    autoSamplerInputHistory[1][static_cast<size_t> (autoSamplerHistoryWrite)] = right;
+    autoSamplerHistoryWrite = (autoSamplerHistoryWrite + 1) % autoSamplerHistorySize;
+    autoSamplerHistoryValid = juce::jmin (autoSamplerHistoryValid + 1, autoSamplerHistorySize);
+}
+
+void SamplePlayerAudioProcessor::copyFromInputHistory (ActiveAutoCapture& capture, int numSamples)
+{
+    if (numSamples <= 0 || autoSamplerHistorySize <= 0)
+        return;
+
+    const int available = juce::jmin (numSamples, autoSamplerHistoryValid);
+    if (available <= 0)
+        return;
+
+    const int destStart = juce::jmax (0, numSamples - available);
+    int index = autoSamplerHistoryWrite - available;
+    while (index < 0)
+        index += autoSamplerHistorySize;
+
+    for (int i = 0; i < available; ++i)
+    {
+        const int readIndex = (index + i) % autoSamplerHistorySize;
+        const int writeIndex = destStart + i;
+        if (writeIndex >= capture.totalSamples)
+            break;
+
+        capture.audio.setSample (0, writeIndex, autoSamplerInputHistory[0][static_cast<size_t> (readIndex)]);
+        capture.audio.setSample (1, writeIndex, autoSamplerInputHistory[1][static_cast<size_t> (readIndex)]);
+    }
+}
+
+void SamplePlayerAudioProcessor::processAutoSamplerCapture (const juce::AudioBuffer<float>& inputBuffer,
+                                                            const juce::MidiBuffer& midiMessages)
+{
+    const int numSamples = inputBuffer.getNumSamples();
+
+    if (numSamples <= 0)
+        return;
+
+    const int numInputChannels = inputBuffer.getNumChannels();
+    const auto* inL = numInputChannels > 0 ? inputBuffer.getReadPointer (0) : nullptr;
+    const auto* inR = numInputChannels > 1 ? inputBuffer.getReadPointer (1) : inL;
+
+    struct NoteEvent
+    {
+        int samplePosition = 0;
+        int note = 60;
+        int velocity127 = 100;
+    };
+
+    std::vector<NoteEvent> noteEvents;
+    noteEvents.reserve (16);
+
+    for (const auto metadata : midiMessages)
+    {
+        const auto message = metadata.getMessage();
+        if (! message.isNoteOn())
+            continue;
+
+        NoteEvent event;
+        event.samplePosition = juce::jlimit (0, numSamples - 1, metadata.samplePosition);
+        event.note = message.getNoteNumber();
+        event.velocity127 = juce::jlimit (1, 127, static_cast<int> (std::round (message.getVelocity() * 127.0f)));
+        noteEvents.push_back (event);
+    }
+
+    const juce::ScopedLock lock (autoSamplerLock);
+
+    if (! autoSamplerActive)
+        return;
+
+    const bool hasInputAudio = (numInputChannels > 0 && inL != nullptr);
+    if (! hasInputAudio)
+        autoSamplerStatusMessage = "No input audio detected. Capturing silence; route source audio to Sample Player input.";
+
+    const int preRollSamples = msToSamples (currentSampleRate, autoSamplerSettings.prerollMs);
+    const int sustainSamples = msToSamples (currentSampleRate, autoSamplerSettings.sustainMs);
+    const int tailSamples = msToSamples (currentSampleRate, autoSamplerSettings.releaseTailMs);
+    const int takeSamples = juce::jmax (4, preRollSamples + sustainSamples + tailSamples);
+
+    size_t nextNoteEventIndex = 0;
+
+    for (int sample = 0; sample < numSamples; ++sample)
+    {
+        while (nextNoteEventIndex < noteEvents.size()
+               && noteEvents[nextNoteEventIndex].samplePosition == sample)
+        {
+            const auto& event = noteEvents[nextNoteEventIndex];
+            ++nextNoteEventIndex;
+
+            if (! shouldCaptureMidiNote (event.note))
+                continue;
+
+            const int layer = velocityToLayer (event.velocity127, autoSamplerSettings.velocityLayers);
+            const int rrKey = (juce::jlimit (0, 127, event.note) << 8) | juce::jlimit (1, 5, layer);
+            const int rrIndex = ++autoSamplerRrCounters[rrKey];
+
+            if (rrIndex > autoSamplerSettings.roundRobinsPerNote)
+                continue;
+
+            ActiveAutoCapture capture;
+            capture.rootMidi = juce::jlimit (0, 127, event.note);
+            capture.velocity127 = event.velocity127;
+            capture.velocityLayer = layer;
+            const auto [velocityLow, velocityHigh] = velocityBoundsForLayer (layer, autoSamplerSettings.velocityLayers);
+            capture.velocityLow = velocityLow;
+            capture.velocityHigh = velocityHigh;
+            capture.rrIndex = rrIndex;
+            capture.totalSamples = takeSamples;
+            capture.audio.setSize (2, takeSamples);
+            capture.audio.clear();
+            capture.writePosition = preRollSamples;
+            copyFromInputHistory (capture, preRollSamples);
+
+            activeAutoCaptures.push_back (std::move (capture));
+            autoSamplerStatusMessage = "Capturing " + midiToNoteToken (event.note)
+                                     + " V" + juce::String (layer)
+                                     + " RR" + juce::String (rrIndex) + "...";
+        }
+
+        const float left = (inL != nullptr ? inL[sample] : 0.0f);
+        const float right = (inR != nullptr ? inR[sample] : left);
+
+        if (! autoSamplerInputDetected
+            && (std::abs (left) > 0.00005f || std::abs (right) > 0.00005f))
+            autoSamplerInputDetected = true;
+
+        writeInputHistorySample (left, right);
+
+        for (size_t i = 0; i < activeAutoCaptures.size();)
+        {
+            auto& capture = activeAutoCaptures[i];
+            if (capture.writePosition < capture.totalSamples)
+            {
+                capture.audio.setSample (0, capture.writePosition, left);
+                capture.audio.setSample (1, capture.writePosition, right);
+                ++capture.writePosition;
+            }
+
+            if (capture.writePosition >= capture.totalSamples)
+            {
+                juce::AudioBuffer<float> finalAudio = std::move (capture.audio);
+                int finalSamples = finalAudio.getNumSamples();
+
+                if (autoSamplerSettings.loopSamples && autoSamplerSettings.cutLoopAtEnd)
+                {
+                    const auto endRatio = juce::jlimit (0.0f, 1.0f, autoSamplerSettings.loopEndPercent * 0.01f);
+                    const auto cutSamples = juce::jlimit (4, finalSamples, static_cast<int> (std::round (endRatio * static_cast<float> (finalSamples))));
+                    if (cutSamples < finalSamples)
+                    {
+                        juce::AudioBuffer<float> trimmed;
+                        trimmed.setSize (2, cutSamples);
+                        trimmed.copyFrom (0, 0, finalAudio, 0, 0, cutSamples);
+                        trimmed.copyFrom (1, 0, finalAudio, juce::jmin (1, finalAudio.getNumChannels() - 1), 0, cutSamples);
+                        finalAudio = std::move (trimmed);
+                        finalSamples = cutSamples;
+                    }
+                }
+
+                bool normalized = false;
+                if (autoSamplerSettings.normalizeRecorded)
+                {
+                    float peak = 0.0f;
+                    for (int ch = 0; ch < finalAudio.getNumChannels(); ++ch)
+                    {
+                        const auto channelPeak = finalAudio.getMagnitude (ch, 0, finalSamples);
+                        if (channelPeak > peak)
+                            peak = channelPeak;
+                    }
+
+                    if (peak > 0.000001f)
+                    {
+                        const auto gain = 0.999f / peak;
+                        finalAudio.applyGain (gain);
+                        normalized = true;
+                    }
+                }
+
+                AutoSamplerCompletedTake completed;
+                completed.rootMidi = capture.rootMidi;
+                completed.velocity127 = capture.velocity127;
+                completed.velocityLayer = capture.velocityLayer;
+                completed.velocityLow = capture.velocityLow;
+                completed.velocityHigh = capture.velocityHigh;
+                completed.rrIndex = capture.rrIndex;
+                completed.sampleRate = currentSampleRate;
+                completed.loopSamples = autoSamplerSettings.loopSamples;
+                completed.autoLoopMode = autoSamplerSettings.autoLoopMode;
+                completed.loopStartPercent = autoSamplerSettings.loopStartPercent;
+                completed.loopEndPercent = autoSamplerSettings.loopEndPercent;
+                completed.cutLoopAtEnd = autoSamplerSettings.cutLoopAtEnd;
+                completed.loopCrossfadeMs = autoSamplerSettings.loopCrossfadeMs;
+                completed.normalized = normalized;
+                completed.fileName = "AUTO_" + midiToNoteToken (capture.rootMidi)
+                                   + "_V" + juce::String (capture.velocityLayer)
+                                   + "_RR" + juce::String (capture.rrIndex) + ".wav";
+                completed.audio = std::move (finalAudio);
+                completedAutoCaptures.push_back (std::move (completed));
+                ++autoSamplerCapturedTakes;
+
+                activeAutoCaptures.erase (activeAutoCaptures.begin() + static_cast<std::ptrdiff_t> (i));
+                continue;
+            }
+
+            ++i;
+        }
+    }
+
+    if (autoSamplerActive
+        && autoSamplerExpectedTakes > 0
+        && autoSamplerCapturedTakes >= autoSamplerExpectedTakes
+        && activeAutoCaptures.empty())
+    {
+        autoSamplerActive = false;
+        autoSamplerSendAllNotesOff = true;
+        autoSamplerStatusMessage = "Sampling finished.";
+    }
 }
 
 juce::String SamplePlayerAudioProcessor::getZoneNamingHint()

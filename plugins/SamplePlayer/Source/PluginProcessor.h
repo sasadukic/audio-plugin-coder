@@ -2,6 +2,7 @@
 
 #include <array>
 #include <memory>
+#include <utility>
 #include <unordered_map>
 #include <vector>
 
@@ -11,6 +12,84 @@
 class SamplePlayerAudioProcessor : public juce::AudioProcessor
 {
 public:
+    struct AutoSamplerSettings
+    {
+        int startMidi = 36;
+        int endMidi = 72;
+        int intervalSemitones = 3;
+        int velocityLayers = 3;
+        int roundRobinsPerNote = 2;
+        float sustainMs = 1800.0f;
+        float releaseTailMs = 700.0f;
+        float prerollMs = 120.0f;
+        bool loopSamples = false;
+        bool autoLoopMode = true;
+        float loopStartPercent = 10.0f;
+        float loopEndPercent = 90.0f;
+        bool cutLoopAtEnd = false;
+        float loopCrossfadeMs = 30.0f;
+        bool normalizeRecorded = false;
+    };
+
+    struct AutoSamplerMidiEvent
+    {
+        juce::int64 samplePosition = 0;
+        int midiNote = 60;
+        int velocity127 = 100;
+        int velocityLayer = 1;
+        int velocityLow = 1;
+        int velocityHigh = 127;
+        int rrIndex = 1;
+        bool noteOn = true;
+    };
+
+    struct AutoSamplerProgress
+    {
+        bool active = false;
+        int expectedTakes = 0;
+        int capturedTakes = 0;
+        bool inputDetected = false;
+        juce::String statusMessage;
+    };
+
+    struct AutoSamplerCompletedTake
+    {
+        int rootMidi = 60;
+        int velocity127 = 100;
+        int velocityLayer = 1;
+        int velocityLow = 1;
+        int velocityHigh = 127;
+        int rrIndex = 1;
+        juce::String fileName;
+        double sampleRate = 44100.0;
+        bool loopSamples = false;
+        bool autoLoopMode = true;
+        float loopStartPercent = 10.0f;
+        float loopEndPercent = 90.0f;
+        bool cutLoopAtEnd = false;
+        float loopCrossfadeMs = 30.0f;
+        bool normalized = false;
+        juce::AudioBuffer<float> audio;
+    };
+
+    struct AutoSamplerTriggeredTake
+    {
+        int rootMidi = 60;
+        int velocity127 = 100;
+        int velocityLayer = 1;
+        int velocityLow = 1;
+        int velocityHigh = 127;
+        int rrIndex = 1;
+        juce::String fileName;
+        bool loopSamples = false;
+        bool autoLoopMode = true;
+        float loopStartPercent = 10.0f;
+        float loopEndPercent = 90.0f;
+        bool cutLoopAtEnd = false;
+        float loopCrossfadeMs = 30.0f;
+        bool normalized = false;
+    };
+
     struct ZoneMetadata
     {
         int rootNote = 60;
@@ -71,6 +150,12 @@ public:
     juce::File getWallpaperFile() const;
 
     static juce::String getZoneNamingHint();
+
+    bool startAutoSamplerCapture (const AutoSamplerSettings& settings, juce::String& errorMessage);
+    void stopAutoSamplerCapture (bool cancelled);
+    AutoSamplerProgress getAutoSamplerProgress() const;
+    std::vector<AutoSamplerTriggeredTake> popTriggeredAutoSamplerTakes();
+    std::vector<AutoSamplerCompletedTake> popCompletedAutoSamplerTakes();
 
     juce::AudioProcessorValueTreeState parameters;
 
@@ -220,6 +305,53 @@ private:
 
     mutable juce::CriticalSection wallpaperLock;
     juce::File wallpaperFile;
+
+    struct ActiveAutoCapture
+    {
+        int rootMidi = 60;
+        int velocity127 = 100;
+        int velocityLayer = 1;
+        int velocityLow = 1;
+        int velocityHigh = 127;
+        int rrIndex = 1;
+        int writePosition = 0;
+        int totalSamples = 0;
+        juce::AudioBuffer<float> audio;
+    };
+
+    static int velocityToLayer (int velocity127, int totalLayers);
+    static std::pair<int, int> velocityBoundsForLayer (int layer, int totalLayers);
+    static int velocityForLayer (int layer, int totalLayers);
+    static juce::String midiToNoteToken (int midiNote);
+
+    void appendAutoSamplerMidiOutput (juce::MidiBuffer& midiOutput, int blockNumSamples);
+    void processAutoSamplerCapture (const juce::AudioBuffer<float>& inputBuffer, const juce::MidiBuffer& midiMessages);
+    void writeInputHistorySample (float left, float right);
+    void copyFromInputHistory (ActiveAutoCapture& capture, int numSamples);
+    bool shouldCaptureMidiNote (int midiNote) const;
+
+    mutable juce::CriticalSection autoSamplerLock;
+    AutoSamplerSettings autoSamplerSettings {};
+    bool autoSamplerActive = false;
+    bool autoSamplerInputDetected = false;
+    int autoSamplerExpectedTakes = 0;
+    int autoSamplerCapturedTakes = 0;
+    juce::String autoSamplerStatusMessage;
+    std::vector<ActiveAutoCapture> activeAutoCaptures;
+    std::vector<AutoSamplerTriggeredTake> triggeredAutoCaptures;
+    std::vector<AutoSamplerCompletedTake> completedAutoCaptures;
+    std::unordered_map<int, int> autoSamplerRrCounters;
+    std::array<bool, 128> autoSamplerNoteMask {};
+    std::vector<AutoSamplerMidiEvent> autoSamplerMidiSchedule;
+    size_t autoSamplerMidiScheduleIndex = 0;
+    juce::int64 autoSamplerTimelineSample = 0;
+    double autoSamplerStartWallMs = 0.0;
+    std::array<bool, 128> autoSamplerHeldNotes {};
+    bool autoSamplerSendAllNotesOff = false;
+    std::array<std::vector<float>, 2> autoSamplerInputHistory;
+    int autoSamplerHistoryWrite = 0;
+    int autoSamplerHistoryValid = 0;
+    int autoSamplerHistorySize = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplePlayerAudioProcessor)
 };

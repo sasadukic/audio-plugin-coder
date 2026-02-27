@@ -3,9 +3,11 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PLUGIN_TARGET="nf_gnarly"
-PLUGIN_DIR_NAME=""
-DEST_DIR="/Applications"
+PLUGIN_TARGET="sample_player"
+PLUGIN_DIR_NAME="SamplePlayer"
+DEST_DIR="$HOME/Library/Audio/Plug-Ins/VST3"
+SYSTEM_DEST_DIR="/Library/Audio/Plug-Ins/VST3"
+COPY_SYSTEM=1
 WATCH_MODE=0
 INTERVAL_SECONDS=2
 
@@ -14,16 +16,18 @@ usage() {
 Usage: scripts/autobuild-copy-macos.sh [options]
 
 Options:
-  --plugin <target>     Plugin CMake target prefix (default: nf_gnarly)
-  --plugin-dir <name>   Plugin directory name under plugins/ (default: same as --plugin)
-  --dest <directory>    Destination app folder (default: /Applications)
+  --plugin <target>     Plugin CMake target prefix (default: sample_player)
+  --plugin-dir <name>   Plugin directory name under plugins/ (default: SamplePlayer)
+  --dest <directory>    Destination VST3 folder (default: ~/Library/Audio/Plug-Ins/VST3)
+  --system-dest <dir>   Optional system VST3 folder (default: /Library/Audio/Plug-Ins/VST3)
+  --no-system-copy      Skip attempting system VST3 copy
   --watch               Keep watching plugin files and rebuild on every change
   --interval <seconds>  Poll interval in watch mode (default: 2)
   -h, --help            Show this help
 
 Examples:
-  scripts/autobuild-copy-macos.sh --plugin nf_gnarly
-  scripts/autobuild-copy-macos.sh --plugin nf_gnarly --watch --interval 1
+  scripts/autobuild-copy-macos.sh
+  scripts/autobuild-copy-macos.sh --plugin sample_player --plugin-dir SamplePlayer --watch --interval 1
 EOF
 }
 
@@ -37,9 +41,17 @@ while [[ $# -gt 0 ]]; do
       DEST_DIR="$2"
       shift 2
       ;;
+    --system-dest)
+      SYSTEM_DEST_DIR="$2"
+      shift 2
+      ;;
     --plugin-dir)
       PLUGIN_DIR_NAME="$2"
       shift 2
+      ;;
+    --no-system-copy)
+      COPY_SYSTEM=0
+      shift
       ;;
     --watch)
       WATCH_MODE=1
@@ -61,10 +73,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "$PLUGIN_DIR_NAME" ]]; then
-  PLUGIN_DIR_NAME="$PLUGIN_TARGET"
-fi
-
 PLUGIN_DIR="$ROOT_DIR/plugins/$PLUGIN_DIR_NAME"
 if [[ ! -d "$PLUGIN_DIR" ]]; then
   echo "Plugin directory not found: $PLUGIN_DIR" >&2
@@ -72,34 +80,59 @@ if [[ ! -d "$PLUGIN_DIR" ]]; then
 fi
 
 build_and_copy() {
-  local standalone_target="${PLUGIN_TARGET}_Standalone"
-  local standalone_dir="$ROOT_DIR/build/plugins/$PLUGIN_DIR_NAME/${PLUGIN_TARGET}_artefacts/Standalone"
-  local app_source=""
-  local app_name=""
-  local dest_app=""
+  local vst3_target="${PLUGIN_TARGET}_VST3"
+  local vst3_dir="$ROOT_DIR/build/plugins/$PLUGIN_DIR_NAME/${PLUGIN_TARGET}_artefacts/VST3"
+  local vst3_source=""
+  local vst3_name=""
+  local user_dest=""
+  local system_dest=""
 
   echo "[autobuild] Configuring CMake..."
   cmake -S "$ROOT_DIR" -B "$ROOT_DIR/build"
 
-  echo "[autobuild] Building target: $standalone_target"
-  cmake --build "$ROOT_DIR/build" --target "$standalone_target" --config Release
+  echo "[autobuild] Building target: $vst3_target"
+  cmake --build "$ROOT_DIR/build" --target "$vst3_target" --config Release
 
-  app_source="$(find "$standalone_dir" -maxdepth 1 -type d -name "*.app" | head -n 1 || true)"
-  if [[ -z "$app_source" ]]; then
-    echo "[autobuild] App bundle not found in: $standalone_dir" >&2
+  vst3_source="$(find "$vst3_dir" -maxdepth 1 -type d -name "*.vst3" | head -n 1 || true)"
+  if [[ -z "$vst3_source" ]]; then
+    echo "[autobuild] VST3 bundle not found in: $vst3_dir" >&2
     return 1
   fi
 
-  app_name="$(basename "$app_source")"
-  dest_app="$DEST_DIR/$app_name"
+  echo "[autobuild] Re-signing VST3 bundle to keep resource seal valid"
+  codesign --force --deep --sign - "$vst3_source"
+  if ! codesign --verify --deep --strict --verbose=1 "$vst3_source"; then
+    echo "[autobuild] Code signature verification failed for: $vst3_source" >&2
+    return 1
+  fi
 
-  echo "[autobuild] Copying $app_name -> $DEST_DIR"
-  if ! ditto "$app_source" "$dest_app" 2>/dev/null; then
-    local fallback_dir="$HOME/Applications"
-    local fallback_app="$fallback_dir/$app_name"
-    mkdir -p "$fallback_dir"
-    ditto "$app_source" "$fallback_app"
-    echo "[autobuild] Could not write to $DEST_DIR. Deployed to $fallback_dir instead."
+  vst3_name="$(basename "$vst3_source")"
+  user_dest="$DEST_DIR/$vst3_name"
+
+  echo "[autobuild] Copying $vst3_name -> $DEST_DIR"
+  mkdir -p "$DEST_DIR"
+  rm -rf "$user_dest"
+  ditto "$vst3_source" "$user_dest"
+  if ! codesign --verify --deep --strict --verbose=1 "$user_dest"; then
+    echo "[autobuild] Code signature verification failed after copy: $user_dest" >&2
+    return 1
+  fi
+  echo "[autobuild] User VST3 deployed: $user_dest"
+
+  if [[ "$COPY_SYSTEM" -eq 1 ]]; then
+    system_dest="$SYSTEM_DEST_DIR/$vst3_name"
+    if [[ -d "$SYSTEM_DEST_DIR" && -w "$SYSTEM_DEST_DIR" ]]; then
+      echo "[autobuild] Copying $vst3_name -> $SYSTEM_DEST_DIR"
+      rm -rf "$system_dest"
+      ditto "$vst3_source" "$system_dest"
+      if ! codesign --verify --deep --strict --verbose=1 "$system_dest"; then
+        echo "[autobuild] Code signature verification failed after system copy: $system_dest" >&2
+        return 1
+      fi
+      echo "[autobuild] System VST3 deployed: $system_dest"
+    else
+      echo "[autobuild] Skipping system copy (no write access to $SYSTEM_DEST_DIR)"
+    fi
   fi
 }
 

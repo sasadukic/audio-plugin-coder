@@ -41,6 +41,8 @@
     html,
     body {
       margin: 0;
+      width: 100%;
+      height: 100%;
       min-height: 100%;
       font-family: "Avenir Next", "Segoe UI", sans-serif;
       color: var(--text);
@@ -48,21 +50,25 @@
         radial-gradient(900px 560px at 8% 6%, rgba(255, 255, 255, 0.08), transparent 62%),
         radial-gradient(880px 660px at 90% 86%, rgba(191, 197, 207, 0.08), transparent 62%),
         linear-gradient(145deg, var(--bg-a), var(--bg-b));
+      overflow: hidden;
     }
 
     body {
-      padding: 14px;
-      display: grid;
-      place-items: center;
+      padding: 0;
+      display: block;
     }
 
     .instrument {
-      width: min(992px, 100%);
+      width: 100%;
+      height: 100%;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
       border: 1px solid rgba(140, 146, 156, 0.2);
       border-radius: 8px;
       background: var(--chrome-surface);
       box-shadow: 0 20px 52px rgba(0, 0, 0, 0.34);
-      overflow: visible;
+      overflow: hidden;
       backdrop-filter: blur(6px);
     }
 
@@ -243,16 +249,25 @@
 
     .panel {
       display: none;
+      flex: 1 1 auto;
+      min-height: 0;
       padding: 10px 12px 12px;
       background: transparent;
     }
 
     .panel.active {
       display: block;
+      overflow: auto;
     }
 
     #panel-player {
       padding: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    #panel-player.active {
+      display: flex;
     }
 
     #panel-setup {
@@ -264,6 +279,8 @@
       --player-white-key-width: 23px;
       --player-black-key-height: 66%;
       min-height: 560px;
+      flex: 1 1 auto;
+      height: 100%;
       border: 0;
       border-radius: 0;
       position: relative;
@@ -1632,6 +1649,41 @@
 
     .auto-preset-save-btn {
       text-transform: uppercase;
+      border: 0;
+      background: transparent;
+      padding-left: 4px;
+      padding-right: 4px;
+    }
+
+    .auto-preset-create {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .auto-preset-name-input {
+      width: 100%;
+      min-width: 0;
+      height: 22px;
+      border: 1px solid rgba(140, 146, 156, 0.3);
+      border-radius: 4px;
+      background: rgba(12, 17, 26, 0.86);
+      color: var(--text);
+      font-size: 10px;
+      letter-spacing: 0.03em;
+      padding: 0 6px;
+    }
+
+    .auto-preset-name-input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .auto-preset-confirm-btn {
+      min-width: 42px;
+      justify-content: center;
+      padding: 0 8px;
+      text-transform: uppercase;
     }
 
     .auto-preset-list {
@@ -1639,9 +1691,31 @@
       gap: 2px;
     }
 
+    .auto-preset-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 22px;
+      align-items: center;
+      gap: 4px;
+    }
+
     .auto-preset-item {
       text-transform: none;
       letter-spacing: 0.03em;
+    }
+
+    .auto-preset-row .auto-preset-item {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .auto-preset-row .auto-preset-delete-btn {
+      width: 22px;
+      min-width: 22px;
+      height: 22px;
+      padding: 0;
+      justify-content: center;
+      text-transform: none;
+      letter-spacing: 0;
     }
 
     .auto-preset-empty {
@@ -1941,6 +2015,53 @@
       font-weight: 600;
     }
 
+    .render-size {
+      font-size: 12px;
+      color: var(--text-dim);
+      padding-top: 0;
+    }
+
+    .render-size-value {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .render-size-format {
+      color: var(--text-dim);
+      font-size: 11px;
+    }
+
+    .start-sampling-btn {
+      margin: 12px auto 0;
+      width: 232px;
+      max-width: 100%;
+      height: 42px;
+      padding: 0 16px;
+      border-color: rgba(150, 58, 58, 0.86);
+      background: linear-gradient(180deg, rgba(102, 22, 22, 0.98), rgba(72, 12, 12, 0.99));
+      color: #fff0f0;
+      font-size: 15px;
+      letter-spacing: 0.07em;
+      font-weight: 700;
+    }
+
+    .start-sampling-btn:hover {
+      border-color: rgba(176, 76, 76, 0.88);
+      background: linear-gradient(180deg, rgba(118, 28, 28, 0.98), rgba(84, 16, 16, 0.99));
+    }
+
+    .start-sampling-btn.is-recording {
+      border-color: rgba(255, 120, 120, 0.95);
+      background: linear-gradient(180deg, rgba(236, 36, 36, 0.98), rgba(186, 18, 18, 0.99));
+      color: #fff8f8;
+      box-shadow: 0 0 14px rgba(208, 34, 34, 0.38);
+    }
+
+    .start-sampling-btn.is-recording:hover {
+      border-color: rgba(255, 160, 160, 0.98);
+      background: linear-gradient(180deg, rgba(246, 52, 52, 0.98), rgba(198, 26, 26, 0.99));
+    }
+
     .notes {
       border: 1px dashed rgba(140, 146, 156, 0.2);
       border-radius: 8px;
@@ -1960,6 +2081,67 @@
       border-radius: 8px;
       background: rgba(8, 11, 17, 0.36);
       overflow: hidden;
+    }
+
+    .keyswitch-map-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin: 0 0 6px;
+    }
+
+    .keyswitch-map-toolbar > label {
+      margin: 0;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .keyswitch-map-select {
+      width: auto;
+      min-width: 180px;
+      max-width: 320px;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11px;
+      background: rgba(11, 16, 24, 0.82);
+    }
+
+    .keyswitch-map-key-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .keyswitch-map-key-wrap > label {
+      margin: 0;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .keyswitch-map-key {
+      width: 52px;
+      min-width: 52px;
+      padding: 4px 6px;
+      text-align: center;
+      text-transform: uppercase;
+      border-radius: 6px;
+      font-size: 11px;
+      background: rgba(11, 16, 24, 0.82);
+    }
+
+    .keyswitch-map-warning {
+      margin-left: 6px;
+      color: var(--warn);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
     }
 
     .sample-editor {
@@ -2541,6 +2723,13 @@
       z-index: 1;
     }
 
+    .map-velocity-row {
+      flex: 1 1 0;
+      min-height: 10px;
+      position: relative;
+      overflow: visible;
+    }
+
     .map-col::before {
       content: "";
       position: absolute;
@@ -2570,7 +2759,7 @@
       --span-left: 0;
       --root-slot: 0;
       position: relative;
-      flex: 1 1 0;
+      height: 100%;
       min-height: 10px;
       width: calc((100% * var(--span-total)) + (var(--map-col-gap) * (var(--span-total) - 1)));
       margin-left: calc((-100% * var(--span-left)) - (var(--map-col-gap) * var(--span-left)));
@@ -2588,6 +2777,45 @@
         );
       cursor: pointer;
       z-index: 2;
+    }
+
+    .map-rr-grid {
+      position: absolute;
+      top: 1px;
+      bottom: 1px;
+      left: calc(
+        (var(--root-slot) * ((100% - (var(--map-col-gap) * (var(--span-total) - 1))) / var(--span-total)))
+        + (var(--root-slot) * var(--map-col-gap))
+      );
+      width: calc((100% - (var(--map-col-gap) * (var(--span-total) - 1))) / var(--span-total));
+      display: grid;
+      grid-template-columns: repeat(var(--rr-count, 1), minmax(0, 1fr));
+      gap: 2px;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .map-rr-cell {
+      appearance: none;
+      border: 0;
+      border-radius: 1px;
+      background: rgba(164, 170, 180, 0.18);
+      cursor: pointer;
+      padding: 0;
+      margin: 0;
+      pointer-events: auto;
+      position: relative;
+      transition: background 120ms ease, box-shadow 120ms ease;
+    }
+
+    .map-rr-cell:hover {
+      background: rgba(86, 146, 255, 0.26);
+      box-shadow: inset 0 0 0 1px rgba(116, 168, 255, 0.82);
+    }
+
+    .map-rr-cell.selected {
+      background: rgba(58, 126, 255, 0.34);
+      box-shadow: inset 0 0 0 1px rgba(132, 184, 255, 0.96);
     }
 
     .map-sample-box.selected {
@@ -2628,6 +2856,43 @@
     }
 
     .map-sample-box.tooltip-left::after {
+      left: 0;
+      transform: none;
+    }
+
+    .map-rr-cell::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 50%;
+      top: calc(100% + 4px);
+      transform: translateX(-50%);
+      white-space: nowrap;
+      pointer-events: none;
+      border: 1px solid rgba(140, 146, 156, 0.36);
+      border-radius: 6px;
+      background: rgba(10, 14, 21, 0.95);
+      color: var(--text);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      padding: 4px 6px;
+      z-index: 24;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 120ms ease;
+    }
+
+    .map-rr-cell:hover::after {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .map-rr-cell.tooltip-right::after {
+      left: auto;
+      right: 0;
+      transform: none;
+    }
+
+    .map-rr-cell.tooltip-left::after {
       left: 0;
       transform: none;
     }
@@ -2830,6 +3095,7 @@
     <input id="filesInput" class="hidden" type="file" multiple accept=".wav,.aif,.aiff,.flac,.ogg,.mp3,.WAV,.AIF,.AIFF,.FLAC,.OGG,.MP3">
     <input id="folderInput" class="hidden" type="file" webkitdirectory directory multiple>
     <input id="packInput" class="hidden" type="file" accept=".smpinst,.json">
+    <input id="keyswitchInput" class="hidden" type="file" accept=".keysw,.json" multiple>
 
     <section id="panel-player" class="panel active">
       <div id="playerStage" class="player-stage">
@@ -2916,7 +3182,9 @@
               <div class="btn-row import-pack-controls">
                 <button id="addFilesBtn" class="sample-loop-tool-btn" type="button">Add Files</button>
                 <button id="addFolderBtn" class="sample-loop-tool-btn" type="button">Add Folder</button>
+                <button id="importKeyswitchesBtn" class="sample-loop-tool-btn" type="button">Import Keyswitches</button>
                 <button id="clearInstrumentBtn" class="sample-loop-tool-btn" type="button">Clear</button>
+                <button id="saveSmpinstBtn" class="sample-loop-tool-btn" type="button">Save (.smpinst)</button>
               </div>
               <div id="dropZone" class="drop" style="margin-top: 8px;">
                 Drop audio files here. Filename tokens: NOTE(required), V1..V5, RRn, L
@@ -3046,6 +3314,13 @@
                             <span class="sample-velocity-toggle-mark">✓</span>
                           </label>
                         </div>
+                        <div class="field auto-loop-row">
+                          <label for="autoNormalizeRecorded" class="auto-loop-row-label">Normalize</label>
+                          <label class="sample-velocity-toggle auto-loop-inline auto-loop-check" title="Normalize recorded samples" aria-label="Normalize recorded samples">
+                            <input id="autoNormalizeRecorded" type="checkbox">
+                            <span class="sample-velocity-toggle-mark">✓</span>
+                          </label>
+                        </div>
                         <div id="autoLoopDetails" class="auto-loop-options hidden">
                           <div class="field auto-loop-option-row">
                             <label for="autoLoopMode">Auto Loop</label>
@@ -3091,7 +3366,7 @@
                               <label class="auto-pack-check">
                                 <input class="auto-pack-check-input" type="checkbox" data-pack-ext="keyswitch">
                                 <span class="auto-pack-check-mark">✓</span>
-                                <span class="auto-pack-check-text">keyswitch</span>
+                                <span class="auto-pack-check-text">.keysw</span>
                               </label>
                               <label class="auto-pack-check">
                                 <input class="auto-pack-check-input" type="checkbox" data-pack-ext="smpinst" checked>
@@ -3122,6 +3397,10 @@
                             <button id="autoPresetBtn" class="auto-pack-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Preset options">v</button>
                             <div id="autoPresetMenu" class="auto-pack-as-menu auto-preset-menu hidden" role="menu" aria-label="Preset options">
                               <button id="autoPresetSaveBtn" class="sample-loop-tool-btn auto-preset-save-btn" type="button">Save Preset</button>
+                              <div id="autoPresetCreateRow" class="auto-preset-create hidden">
+                                <input id="autoPresetNameInput" class="auto-preset-name-input" type="text" maxlength="40" placeholder="Preset name">
+                                <button id="autoPresetConfirmBtn" class="sample-loop-tool-btn auto-preset-confirm-btn" type="button">Save</button>
+                              </div>
                               <div id="autoPresetList" class="auto-preset-list">
                                 <div class="auto-preset-empty">No presets</div>
                               </div>
@@ -3138,6 +3417,8 @@
                     <h2>Computed Preview</h2>
                     <div id="renderTotal" class="render"><strong>0</strong> total renders</div>
                     <div id="renderTime" class="render render-time">Estimated record time: <span class="render-time-value">0:00</span></div>
+                    <div id="renderSize" class="render render-size">Estimated file size: <span class="render-size-value">0 B</span></div>
+                    <button id="startSamplingBtn" class="sample-loop-tool-btn start-sampling-btn" type="button">Start Sampling</button>
                   </div>
                 </div>
               </div>
@@ -3147,6 +3428,15 @@
           <div id="keyboardMapSection" class="section setup-map-wide collapsible collapsed">
             <h2 id="keyboardMapToggle" class="setup-map-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="keyboardMapBody">Keyboard Map</h2>
             <div id="keyboardMapBody" class="section-body">
+              <div id="keyswitchMapToolbar" class="keyswitch-map-toolbar hidden">
+                <label for="keyswitchMapSelect">Keyswitch Set</label>
+                <select id="keyswitchMapSelect" class="keyswitch-map-select" aria-label="Select keyswitch set"></select>
+                <div id="keyswitchMapKeyWrap" class="keyswitch-map-key-wrap hidden">
+                  <label for="keyswitchMapKeyInput">Key</label>
+                  <input id="keyswitchMapKeyInput" class="keyswitch-map-key" type="text" maxlength="3" inputmode="text" aria-label="Keyswitch key">
+                </div>
+                <span id="keyswitchMapWarning" class="keyswitch-map-warning hidden" aria-live="polite"></span>
+              </div>
               <div class="map-shell">
               <div id="sampleEditor" class="sample-editor hidden">
                 <div class="sample-waveform-box">
@@ -3239,8 +3529,13 @@
     const IMAGE_EXT_REGEX = /\.(png|jpe?g|webp|gif|bmp|svg|avif)$/i;
     const SETUP_COLLAPSE_STATE_KEY = "samplePlayer.setupCollapseState.v1";
     const AUTO_PRESET_STORAGE_KEY = "samplePlayer.autoSamplerPresets.v1";
+    const SAME_KEY_RETRIGGER_FADE_SEC = 0.05;
     const PLAYER_KB_START_MIDI = 12; // C0
     const PLAYER_KB_END_MIDI = 84; // C6
+    const HOST_EDITOR_WIDTH = 1040;
+    const HOST_PLAYER_FIXED_HEIGHT = 760;
+    const HOST_SETUP_MIN_HEIGHT = 560;
+    const HOST_SETUP_MAX_HEIGHT = 2600;
 
     const state = {
       wallpaperUrl: "",
@@ -3292,7 +3587,24 @@
       playerParticlesLastTs: 0,
       playerParticlesRunning: false,
       playerParticlesDpr: 1,
-      autoPresets: []
+      autoPresets: [],
+      keyswitchSets: [],
+      activeMapSetId: "base",
+      nextVirtualOrder: -1,
+      samplingCountdownTimer: 0,
+      samplingCountdownEndsAt: 0,
+      nativeAutoSamplerAvailable: false,
+      nativeAutoSamplerActive: false,
+      nativeAutoSamplerExpected: 0,
+      nativeAutoSamplerCaptured: 0,
+      nativeAutoSamplerTakeCount: 0,
+      deferredAutoLoopOrders: [],
+      nativeAutoSamplerInputDetected: false,
+      nativeAutoSamplerMessage: "",
+      nativeAutoSamplerListeners: [],
+      hostResizeRaf: 0,
+      lastHostResizeWidth: 0,
+      lastHostResizeHeight: 0
     };
 
     const el = {
@@ -3333,6 +3645,11 @@
       mapSamples: document.getElementById("mapSamples"),
       mapKeys: document.getElementById("mapKeys"),
       mapEmpty: document.getElementById("mapEmpty"),
+      keyswitchMapToolbar: document.getElementById("keyswitchMapToolbar"),
+      keyswitchMapSelect: document.getElementById("keyswitchMapSelect"),
+      keyswitchMapKeyWrap: document.getElementById("keyswitchMapKeyWrap"),
+      keyswitchMapKeyInput: document.getElementById("keyswitchMapKeyInput"),
+      keyswitchMapWarning: document.getElementById("keyswitchMapWarning"),
       sampleEditor: document.getElementById("sampleEditor"),
       sampleEditorTitle: document.getElementById("sampleEditorTitle"),
       sampleEditorMeta: document.getElementById("sampleEditorMeta"),
@@ -3376,6 +3693,8 @@
       addFilesBtn: document.getElementById("addFilesBtn"),
       addFolderBtn: document.getElementById("addFolderBtn"),
       clearInstrumentBtn: document.getElementById("clearInstrumentBtn"),
+      importKeyswitchesBtn: document.getElementById("importKeyswitchesBtn"),
+      saveSmpinstBtn: document.getElementById("saveSmpinstBtn"),
       loadPackBtn: document.getElementById("loadPackBtn"),
       packBtn: document.getElementById("packBtn"),
       openSummaryBtn: document.getElementById("openSummaryBtn"),
@@ -3384,6 +3703,7 @@
       filesInput: document.getElementById("filesInput"),
       folderInput: document.getElementById("folderInput"),
       packInput: document.getElementById("packInput"),
+      keyswitchInput: document.getElementById("keyswitchInput"),
       dropZone: document.getElementById("dropZone"),
       velocityXfadeToggle: document.getElementById("velocityXfadeToggle"),
       setupStatus: document.getElementById("setupStatus"),
@@ -3410,6 +3730,7 @@
       autoLoopStartPct: document.getElementById("autoLoopStartPct"),
       autoLoopEndPct: document.getElementById("autoLoopEndPct"),
       autoLoopCutAtEnd: document.getElementById("autoLoopCutAtEnd"),
+      autoNormalizeRecorded: document.getElementById("autoNormalizeRecorded"),
       autoLoopCrossfadeMs: document.getElementById("autoLoopCrossfadeMs"),
       autoHoldMs: document.getElementById("autoHoldMs"),
       autoTailMs: document.getElementById("autoTailMs"),
@@ -3422,6 +3743,9 @@
       autoPresetBtn: document.getElementById("autoPresetBtn"),
       autoPresetMenu: document.getElementById("autoPresetMenu"),
       autoPresetSaveBtn: document.getElementById("autoPresetSaveBtn"),
+      autoPresetCreateRow: document.getElementById("autoPresetCreateRow"),
+      autoPresetNameInput: document.getElementById("autoPresetNameInput"),
+      autoPresetConfirmBtn: document.getElementById("autoPresetConfirmBtn"),
       autoPresetList: document.getElementById("autoPresetList"),
       autoPackKeyswitchCheck: document.querySelector('.auto-pack-check-input[data-pack-ext="keyswitch"]'),
       autoDestination: document.getElementById("autoDestination"),
@@ -3431,7 +3755,9 @@
       autoAuthorLabel: document.getElementById("autoAuthorLabel"),
       autoAuthor: document.getElementById("autoAuthor"),
       renderTotal: document.getElementById("renderTotal"),
-      renderTime: document.getElementById("renderTime")
+      renderTime: document.getElementById("renderTime"),
+      renderSize: document.getElementById("renderSize"),
+      startSamplingBtn: document.getElementById("startSamplingBtn")
     };
 
     function getDefaultSetupCollapseState() {
@@ -3570,6 +3896,677 @@
       node.textContent = text;
       node.classList.remove("ok", "warn", "bad");
       if (type) node.classList.add(type);
+    }
+
+    function getNativeBackend() {
+      const backend = window.__JUCE__ && window.__JUCE__.backend;
+      if (!backend || typeof backend !== "object") return null;
+      return backend;
+    }
+
+    function emitNativeEvent(eventId, payload) {
+      const backend = getNativeBackend();
+      if (!backend || typeof backend.emitEvent !== "function") return false;
+      try {
+        backend.emitEvent(eventId, payload);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function clampHostSize(value, min, max, fallback) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return fallback;
+      return Math.max(min, Math.min(max, Math.round(num)));
+    }
+
+    function emitHostResize(width, height) {
+      const nextWidth = clampHostSize(width, HOST_EDITOR_WIDTH, HOST_EDITOR_WIDTH, HOST_EDITOR_WIDTH);
+      const nextHeight = clampHostSize(height, HOST_SETUP_MIN_HEIGHT, HOST_SETUP_MAX_HEIGHT, HOST_PLAYER_FIXED_HEIGHT);
+
+      if (nextWidth === state.lastHostResizeWidth && nextHeight === state.lastHostResizeHeight) return;
+      if (!emitNativeEvent("ui_resize", { width: nextWidth, height: nextHeight })) return;
+
+      state.lastHostResizeWidth = nextWidth;
+      state.lastHostResizeHeight = nextHeight;
+    }
+
+    function computeSetupHostHeight() {
+      const tabsHeight = Math.ceil(el.tabsBar?.getBoundingClientRect?.().height || 0);
+      const setupHeight = Math.ceil(el.panels.setup?.scrollHeight || 0);
+      const shellBorder = 2;
+      const target = tabsHeight + setupHeight + shellBorder;
+      return clampHostSize(target, HOST_SETUP_MIN_HEIGHT, HOST_SETUP_MAX_HEIGHT, HOST_PLAYER_FIXED_HEIGHT);
+    }
+
+    function requestHostResizeForActiveTab() {
+      const activeTab = document.querySelector(".tab-btn.active")?.dataset.tab || "player";
+      const targetHeight = activeTab === "setup" ? computeSetupHostHeight() : HOST_PLAYER_FIXED_HEIGHT;
+      emitHostResize(HOST_EDITOR_WIDTH, targetHeight);
+    }
+
+    function scheduleHostResizeForActiveTab() {
+      if (state.hostResizeRaf) return;
+      state.hostResizeRaf = window.requestAnimationFrame(() => {
+        state.hostResizeRaf = 0;
+        requestHostResizeForActiveTab();
+      });
+    }
+
+    function buildNativeAutoSamplerSettings() {
+      const startMidi = noteToMidi(el.autoStart?.value) ?? 36;
+      const endMidi = noteToMidi(el.autoEnd?.value) ?? 72;
+      const loopStartPercent = getAutoLoopStartPercent();
+      const loopEndPercent = Math.max(loopStartPercent, getAutoLoopEndPercent());
+      return {
+        startMidi,
+        endMidi,
+        intervalSemitones: getAutoInterval(),
+        velocityLayers: getAutoVelocityLayers(),
+        roundRobinsPerNote: getAutoRRPerNote(),
+        sustainMs: getAutoHoldMs(),
+        releaseTailMs: getAutoTailMs(),
+        prerollMs: getAutoPrerollMs(),
+        loopSamples: !!el.autoLoop?.checked,
+        autoLoopMode: !!el.autoLoopMode?.checked,
+        loopStartPercent,
+        loopEndPercent,
+        cutLoopAtEnd: !!el.autoLoopCutAtEnd?.checked,
+        loopCrossfadeMs: getAutoLoopCrossfadeMs(),
+        normalizeRecorded: !!el.autoNormalizeRecorded?.checked
+      };
+    }
+
+    function getAutoLoopConfigFromPayload(payload) {
+      const info = (payload && typeof payload === "object") ? payload : {};
+      const loopStartPercent = clampAutoPercent(info.loopStartPercent ?? getAutoLoopStartPercent());
+      const loopEndPercent = Math.max(loopStartPercent, clampAutoPercent(info.loopEndPercent ?? getAutoLoopEndPercent()));
+      return {
+        loopSamples: !!(info.loopSamples ?? el.autoLoop?.checked),
+        autoLoopMode: !!(info.autoLoopMode ?? el.autoLoopMode?.checked),
+        loopStartPercent,
+        loopEndPercent,
+        loopCrossfadeMs: clampAutoMs(info.loopCrossfadeMs ?? getAutoLoopCrossfadeMs(), 0, 60000)
+      };
+    }
+
+    function applyManualLoopConfigToEntry(entry, loopConfig, durationSec = null) {
+      ensureEntryEditorState(entry);
+      if (!loopConfig.loopSamples) {
+        entry.loopStartNorm = 0;
+        entry.loopEndNorm = 1;
+        entry.loopFadeInNorm = 0;
+        entry.loopEnabled = false;
+        return;
+      }
+
+      const minGap = 0.002;
+      const startNorm = clamp01(loopConfig.loopStartPercent / 100);
+      const endNormRaw = clamp01(loopConfig.loopEndPercent / 100);
+      const endNorm = Math.max(Math.min(1, startNorm + minGap), endNormRaw);
+      entry.loopStartNorm = startNorm;
+      entry.loopEndNorm = endNorm;
+      entry.loopEnabled = true;
+
+      if (Number.isFinite(durationSec) && durationSec > 0.0001) {
+        const fadeNorm = clamp01((loopConfig.loopCrossfadeMs / 1000) / durationSec);
+        entry.loopFadeInNorm = Math.max(0, startNorm - Math.min(startNorm, fadeNorm));
+      } else {
+        entry.loopFadeInNorm = startNorm;
+      }
+      ensureEntryEditorState(entry);
+    }
+
+    async function applyAutoLoopConfigToEntry(entry, payload) {
+      if (!entry || !entry.sampleUrl) return;
+      const loopConfig = getAutoLoopConfigFromPayload(payload);
+      if (!loopConfig.loopSamples) {
+        applyManualLoopConfigToEntry(entry, loopConfig, null);
+        return;
+      }
+
+      let waveform = null;
+      try {
+        waveform = await getWaveformForEntry(entry);
+      } catch {
+        waveform = null;
+      }
+
+      const durationSec = Number.isFinite(waveform?.durationSec) ? waveform.durationSec : null;
+      applyManualLoopConfigToEntry(entry, loopConfig, durationSec);
+
+      if (loopConfig.autoLoopMode && waveform?.audioBuffer) {
+        const candidates = buildLoopCandidatesFromBuffer(entry, waveform.audioBuffer, 1, loopConfig.loopCrossfadeMs);
+        if (candidates.length > 0) {
+          applyLoopCandidateToEntry(entry, candidates[0]);
+        }
+      }
+    }
+
+    function runDeferredAutoLoopPass() {
+      if (state.nativeAutoSamplerActive) return;
+      const uniqueOrders = Array.from(new Set(
+        (state.deferredAutoLoopOrders || [])
+          .map((value) => Math.round(Number(value)))
+          .filter((value) => Number.isFinite(value))
+      ));
+      state.deferredAutoLoopOrders = [];
+      if (!uniqueOrders.length) return;
+
+      const payload = buildNativeAutoSamplerSettings();
+      const tasks = uniqueOrders.map((order) => {
+        const entry = getMapEntryByOrder(order);
+        if (!entry) return Promise.resolve();
+        return applyAutoLoopConfigToEntry(entry, payload).catch(() => {});
+      });
+
+      Promise.all(tasks).then(() => {
+        renderSetup();
+        syncAllKnobValues();
+      });
+    }
+
+    function handleNativeAutoSamplerStatus(payload) {
+      const info = (payload && typeof payload === "object") ? payload : {};
+      const wasActive = !!state.nativeAutoSamplerActive;
+      state.nativeAutoSamplerAvailable = true;
+      state.nativeAutoSamplerActive = !!info.active;
+      state.nativeAutoSamplerExpected = Math.max(0, Math.round(Number(info.expected) || 0));
+      const capturedFromStatus = Math.max(0, Math.round(Number(info.captured) || 0));
+      state.nativeAutoSamplerCaptured = Math.max(capturedFromStatus, state.nativeAutoSamplerTakeCount);
+      state.nativeAutoSamplerInputDetected = !!info.inputDetected;
+      state.nativeAutoSamplerMessage = String(info.message || "").trim();
+      if (!state.nativeAutoSamplerActive && state.nativeAutoSamplerCaptured <= 0) {
+        state.nativeAutoSamplerTakeCount = 0;
+      }
+
+      if (state.nativeAutoSamplerMessage) {
+        let type = "ok";
+        if (!state.nativeAutoSamplerInputDetected && state.nativeAutoSamplerMessage.toLowerCase().includes("no input")) {
+          type = "warn";
+        }
+        setStatus(el.setupStatus, state.nativeAutoSamplerMessage, type);
+      }
+
+      if (wasActive && !state.nativeAutoSamplerActive) {
+        runDeferredAutoLoopPass();
+      }
+
+      updateStartSamplingButtonLabel();
+    }
+
+    function appendNativeAutoSamplerTake(payload) {
+      const info = (payload && typeof payload === "object") ? payload : {};
+      const fileNameRaw = String(info.fileName || "").trim();
+      const fileName = fileNameRaw || `AUTO_${Date.now()}.wav`;
+      const dataUrl = String(info.dataUrl || "").trim();
+      const hasAudioPayload = !!dataUrl;
+
+      const rootMidi = Math.max(0, Math.min(127, Math.round(Number(info.rootMidi) || 60)));
+      const velocityLayer = Math.max(1, Math.min(5, Math.round(Number(info.velocityLayer) || 1)));
+      const rrIndexRaw = Math.round(Number(info.rrIndex));
+      const rrIndex = Number.isFinite(rrIndexRaw) && rrIndexRaw > 0 ? rrIndexRaw : null;
+      const velocityLow = Math.max(1, Math.min(127, Math.round(Number(info.velocityLow) || 1)));
+      const velocityHigh = Math.max(velocityLow, Math.min(127, Math.round(Number(info.velocityHigh) || 127)));
+      const velocity127 = Math.max(1, Math.min(127, Math.round(Number(info.velocity) || velocityHigh)));
+      const hadValidEntries = state.entries.some((entry) => entry.valid);
+      const normalizedRr = rrIndex === null ? null : Math.round(rrIndex);
+      const pendingEntry = state.entries.find((entry) => (
+        entry.valid
+        && entry.autoCapturePending
+        && entry.rootMidi === rootMidi
+        && entry.velocityLayer === velocityLayer
+        && ((Number.isFinite(entry.rrIndex) ? Math.round(entry.rrIndex) : null) === normalizedRr)
+      )) || null;
+
+      let entry = pendingEntry;
+      if (!entry) {
+        const nextOrder = state.entries.reduce((max, item) => (
+          Number.isFinite(item?.order) ? Math.max(max, Math.round(item.order)) : max
+        ), -1) + 1;
+
+        entry = {
+          fileName,
+          order: nextOrder,
+          sampleUrl: "",
+          fineTuneCents: 0,
+          loopStartNorm: 0,
+          loopEndNorm: 1,
+          loopFadeInNorm: 0,
+          valid: true,
+          reason: "",
+          noteToken: midiToNote(rootMidi),
+          rootMidi,
+          velocityLayer,
+          rrIndex,
+          loopEnabled: false,
+          hasVelocityToken: true,
+          hasRRToken: rrIndex !== null,
+          suffixSerial: null,
+          velocityLow,
+          velocityHigh,
+          velocity127,
+          autoCapturePending: !hasAudioPayload
+        };
+        state.entries.push(entry);
+        if (!hadValidEntries) {
+          state.setupOctaveStart = Math.floor(rootMidi / 12) * 12;
+        }
+        state.nativeAutoSamplerTakeCount = Math.max(0, state.nativeAutoSamplerTakeCount) + 1;
+        state.nativeAutoSamplerCaptured = Math.max(state.nativeAutoSamplerCaptured, state.nativeAutoSamplerTakeCount);
+      } else {
+        entry.fileName = fileName;
+        entry.noteToken = midiToNote(rootMidi);
+        entry.rootMidi = rootMidi;
+        entry.velocityLayer = velocityLayer;
+        entry.rrIndex = rrIndex;
+        entry.velocityLow = velocityLow;
+        entry.velocityHigh = velocityHigh;
+        entry.velocity127 = velocity127;
+      }
+
+      if (hasAudioPayload) {
+        const blob = dataUrl.startsWith("data:") ? null : dataUrlToBlob(dataUrl);
+        const sampleUrl = blob ? URL.createObjectURL(blob) : dataUrl;
+        if (!sampleUrl) return;
+        if (entry.sampleUrl && entry.sampleUrl.startsWith("blob:") && entry.sampleUrl !== sampleUrl) {
+          URL.revokeObjectURL(entry.sampleUrl);
+        }
+        entry.sampleUrl = sampleUrl;
+        entry.autoCapturePending = false;
+      }
+
+      state.activeMapSetId = "base";
+      state.rrCursor = {};
+      assignImplicitVelocityLayers();
+      renderSetup();
+      updatePlayerEmptyState();
+      syncAllKnobValues();
+      updateStartSamplingButtonLabel();
+
+      if (!hasAudioPayload) return;
+
+      const loopConfig = getAutoLoopConfigFromPayload(info);
+      applyManualLoopConfigToEntry(entry, loopConfig, null);
+      if (loopConfig.loopSamples && loopConfig.autoLoopMode) {
+        if (state.nativeAutoSamplerActive) {
+          state.deferredAutoLoopOrders.push(entry.order);
+        } else {
+          void applyAutoLoopConfigToEntry(entry, info).then(() => {
+            if (!state.entries.includes(entry)) return;
+            renderSetup();
+            syncAllKnobValues();
+          });
+        }
+      }
+    }
+
+    function setupNativeAutoSamplerBridge() {
+      const backend = getNativeBackend();
+      if (!backend || typeof backend.addEventListener !== "function") return;
+      if (state.nativeAutoSamplerListeners.length) return;
+      state.nativeAutoSamplerAvailable = true;
+
+      try {
+        const statusToken = backend.addEventListener("autosampler_status", (payload) => {
+          handleNativeAutoSamplerStatus(payload);
+        });
+        const takeToken = backend.addEventListener("autosampler_take", (payload) => {
+          appendNativeAutoSamplerTake(payload);
+        });
+        state.nativeAutoSamplerListeners = [statusToken, takeToken];
+      } catch {
+        state.nativeAutoSamplerAvailable = false;
+      }
+    }
+
+    function stripFileExtension(name) {
+      return String(name || "").replace(/\.[^/.]+$/, "");
+    }
+
+    function normalizeKeyswitchKey(rawValue, fallbackMidi = 12) {
+      const raw = String(rawValue || "").trim().toUpperCase();
+      const parsed = noteToMidi(raw);
+      if (parsed === null) {
+        const safeMidi = Math.max(0, Math.min(127, Math.round(Number(fallbackMidi) || 12)));
+        return {
+          keyMidi: safeMidi,
+          key: midiToNote(safeMidi),
+          valid: false
+        };
+      }
+      return {
+        keyMidi: parsed,
+        key: midiToNote(parsed),
+        valid: true
+      };
+    }
+
+    function suggestUnusedKeyswitchMidi() {
+      const used = new Set();
+      (state.keyswitchSets || []).forEach((set) => {
+        if (Number.isFinite(set?.keyMidi)) used.add(Math.round(set.keyMidi));
+      });
+      for (let midi = 12; midi <= 48; midi += 1) {
+        if (!used.has(midi)) return midi;
+      }
+      return 12;
+    }
+
+    function collectDuplicateKeyswitchKeys() {
+      const byMidi = new Map();
+      (state.keyswitchSets || []).forEach((set) => {
+        const midi = Number.isFinite(set?.keyMidi) ? Math.round(set.keyMidi) : null;
+        if (midi === null) return;
+        if (!byMidi.has(midi)) byMidi.set(midi, []);
+        byMidi.get(midi).push(set.id);
+      });
+      const duplicates = new Map();
+      byMidi.forEach((ids, midi) => {
+        if (ids.length > 1) duplicates.set(midi, ids);
+      });
+      return duplicates;
+    }
+
+    function getKeyswitchSetById(setId) {
+      const id = String(setId || "");
+      return (state.keyswitchSets || []).find((set) => String(set.id || "") === id) || null;
+    }
+
+    function getDuplicateKeyswitchNotes() {
+      return Array.from(collectDuplicateKeyswitchKeys().keys())
+        .sort((a, b) => a - b)
+        .map((midi) => midiToNote(midi));
+    }
+
+    function getBaseMapEntries() {
+      return state.entries.filter((entry) => entry.valid);
+    }
+
+    function getAvailableMapSets() {
+      const sets = [];
+      const baseEntries = getBaseMapEntries();
+      const keyswitchSets = Array.isArray(state.keyswitchSets) ? state.keyswitchSets : [];
+      const keyswitchMode = keyswitchSets.length > 0;
+      if (!keyswitchMode && baseEntries.length) {
+        sets.push({
+          id: "base",
+          label: "Main",
+          entries: baseEntries,
+          manualRanges: state.manualRootRanges
+        });
+      }
+
+      keyswitchSets.forEach((set) => {
+        const keyLabel = set.key ? ` (${set.key})` : "";
+        sets.push({
+          id: set.id,
+          label: `${set.name}${keyLabel}`,
+          entries: Array.isArray(set.entries) ? set.entries.filter((entry) => entry.valid) : [],
+          manualRanges: set.manualRanges || {}
+        });
+      });
+      if (!sets.length) {
+        sets.push({
+          id: "base",
+          label: "Main",
+          entries: baseEntries,
+          manualRanges: state.manualRootRanges
+        });
+      }
+      return sets;
+    }
+
+    function getActiveMapSet() {
+      const available = getAvailableMapSets();
+      if (!available.length) return null;
+      let active = available.find((item) => item.id === state.activeMapSetId) || null;
+      if (!active) {
+        active = available[0];
+        state.activeMapSetId = active.id;
+      }
+      return active;
+    }
+
+    function getActiveMapEntries() {
+      const active = getActiveMapSet();
+      if (!active) return [];
+      return Array.isArray(active.entries) ? active.entries : [];
+    }
+
+    function getActiveMapManualRanges() {
+      const active = getActiveMapSet();
+      if (!active || !active.manualRanges) return state.manualRootRanges;
+      return active.manualRanges;
+    }
+
+    function getPlayerPlaybackSource() {
+      const keyswitchSets = Array.isArray(state.keyswitchSets) ? state.keyswitchSets : [];
+      if (keyswitchSets.length > 0) {
+        const activeKeyswitchSet = getKeyswitchSetById(state.activeMapSetId) || keyswitchSets[0];
+        if (activeKeyswitchSet && activeKeyswitchSet.id !== state.activeMapSetId) {
+          state.activeMapSetId = activeKeyswitchSet.id;
+          updateKeyswitchMapSelector();
+        }
+        return {
+          entries: Array.isArray(activeKeyswitchSet?.entries) ? activeKeyswitchSet.entries.filter((entry) => entry.valid) : [],
+          manualRanges: activeKeyswitchSet?.manualRanges || {}
+        };
+      }
+      return {
+        entries: state.entries.filter((entry) => entry.valid),
+        manualRanges: state.manualRootRanges
+      };
+    }
+
+    function setActiveMapSet(setId, shouldRender = true) {
+      const next = String(setId || "base");
+      const available = getAvailableMapSets();
+      const keyswitchMode = (state.keyswitchSets || []).length > 0;
+      const exists = available.some((item) => item.id === next);
+      let resolvedId = exists ? next : (available[0]?.id || "base");
+      if (keyswitchMode && resolvedId === "base") {
+        resolvedId = available.find((item) => item.id !== "base")?.id || resolvedId;
+      }
+      const changed = state.activeMapSetId !== resolvedId;
+      state.activeMapSetId = resolvedId;
+      if (changed) stopAllPreviewVoices();
+      closeSampleEditor();
+      if (shouldRender) {
+        renderKeyboardMap(undefined, true);
+        renderPlayerKeyboard();
+      }
+      updateKeyswitchMapSelector();
+    }
+
+    function updateKeyswitchToolbarKeyEditor() {
+      if (!el.keyswitchMapKeyWrap || !el.keyswitchMapKeyInput || !el.keyswitchMapWarning) return;
+      const activeKeyswitchSet = getKeyswitchSetById(state.activeMapSetId);
+      const showKeyEditor = !!activeKeyswitchSet;
+      el.keyswitchMapKeyWrap.classList.toggle("hidden", !showKeyEditor);
+      if (!showKeyEditor) {
+        el.keyswitchMapKeyInput.value = "";
+        const duplicates = getDuplicateKeyswitchNotes();
+        if (duplicates.length > 0) {
+          el.keyswitchMapWarning.classList.remove("hidden");
+          el.keyswitchMapWarning.textContent = `Duplicate keys: ${duplicates.join(", ")}`;
+        } else {
+          el.keyswitchMapWarning.classList.add("hidden");
+          el.keyswitchMapWarning.textContent = "";
+        }
+        return;
+      }
+
+      const displayKey = activeKeyswitchSet.key || (Number.isFinite(activeKeyswitchSet.keyMidi) ? midiToNote(activeKeyswitchSet.keyMidi) : "");
+      el.keyswitchMapKeyInput.value = displayKey;
+      const duplicates = collectDuplicateKeyswitchKeys();
+      const activeMidi = Number.isFinite(activeKeyswitchSet.keyMidi) ? Math.round(activeKeyswitchSet.keyMidi) : null;
+      if (activeMidi !== null && duplicates.has(activeMidi)) {
+        el.keyswitchMapWarning.classList.remove("hidden");
+        el.keyswitchMapWarning.textContent = `Duplicate key ${midiToNote(activeMidi)}. Change key.`;
+      } else {
+        el.keyswitchMapWarning.classList.add("hidden");
+        el.keyswitchMapWarning.textContent = "";
+      }
+    }
+
+    function applyActiveKeyswitchSetKeyInput(shouldRender = true) {
+      if (!el.keyswitchMapKeyInput) return false;
+      const set = getKeyswitchSetById(state.activeMapSetId);
+      if (!set) return false;
+      const parsed = noteToMidi(String(el.keyswitchMapKeyInput.value || "").trim().toUpperCase());
+      if (parsed === null) {
+        el.keyswitchMapKeyInput.value = set.key || midiToNote(Number(set.keyMidi) || 12);
+        setStatus(el.setupStatus, "Invalid keyswitch key. Use note format like C0.", "warn");
+        return false;
+      }
+      set.keyMidi = parsed;
+      set.key = midiToNote(parsed);
+      updateKeyswitchMapSelector();
+      const duplicates = getDuplicateKeyswitchNotes();
+      if (duplicates.length > 0) {
+        setStatus(el.setupStatus, `Duplicate keyswitch keys: ${duplicates.join(", ")}. Change key values.`, "warn");
+      } else {
+        setStatus(el.setupStatus, `Keyswitch key updated to ${set.key}.`, "ok");
+      }
+      if (shouldRender) {
+        renderKeyboardMap(undefined, true);
+        renderPlayerKeyboard();
+      }
+      return true;
+    }
+
+    function updateKeyswitchMapSelector() {
+      if (!el.keyswitchMapToolbar || !el.keyswitchMapSelect) return;
+      const available = getAvailableMapSets();
+      const show = available.length > 1;
+      el.keyswitchMapToolbar.classList.toggle("hidden", !show);
+      if (!show) {
+        el.keyswitchMapSelect.innerHTML = "";
+        if (!available.length) state.activeMapSetId = "base";
+        else state.activeMapSetId = available[0].id;
+        updateKeyswitchToolbarKeyEditor();
+        return;
+      }
+
+      el.keyswitchMapSelect.innerHTML = "";
+      available.forEach((item) => {
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.textContent = item.label;
+        option.selected = item.id === state.activeMapSetId;
+        el.keyswitchMapSelect.appendChild(option);
+      });
+      if (!available.some((item) => item.id === state.activeMapSetId)) {
+        state.activeMapSetId = available[0].id;
+      }
+      el.keyswitchMapSelect.value = state.activeMapSetId;
+      updateKeyswitchToolbarKeyEditor();
+    }
+
+    function buildKeyswitchEntriesFromManifest(data, options = null) {
+      const useVirtualOrder = options?.useVirtualOrder !== false;
+      let linearOrder = Math.max(0, Math.round(Number(options?.startOrder) || 0));
+      const mapping = Array.isArray(data?.mapping) ? data.mapping : [];
+      const entries = [];
+      mapping.forEach((bucket, bucketIndex) => {
+        const rootMidi = Math.max(0, Math.min(127, Math.round(Number(bucket?.rootMidiNote))));
+        if (!Number.isFinite(rootMidi)) return;
+        const velocityLayer = Math.max(1, Math.min(5, Math.round(Number(bucket?.velocityLayer) || 3)));
+        const variants = Array.isArray(bucket?.rrVariants) && bucket.rrVariants.length
+          ? bucket.rrVariants
+          : [null];
+
+        variants.forEach((variant, rrIndex) => {
+          const variantObj = variant && typeof variant === "object" ? variant : {};
+          const fallbackName = `${midiToNote(rootMidi)}_V${velocityLayer}_RR${rrIndex + 1}.wav`;
+          const fileName = String(
+            variantObj.originalFilename
+            || variantObj.path
+            || fallbackName
+          );
+          const loopStartNorm = clamp01(variantObj.loopStartNorm ?? 0);
+          const loopEndNorm = clamp01(variantObj.loopEndNorm ?? 1);
+          const embeddedSampleUrl = typeof variantObj.sampleDataUrl === "string"
+            ? String(variantObj.sampleDataUrl).trim()
+            : "";
+          const entry = {
+            fileName,
+            order: useVirtualOrder ? state.nextVirtualOrder : linearOrder,
+            sampleUrl: embeddedSampleUrl,
+            valid: true,
+            noteToken: midiToNote(rootMidi),
+            rootMidi,
+            velocityLayer,
+            rrIndex: Number.isFinite(Number(variantObj.rrIndex))
+              ? Math.max(1, Math.round(Number(variantObj.rrIndex)))
+              : (variants.length > 1 ? rrIndex + 1 : null),
+            loopEnabled: !!variantObj.loopEnabled,
+            hasVelocityToken: true,
+            hasRRToken: variants.length > 1,
+            suffixSerial: bucketIndex + 1,
+            reason: "",
+            fineTuneCents: clampFineTune(variantObj.fineTuneCents ?? 0),
+            loopStartNorm,
+            loopEndNorm,
+            loopFadeInNorm: clamp01(variantObj.loopFadeInNorm ?? loopStartNorm)
+          };
+          if (useVirtualOrder) {
+            state.nextVirtualOrder -= 1;
+          } else {
+            linearOrder += 1;
+          }
+          entries.push(entry);
+        });
+      });
+      return entries;
+    }
+
+    function importKeyswitchPack(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(String(reader.result || "{}"));
+          const entries = buildKeyswitchEntriesFromManifest(data);
+          if (!entries.length) {
+            setStatus(el.setupStatus, `No mapping data found in ${file.name}.`, "warn");
+            return;
+          }
+
+          const rawKey = String(
+            data?.keyswitchKey
+            || data?.metadata?.keyswitchKey
+            || data?.author
+            || data?.metadata?.author
+            || ""
+          ).trim();
+          const normalizedKey = normalizeKeyswitchKey(rawKey, suggestUnusedKeyswitchMidi());
+          const set = {
+            id: `ks_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            name: String(data?.instrumentName || stripFileExtension(file.name) || "Keyswitch").trim(),
+            key: normalizedKey.key,
+            keyMidi: normalizedKey.keyMidi,
+            sourceFile: file.name,
+            entries,
+            manualRanges: {}
+          };
+
+          state.keyswitchSets.push(set);
+          state.activeMapSetId = set.id;
+          updateKeyswitchMapSelector();
+          renderKeyboardMap(undefined, true);
+          const duplicates = collectDuplicateKeyswitchKeys();
+          if (duplicates.has(set.keyMidi)) {
+            setStatus(el.setupStatus, `Imported keyswitch "${set.name}" with duplicate key ${set.key}. Change it in Keyboard Map.`, "warn");
+          } else {
+            setStatus(el.setupStatus, `Imported keyswitch "${set.name}" (${set.key}) with ${entries.length} sample slot(s).`, "ok");
+          }
+        } catch {
+          setStatus(el.setupStatus, `Could not parse keyswitch file ${file.name}.`, "bad");
+        }
+      };
+      reader.readAsText(file);
     }
 
     function formatKnobValue(v, unit, decimals) {
@@ -4564,7 +5561,10 @@
     }
 
     function updatePlayerEmptyState() {
-      const show = state.entries.length === 0 && !state.packLoaded;
+      const hasKeyswitchEntries = (state.keyswitchSets || []).some((set) => (
+        Array.isArray(set?.entries) && set.entries.length > 0
+      ));
+      const show = state.entries.length === 0 && !state.packLoaded && !hasKeyswitchEntries;
       el.playerEmptyState.classList.toggle("hidden", !show);
       updateWheelBaseTheme();
       renderPlayerKeyboard();
@@ -4638,12 +5638,13 @@
       };
     }
 
-    function getResolvedRootRanges(validEntries = state.entries) {
+    function getResolvedRootRanges(validEntries = state.entries, manualRanges = state.manualRootRanges) {
       const roots = getMappedSampleRoots(validEntries);
       const rootSet = new Set(roots);
-      Object.keys(state.manualRootRanges).forEach((key) => {
+      const store = (manualRanges && typeof manualRanges === "object") ? manualRanges : state.manualRootRanges;
+      Object.keys(store).forEach((key) => {
         const midi = Number(key);
-        if (!rootSet.has(midi)) delete state.manualRootRanges[key];
+        if (!rootSet.has(midi)) delete store[key];
       });
 
       const rangesByRoot = new Map();
@@ -4651,32 +5652,35 @@
         const { minLow, maxHigh } = getRootRangeLimits(rootMidi, roots);
         const defaultLow = idx === 0 ? rootMidi : roots[idx - 1] + 1;
         const defaultHigh = rootMidi;
-        const saved = state.manualRootRanges[rootMidi] || {};
+        const saved = store[rootMidi] || {};
         const lowRaw = Number.isFinite(saved.low) ? Math.round(saved.low) : defaultLow;
         const highRaw = Number.isFinite(saved.high) ? Math.round(saved.high) : defaultHigh;
         const low = Math.max(minLow, Math.min(rootMidi, lowRaw));
         const high = Math.max(rootMidi, Math.min(maxHigh, highRaw));
-        state.manualRootRanges[rootMidi] = { low, high };
+        store[rootMidi] = { low, high };
         rangesByRoot.set(rootMidi, { low, high, minLow, maxHigh });
       });
 
       return { roots, rangesByRoot };
     }
 
-    function setManualRangeForRoot(rootMidi, low, high, sortedRoots = null) {
+    function setManualRangeForRoot(rootMidi, low, high, sortedRoots = null, manualRanges = state.manualRootRanges) {
       const roots = Array.isArray(sortedRoots) ? sortedRoots : getMappedSampleRoots();
       if (!roots.length || !roots.includes(rootMidi)) return null;
       const { minLow, maxHigh } = getRootRangeLimits(rootMidi, roots);
       const clampedLow = Math.max(minLow, Math.min(rootMidi, Math.round(Number(low) || rootMidi)));
       const clampedHigh = Math.max(rootMidi, Math.min(maxHigh, Math.round(Number(high) || rootMidi)));
       const range = { low: clampedLow, high: clampedHigh, minLow, maxHigh };
-      state.manualRootRanges[rootMidi] = { low: range.low, high: range.high };
+      const store = (manualRanges && typeof manualRanges === "object") ? manualRanges : state.manualRootRanges;
+      store[rootMidi] = { low: range.low, high: range.high };
       return range;
     }
 
     function getMapEntryByOrder(order) {
       if (!Number.isFinite(order)) return null;
-      return state.entries.find((entry) => (
+      const activeEntries = getActiveMapEntries();
+      const source = activeEntries.length ? activeEntries : state.entries;
+      return source.find((entry) => (
         entry.valid
         && !!entry.sampleUrl
         && entry.order === order
@@ -4826,6 +5830,7 @@
       if (!el.autoLoopDetails) return;
       const show = !!el.autoLoop?.checked;
       el.autoLoopDetails.classList.toggle("hidden", !show);
+      scheduleHostResizeForActiveTab();
     }
 
     function getPackCheckByExt(ext) {
@@ -4918,7 +5923,8 @@
         loopStartPercent: getAutoLoopStartPercent(),
         loopEndPercent: getAutoLoopEndPercent(),
         cutLoopAtEnd: !!el.autoLoopCutAtEnd?.checked,
-        loopCrossfadeMs: getAutoLoopCrossfadeMs()
+        loopCrossfadeMs: getAutoLoopCrossfadeMs(),
+        normalizeRecorded: !!el.autoNormalizeRecorded?.checked
       };
     }
 
@@ -4948,7 +5954,8 @@
           loopStartPercent: clampAutoPercent(sourceSettings.loopStartPercent),
           loopEndPercent: clampAutoPercent(sourceSettings.loopEndPercent),
           cutLoopAtEnd: !!sourceSettings.cutLoopAtEnd,
-          loopCrossfadeMs: clampAutoMs(sourceSettings.loopCrossfadeMs, 0, 60000)
+          loopCrossfadeMs: clampAutoMs(sourceSettings.loopCrossfadeMs, 0, 60000),
+          normalizeRecorded: !!sourceSettings.normalizeRecorded
         }
       };
     }
@@ -4994,6 +6001,7 @@
       setAutoLoopEndPercent(settings.loopEndPercent, false);
       if (el.autoLoopCutAtEnd) el.autoLoopCutAtEnd.checked = settings.cutLoopAtEnd;
       setAutoLoopCrossfadeMs(settings.loopCrossfadeMs, false);
+      if (el.autoNormalizeRecorded) el.autoNormalizeRecorded.checked = settings.normalizeRecorded;
       updateAutoLoopDetailsVisibility();
       renderAuto();
     }
@@ -5011,18 +6019,40 @@
       }
 
       presets.forEach((preset) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "sample-loop-tool-btn auto-preset-item";
-        btn.textContent = preset.name;
-        btn.title = `Load preset ${preset.name}`;
-        btn.addEventListener("click", (ev) => {
+        const row = document.createElement("div");
+        row.className = "auto-preset-row";
+
+        const loadBtn = document.createElement("button");
+        loadBtn.type = "button";
+        loadBtn.className = "sample-loop-tool-btn auto-preset-item";
+        loadBtn.textContent = preset.name;
+        loadBtn.title = `Load preset ${preset.name}`;
+        loadBtn.addEventListener("click", (ev) => {
           ev.preventDefault();
           applyAutoPresetSettings(preset.settings);
           if (el.autoPresetMenu) el.autoPresetMenu.classList.add("hidden");
           if (el.autoPresetBtn) el.autoPresetBtn.setAttribute("aria-expanded", "false");
         });
-        el.autoPresetList.appendChild(btn);
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "sample-loop-tool-btn auto-preset-delete-btn";
+        deleteBtn.textContent = "x";
+        deleteBtn.title = `Delete preset ${preset.name}`;
+        deleteBtn.setAttribute("aria-label", `Delete preset ${preset.name}`);
+        deleteBtn.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const targetId = String(preset.id || "");
+          state.autoPresets = (state.autoPresets || []).filter((item) => (
+            String(item.id || "") !== targetId
+          ));
+          saveAutoPresetsToStorage();
+          renderAutoPresetList();
+        });
+
+        row.append(loadBtn, deleteBtn);
+        el.autoPresetList.appendChild(row);
       });
     }
 
@@ -5033,6 +6063,40 @@
       const s = totalSeconds % 60;
       if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
       return `${m}:${String(s).padStart(2, "0")}`;
+    }
+
+    function formatFileSize(bytes) {
+      const value = Number(bytes) || 0;
+      if (value <= 0) return "0 B";
+      const units = ["B", "KB", "MB", "GB", "TB"];
+      let unitIndex = 0;
+      let size = value;
+      while (size >= 1024 && unitIndex < units.length - 1) {
+        size /= 1024;
+        unitIndex += 1;
+      }
+      const precision = size >= 100 || unitIndex === 0 ? 0 : (size >= 10 ? 1 : 2);
+      return `${size.toFixed(precision)} ${units[unitIndex]}`;
+    }
+
+    function formatSampleRate(sampleRate) {
+      const hz = Math.max(1, Number(sampleRate) || 44100);
+      const khz = hz / 1000;
+      const precision = Math.abs(Math.round(khz) - khz) < 0.05 ? 0 : 1;
+      return `${khz.toFixed(precision)} kHz`;
+    }
+
+    function getAutoRenderSampleRate() {
+      if (state.audioContext && Number.isFinite(state.audioContext.sampleRate) && state.audioContext.sampleRate > 0) {
+        return state.audioContext.sampleRate;
+      }
+      try {
+        const ctx = ensureAudioContext();
+        if (ctx && Number.isFinite(ctx.sampleRate) && ctx.sampleRate > 0) return ctx.sampleRate;
+      } catch {
+        // fallback handled below
+      }
+      return 44100;
     }
 
     function mergeFolderNameIntoPath(currentPath, folderName) {
@@ -5166,9 +6230,13 @@
 
     function syncSelectedMapSampleBox() {
       const selected = state.selectedMapEntryOrder;
+      el.mapSamples.querySelectorAll(".map-rr-cell").forEach((cell) => {
+        const order = Number(cell.dataset.entryOrder);
+        cell.classList.toggle("selected", Number.isFinite(selected) && order === selected);
+      });
       el.mapSamples.querySelectorAll(".map-sample-box").forEach((box) => {
-        const order = Number(box.dataset.entryOrder);
-        box.classList.toggle("selected", Number.isFinite(selected) && order === selected);
+        const hasSelectedChild = !!box.querySelector(".map-rr-cell.selected");
+        box.classList.toggle("selected", hasSelectedChild);
       });
     }
 
@@ -5310,7 +6378,7 @@
       ensureEntryEditorState(entry);
     }
 
-    function buildLoopCandidatesFromBuffer(entry, audioBuffer, maxCandidates = 7) {
+    function buildLoopCandidatesFromBuffer(entry, audioBuffer, maxCandidates = 7, crossfadeOverrideMs = null) {
       if (!entry || !audioBuffer || !audioBuffer.length) return [];
       ensureEntryEditorState(entry);
       const data = audioBuffer.getChannelData(0);
@@ -5343,7 +6411,8 @@
       if (candidateEnd <= candidateStart) return [];
 
       const step = Math.max(1, Math.round(sampleRate / 2000));
-      const crossfadeSamples = Math.max(0, Math.round((state.loopCrossfadeMs / 1000) * sampleRate));
+      const crossfadeMs = crossfadeOverrideMs === null ? state.loopCrossfadeMs : crossfadeOverrideMs;
+      const crossfadeSamples = Math.max(0, Math.round((Math.max(0, Number(crossfadeMs) || 0) / 1000) * sampleRate));
       const scores = [];
       const anchorStart = anchor - windowSamples;
 
@@ -6009,7 +7078,8 @@
       }
     }
 
-    function renderKeyboardMap(validEntries = state.entries.filter((entry) => entry.valid), preserveView = false) {
+    function renderKeyboardMap(validEntries = getActiveMapEntries(), preserveView = false) {
+      updateKeyswitchMapSelector();
       const valid = [...validEntries].sort((a, b) => (
         a.rootMidi - b.rootMidi
         || a.velocityLayer - b.velocityLayer
@@ -6041,38 +7111,79 @@
         if (index >= 0 && index < 12) buckets[index].push(entry);
       });
 
-      const { rangesByRoot } = getResolvedRootRanges(valid);
+      const { rangesByRoot } = getResolvedRootRanges(valid, getActiveMapManualRanges());
 
       el.mapSamples.textContent = "";
       buckets.forEach((entries, keyIndex) => {
         const col = document.createElement("div");
         col.className = "map-col";
+        const layers = new Map();
         entries.forEach((entry) => {
-          ensureEntryEditorState(entry);
-          const rr = entry.rrIndex === null ? "auto" : String(entry.rrIndex);
-          const rootRange = rangesByRoot.get(entry.rootMidi) || {
-            low: entry.rootMidi,
-            high: entry.rootMidi
+          const layer = Math.max(1, Math.min(5, Math.round(Number(entry.velocityLayer) || 1)));
+          if (!layers.has(layer)) layers.set(layer, []);
+          layers.get(layer).push(entry);
+        });
+
+        const orderedLayers = Array.from(layers.keys()).sort((a, b) => b - a);
+        orderedLayers.forEach((layer) => {
+          const layerEntries = [...(layers.get(layer) || [])].sort((a, b) => (
+            ((a.rrIndex ?? 999) - (b.rrIndex ?? 999)) || (a.order - b.order)
+          ));
+          if (!layerEntries.length) return;
+
+          const primary = layerEntries[0];
+          ensureEntryEditorState(primary);
+
+          const rootRange = rangesByRoot.get(primary.rootMidi) || {
+            low: primary.rootMidi,
+            high: primary.rootMidi
           };
           const coverageStart = Math.max(start, rootRange.low);
           const coverageEnd = Math.min(start + 11, rootRange.high);
-          const leftSpan = Math.max(0, entry.rootMidi - coverageStart);
-          const rightSpan = Math.max(0, coverageEnd - entry.rootMidi);
+          const leftSpan = Math.max(0, primary.rootMidi - coverageStart);
+          const rightSpan = Math.max(0, coverageEnd - primary.rootMidi);
           const spanTotal = Math.max(1, leftSpan + rightSpan + 1);
-          const loopOn = isEntryLoopRegionActive(entry);
-          const fineTune = clampFineTune(entry.fineTuneCents ?? 0);
-          const xfadePct = Math.max(0, ((entry.loopStartNorm ?? 0) - (entry.loopFadeInNorm ?? entry.loopStartNorm ?? 0)) * 100);
+
+          const row = document.createElement("div");
+          row.className = "map-velocity-row";
+
           const box = document.createElement("div");
           box.className = "map-sample-box";
-          box.dataset.entryOrder = String(entry.order);
-          box.dataset.rootMidi = String(entry.rootMidi);
+          box.dataset.entryOrder = String(primary.order);
+          box.dataset.rootMidi = String(primary.rootMidi);
           box.style.setProperty("--span-total", String(spanTotal));
           box.style.setProperty("--span-left", String(leftSpan));
           box.style.setProperty("--root-slot", String(leftSpan));
           if (keyIndex <= 1) box.classList.add("tooltip-left");
           if (keyIndex >= 10) box.classList.add("tooltip-right");
-          box.dataset.tooltip = `${entry.fileName} | root:${midiToNote(entry.rootMidi)} | covers:${midiToNote(coverageStart)}-${midiToNote(coverageEnd)} | V${entry.velocityLayer} | RR:${rr} | tune:${fineTune >= 0 ? "+" : ""}${fineTune}c${loopOn ? ` | L:on${xfadePct > 0.05 ? ` | XF:${xfadePct.toFixed(1)}%` : ""}` : ""}`;
+          box.dataset.tooltip = `root:${midiToNote(primary.rootMidi)} | covers:${midiToNote(coverageStart)}-${midiToNote(coverageEnd)} | V${layer} | RR:${layerEntries.length}`;
           box.setAttribute("aria-label", box.dataset.tooltip);
+
+          const rrGrid = document.createElement("div");
+          rrGrid.className = "map-rr-grid";
+          rrGrid.style.setProperty("--rr-count", String(layerEntries.length));
+
+          layerEntries.forEach((entry) => {
+            ensureEntryEditorState(entry);
+            const rr = entry.rrIndex === null ? "auto" : String(entry.rrIndex);
+            const loopOn = isEntryLoopRegionActive(entry);
+            const fineTune = clampFineTune(entry.fineTuneCents ?? 0);
+            const xfadePct = Math.max(0, ((entry.loopStartNorm ?? 0) - (entry.loopFadeInNorm ?? entry.loopStartNorm ?? 0)) * 100);
+
+            const rrCell = document.createElement("button");
+            rrCell.type = "button";
+            rrCell.className = "map-rr-cell";
+            rrCell.dataset.entryOrder = String(entry.order);
+            rrCell.dataset.rootMidi = String(entry.rootMidi);
+            if (keyIndex <= 1) rrCell.classList.add("tooltip-left");
+            if (keyIndex >= 10) rrCell.classList.add("tooltip-right");
+            rrCell.dataset.tooltip = `${entry.fileName} | root:${midiToNote(entry.rootMidi)} | covers:${midiToNote(coverageStart)}-${midiToNote(coverageEnd)} | V${entry.velocityLayer} | RR:${rr} | tune:${fineTune >= 0 ? "+" : ""}${fineTune}c${loopOn ? ` | L:on${xfadePct > 0.05 ? ` | XF:${xfadePct.toFixed(1)}%` : ""}` : ""}`;
+            rrCell.setAttribute("aria-label", rrCell.dataset.tooltip);
+            rrGrid.appendChild(rrCell);
+          });
+
+          box.appendChild(rrGrid);
+
           const leftHandle = document.createElement("div");
           leftHandle.className = "map-range-handle left";
           leftHandle.dataset.side = "left";
@@ -6081,9 +7192,11 @@
           rightHandle.className = "map-range-handle right";
           rightHandle.dataset.side = "right";
           rightHandle.title = "Stretch up";
+
           box.appendChild(leftHandle);
           box.appendChild(rightHandle);
-          col.appendChild(box);
+          row.appendChild(box);
+          col.appendChild(row);
         });
         el.mapSamples.appendChild(col);
       });
@@ -6168,7 +7281,8 @@
 
       const blackOffsets = { 1: 0.72, 3: 0.86, 6: 0.72, 8: 0.86, 10: 0.98 };
 
-      const { roots, rangesByRoot } = getResolvedRootRanges(state.entries);
+      const playbackSource = getPlayerPlaybackSource();
+      const { roots, rangesByRoot } = getResolvedRootRanges(playbackSource.entries, playbackSource.manualRanges);
       const playableMidis = new Set();
       roots.forEach((rootMidi) => {
         const range = rangesByRoot.get(rootMidi);
@@ -6309,8 +7423,8 @@
       renderKeyboardMap(undefined, true);
     }
 
-    function selectDonorRootForPlayedNote(playedMidi) {
-      const { roots, rangesByRoot } = getResolvedRootRanges(state.entries);
+    function selectDonorRootForPlayedNote(playedMidi, entries = state.entries, manualRanges = state.manualRootRanges) {
+      const { roots, rangesByRoot } = getResolvedRootRanges(entries, manualRanges);
       if (!roots.length) return null;
       for (let i = 0; i < roots.length; i += 1) {
         const root = roots[i];
@@ -6321,17 +7435,17 @@
       return null;
     }
 
-    function getVelocityLayersForRoot(donorRoot) {
+    function getVelocityLayersForRoot(donorRoot, entries = state.entries) {
       const layers = Array.from(new Set(
-        state.entries
+        entries
           .filter((entry) => entry.valid && !!entry.sampleUrl && entry.rootMidi === donorRoot)
           .map((entry) => entry.velocityLayer)
       )).sort((a, b) => a - b);
       return layers;
     }
 
-    function getVelocityCrossfadePlan(donorRoot, midiVelocity) {
-      const layers = getVelocityLayersForRoot(donorRoot);
+    function getVelocityCrossfadePlan(donorRoot, midiVelocity, entries = state.entries) {
+      const layers = getVelocityLayersForRoot(donorRoot, entries);
       if (!layers.length) return [];
       const v = Math.max(1, Math.min(127, Math.round(midiVelocity)));
       if (layers.length === 1) return [{ velocityLayer: layers[0], gain: 1, startDelaySec: 0 }];
@@ -6371,8 +7485,8 @@
       return [{ velocityLayer: layers[baseIdx], gain: 1, startDelaySec: 0 }];
     }
 
-    function pickSampleEntryForPlayback(playedMidi, donorRoot, velocityLayer) {
-      const variants = state.entries
+    function pickSampleEntryForPlayback(playedMidi, donorRoot, velocityLayer, entries = state.entries) {
+      const variants = entries
         .filter((entry) => (
           entry.valid
           && !!entry.sampleUrl
@@ -6557,16 +7671,41 @@
       };
     }
 
-    function stopPreviewHtmlAudioForKey(keyMidi) {
+    function stopPreviewHtmlAudioForKey(keyMidi, fadeOutSec = 0) {
       if (!Number.isFinite(keyMidi)) return;
       const activeGroup = state.previewHtmlAudioByKey.get(keyMidi);
       if (!activeGroup) return;
       state.previewHtmlAudioByKey.delete(keyMidi);
       const audios = Array.isArray(activeGroup.audios) ? activeGroup.audios : [activeGroup];
+      const fadeMs = Math.max(0, Math.round((Number(fadeOutSec) || 0) * 1000));
       audios.forEach((audio) => {
         try {
-          audio.pause();
-          audio.currentTime = 0;
+          const startVolume = Number.isFinite(audio.volume) ? audio.volume : 1;
+          if (fadeMs <= 4 || startVolume <= 0.0001) {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.volume = startVolume;
+            return;
+          }
+
+          const steps = Math.max(2, Math.round(fadeMs / 16));
+          const stepMs = Math.max(8, Math.round(fadeMs / steps));
+          let step = 0;
+          const timerId = window.setInterval(() => {
+            step += 1;
+            const t = Math.min(1, step / steps);
+            audio.volume = Math.max(0, startVolume * (1 - t));
+            if (t >= 1) {
+              window.clearInterval(timerId);
+              try {
+                audio.pause();
+                audio.currentTime = 0;
+              } catch {
+                // best effort
+              }
+              audio.volume = startVolume;
+            }
+          }, stepMs);
         } catch {
           // best effort
         }
@@ -6625,7 +7764,7 @@
         const voices = Array.isArray(existingGroup.voices) ? existingGroup.voices : [existingGroup];
         voices.forEach((voice) => stopPreviewVoice(voice, fadeOutSec, atTime));
       }
-      stopPreviewHtmlAudioForKey(keyMidi);
+      stopPreviewHtmlAudioForKey(keyMidi, fadeOutSec);
     }
 
     function stopAllPreviewVoices(fadeOutSec = 0.007) {
@@ -6671,7 +7810,7 @@
       if (keySerial === null) {
         keySerial = (state.previewTriggerSerialByKey.get(keyMidi) ?? 0) + 1;
         state.previewTriggerSerialByKey.set(keyMidi, keySerial);
-        stopPreviewVoiceForKey(keyMidi, 0.007);
+        stopPreviewVoiceForKey(keyMidi, SAME_KEY_RETRIGGER_FADE_SEC);
       }
 
       if ((state.previewTriggerSerialByKey.get(keyMidi) ?? 0) !== keySerial) return;
@@ -6864,20 +8003,42 @@
       });
     }
 
-    function triggerKeyboardMapKey(midi, pointerRatioY) {
+    function triggerKeyboardMapKey(midi, pointerRatioY, options = null) {
       if (!Number.isFinite(midi)) return false;
+      const hasExplicitSource = options && Array.isArray(options.entries);
+      let sourceEntries = hasExplicitSource ? options.entries : null;
+      let manualRanges = (options && typeof options.manualRanges === "object" && options.manualRanges !== null)
+        ? options.manualRanges
+        : null;
+
+      if (!hasExplicitSource) {
+        const keyswitchSet = (state.keyswitchSets || []).find((set) => (
+          Number.isFinite(set?.keyMidi) && Math.round(set.keyMidi) === Math.round(midi)
+        ));
+        if (keyswitchSet) {
+          setActiveMapSet(keyswitchSet.id, true);
+          setStatus(el.setupStatus, `Keyswitch: ${keyswitchSet.name} (${keyswitchSet.key})`, "ok");
+          return false;
+        }
+        const playbackSource = getPlayerPlaybackSource();
+        sourceEntries = playbackSource.entries;
+        manualRanges = playbackSource.manualRanges;
+      }
+
+      if (!Array.isArray(sourceEntries) || !sourceEntries.length) return false;
+      if (!manualRanges || typeof manualRanges !== "object") manualRanges = state.manualRootRanges;
       const ratio = Math.max(0, Math.min(1, pointerRatioY));
       const velocityNorm = ratio;
       const midiVelocity = Math.round((velocityNorm * 126) + 1);
-      const donorRoot = selectDonorRootForPlayedNote(midi);
+      const donorRoot = selectDonorRootForPlayedNote(midi, sourceEntries, manualRanges);
       if (donorRoot === null) return false;
-      const playbackPlan = getVelocityCrossfadePlan(donorRoot, midiVelocity);
+      const playbackPlan = getVelocityCrossfadePlan(donorRoot, midiVelocity, sourceEntries);
       if (!playbackPlan.length) return false;
 
       const keyMidi = Math.round(midi);
       const keySerial = (state.previewTriggerSerialByKey.get(keyMidi) ?? 0) + 1;
       state.previewTriggerSerialByKey.set(keyMidi, keySerial);
-      stopPreviewVoiceForKey(keyMidi, 0.007);
+      stopPreviewVoiceForKey(keyMidi, SAME_KEY_RETRIGGER_FADE_SEC);
       state.previewVoicesByKey.set(keyMidi, { serial: keySerial, voices: [] });
       state.previewHtmlAudioByKey.set(keyMidi, { serial: keySerial, audios: [] });
 
@@ -6885,7 +8046,7 @@
       playbackPlan.forEach((item) => {
         const gain = Math.max(0, Math.min(1, Number(item.gain) || 0));
         if (gain <= 0.0001) return;
-        const entry = pickSampleEntryForPlayback(midi, donorRoot, item.velocityLayer);
+        const entry = pickSampleEntryForPlayback(midi, donorRoot, item.velocityLayer, sourceEntries);
         if (!entry) return;
         const delaySec = Math.max(0, Math.min(0.003, Number(item.startDelaySec) || 0));
         playMappedSampleEntry(entry, velocityNorm, midi, donorRoot, gain, keySerial, delaySec);
@@ -6902,6 +8063,26 @@
     }
 
     function setupKeyboardMap() {
+      if (el.keyswitchMapSelect) {
+        el.keyswitchMapSelect.addEventListener("change", () => {
+          setActiveMapSet(el.keyswitchMapSelect.value, true);
+        });
+      }
+      if (el.keyswitchMapKeyInput) {
+        el.keyswitchMapKeyInput.addEventListener("change", () => {
+          applyActiveKeyswitchSetKeyInput(true);
+        });
+        el.keyswitchMapKeyInput.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter") {
+            ev.preventDefault();
+            applyActiveKeyswitchSetKeyInput(true);
+          }
+        });
+        el.keyswitchMapKeyInput.addEventListener("blur", () => {
+          applyActiveKeyswitchSetKeyInput(false);
+        });
+      }
+
       el.octaveDownBtn.addEventListener("click", (ev) => {
         shiftKeyboardMapRange(-1, ev.shiftKey ? 12 : 1);
       });
@@ -7086,7 +8267,10 @@
         if (!Number.isFinite(midi)) return;
         const rect = keyNode.getBoundingClientRect();
         const ratioY = (ev.clientY - rect.top) / Math.max(1, rect.height);
-        triggerKeyboardMapKey(midi, ratioY);
+        triggerKeyboardMapKey(midi, ratioY, {
+          entries: getActiveMapEntries(),
+          manualRanges: getActiveMapManualRanges()
+        });
         keyNode.classList.add("pressed");
         window.setTimeout(() => keyNode.classList.remove("pressed"), 120);
       });
@@ -7102,8 +8286,9 @@
           ev.preventDefault();
           ev.stopPropagation();
 
-          const valid = state.entries.filter((entry) => entry.valid && !!entry.sampleUrl);
-          const { roots, rangesByRoot } = getResolvedRootRanges(valid);
+          const valid = getActiveMapEntries().filter((entry) => entry.valid);
+          const manualRanges = getActiveMapManualRanges();
+          const { roots, rangesByRoot } = getResolvedRootRanges(valid, manualRanges);
           const startRange = rangesByRoot.get(rootMidi);
           if (!startRange) return;
           const startX = ev.clientX;
@@ -7121,11 +8306,11 @@
             const nextValue = Math.max(minValue, Math.min(maxValue, startValue + delta));
             const current = rangesByRoot.get(rootMidi) || startRange;
             if (side === "left") {
-              setManualRangeForRoot(rootMidi, nextValue, current.high, roots);
+              setManualRangeForRoot(rootMidi, nextValue, current.high, roots, manualRanges);
             } else {
-              setManualRangeForRoot(rootMidi, current.low, nextValue, roots);
+              setManualRangeForRoot(rootMidi, current.low, nextValue, roots, manualRanges);
             }
-            renderKeyboardMap(state.entries.filter((entry) => entry.valid), true);
+            renderKeyboardMap(getActiveMapEntries(), true);
             renderPlayerKeyboard();
           }
 
@@ -7142,8 +8327,10 @@
         }
 
         const box = ev.target.closest(".map-sample-box");
-        if (!box) return;
-        const order = Number(box.dataset.entryOrder);
+        const rrCell = ev.target.closest(".map-rr-cell");
+        const target = rrCell || box;
+        if (!target) return;
+        const order = Number(target.dataset.entryOrder);
         const entry = getMapEntryByOrder(order);
         if (!entry) return;
         openSampleEditor(entry);
@@ -7158,7 +8345,8 @@
       if (state.selectedMapEntryOrder !== null && !getMapEntryByOrder(state.selectedMapEntryOrder)) {
         closeSampleEditor();
       }
-      renderKeyboardMap(valid);
+      updateKeyswitchMapSelector();
+      renderKeyboardMap(getActiveMapEntries(), true);
       syncVelocityCrossfadeControl();
 
       const buckets = new Map();
@@ -7169,9 +8357,21 @@
       });
 
       if (state.entries.length === 0) {
-        el.importLog.textContent = "No files imported.";
-        setStatus(el.setupStatus, "");
+        if ((state.keyswitchSets || []).length > 0) {
+          const setLabels = state.keyswitchSets.map((set) => `${set.name}${set.key ? ` (${set.key})` : ""}`);
+          el.importLog.textContent = `Loaded keyswitch set(s):\n${setLabels.join("\n")}`;
+          const duplicates = getDuplicateKeyswitchNotes();
+          if (duplicates.length > 0) {
+            setStatus(el.setupStatus, `Duplicate keyswitch keys: ${duplicates.join(", ")}. Change key values.`, "warn");
+          } else {
+            setStatus(el.setupStatus, "");
+          }
+        } else {
+          el.importLog.textContent = "No files imported.";
+          setStatus(el.setupStatus, "");
+        }
         closeSampleEditor();
+        scheduleHostResizeForActiveTab();
         return;
       }
 
@@ -7181,11 +8381,15 @@
         return `${e.fileName} -> ${midiToNote(e.rootMidi)} V${e.velocityLayer} ${rr}${e.loopEnabled ? " L" : ""}`;
       }).join("\n");
 
-      if (invalid.length > 0) {
+      const duplicateKeys = getDuplicateKeyswitchNotes();
+      if (duplicateKeys.length > 0) {
+        setStatus(el.setupStatus, `Duplicate keyswitch keys: ${duplicateKeys.join(", ")}. Change key values.`, "warn");
+      } else if (invalid.length > 0) {
         setStatus(el.setupStatus, `Imported ${state.entries.length} files with ${invalid.length} invalid filename(s).`, "warn");
       } else {
         setStatus(el.setupStatus, "");
       }
+      scheduleHostResizeForActiveTab();
     }
 
     function ingest(filesLike) {
@@ -7216,6 +8420,7 @@
         });
       });
 
+      state.activeMapSetId = "base";
       state.rrCursor = {};
       assignImplicitVelocityLayers();
       renderSetup();
@@ -7225,12 +8430,27 @@
     }
 
     function clearInstrument() {
+      stopAutoSamplingCountdown(false);
+      if (state.nativeAutoSamplerAvailable && state.nativeAutoSamplerActive) {
+        emitNativeEvent("autosampler_control", { action: "stop" });
+      }
+      state.nativeAutoSamplerActive = false;
+      state.nativeAutoSamplerExpected = 0;
+      state.nativeAutoSamplerCaptured = 0;
+      state.nativeAutoSamplerTakeCount = 0;
+      state.deferredAutoLoopOrders = [];
+      state.nativeAutoSamplerInputDetected = false;
+      state.nativeAutoSamplerMessage = "";
+      updateStartSamplingButtonLabel();
       stopAllPreviewVoices();
       state.entries.forEach((entry) => {
         if (entry.sampleUrl) URL.revokeObjectURL(entry.sampleUrl);
       });
       state.entries = [];
       state.manualRootRanges = {};
+      state.keyswitchSets = [];
+      state.activeMapSetId = "base";
+      state.nextVirtualOrder = -1;
       state.packLoaded = false;
       state.rrCursor = {};
       state.waveformCache.clear();
@@ -7242,9 +8462,9 @@
       syncAllKnobValues();
     }
 
-    function buildManifest() {
+    function buildManifestMapping(entries) {
       const groups = new Map();
-      state.entries.filter((e) => e.valid).forEach((e) => {
+      (entries || []).filter((e) => e.valid).forEach((e) => {
         ensureEntryEditorState(e);
         const key = `${e.rootMidi}-${e.velocityLayer}`;
         if (!groups.has(key)) {
@@ -7264,8 +8484,58 @@
           fineTuneCents: clampFineTune(e.fineTuneCents ?? 0)
         });
       });
+      return Array.from(groups.values());
+    }
 
-      return {
+    function blobToDataUrl(blob) {
+      return new Promise((resolve, reject) => {
+        try {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("Could not read blob as data URL"));
+          reader.readAsDataURL(blob);
+        } catch (err) {
+          reject(err);
+        }
+      });
+    }
+
+    function dataUrlToBlob(dataUrl) {
+      const raw = String(dataUrl || "");
+      const match = raw.match(/^data:([^;]+)?;base64,([\s\S]+)$/);
+      if (!match) return null;
+      const mime = match[1] || "application/octet-stream";
+      try {
+        const base64 = String(match[2] || "").replace(/\s+/g, "");
+        const bin = atob(base64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+        return new Blob([bytes], { type: mime });
+      } catch {
+        return null;
+      }
+    }
+
+    async function getDataUrlFromSourceUrl(url, cache = new Map()) {
+      const sourceUrl = String(url || "").trim();
+      if (!sourceUrl) return "";
+      if (sourceUrl.startsWith("data:")) return sourceUrl;
+      if (cache.has(sourceUrl)) return cache.get(sourceUrl);
+      const pending = fetch(sourceUrl)
+        .then((response) => {
+          if (!response.ok) throw new Error("Failed to fetch source asset");
+          return response.blob();
+        })
+        .then((blob) => blobToDataUrl(blob))
+        .catch(() => "");
+      cache.set(sourceUrl, pending);
+      return pending;
+    }
+
+    function buildManifestSkeleton(targetExt = "smpinst") {
+      const ext = String(targetExt || "smpinst").trim().toLowerCase().replace(/^\./, "") || "smpinst";
+      const normalizedExt = ext === "keyswitch" ? "keysw" : ext;
+      const manifest = {
         formatVersion: 1,
         instrumentName: (el.autoInstrument.value || "Instrument").trim(),
         author: (el.autoAuthor?.value || "").trim(),
@@ -7282,7 +8552,8 @@
           autoLoopStartPercent: getAutoLoopStartPercent(),
           autoLoopEndPercent: getAutoLoopEndPercent(),
           autoLoopCutAtEnd: !!el.autoLoopCutAtEnd?.checked,
-          autoLoopCrossfadeMs: getAutoLoopCrossfadeMs()
+          autoLoopCrossfadeMs: getAutoLoopCrossfadeMs(),
+          autoNormalizeRecorded: !!el.autoNormalizeRecorded?.checked
         },
         wallpaper: {
           enabled: !!state.wallpaperName,
@@ -7296,37 +8567,239 @@
           fitMode: "contain",
           position: normalizeLogoPosition(state.logoPosition)
         },
-        mapping: Array.from(groups.values())
+        mapping: buildManifestMapping(state.entries)
       };
+
+      if (normalizedExt === "keysw") {
+        const keyInfo = normalizeKeyswitchKey(el.autoAuthor?.value || "", 12);
+        manifest.packType = "keyswitch";
+        manifest.keyswitchKey = keyInfo.key;
+      } else {
+        manifest.packType = "instrument";
+        manifest.keyswitchSets = (state.keyswitchSets || [])
+          .map((set) => ({
+            name: String(set?.name || "Keyswitch").trim() || "Keyswitch",
+            keyswitchKey: Number.isFinite(set?.keyMidi) ? midiToNote(Math.round(set.keyMidi)) : String(set?.key || ""),
+            mapping: buildManifestMapping(Array.isArray(set?.entries) ? set.entries : [])
+          }))
+          .filter((set) => Array.isArray(set.mapping) && set.mapping.length > 0);
+      }
+      return manifest;
     }
 
-    function exportPack(targetExt = "smpinst") {
-      const manifest = buildManifest();
-      const base = (manifest.instrumentName || "instrument").replace(/[^a-z0-9_-]+/gi, "_");
-      const ext = String(targetExt || "smpinst").trim().toLowerCase().replace(/^\./, "") || "smpinst";
-      const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${base || "instrument"}.${ext}`;
-      a.click();
-      URL.revokeObjectURL(url);
-      const label = ext === "smpinst" ? "native .smpinst" : `.${ext}`;
-      setStatus(el.setupStatus, `Exported ${label} pack prototype (manifest preview).`, "ok");
+    async function buildManifestMappingEmbedded(entries, dataUrlCache = new Map()) {
+      const groups = new Map();
+      const validEntries = (entries || []).filter((entry) => entry.valid);
+      for (const entry of validEntries) {
+        ensureEntryEditorState(entry);
+        const key = `${entry.rootMidi}-${entry.velocityLayer}`;
+        if (!groups.has(key)) {
+          groups.set(key, {
+            rootMidiNote: entry.rootMidi,
+            velocityLayer: entry.velocityLayer,
+            rrVariants: []
+          });
+        }
+        const sampleDataUrl = entry.sampleUrl
+          ? await getDataUrlFromSourceUrl(entry.sampleUrl, dataUrlCache)
+          : "";
+        groups.get(key).rrVariants.push({
+          path: `samples/${entry.fileName}`,
+          originalFilename: entry.fileName,
+          sampleDataUrl,
+          loopEnabled: isEntryLoopRegionActive(entry),
+          loopStartNorm: Number((entry.loopStartNorm ?? 0).toFixed(6)),
+          loopEndNorm: Number((entry.loopEndNorm ?? 1).toFixed(6)),
+          loopFadeInNorm: Number((entry.loopFadeInNorm ?? entry.loopStartNorm ?? 0).toFixed(6)),
+          fineTuneCents: clampFineTune(entry.fineTuneCents ?? 0)
+        });
+      }
+      return Array.from(groups.values());
+    }
+
+    async function buildManifestWithEmbeddedAssets(targetExt = "smpinst") {
+      const manifest = buildManifestSkeleton(targetExt);
+      const cache = new Map();
+
+      manifest.mapping = await buildManifestMappingEmbedded(state.entries, cache);
+      if (manifest.packType === "instrument") {
+        const sets = [];
+        for (const set of (state.keyswitchSets || [])) {
+          const mapping = await buildManifestMappingEmbedded(Array.isArray(set?.entries) ? set.entries : [], cache);
+          if (!mapping.length) continue;
+          sets.push({
+            name: String(set?.name || "Keyswitch").trim() || "Keyswitch",
+            keyswitchKey: Number.isFinite(set?.keyMidi) ? midiToNote(Math.round(set.keyMidi)) : String(set?.key || ""),
+            mapping
+          });
+        }
+        manifest.keyswitchSets = sets;
+      }
+
+      if (state.wallpaperUrl && state.wallpaperName) {
+        const wallpaperDataUrl = await getDataUrlFromSourceUrl(state.wallpaperUrl, cache);
+        if (wallpaperDataUrl) {
+          manifest.wallpaper = {
+            ...(manifest.wallpaper || {}),
+            enabled: true,
+            filename: state.wallpaperName,
+            dataUrl: wallpaperDataUrl
+          };
+        }
+      }
+
+      if (state.logoUrl && state.logoName) {
+        const logoDataUrl = await getDataUrlFromSourceUrl(state.logoUrl, cache);
+        if (logoDataUrl) {
+          manifest.logo = {
+            ...(manifest.logo || {}),
+            enabled: true,
+            filename: state.logoName,
+            dataUrl: logoDataUrl
+          };
+        }
+      }
+
+      return manifest;
+    }
+
+    async function exportPack(targetExt = "smpinst") {
+      const extRaw = String(targetExt || "smpinst").trim().toLowerCase().replace(/^\./, "") || "smpinst";
+      const ext = extRaw === "keyswitch" ? "keysw" : extRaw;
+      if (ext === "smpinst") {
+        const duplicates = getDuplicateKeyswitchNotes();
+        if (duplicates.length > 0) {
+          setStatus(el.setupStatus, `Duplicate keyswitch keys: ${duplicates.join(", ")}. Change keys before packing .smpinst.`, "warn");
+          return;
+        }
+      }
+
+      const saveBtnLabel = el.saveSmpinstBtn?.textContent || "Save (.smpinst)";
+      if (ext === "smpinst" && el.saveSmpinstBtn) {
+        el.saveSmpinstBtn.disabled = true;
+        el.saveSmpinstBtn.textContent = "Saving...";
+      }
+      try {
+        const manifest = await buildManifestWithEmbeddedAssets(ext);
+        const base = (manifest.instrumentName || "instrument").replace(/[^a-z0-9_-]+/gi, "_");
+        const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${base || "instrument"}.${ext}`;
+        a.click();
+        URL.revokeObjectURL(url);
+        const label = ext === "smpinst" ? ".smpinst" : `.${ext}`;
+        setStatus(el.setupStatus, `Saved ${label} preset with embedded assets.`, "ok");
+      } catch {
+        setStatus(el.setupStatus, "Could not save preset file.", "bad");
+      } finally {
+        if (ext === "smpinst" && el.saveSmpinstBtn) {
+          el.saveSmpinstBtn.disabled = false;
+          el.saveSmpinstBtn.textContent = saveBtnLabel;
+        }
+      }
     }
 
     function loadPack(file) {
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
+        stopAutoSamplingCountdown(false);
+        if (state.nativeAutoSamplerAvailable && state.nativeAutoSamplerActive) {
+          emitNativeEvent("autosampler_control", { action: "stop" });
+          state.nativeAutoSamplerActive = false;
+          state.nativeAutoSamplerExpected = 0;
+          state.nativeAutoSamplerCaptured = 0;
+          state.nativeAutoSamplerTakeCount = 0;
+          state.deferredAutoLoopOrders = [];
+          updateStartSamplingButtonLabel();
+        }
         try {
           const data = JSON.parse(String(reader.result || "{}"));
+          stopAllPreviewVoices();
+          state.entries.forEach((entry) => {
+            if (entry.sampleUrl) URL.revokeObjectURL(entry.sampleUrl);
+          });
+          (state.keyswitchSets || []).forEach((set) => {
+            (set.entries || []).forEach((entry) => {
+              if (entry?.sampleUrl) URL.revokeObjectURL(entry.sampleUrl);
+            });
+          });
+
+          const baseEntries = buildKeyswitchEntriesFromManifest(data, { useVirtualOrder: false, startOrder: 0 });
+          let nextOrder = baseEntries.length;
+          const importedKeyswitchSets = [];
+          const keyswitchSetRecords = Array.isArray(data?.keyswitchSets) ? data.keyswitchSets : [];
+          keyswitchSetRecords.forEach((rawSet, index) => {
+            const setEntries = buildKeyswitchEntriesFromManifest(rawSet, { useVirtualOrder: false, startOrder: nextOrder });
+            nextOrder += setEntries.length;
+            const keySource = rawSet?.keyswitchKey ?? rawSet?.key ?? rawSet?.author ?? "";
+            const keyInfo = normalizeKeyswitchKey(keySource, 12);
+            importedKeyswitchSets.push({
+              id: `ks_loaded_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 6)}`,
+              name: String(rawSet?.name || rawSet?.instrumentName || `Keyswitch ${index + 1}`).trim() || `Keyswitch ${index + 1}`,
+              key: keyInfo.key,
+              keyMidi: keyInfo.keyMidi,
+              sourceFile: file?.name || "",
+              entries: setEntries,
+              manualRanges: {}
+            });
+          });
+
+          state.entries = baseEntries;
+          state.keyswitchSets = importedKeyswitchSets;
+          state.manualRootRanges = {};
+          state.activeMapSetId = importedKeyswitchSets.length > 0 ? importedKeyswitchSets[0].id : "base";
+          state.nextVirtualOrder = -1;
+          state.rrCursor = {};
+          closeSampleEditor();
+
           const author = typeof data?.author === "string"
             ? data.author
             : (typeof data?.metadata?.author === "string" ? data.metadata.author : "");
           if (el.autoAuthor) el.autoAuthor.value = author.trim();
+          if (el.autoInstrument && typeof data?.instrumentName === "string") {
+            el.autoInstrument.value = data.instrumentName.trim();
+          }
           const count = Array.isArray(data.mapping) ? data.mapping.length : 0;
           state.packLoaded = true;
-          setStatus(el.setupStatus, `Loaded packed preview with ${count} mapping bucket(s).`, "ok");
+          const duplicateNotes = getDuplicateKeyswitchNotes();
+          if (duplicateNotes.length > 0) {
+            setStatus(el.setupStatus, `Loaded preset with duplicate keyswitch keys: ${duplicateNotes.join(", ")}. Change keys in Keyboard Map.`, "warn");
+          } else {
+            const ksCount = importedKeyswitchSets.length;
+            setStatus(el.setupStatus, `Loaded .smpinst preset with ${count} mapping bucket(s) and ${ksCount} keyswitch set(s).`, "ok");
+          }
+
+          const wallpaperDataUrl = String(data?.wallpaper?.dataUrl || "").trim();
+          if (wallpaperDataUrl) {
+            const wallpaperBlob = dataUrlToBlob(wallpaperDataUrl);
+            if (wallpaperBlob) {
+              const fileName = String(data?.wallpaper?.filename || data?.wallpaper?.path || "wallpaper.png");
+              const wallpaperFile = new File([wallpaperBlob], fileName, { type: wallpaperBlob.type || "image/png" });
+              await setWallpaper(wallpaperFile);
+            } else {
+              clearWallpaper();
+            }
+          } else {
+            clearWallpaper();
+          }
+
+          const logoDataUrl = String(data?.logo?.dataUrl || "").trim();
+          if (logoDataUrl) {
+            const logoBlob = dataUrlToBlob(logoDataUrl);
+            if (logoBlob) {
+              const fileName = String(data?.logo?.filename || data?.logo?.path || "logo.png");
+              const logoFile = new File([logoBlob], fileName, { type: logoBlob.type || "image/png" });
+              setLogo(logoFile);
+            } else {
+              clearLogo();
+            }
+          } else {
+            clearLogo();
+          }
+
+          renderSetup();
           renderAuto();
         } catch {
           setStatus(el.setupStatus, "Could not parse selected pack file as JSON preview.", "bad");
@@ -7354,13 +8827,23 @@
       return uniq;
     }
 
-    function renderAuto() {
-      updatePlayerAuthorDisplay();
+    function getAutoRenderEstimate() {
       const notes = computeNotes();
       if (!notes.length) {
-        if (el.renderTotal) el.renderTotal.innerHTML = "<strong>0</strong> total renders";
-        if (el.renderTime) el.renderTime.innerHTML = `Estimated record time: <span class="render-time-value">0:00</span>`;
-        return;
+        return {
+          notes,
+          vel: 0,
+          rr: 0,
+          total: 0,
+          totalRecordMs: 0,
+          loopCutEnabled: false,
+          loopEndRatio: 1,
+          storedPerRenderMs: 0,
+          sampleRate: getAutoRenderSampleRate(),
+          bitDepth: 32,
+          channelCount: 2,
+          estimatedBytes: 0
+        };
       }
 
       const vel = getAutoVelocityLayers();
@@ -7369,12 +8852,119 @@
       const perRenderMs = getAutoHoldMs() + getAutoTailMs() + getAutoPrerollMs();
       const totalRecordMs = total * perRenderMs;
 
+      const loopCutEnabled = !!el.autoLoop?.checked && !!el.autoLoopCutAtEnd?.checked;
+      const loopEndRatio = loopCutEnabled ? clamp01(getAutoLoopEndPercent() / 100) : 1;
+      const storedPerRenderMs = perRenderMs * loopEndRatio;
+
+      const sampleRate = getAutoRenderSampleRate();
+      const bitDepth = 32; // WebAudio engine runs float32.
+      const channelCount = 2; // Auto-sampler render target is stereo.
+      const bytesPerFrame = (bitDepth / 8) * channelCount;
+      const wavHeaderBytes = 44;
+      const totalStoredFrames = Math.max(0, (total * storedPerRenderMs * sampleRate) / 1000);
+      const estimatedBytes = Math.round((totalStoredFrames * bytesPerFrame) + (total * wavHeaderBytes));
+
+      return {
+        notes,
+        vel,
+        rr,
+        total,
+        totalRecordMs,
+        loopCutEnabled,
+        loopEndRatio,
+        storedPerRenderMs,
+        sampleRate,
+        bitDepth,
+        channelCount,
+        estimatedBytes
+      };
+    }
+
+    function updateStartSamplingButtonLabel() {
+      if (!el.startSamplingBtn) return;
+
+      if (state.nativeAutoSamplerAvailable) {
+        const active = !!state.nativeAutoSamplerActive;
+        el.startSamplingBtn.classList.toggle("is-recording", active);
+        if (!active) {
+          el.startSamplingBtn.textContent = "Start Sampling";
+          return;
+        }
+        const expected = Math.max(0, Math.round(Number(state.nativeAutoSamplerExpected) || 0));
+        const captured = Math.max(
+          Math.max(0, Math.round(Number(state.nativeAutoSamplerCaptured) || 0)),
+          Math.max(0, Math.round(Number(state.nativeAutoSamplerTakeCount) || 0))
+        );
+        if (expected > 0) {
+          el.startSamplingBtn.textContent = `${captured}/${expected}`;
+        } else {
+          el.startSamplingBtn.textContent = `${captured} captured`;
+        }
+        return;
+      }
+
+      const now = Date.now();
+      const active = Number(state.samplingCountdownEndsAt) > now;
+      el.startSamplingBtn.classList.toggle("is-recording", active);
+      if (!active) {
+        el.startSamplingBtn.textContent = "Start Sampling";
+        return;
+      }
+      const remainingMs = Math.max(0, Math.round(state.samplingCountdownEndsAt - now));
+      el.startSamplingBtn.textContent = `${formatDurationMs(remainingMs)} left`;
+    }
+
+    function stopAutoSamplingCountdown(markDone = false) {
+      if (state.samplingCountdownTimer) {
+        window.clearInterval(state.samplingCountdownTimer);
+        state.samplingCountdownTimer = 0;
+      }
+      state.samplingCountdownEndsAt = 0;
+      updateStartSamplingButtonLabel();
+      if (markDone) {
+        setStatus(el.setupStatus, "Sampling finished.", "ok");
+      }
+    }
+
+    function startAutoSamplingCountdown(durationMs, totalRenders) {
+      const duration = Math.max(1000, Math.round(Number(durationMs) || 0));
+      if (!duration) return;
+      stopAutoSamplingCountdown(false);
+      state.samplingCountdownEndsAt = Date.now() + duration;
+      updateStartSamplingButtonLabel();
+      state.samplingCountdownTimer = window.setInterval(() => {
+        if (Date.now() >= state.samplingCountdownEndsAt) {
+          stopAutoSamplingCountdown(true);
+          return;
+        }
+        updateStartSamplingButtonLabel();
+      }, 200);
+    }
+
+    function renderAuto() {
+      updatePlayerAuthorDisplay();
+      const summary = getAutoRenderEstimate();
+      if (!summary.notes.length) {
+        if (el.renderTotal) el.renderTotal.innerHTML = "<strong>0</strong> total renders";
+        if (el.renderTime) el.renderTime.innerHTML = `Estimated record time: <span class="render-time-value">0:00</span>`;
+        if (el.renderSize) el.renderSize.innerHTML = `Estimated file size: <span class="render-size-value">0 B</span>`;
+        updateStartSamplingButtonLabel();
+        scheduleHostResizeForActiveTab();
+        return;
+      }
+
       if (el.renderTotal) {
-        el.renderTotal.innerHTML = `<strong>${total}</strong> total renders = ${notes.length} notes × ${vel} layers × ${rr} RR`;
+        el.renderTotal.innerHTML = `<strong>${summary.total}</strong> total renders = ${summary.notes.length} notes × ${summary.vel} layers × ${summary.rr} RR`;
       }
       if (el.renderTime) {
-        el.renderTime.innerHTML = `Estimated record time: <span class="render-time-value">${formatDurationMs(totalRecordMs)}</span>`;
+        el.renderTime.innerHTML = `Estimated record time: <span class="render-time-value">${formatDurationMs(summary.totalRecordMs)}</span>`;
       }
+      if (el.renderSize) {
+        const trimSuffix = summary.loopCutEnabled ? ` (cut at ${Math.round(summary.loopEndRatio * 100)}%)` : "";
+        el.renderSize.innerHTML = `Estimated file size: <span class="render-size-value">${formatFileSize(summary.estimatedBytes)}</span> <span class="render-size-format">(${formatSampleRate(summary.sampleRate)}, ${summary.bitDepth}-bit, stereo${trimSuffix})</span>`;
+      }
+      updateStartSamplingButtonLabel();
+      scheduleHostResizeForActiveTab();
     }
 
     function updatePlayerAuthorDisplay(activeTab = null) {
@@ -7400,6 +8990,7 @@
       updateTopBarTheme(tab);
       updatePlayerAuthorDisplay(tab);
       refreshPlayerParticles();
+      scheduleHostResizeForActiveTab();
     }
 
     function setupTabs() {
@@ -7417,6 +9008,7 @@
       el.importPackSection.classList.toggle("collapsed", next);
       el.importPackToggle.setAttribute("aria-expanded", String(!next));
       saveSetupCollapseState("importPack", next);
+      scheduleHostResizeForActiveTab();
     }
 
     function setupImportPackCollapse() {
@@ -7440,6 +9032,7 @@
       el.graphicsSection.classList.toggle("collapsed", next);
       el.graphicsToggle.setAttribute("aria-expanded", String(!next));
       saveSetupCollapseState("graphics", next);
+      scheduleHostResizeForActiveTab();
     }
 
     function setupGraphicsCollapse() {
@@ -7465,6 +9058,7 @@
       el.autoSamplerSection.classList.toggle("collapsed", next);
       el.autoSamplerToggle.setAttribute("aria-expanded", String(!next));
       saveSetupCollapseState("autoSampler", next);
+      scheduleHostResizeForActiveTab();
     }
 
     function setupAutoSamplerCollapse() {
@@ -7490,6 +9084,7 @@
       el.keyboardMapSection.classList.toggle("collapsed", next);
       el.keyboardMapToggle.setAttribute("aria-expanded", String(!next));
       saveSetupCollapseState("keyboardMap", next);
+      scheduleHostResizeForActiveTab();
     }
 
     function setupKeyboardMapCollapse() {
@@ -7515,6 +9110,7 @@
       el.effectsSection.classList.toggle("collapsed", next);
       el.effectsToggle.setAttribute("aria-expanded", String(!next));
       saveSetupCollapseState("effects", next);
+      scheduleHostResizeForActiveTab();
     }
 
     function setupEffectsCollapse() {
@@ -7655,6 +9251,12 @@
       el.addFilesBtn.addEventListener("click", () => el.filesInput.click());
       el.addFolderBtn.addEventListener("click", () => el.folderInput.click());
       el.clearInstrumentBtn.addEventListener("click", clearInstrument);
+      if (el.importKeyswitchesBtn && el.keyswitchInput) {
+        el.importKeyswitchesBtn.addEventListener("click", () => el.keyswitchInput.click());
+      }
+      if (el.saveSmpinstBtn) {
+        el.saveSmpinstBtn.addEventListener("click", () => exportPack("smpinst"));
+      }
       el.playerLoadInstrumentBtn.addEventListener("click", () => el.packInput.click());
       if (el.loadPackBtn) el.loadPackBtn.addEventListener("click", () => el.packInput.click());
       if (el.packBtn) el.packBtn.addEventListener("click", exportPack);
@@ -7690,6 +9292,14 @@
         if (file) loadPack(file);
         el.packInput.value = "";
       });
+
+      if (el.keyswitchInput) {
+        el.keyswitchInput.addEventListener("change", (ev) => {
+          const files = Array.from(ev.target.files || []);
+          files.forEach((file) => importKeyswitchPack(file));
+          el.keyswitchInput.value = "";
+        });
+      }
 
       ["dragenter", "dragover"].forEach((eventName) => {
         el.dropZone.addEventListener(eventName, (ev) => {
@@ -7745,6 +9355,7 @@
         el.autoLoopStartPct,
         el.autoLoopEndPct,
         el.autoLoopCutAtEnd,
+        el.autoNormalizeRecorded,
         el.autoLoopCrossfadeMs,
         el.autoDestination,
         el.autoInstrument,
@@ -7757,12 +9368,104 @@
         control.addEventListener("change", renderAuto);
       });
 
+      if (el.startSamplingBtn) {
+        el.startSamplingBtn.addEventListener("click", () => {
+          if (state.nativeAutoSamplerAvailable) {
+            if (state.nativeAutoSamplerActive) {
+              emitNativeEvent("autosampler_control", { action: "stop" });
+              return;
+            }
+
+            renderAuto();
+            const summary = getAutoRenderEstimate();
+            if (summary.total <= 0) {
+              setStatus(el.setupStatus, "No renders to sample. Check start/end and interval.", "warn");
+              return;
+            }
+
+            const started = emitNativeEvent("autosampler_control", {
+              action: "start",
+              settings: buildNativeAutoSamplerSettings()
+            });
+
+            if (!started) {
+              setStatus(el.setupStatus, "Native auto-sampler backend is not available.", "warn");
+              return;
+            }
+
+            state.nativeAutoSamplerActive = true;
+            state.nativeAutoSamplerCaptured = 0;
+            state.nativeAutoSamplerTakeCount = 0;
+            state.deferredAutoLoopOrders = [];
+            state.nativeAutoSamplerExpected = summary.total;
+            state.nativeAutoSamplerInputDetected = false;
+            state.nativeAutoSamplerMessage = "Sampling armed. Sending MIDI notes to target instrument.";
+            state.setupOctaveStart = Math.floor((noteToMidi(el.autoStart?.value) ?? 36) / 12) * 12;
+            setKeyboardMapCollapsed(false);
+            renderKeyboardMap(getActiveMapEntries(), false);
+            setStatus(el.setupStatus, state.nativeAutoSamplerMessage, "ok");
+            updateStartSamplingButtonLabel();
+            return;
+          }
+
+          const recordingActive = Number(state.samplingCountdownEndsAt) > Date.now();
+          if (recordingActive) {
+            stopAutoSamplingCountdown(false);
+            return;
+          }
+          renderAuto();
+          const summary = getAutoRenderEstimate();
+          if (summary.total <= 0) {
+            setStatus(el.setupStatus, "No renders to sample. Check start/end and interval.", "warn");
+            return;
+          }
+          startAutoSamplingCountdown(summary.totalRecordMs, summary.total);
+        });
+      }
+
       state.autoPresets = loadAutoPresetsFromStorage();
       renderAutoPresetList();
+
+      const setAutoPresetCreateOpen = (open, initialName = "") => {
+        if (!el.autoPresetCreateRow || !el.autoPresetNameInput) return;
+        const show = !!open;
+        el.autoPresetCreateRow.classList.toggle("hidden", !show);
+        if (!show) return;
+        const nextName = String(initialName || "").trim();
+        el.autoPresetNameInput.value = nextName;
+        window.requestAnimationFrame(() => {
+          el.autoPresetNameInput.focus();
+          el.autoPresetNameInput.select();
+        });
+      };
+
+      const saveCurrentAutoPreset = (requestedName = "") => {
+        const defaultName = `Preset ${state.autoPresets.length + 1}`;
+        const name = String(requestedName || "").trim() || defaultName;
+        const preset = normalizeAutoPresetRecord({
+          id: `preset_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          name,
+          settings: getAutoPresetSettingsSnapshot()
+        }, state.autoPresets.length);
+        if (!preset) return false;
+
+        const duplicateIndex = state.autoPresets.findIndex((item) => (
+          String(item.name || "").trim().toLowerCase() === name.toLowerCase()
+        ));
+        if (duplicateIndex >= 0) {
+          state.autoPresets[duplicateIndex] = preset;
+        } else {
+          state.autoPresets.unshift(preset);
+        }
+        saveAutoPresetsToStorage();
+        renderAutoPresetList();
+        return true;
+      };
 
       const setAutoPresetMenuOpen = (open) => {
         if (!el.autoPresetMenu || !el.autoPresetBtn) return;
         const show = !!open;
+        if (!show) setAutoPresetCreateOpen(false);
         if (show) renderAutoPresetList();
         el.autoPresetMenu.classList.toggle("hidden", !show);
         el.autoPresetBtn.setAttribute("aria-expanded", show ? "true" : "false");
@@ -7797,26 +9500,30 @@
         el.autoPresetSaveBtn.addEventListener("click", (ev) => {
           ev.preventDefault();
           const defaultName = `Preset ${state.autoPresets.length + 1}`;
-          const inputName = window.prompt("Preset name", defaultName);
-          if (inputName === null) return;
-          const name = String(inputName || "").trim() || defaultName;
-          const preset = normalizeAutoPresetRecord({
-            id: `preset_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-            name,
-            settings: getAutoPresetSettingsSnapshot()
-          }, state.autoPresets.length);
-          if (!preset) return;
+          setAutoPresetCreateOpen(true, defaultName);
+        });
+      }
 
-          const duplicateIndex = state.autoPresets.findIndex((item) => (
-            String(item.name || "").trim().toLowerCase() === name.toLowerCase()
-          ));
-          if (duplicateIndex >= 0) {
-            state.autoPresets[duplicateIndex] = preset;
-          } else {
-            state.autoPresets.unshift(preset);
+      if (el.autoPresetConfirmBtn && el.autoPresetNameInput) {
+        el.autoPresetConfirmBtn.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          const saved = saveCurrentAutoPreset(el.autoPresetNameInput.value);
+          if (!saved) return;
+          setAutoPresetCreateOpen(false);
+        });
+
+        el.autoPresetNameInput.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter") {
+            ev.preventDefault();
+            const saved = saveCurrentAutoPreset(el.autoPresetNameInput.value);
+            if (!saved) return;
+            setAutoPresetCreateOpen(false);
+            return;
           }
-          saveAutoPresetsToStorage();
-          renderAutoPresetList();
+          if (ev.key === "Escape") {
+            ev.preventDefault();
+            setAutoPresetCreateOpen(false);
+          }
         });
       }
 
@@ -8053,6 +9760,8 @@
 
     function init() {
       const collapseState = loadSetupCollapseState();
+      window.addEventListener("resize", scheduleHostResizeForActiveTab);
+      setupNativeAutoSamplerBridge();
       setupTabs();
       setupImportPackCollapse();
       setupGraphicsCollapse();
@@ -8083,6 +9792,7 @@
       renderSetup();
       updatePlayerEmptyState();
       renderAuto();
+      requestHostResizeForActiveTab();
     }
 
     init();
