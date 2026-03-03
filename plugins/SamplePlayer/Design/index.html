@@ -59,6 +59,7 @@
     }
 
     .instrument {
+      position: relative;
       width: 100%;
       height: 100%;
       min-height: 100%;
@@ -70,6 +71,81 @@
       box-shadow: 0 20px 52px rgba(0, 0, 0, 0.34);
       overflow: hidden;
       backdrop-filter: blur(6px);
+    }
+
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 20000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      background:
+        linear-gradient(
+          180deg,
+          rgba(24, 26, 31, 0.9),
+          rgba(16, 18, 22, 0.88)
+        );
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+
+    .loading-overlay.wallpaper-themed {
+      background:
+        linear-gradient(
+          180deg,
+          rgba(var(--player-topbar-rgb), 0.92),
+          rgba(var(--player-swatch-rgb), 0.84)
+        );
+    }
+
+    .loading-card {
+      width: min(460px, calc(100% - 72px));
+      border: 1px solid rgba(140, 146, 156, 0.42);
+      border-radius: 10px;
+      padding: 14px 14px 12px;
+      background:
+        linear-gradient(
+          180deg,
+          rgba(38, 40, 46, 0.94),
+          rgba(26, 28, 34, 0.9)
+        );
+      box-shadow:
+        0 14px 34px rgba(0, 0, 0, 0.42),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .loading-overlay.wallpaper-themed .loading-card {
+      border-color: rgba(var(--player-line-rgb), 0.62);
+      background:
+        linear-gradient(
+          180deg,
+          rgba(var(--player-topbar-rgb), 0.56),
+          rgba(var(--player-swatch-rgb), 0.44)
+        );
+    }
+
+    .loading-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 0;
+    }
+
+    .loading-label {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(224, 228, 234, 0.94);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .loading-overlay.wallpaper-themed .loading-label {
+      color: rgba(var(--player-line-rgb), 0.98);
     }
 
     .btn-row {
@@ -341,6 +417,95 @@
       opacity: 0 !important;
     }
 
+    .player-edge-wave-blur {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: var(--player-kb-height);
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 280ms ease;
+      overflow: hidden;
+    }
+
+    .player-stage.has-wallpaper .player-edge-wave-blur {
+      opacity: 0.9;
+    }
+
+    .player-stage.edge-wave-blur-disabled .player-edge-wave-blur {
+      opacity: 0 !important;
+    }
+
+    .player-edge-wave-side {
+      position: absolute;
+      top: -3%;
+      bottom: -3%;
+      width: min(12%, 132px);
+      backdrop-filter: blur(9px) saturate(122%);
+      -webkit-backdrop-filter: blur(9px) saturate(122%);
+      will-change: transform;
+    }
+
+    .player-edge-wave-side.left {
+      left: -7px;
+      background:
+        linear-gradient(
+          90deg,
+          rgba(var(--player-topbar-rgb), 0.7) 0%,
+          rgba(var(--player-swatch-rgb), 0.5) 40%,
+          rgba(var(--player-line-rgb), 0.18) 72%,
+          rgba(var(--player-line-rgb), 0) 100%
+        ),
+        repeating-radial-gradient(
+          ellipse at 100% 50%,
+          rgba(var(--player-bright-rgb), 0.14) 0px,
+          rgba(var(--player-bright-rgb), 0.05) 7px,
+          rgba(var(--player-bright-rgb), 0.02) 16px,
+          rgba(var(--player-bright-rgb), 0) 30px
+        );
+      animation: edgeWaveBlurLeft 7.2s ease-in-out infinite alternate;
+    }
+
+    .player-edge-wave-side.right {
+      right: -7px;
+      background:
+        linear-gradient(
+          270deg,
+          rgba(var(--player-topbar-rgb), 0.7) 0%,
+          rgba(var(--player-swatch-rgb), 0.5) 40%,
+          rgba(var(--player-line-rgb), 0.18) 72%,
+          rgba(var(--player-line-rgb), 0) 100%
+        ),
+        repeating-radial-gradient(
+          ellipse at 0% 50%,
+          rgba(var(--player-bright-rgb), 0.14) 0px,
+          rgba(var(--player-bright-rgb), 0.05) 7px,
+          rgba(var(--player-bright-rgb), 0.02) 16px,
+          rgba(var(--player-bright-rgb), 0) 30px
+        );
+      animation: edgeWaveBlurRight 8.4s ease-in-out infinite alternate;
+    }
+
+    @keyframes edgeWaveBlurLeft {
+      0% {
+        transform: translateY(-1.8%) scaleY(1.04);
+      }
+      100% {
+        transform: translateY(1.8%) scaleY(0.97);
+      }
+    }
+
+    @keyframes edgeWaveBlurRight {
+      0% {
+        transform: translateY(1.4%) scaleY(0.98);
+      }
+      100% {
+        transform: translateY(-1.6%) scaleY(1.05);
+      }
+    }
+
     .player-god-rays::before,
     .player-god-rays::after {
       content: "";
@@ -424,6 +589,8 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
+      .player-edge-wave-side.left,
+      .player-edge-wave-side.right,
       .player-god-rays::before,
       .player-god-rays::after {
         animation: none;
@@ -1490,6 +1657,14 @@
       padding: 6px 6px;
     }
 
+    .auto-ms-field.is-disabled {
+      opacity: 0.42;
+    }
+
+    .auto-ms-field .ms-input:disabled {
+      cursor: not-allowed;
+    }
+
     .auto-loop-inline {
       margin-left: 0;
       white-space: nowrap;
@@ -1514,6 +1689,15 @@
     .auto-loop-options > .field > label {
       margin: 0;
       white-space: nowrap;
+    }
+
+    .auto-loop-options > .field.is-disabled {
+      opacity: 0.44;
+    }
+
+    .auto-loop-options > .field.is-disabled .sample-velocity-toggle {
+      border-color: rgba(140, 146, 156, 0.2);
+      background: rgba(12, 17, 26, 0.52);
     }
 
     .auto-loop-options .sample-velocity-toggle {
@@ -2641,6 +2825,27 @@
       background: rgba(9, 13, 20, 0.78);
     }
 
+    .sample-start-handle {
+      width: 2px;
+      margin-left: 0;
+      cursor: default;
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    .sample-start-handle::before {
+      left: 0;
+      width: 2px;
+      transform: none;
+      background: rgba(236, 240, 246, 0.96);
+      box-shadow: 0 0 6px rgba(236, 240, 246, 0.28);
+    }
+
+    .sample-start-handle::after {
+      border-color: rgba(236, 240, 246, 0.96);
+      background: rgba(9, 13, 20, 0.9);
+    }
+
     .map-viewport {
       position: relative;
       padding-top: 6px;
@@ -2677,12 +2882,12 @@
     .map-viewport .octave-nav:hover,
     .map-viewport .octave-nav:focus-visible {
       opacity: 1;
-      background: linear-gradient(90deg, rgba(9, 12, 18, 0.88), rgba(9, 12, 18, 0));
+      background: linear-gradient(90deg, rgba(54, 40, 14, 0.8), rgba(54, 40, 14, 0));
     }
 
     .map-viewport .octave-nav.right:hover,
     .map-viewport .octave-nav.right:focus-visible {
-      background: linear-gradient(270deg, rgba(9, 12, 18, 0.88), rgba(9, 12, 18, 0));
+      background: linear-gradient(270deg, rgba(54, 40, 14, 0.8), rgba(54, 40, 14, 0));
     }
 
     .octave-nav:disabled {
@@ -2763,20 +2968,36 @@
       min-height: 10px;
       width: calc((100% * var(--span-total)) + (var(--map-col-gap) * (var(--span-total) - 1)));
       margin-left: calc((-100% * var(--span-left)) - (var(--map-col-gap) * var(--span-left)));
-      border: 1px solid rgba(164, 170, 180, 0.86);
+      border: 1px solid rgba(234, 196, 96, 0.74);
       border-radius: 2px;
       background:
         linear-gradient(
           90deg,
-          rgba(164, 170, 180, 0.22) 0%,
-          rgba(164, 170, 180, 0.22) calc((100% / var(--span-total)) * var(--root-slot)),
-          rgba(164, 170, 180, 0.68) calc((100% / var(--span-total)) * var(--root-slot)),
-          rgba(164, 170, 180, 0.68) calc((100% / var(--span-total)) * (var(--root-slot) + 1)),
-          rgba(164, 170, 180, 0.22) calc((100% / var(--span-total)) * (var(--root-slot) + 1)),
-          rgba(164, 170, 180, 0.22) 100%
-        );
+          rgba(126, 96, 28, 0.28) 0%,
+          rgba(126, 96, 28, 0.28) calc((100% / var(--span-total)) * var(--root-slot)),
+          rgba(248, 210, 114, 0.74) calc((100% / var(--span-total)) * var(--root-slot)),
+          rgba(232, 182, 66, 0.82) calc((100% / var(--span-total)) * (var(--root-slot) + 1)),
+          rgba(126, 96, 28, 0.28) calc((100% / var(--span-total)) * (var(--root-slot) + 1)),
+          rgba(126, 96, 28, 0.28) 100%
+        ),
+        linear-gradient(180deg, rgba(44, 36, 18, 0.18), rgba(24, 20, 10, 0.18));
       cursor: pointer;
       z-index: 2;
+      transition: border-color 130ms ease, box-shadow 130ms ease, filter 130ms ease, background 130ms ease;
+    }
+
+    .map-sample-box.offscreen-root {
+      border-color: rgba(172, 134, 44, 0.64);
+      background:
+        linear-gradient(180deg, rgba(122, 94, 30, 0.34), rgba(78, 58, 18, 0.34));
+    }
+
+    .map-sample-box:hover {
+      border-color: rgba(255, 232, 154, 0.92);
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 223, 130, 0.28),
+        0 0 0 1px rgba(255, 214, 106, 0.2);
+      filter: saturate(1.08) brightness(1.06);
     }
 
     .map-rr-grid {
@@ -2799,28 +3020,65 @@
       appearance: none;
       border: 0;
       border-radius: 1px;
-      background: rgba(164, 170, 180, 0.18);
+      background: rgba(224, 176, 68, 0.16);
       cursor: pointer;
       padding: 0;
       margin: 0;
       pointer-events: auto;
       position: relative;
-      transition: background 120ms ease, box-shadow 120ms ease;
+      transition: background 120ms ease, box-shadow 120ms ease, filter 120ms ease;
     }
 
     .map-rr-cell:hover {
-      background: rgba(86, 146, 255, 0.26);
-      box-shadow: inset 0 0 0 1px rgba(116, 168, 255, 0.82);
+      background: rgba(246, 202, 98, 0.34);
+      box-shadow: inset 0 0 0 1px rgba(255, 230, 152, 0.88);
+      filter: brightness(1.06);
     }
 
     .map-rr-cell.selected {
-      background: rgba(58, 126, 255, 0.34);
-      box-shadow: inset 0 0 0 1px rgba(132, 184, 255, 0.96);
+      background: rgba(255, 214, 108, 0.42);
+      box-shadow: inset 0 0 0 1px rgba(255, 236, 170, 0.96);
     }
 
     .map-sample-box.selected {
       border-color: rgba(255, 236, 148, 0.95);
       box-shadow: inset 0 0 0 1px rgba(255, 236, 148, 0.45);
+    }
+
+    .map-sample-box.play-flash {
+      animation: mapSamplePlaybackFlash 220ms ease-out;
+    }
+
+    .map-rr-cell.play-flash {
+      animation: mapRrPlaybackFlash 220ms ease-out;
+    }
+
+    @keyframes mapSamplePlaybackFlash {
+      0% {
+        border-color: rgba(255, 244, 194, 1);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 239, 176, 0.98),
+          0 0 14px rgba(255, 219, 120, 0.7);
+        filter: brightness(1.16) saturate(1.16);
+      }
+      100% {
+        border-color: rgba(234, 196, 96, 0.74);
+        box-shadow: none;
+        filter: none;
+      }
+    }
+
+    @keyframes mapRrPlaybackFlash {
+      0% {
+        background: rgba(255, 232, 162, 0.84);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 244, 198, 1),
+          0 0 12px rgba(255, 218, 122, 0.64);
+      }
+      100% {
+        background: rgba(224, 176, 68, 0.16);
+        box-shadow: none;
+      }
     }
 
     .map-sample-box::after {
@@ -2959,14 +3217,22 @@
 
     .map-key.white {
       height: 54px;
-      background: linear-gradient(180deg, #f8fbff, #e6edf8);
-      color: #2f3a4f;
+      background: linear-gradient(180deg, #efe7d0, #dac79d);
+      color: #3a2e18;
     }
 
     .map-key.black {
       height: 54px;
-      background: linear-gradient(180deg, #272f3f, #131927);
-      color: #c8d8f4;
+      background: linear-gradient(180deg, #3b2d14, #1f170b);
+      color: #f0dfbb;
+    }
+
+    .map-key.white:hover {
+      background: linear-gradient(180deg, #f4e8c1, #e2cb94);
+    }
+
+    .map-key.black:hover {
+      background: linear-gradient(180deg, #4a3718, #251b0d);
     }
 
     .map-key.disabled {
@@ -2974,8 +3240,8 @@
     }
 
     .map-key.pressed {
-      box-shadow: inset 0 0 0 1px rgba(198, 204, 214, 0.72);
-      filter: brightness(1.04);
+      box-shadow: inset 0 0 0 1px rgba(255, 231, 152, 0.76);
+      filter: brightness(1.08) saturate(1.08);
     }
 
     .hidden {
@@ -3069,6 +3335,14 @@
 </head>
 <body>
   <main class="instrument">
+    <div id="loadingOverlay" class="loading-overlay hidden" aria-live="polite" aria-busy="false">
+      <div class="loading-card">
+        <div class="loading-label-row">
+          <div id="loadingLabel" class="loading-label">Loading instrument...</div>
+        </div>
+      </div>
+    </div>
+
     <nav class="tabs">
       <button class="tab-btn icon-tab active" type="button" data-tab="player" aria-label="Player" title="Player">
         <svg viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
@@ -3103,6 +3377,10 @@
           <div id="playerLogoWrap" class="player-logo hidden" aria-hidden="true">
             <img id="playerLogo" class="player-logo-img" alt="">
           </div>
+        </div>
+        <div id="playerEdgeWaveBlur" class="player-edge-wave-blur" aria-hidden="true">
+          <div class="player-edge-wave-side left"></div>
+          <div class="player-edge-wave-side right"></div>
         </div>
         <div id="playerGodRays" class="player-god-rays" aria-hidden="true"></div>
         <canvas id="playerParticles" class="player-particles hidden" aria-hidden="true"></canvas>
@@ -3223,6 +3501,7 @@
                 </div>
                 <button id="particlesToggle" class="sample-loop-tool-btn" type="button" aria-pressed="true" title="Disable particles">Particles On</button>
                 <button id="godRaysToggle" class="sample-loop-tool-btn" type="button" aria-pressed="true" title="Disable god rays">God Rays On</button>
+                <button id="edgeWaveBlurToggle" class="sample-loop-tool-btn" type="button" aria-pressed="true" title="Disable edge blur">Edge Blur On</button>
               </div>
             </div>
           </div>
@@ -3303,7 +3582,7 @@
                         </div>
                         <div class="field auto-ms-field">
                           <label for="autoPrerollMs">Pre-roll</label>
-                          <input id="autoPrerollMs" class="ms-input" type="text" value="120" inputmode="numeric">
+                          <input id="autoPrerollMs" class="ms-input" type="text" value="0" inputmode="numeric">
                         </div>
                       </div>
                       <div class="field-grid auto-stack-grid">
@@ -3311,13 +3590,6 @@
                           <label for="autoLoop" class="auto-loop-row-label">Loop Samples</label>
                           <label class="sample-velocity-toggle auto-loop-inline auto-loop-check" title="Loop samples" aria-label="Loop samples">
                             <input id="autoLoop" type="checkbox">
-                            <span class="sample-velocity-toggle-mark">✓</span>
-                          </label>
-                        </div>
-                        <div class="field auto-loop-row">
-                          <label for="autoNormalizeRecorded" class="auto-loop-row-label">Normalize</label>
-                          <label class="sample-velocity-toggle auto-loop-inline auto-loop-check" title="Normalize recorded samples" aria-label="Normalize recorded samples">
-                            <input id="autoNormalizeRecorded" type="checkbox">
                             <span class="sample-velocity-toggle-mark">✓</span>
                           </label>
                         </div>
@@ -3353,10 +3625,24 @@
                           <div class="field auto-loop-option-row">
                             <label for="autoLoopCrossfadeMs">Loop Crossfade</label>
                             <div class="auto-loop-value-wrap">
-                              <input id="autoLoopCrossfadeMs" class="ms-input" type="text" value="30" inputmode="numeric">
+                              <input id="autoLoopCrossfadeMs" class="ms-input" type="text" value="200" inputmode="numeric">
                               <span class="auto-loop-unit">ms</span>
                             </div>
                           </div>
+                          <div id="autoModwheelVelocityRow" class="field auto-loop-option-row hidden">
+                            <label for="autoModwheelVelocity">Modwheel Velocity</label>
+                            <label class="sample-velocity-toggle auto-loop-inline" title="Switch velocity layers with modwheel" aria-label="Switch velocity layers with modwheel">
+                              <input id="autoModwheelVelocity" type="checkbox">
+                              <span class="sample-velocity-toggle-mark">✓</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div class="field auto-loop-row">
+                          <label for="autoNormalizeRecorded" class="auto-loop-row-label">Normalize</label>
+                          <label class="sample-velocity-toggle auto-loop-inline auto-loop-check" title="Normalize recorded samples" aria-label="Normalize recorded samples">
+                            <input id="autoNormalizeRecorded" type="checkbox">
+                            <span class="sample-velocity-toggle-mark">✓</span>
+                          </label>
                         </div>
                         <div class="field auto-pack-row-inline">
                           <div id="autoPackAsWrap" class="auto-pack-as-wrap auto-pack-as-row">
@@ -3476,6 +3762,7 @@
                       <div id="sampleLoopRegion" class="sample-loop-region hidden"></div>
                       <div id="sampleLoopFadeRegion" class="sample-loop-fade-region hidden"></div>
                       <div id="samplePlayhead" class="sample-playhead hidden"></div>
+                      <div id="sampleStartMarker" class="sample-loop-handle sample-start-handle hidden" aria-label="Sample start"></div>
                       <div id="sampleLoopFade" class="sample-loop-handle sample-loop-fade-handle hidden" aria-label="Loop crossfade start"></div>
                       <div id="sampleLoopStart" class="sample-loop-handle hidden" aria-label="Loop start"></div>
                       <div id="sampleLoopEnd" class="sample-loop-handle hidden" aria-label="Loop end"></div>
@@ -3536,6 +3823,8 @@
     const HOST_PLAYER_FIXED_HEIGHT = 760;
     const HOST_SETUP_MIN_HEIGHT = 560;
     const HOST_SETUP_MAX_HEIGHT = 2600;
+    const AUTO_SAMPLE_INTER_TAKE_PAUSE_MS = 1000;
+    const UI_LOAD_DEBUG = true;
 
     const state = {
       wallpaperUrl: "",
@@ -3580,6 +3869,7 @@
       pitchBendValue: 0,
       playerParticlesEnabled: true,
       playerGodRaysEnabled: true,
+      playerEdgeWaveBlurEnabled: true,
       playerParticleRgb: [218, 222, 229],
       playerParticleGlowRgb: [238, 242, 248],
       playerParticles: [],
@@ -3599,15 +3889,42 @@
       nativeAutoSamplerCaptured: 0,
       nativeAutoSamplerTakeCount: 0,
       deferredAutoLoopOrders: [],
+      nativeAutoSamplerLoopPostConfig: null,
+      nativeAutoSamplerNormalizeRequested: false,
       nativeAutoSamplerInputDetected: false,
       nativeAutoSamplerMessage: "",
       nativeAutoSamplerListeners: [],
       hostResizeRaf: 0,
       lastHostResizeWidth: 0,
-      lastHostResizeHeight: 0
+      lastHostResizeHeight: 0,
+      nativeSessionListeners: [],
+      sessionStateRestoreAttempted: false,
+      sessionStateRestored: false,
+      sessionStateRestoreInProgress: false,
+      sessionStateRestoreTimeout: 0,
+      sessionStateSaveTimer: 0,
+      sessionStateSaveInFlight: false,
+      sessionStateSaveQueued: false,
+      sessionStateFlushDebugCount: 0,
+      sessionStateRestoreCompletedAt: 0,
+      lastSessionPayloadSig: "",
+      sessionStateLightweight: false,
+      sessionStateHydrationRequested: false,
+      sessionPayloadLock: false,
+      sessionPayloadUnlockTimer: 0,
+      manualPackLoadSeq: 0,
+      manualPackLoadInProgress: false,
+      ignoreSessionPayloadUntil: 0,
+      sampleDataRequestSeq: 0,
+      pendingSampleDataRequests: new Map(),
+      autoRenderRaf: 0,
+      sessionBridgeRetryTimer: 0,
+      loadingOverlayHideTimer: 0
     };
 
     const el = {
+      loadingOverlay: document.getElementById("loadingOverlay"),
+      loadingLabel: document.getElementById("loadingLabel"),
       tabsBar: document.querySelector(".tabs"),
       playerControls: document.querySelector(".player-controls"),
       playerAuthorDisplay: document.getElementById("playerAuthorDisplay"),
@@ -3622,6 +3939,7 @@
       logoToggle: document.getElementById("logoToggle"),
       particlesToggle: document.getElementById("particlesToggle"),
       godRaysToggle: document.getElementById("godRaysToggle"),
+      edgeWaveBlurToggle: document.getElementById("edgeWaveBlurToggle"),
       importPackControls: document.getElementById("graphicsControls"),
       logoMenuWrap: document.getElementById("logoMenuWrap"),
       logoPositionMenu: document.getElementById("logoPositionMenu"),
@@ -3669,6 +3987,7 @@
       sampleLoopRegion: document.getElementById("sampleLoopRegion"),
       sampleLoopFadeRegion: document.getElementById("sampleLoopFadeRegion"),
       samplePlayhead: document.getElementById("samplePlayhead"),
+      sampleStartMarker: document.getElementById("sampleStartMarker"),
       sampleLoopFade: document.getElementById("sampleLoopFade"),
       sampleLoopStart: document.getElementById("sampleLoopStart"),
       sampleLoopEnd: document.getElementById("sampleLoopEnd"),
@@ -3730,6 +4049,8 @@
       autoLoopStartPct: document.getElementById("autoLoopStartPct"),
       autoLoopEndPct: document.getElementById("autoLoopEndPct"),
       autoLoopCutAtEnd: document.getElementById("autoLoopCutAtEnd"),
+      autoModwheelVelocityRow: document.getElementById("autoModwheelVelocityRow"),
+      autoModwheelVelocity: document.getElementById("autoModwheelVelocity"),
       autoNormalizeRecorded: document.getElementById("autoNormalizeRecorded"),
       autoLoopCrossfadeMs: document.getElementById("autoLoopCrossfadeMs"),
       autoHoldMs: document.getElementById("autoHoldMs"),
@@ -3898,6 +4219,44 @@
       if (type) node.classList.add(type);
     }
 
+    function updateLoadingOverlayTheme() {
+      if (!el.loadingOverlay) return;
+      el.loadingOverlay.classList.toggle("wallpaper-themed", !!state.wallpaperName);
+    }
+
+    function setLoadingOverlay(progress = 0, label = "") {
+      if (!el.loadingOverlay) return;
+      if (state.loadingOverlayHideTimer) {
+        window.clearTimeout(state.loadingOverlayHideTimer);
+        state.loadingOverlayHideTimer = 0;
+      }
+
+      updateLoadingOverlayTheme();
+      el.loadingOverlay.classList.remove("hidden");
+      el.loadingOverlay.setAttribute("aria-busy", "true");
+      if (label && el.loadingLabel) el.loadingLabel.textContent = String(label);
+    }
+
+    function hideLoadingOverlay(delayMs = 180) {
+      if (!el.loadingOverlay) return;
+      if (state.loadingOverlayHideTimer) {
+        window.clearTimeout(state.loadingOverlayHideTimer);
+        state.loadingOverlayHideTimer = 0;
+      }
+      const wait = Math.max(0, Math.round(Number(delayMs) || 0));
+      state.loadingOverlayHideTimer = window.setTimeout(() => {
+        state.loadingOverlayHideTimer = 0;
+        el.loadingOverlay.classList.add("hidden");
+        el.loadingOverlay.setAttribute("aria-busy", "false");
+      }, wait);
+    }
+
+    function completeLoadingOverlay(label = "Ready") {
+      if (!el.loadingOverlay || el.loadingOverlay.classList.contains("hidden")) return;
+      setLoadingOverlay(100, label);
+      hideLoadingOverlay(220);
+    }
+
     function getNativeBackend() {
       const backend = window.__JUCE__ && window.__JUCE__.backend;
       if (!backend || typeof backend !== "object") return null;
@@ -3913,6 +4272,447 @@
       } catch {
         return false;
       }
+    }
+
+    function debugLoadLog(message) {
+      if (!UI_LOAD_DEBUG) return;
+      const text = String(message || "").trim();
+      if (!text) return;
+      try {
+        emitNativeEvent("debug_log", { message: text });
+      } catch {}
+      try {
+        console.debug(`[SamplePlayer UI] ${text}`);
+      } catch {}
+    }
+
+    function releaseSessionPayloadLock(delayMs = 0) {
+      if (state.sessionPayloadUnlockTimer) {
+        window.clearTimeout(state.sessionPayloadUnlockTimer);
+        state.sessionPayloadUnlockTimer = 0;
+      }
+      const waitMs = Math.max(0, Math.round(Number(delayMs) || 0));
+      if (waitMs <= 0) {
+        state.sessionPayloadLock = false;
+        return;
+      }
+      state.sessionPayloadUnlockTimer = window.setTimeout(() => {
+        state.sessionPayloadUnlockTimer = 0;
+        state.sessionPayloadLock = false;
+      }, waitMs);
+    }
+
+    async function waitForNativeBackend(timeoutMs = 1200) {
+      const maxWaitMs = Math.max(0, Math.round(Number(timeoutMs) || 0));
+      if (getNativeBackend()) return true;
+      if (maxWaitMs <= 0) return false;
+      const start = performance.now();
+      while ((performance.now() - start) < maxWaitMs) {
+        await new Promise((resolve) => window.setTimeout(resolve, 30));
+        if (getNativeBackend()) return true;
+      }
+      return !!getNativeBackend();
+    }
+
+    function cloneManualRangesObject(source) {
+      const result = {};
+      if (!source || typeof source !== "object") return result;
+      Object.entries(source).forEach(([key, value]) => {
+        const rootMidi = Math.max(0, Math.min(127, Math.round(Number(key))));
+        if (!Number.isFinite(rootMidi)) return;
+        const low = Math.max(0, Math.min(127, Math.round(Number(value?.low))));
+        const high = Math.max(0, Math.min(127, Math.round(Number(value?.high))));
+        if (!Number.isFinite(low) || !Number.isFinite(high)) return;
+        result[String(rootMidi)] = {
+          low: Math.min(low, rootMidi),
+          high: Math.max(high, rootMidi)
+        };
+      });
+      return result;
+    }
+
+    function getAutoPackChecksSnapshot() {
+      const snapshot = {};
+      (el.autoPackChecks || []).forEach((node) => {
+        const key = String(node?.dataset?.packExt || "").trim().toLowerCase();
+        if (!key) return;
+        snapshot[key] = !!node.checked;
+      });
+      return snapshot;
+    }
+
+    function applyAutoPackChecksSnapshot(snapshot) {
+      if (!snapshot || typeof snapshot !== "object") return;
+      (el.autoPackChecks || []).forEach((node) => {
+        const key = String(node?.dataset?.packExt || "").trim().toLowerCase();
+        if (!key) return;
+        if (Object.prototype.hasOwnProperty.call(snapshot, key)) {
+          node.checked = !!snapshot[key];
+        }
+      });
+      applyPackFormatRules(false);
+    }
+
+    function buildAutoControlsSnapshot() {
+      const startMidi = normalizeAutoNoteInput(el.autoStart, 36, false);
+      const endMidi = normalizeAutoNoteInput(el.autoEnd, 72, false);
+      return {
+        startNote: midiToNote(startMidi ?? 36),
+        endNote: midiToNote(endMidi ?? 72),
+        interval: getAutoInterval(),
+        velocityLayers: getAutoVelocityLayers(),
+        roundRobins: getAutoRRPerNote(),
+        sustainMs: getAutoHoldMs(),
+        releaseTailMs: getAutoTailMs(),
+        prerollMs: getAutoPrerollMs(),
+        loopSamples: !!el.autoLoop?.checked,
+        autoLoop: !!el.autoLoopMode?.checked,
+        loopStartPercent: getAutoLoopStartPercent(),
+        loopEndPercent: getAutoLoopEndPercent(),
+        cutLoopAtEnd: !!el.autoLoopCutAtEnd?.checked,
+        loopCrossfadeMs: getAutoLoopCrossfadeMs(),
+        modwheelVelocityControl: !!el.autoModwheelVelocity?.checked,
+        normalizeRecorded: !!el.autoNormalizeRecorded?.checked,
+        destination: String(el.autoDestination?.value || ""),
+        packChecks: getAutoPackChecksSnapshot()
+      };
+    }
+
+    function applyAutoControlsSnapshot(snapshot) {
+      if (!snapshot || typeof snapshot !== "object") return;
+      if (el.autoStart && snapshot.startNote) el.autoStart.value = String(snapshot.startNote);
+      if (el.autoEnd && snapshot.endNote) el.autoEnd.value = String(snapshot.endNote);
+      normalizeAutoNoteInput(el.autoStart, 36, false);
+      normalizeAutoNoteInput(el.autoEnd, 72, false);
+      setAutoIntervalValue(snapshot.interval ?? getAutoInterval(), false);
+      setAutoVelocityLayers(snapshot.velocityLayers ?? getAutoVelocityLayers(), false);
+      setAutoRRPerNote(snapshot.roundRobins ?? getAutoRRPerNote(), false);
+      setAutoHoldMs(snapshot.sustainMs ?? getAutoHoldMs(), false);
+      setAutoTailMs(snapshot.releaseTailMs ?? getAutoTailMs(), false);
+      setAutoPrerollMs(snapshot.prerollMs ?? getAutoPrerollMs(), false);
+      if (el.autoLoop) el.autoLoop.checked = !!snapshot.loopSamples;
+      if (el.autoLoopMode) el.autoLoopMode.checked = !!snapshot.autoLoop;
+      setAutoLoopStartPercent(snapshot.loopStartPercent ?? getAutoLoopStartPercent(), false);
+      setAutoLoopEndPercent(snapshot.loopEndPercent ?? getAutoLoopEndPercent(), false);
+      if (el.autoLoopCutAtEnd) el.autoLoopCutAtEnd.checked = !!snapshot.cutLoopAtEnd;
+      setAutoLoopCrossfadeMs(snapshot.loopCrossfadeMs ?? getAutoLoopCrossfadeMs(), false);
+      if (el.autoModwheelVelocity) el.autoModwheelVelocity.checked = !!snapshot.modwheelVelocityControl;
+      if (el.autoNormalizeRecorded) el.autoNormalizeRecorded.checked = !!snapshot.normalizeRecorded;
+      if (el.autoDestination && typeof snapshot.destination === "string") {
+        el.autoDestination.value = snapshot.destination;
+      }
+      applyAutoPackChecksSnapshot(snapshot.packChecks || {});
+      updateAutoLoopDetailsVisibility();
+      applyModwheelVelocityCrossfadeLink();
+      renderAuto();
+    }
+
+    function clearSessionStateSaveTimer() {
+      if (!state.sessionStateSaveTimer) return;
+      window.clearTimeout(state.sessionStateSaveTimer);
+      state.sessionStateSaveTimer = 0;
+    }
+
+    async function buildSessionStateSnapshot() {
+      const manifest = await buildManifestWithEmbeddedAssets("smpinst");
+      return {
+        version: 1,
+        savedAtUtc: new Date().toISOString(),
+        manifest,
+        ui: {
+          setupOctaveStart: Math.max(0, Math.min(120, Math.round(Number(state.setupOctaveStart) || 48))),
+          activeMapSetId: String(state.activeMapSetId || "base"),
+          manualRootRanges: cloneManualRangesObject(state.manualRootRanges),
+          keyswitchSets: (state.keyswitchSets || []).map((set, index) => ({
+            id: String(set?.id || ""),
+            name: String(set?.name || ""),
+            key: String(set?.key || ""),
+            keyMidi: Number.isFinite(set?.keyMidi) ? Math.round(set.keyMidi) : null,
+            index,
+            active: String(state.activeMapSetId || "") === String(set?.id || ""),
+            manualRanges: cloneManualRangesObject(set?.manualRanges)
+          })),
+          velocityCrossfadeByRoot: { ...(state.velocityCrossfadeByRoot || {}) },
+          loopCrossfadeMs: clampLoopCrossfadeMs(state.loopCrossfadeMs),
+          allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
+          autoRR: !!state.autoRR,
+          autoGainCrossfade: !!state.autoGainCrossfade,
+          wallpaperPosition: normalizeWallpaperPosition(state.wallpaperPosition),
+          logoPosition: normalizeLogoPosition(state.logoPosition),
+          particlesEnabled: !!state.playerParticlesEnabled,
+          godRaysEnabled: !!state.playerGodRaysEnabled,
+          edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled,
+          modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
+          pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
+          auto: buildAutoControlsSnapshot()
+        }
+      };
+    }
+
+    function buildQuickSessionSnapshotFromManifest(manifest) {
+      const safeManifest = (manifest && typeof manifest === "object")
+        ? manifest
+        : { formatVersion: 1, instrumentName: "Instrument", mapping: [] };
+      return {
+        version: 1,
+        savedAtUtc: new Date().toISOString(),
+        manifest: safeManifest,
+        ui: {
+          setupOctaveStart: Math.max(0, Math.min(120, Math.round(Number(state.setupOctaveStart) || 48))),
+          activeMapSetId: String(state.activeMapSetId || "base"),
+          manualRootRanges: cloneManualRangesObject(state.manualRootRanges),
+          keyswitchSets: [],
+          velocityCrossfadeByRoot: { ...(state.velocityCrossfadeByRoot || {}) },
+          loopCrossfadeMs: clampLoopCrossfadeMs(state.loopCrossfadeMs),
+          allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
+          autoRR: !!state.autoRR,
+          autoGainCrossfade: !!state.autoGainCrossfade,
+          wallpaperPosition: normalizeWallpaperPosition(state.wallpaperPosition),
+          logoPosition: normalizeLogoPosition(state.logoPosition),
+          particlesEnabled: !!state.playerParticlesEnabled,
+          godRaysEnabled: !!state.playerGodRaysEnabled,
+          edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled,
+          modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
+          pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
+          auto: buildAutoControlsSnapshot()
+        }
+      };
+    }
+
+    async function flushSessionStateToNative(force = false) {
+      clearSessionStateSaveTimer();
+      if (state.sessionStateRestoreInProgress) return;
+      if (!getNativeBackend()) return;
+      if (state.sessionStateLightweight) {
+        debugLoadLog("flush skipped | lightweight session active");
+        return;
+      }
+      if (state.sessionStateSaveInFlight) {
+        state.sessionStateSaveQueued = true;
+        return;
+      }
+
+      state.sessionStateSaveInFlight = true;
+      try {
+        const flushStart = performance.now();
+        const snapshotStart = performance.now();
+        const snapshot = await buildSessionStateSnapshot();
+        const snapshotMs = performance.now() - snapshotStart;
+        const jsonPayload = JSON.stringify(snapshot);
+        emitNativeEvent("session_state_set", { json: jsonPayload });
+        const totalMs = performance.now() - flushStart;
+        const debugCount = Number(state.sessionStateFlushDebugCount) || 0;
+        if (debugCount < 5 || snapshotMs > 400 || totalMs > 500) {
+          state.sessionStateFlushDebugCount = debugCount + 1;
+          debugLoadLog(`flush session state | snapshotMs=${snapshotMs.toFixed(1)} | totalMs=${totalMs.toFixed(1)} | jsonBytes=${jsonPayload.length}`);
+        }
+      } catch {
+        if (force) {
+          // Ignore failures during teardown.
+        }
+      } finally {
+        state.sessionStateSaveInFlight = false;
+        if (state.sessionStateSaveQueued) {
+          state.sessionStateSaveQueued = false;
+          scheduleSessionStateSave(400);
+        }
+      }
+    }
+
+    function scheduleSessionStateSave(delayMs = 900) {
+      if (state.sessionStateRestoreInProgress) return;
+      if (!getNativeBackend()) return;
+      if (!state.sessionStateRestoreAttempted) return;
+      if (state.sessionStateLightweight) return;
+      clearSessionStateSaveTimer();
+      const waitMs = Math.max(120, Math.round(Number(delayMs) || 900));
+      state.sessionStateSaveTimer = window.setTimeout(() => {
+        state.sessionStateSaveTimer = 0;
+        void flushSessionStateToNative(false);
+      }, waitMs);
+    }
+
+    function requestFullSessionStateHydration(reason = "manual") {
+      if (!state.sessionStateLightweight) return;
+      if (state.sessionStateHydrationRequested) return;
+      if (!getNativeBackend()) return;
+      state.sessionStateHydrationRequested = true;
+      if (reason !== "pending-save") {
+        setLoadingOverlay(14, "Loading full instrument data...");
+      }
+      debugLoadLog(`full session requested | reason=${reason}`);
+      if (!emitNativeEvent("session_state_get", { full: true, reason })) {
+        state.sessionStateHydrationRequested = false;
+        completeLoadingOverlay("Ready");
+      }
+    }
+
+    function matchRestoredKeyswitchSet(snapshotSet) {
+      if (!snapshotSet || typeof snapshotSet !== "object") return null;
+      const id = String(snapshotSet.id || "");
+      const name = String(snapshotSet.name || "");
+      const key = String(snapshotSet.key || "");
+      const midi = Number.isFinite(snapshotSet.keyMidi) ? Math.round(snapshotSet.keyMidi) : null;
+      return (state.keyswitchSets || []).find((set) => (
+        (id && String(set?.id || "") === id)
+        || (
+        (name && String(set?.name || "") === name && key && String(set?.key || "") === key)
+        || (midi !== null && Number.isFinite(set?.keyMidi) && Math.round(set.keyMidi) === midi)
+        )
+      )) || null;
+    }
+
+    async function applySessionStateFromPayload(payload) {
+      if (state.sessionPayloadLock) {
+        debugLoadLog("restore skipped | session payload locked");
+        state.sessionStateRestoreAttempted = true;
+        return;
+      }
+
+      const nowMs = Date.now();
+      if (state.manualPackLoadInProgress || nowMs < Number(state.ignoreSessionPayloadUntil || 0)) {
+        debugLoadLog("restore skipped | suppressed during manual pack load");
+        state.sessionStateRestoreAttempted = true;
+        return;
+      }
+
+      const payloadObject = (payload && typeof payload === "object" && !Array.isArray(payload))
+        ? payload
+        : null;
+      const isLightweightPayload = !!payloadObject?.lightweight;
+
+      if (state.sessionStateRestored) {
+        if (!(state.sessionStateLightweight && !isLightweightPayload)) return;
+        debugLoadLog("restore upgrade | lightweight -> full");
+      }
+      const restoreStart = performance.now();
+      const rawJson = typeof payload === "string"
+        ? payload
+        : String(payload?.json || "");
+      if (!rawJson.trim()) {
+        state.sessionStateRestoreAttempted = true;
+        completeLoadingOverlay("Ready");
+        return;
+      }
+      const payloadSig = `${rawJson.length}:${rawJson.slice(0, 64)}:${rawJson.slice(-64)}`;
+      if (payloadSig === state.lastSessionPayloadSig) {
+        debugLoadLog("restore skipped | duplicate payload");
+        state.sessionStateRestoreAttempted = true;
+        completeLoadingOverlay("Ready");
+        return;
+      }
+      setLoadingOverlay(isLightweightPayload ? 18 : 16, isLightweightPayload ? "Loading instrument UI..." : "Loading instrument data...");
+      debugLoadLog(`restore start | payloadBytes=${rawJson.length}`);
+
+      state.sessionStateRestoreAttempted = true;
+      if (state.sessionStateRestoreTimeout) {
+        window.clearTimeout(state.sessionStateRestoreTimeout);
+        state.sessionStateRestoreTimeout = 0;
+      }
+
+      let snapshot = null;
+      try {
+        snapshot = JSON.parse(rawJson);
+      } catch {
+        debugLoadLog("restore failed | invalid json");
+        completeLoadingOverlay("Ready");
+        return;
+      }
+      if (!snapshot || typeof snapshot !== "object") {
+        completeLoadingOverlay("Ready");
+        return;
+      }
+      debugLoadLog(`restore json parsed | elapsedMs=${(performance.now() - restoreStart).toFixed(1)}`);
+      setLoadingOverlay(isLightweightPayload ? 34 : 32, "Loading instrument...");
+
+      const manifest = (snapshot.manifest && typeof snapshot.manifest === "object")
+        ? snapshot.manifest
+        : null;
+      if (!manifest) {
+        completeLoadingOverlay("Ready");
+        return;
+      }
+
+      state.sessionStateRestoreInProgress = true;
+      try {
+        const applyStart = performance.now();
+        await applyLoadedPackData(manifest, {
+          sourceLabel: "session",
+          silentStatus: true
+        });
+        debugLoadLog(`restore manifest applied | elapsedMs=${(performance.now() - applyStart).toFixed(1)} | entries=${state.entries.length} | keyswitchSets=${state.keyswitchSets.length}`);
+        setLoadingOverlay(isLightweightPayload ? 76 : 80, "Applying UI state...");
+
+        const ui = (snapshot.ui && typeof snapshot.ui === "object") ? snapshot.ui : {};
+        state.setupOctaveStart = Math.max(0, Math.min(120, Math.round(Number(ui.setupOctaveStart) || state.setupOctaveStart || 48)));
+        state.manualRootRanges = cloneManualRangesObject(ui.manualRootRanges);
+        state.velocityCrossfadeByRoot = (ui.velocityCrossfadeByRoot && typeof ui.velocityCrossfadeByRoot === "object")
+          ? { ...ui.velocityCrossfadeByRoot }
+          : {};
+        state.loopCrossfadeMs = clampLoopCrossfadeMs(ui.loopCrossfadeMs ?? state.loopCrossfadeMs);
+        state.allowPitchUpAboveHighest = ui.allowPitchUpAboveHighest !== undefined ? !!ui.allowPitchUpAboveHighest : state.allowPitchUpAboveHighest;
+        state.autoRR = ui.autoRR !== undefined ? !!ui.autoRR : state.autoRR;
+        state.autoGainCrossfade = ui.autoGainCrossfade !== undefined ? !!ui.autoGainCrossfade : state.autoGainCrossfade;
+        state.playerParticlesEnabled = ui.particlesEnabled !== undefined ? !!ui.particlesEnabled : state.playerParticlesEnabled;
+        state.playerGodRaysEnabled = ui.godRaysEnabled !== undefined ? !!ui.godRaysEnabled : state.playerGodRaysEnabled;
+        state.playerEdgeWaveBlurEnabled = ui.edgeWaveBlurEnabled !== undefined ? !!ui.edgeWaveBlurEnabled : state.playerEdgeWaveBlurEnabled;
+        state.modWheelValue = Math.max(0, Math.min(1, Number(ui.modWheelValue) || 0));
+        state.pitchBendValue = Math.max(-1, Math.min(1, Number(ui.pitchBendValue) || 0));
+        updatePerformanceWheelVisuals();
+
+        if (state.wallpaperName) {
+          applyWallpaperPosition(ui.wallpaperPosition || state.wallpaperPosition);
+        }
+        if (state.logoName) {
+          applyLogoPosition(ui.logoPosition || state.logoPosition);
+        }
+
+        const restoredSetStates = Array.isArray(ui.keyswitchSets) ? ui.keyswitchSets : [];
+        restoredSetStates.forEach((snapshotSet) => {
+          const matched = matchRestoredKeyswitchSet(snapshotSet);
+          if (!matched) return;
+          matched.manualRanges = cloneManualRangesObject(snapshotSet.manualRanges);
+        });
+
+        const activeSetSnapshot = restoredSetStates.find((item) => !!item?.active);
+        const activeSet = matchRestoredKeyswitchSet(activeSetSnapshot)
+          || matchRestoredKeyswitchSet({
+            id: ui.activeMapSetId,
+            name: "",
+            key: "",
+            keyMidi: null
+          });
+        state.activeMapSetId = activeSet ? activeSet.id : (state.keyswitchSets[0]?.id || "base");
+        applyAutoControlsSnapshot(ui.auto || {});
+      } finally {
+        state.sessionStateRestoreInProgress = false;
+      }
+
+      updateParticlesToggle();
+      updateGodRaysToggle();
+      updateEdgeWaveBlurToggle();
+      updatePlayerGodRaysState();
+      updatePlayerEdgeWaveBlurState();
+      refreshPlayerParticles();
+      renderSetup();
+      updatePlayerEmptyState();
+      syncAllKnobValues();
+      scheduleHostResizeForActiveTab();
+      setLoadingOverlay(isLightweightPayload ? 92 : 96, "Finalizing...");
+      state.sessionStateRestored = true;
+      state.sessionStateRestoreCompletedAt = Date.now();
+      state.lastSessionPayloadSig = payloadSig;
+      state.sessionStateLightweight = isLightweightPayload;
+      if (!isLightweightPayload) {
+        state.sessionStateHydrationRequested = false;
+        if (state.sessionStateSaveQueued) {
+          state.sessionStateSaveQueued = false;
+          scheduleSessionStateSave(240);
+        }
+      }
+      debugLoadLog(`restore mode | lightweight=${isLightweightPayload ? "yes" : "no"}`);
+      debugLoadLog(`restore done | totalMs=${(performance.now() - restoreStart).toFixed(1)}`);
+      completeLoadingOverlay("Ready");
     }
 
     function clampHostSize(value, min, max, fallback) {
@@ -3934,7 +4734,13 @@
 
     function computeSetupHostHeight() {
       const tabsHeight = Math.ceil(el.tabsBar?.getBoundingClientRect?.().height || 0);
-      const setupHeight = Math.ceil(el.panels.setup?.scrollHeight || 0);
+      const setupPanel = el.panels.setup;
+      const setupContent = setupPanel?.querySelector?.(".setup-layout") || setupPanel?.firstElementChild || null;
+      const setupStyles = setupPanel ? window.getComputedStyle(setupPanel) : null;
+      const setupPaddingTop = setupStyles ? Math.ceil(Number.parseFloat(setupStyles.paddingTop) || 0) : 0;
+      const setupPaddingBottom = setupStyles ? Math.ceil(Number.parseFloat(setupStyles.paddingBottom) || 0) : 0;
+      const setupContentHeight = Math.ceil(setupContent?.scrollHeight || 0);
+      const setupHeight = setupPaddingTop + setupPaddingBottom + setupContentHeight;
       const shellBorder = 2;
       const target = tabsHeight + setupHeight + shellBorder;
       return clampHostSize(target, HOST_SETUP_MIN_HEIGHT, HOST_SETUP_MAX_HEIGHT, HOST_PLAYER_FIXED_HEIGHT);
@@ -3954,11 +4760,24 @@
       });
     }
 
-    function buildNativeAutoSamplerSettings() {
-      const startMidi = noteToMidi(el.autoStart?.value) ?? 36;
-      const endMidi = noteToMidi(el.autoEnd?.value) ?? 72;
+    function buildAutoLoopPostConfigSnapshot() {
       const loopStartPercent = getAutoLoopStartPercent();
       const loopEndPercent = Math.max(loopStartPercent, getAutoLoopEndPercent());
+      return {
+        loopSamples: !!el.autoLoop?.checked,
+        autoLoopMode: !!el.autoLoopMode?.checked,
+        loopStartPercent,
+        loopEndPercent,
+        cutLoopAtEnd: !!el.autoLoopCutAtEnd?.checked,
+        loopCrossfadeMs: getAutoLoopCrossfadeMs()
+      };
+    }
+
+    function buildNativeAutoSamplerSettings(options = {}) {
+      const forceLoopCaptureOff = !!options.forceLoopCaptureOff;
+      const startMidi = noteToMidi(el.autoStart?.value) ?? 36;
+      const endMidi = noteToMidi(el.autoEnd?.value) ?? 72;
+      const loopConfig = buildAutoLoopPostConfigSnapshot();
       return {
         startMidi,
         endMidi,
@@ -3968,12 +4787,13 @@
         sustainMs: getAutoHoldMs(),
         releaseTailMs: getAutoTailMs(),
         prerollMs: getAutoPrerollMs(),
-        loopSamples: !!el.autoLoop?.checked,
-        autoLoopMode: !!el.autoLoopMode?.checked,
-        loopStartPercent,
-        loopEndPercent,
-        cutLoopAtEnd: !!el.autoLoopCutAtEnd?.checked,
-        loopCrossfadeMs: getAutoLoopCrossfadeMs(),
+        loopSamples: forceLoopCaptureOff ? false : loopConfig.loopSamples,
+        autoLoopMode: forceLoopCaptureOff ? false : loopConfig.autoLoopMode,
+        loopStartPercent: loopConfig.loopStartPercent,
+        loopEndPercent: loopConfig.loopEndPercent,
+        cutLoopAtEnd: forceLoopCaptureOff ? false : loopConfig.cutLoopAtEnd,
+        loopCrossfadeMs: loopConfig.loopCrossfadeMs,
+        modwheelVelocityControl: !!el.autoModwheelVelocity?.checked,
         normalizeRecorded: !!el.autoNormalizeRecorded?.checked
       };
     }
@@ -3985,6 +4805,7 @@
       return {
         loopSamples: !!(info.loopSamples ?? el.autoLoop?.checked),
         autoLoopMode: !!(info.autoLoopMode ?? el.autoLoopMode?.checked),
+        cutLoopAtEnd: !!(info.cutLoopAtEnd ?? el.autoLoopCutAtEnd?.checked),
         loopStartPercent,
         loopEndPercent,
         loopCrossfadeMs: clampAutoMs(info.loopCrossfadeMs ?? getAutoLoopCrossfadeMs(), 0, 60000)
@@ -4018,6 +4839,177 @@
       ensureEntryEditorState(entry);
     }
 
+    function encodeAudioBufferToWavBlob(audioBuffer) {
+      const channels = Math.max(1, Math.min(2, Number(audioBuffer?.numberOfChannels) || 1));
+      const sampleRate = Math.max(8000, Math.round(Number(audioBuffer?.sampleRate) || 44100));
+      const length = Math.max(0, Number(audioBuffer?.length) || 0);
+      const bytesPerSample = 4;
+      const blockAlign = channels * bytesPerSample;
+      const byteRate = sampleRate * blockAlign;
+      const dataSize = length * blockAlign;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+
+      const writeAscii = (offset, text) => {
+        for (let i = 0; i < text.length; i += 1) view.setUint8(offset + i, text.charCodeAt(i));
+      };
+
+      writeAscii(0, "RIFF");
+      view.setUint32(4, 36 + dataSize, true);
+      writeAscii(8, "WAVE");
+      writeAscii(12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 3, true);
+      view.setUint16(22, channels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, byteRate, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, 32, true);
+      writeAscii(36, "data");
+      view.setUint32(40, dataSize, true);
+
+      let offset = 44;
+      const channelData = [];
+      for (let ch = 0; ch < channels; ch += 1) {
+        channelData.push(audioBuffer.getChannelData(ch));
+      }
+      for (let i = 0; i < length; i += 1) {
+        for (let ch = 0; ch < channels; ch += 1) {
+          const sample = Math.max(-1, Math.min(1, Number(channelData[ch][i]) || 0));
+          view.setFloat32(offset, sample, true);
+          offset += 4;
+        }
+      }
+
+      return new Blob([buffer], { type: "audio/wav" });
+    }
+
+    async function normalizeEntryAudioPeak(entry, sourceAudioBuffer = null, targetPeak = 0.999) {
+      if (!entry || !entry.sampleUrl) return false;
+      ensureEntryEditorState(entry);
+
+      let audioBuffer = sourceAudioBuffer;
+      if (!audioBuffer) {
+        try {
+          const waveform = await getWaveformForEntry(entry);
+          audioBuffer = waveform?.audioBuffer || null;
+        } catch {
+          audioBuffer = null;
+        }
+      }
+      if (!audioBuffer) return false;
+
+      const channels = Math.max(1, Number(audioBuffer.numberOfChannels) || 1);
+      const totalSamples = Math.max(0, Number(audioBuffer.length) || 0);
+      if (totalSamples <= 0) return false;
+
+      let peak = 0;
+      for (let ch = 0; ch < channels; ch += 1) {
+        const data = audioBuffer.getChannelData(ch);
+        for (let i = 0; i < totalSamples; i += 1) {
+          const value = Math.abs(data[i] || 0);
+          if (value > peak) peak = value;
+        }
+      }
+
+      if (peak <= 0.000001) return false;
+
+      const safeTarget = Math.max(0.01, Math.min(0.999, Number(targetPeak) || 0.999));
+      const gain = safeTarget / peak;
+      if (!Number.isFinite(gain) || gain <= 0) return false;
+      if (Math.abs(gain - 1) < 0.0001) return false;
+
+      const sampleRate = Math.max(8000, Number(audioBuffer.sampleRate) || 44100);
+      const context = ensureAudioContext();
+      const normalized = context.createBuffer(channels, totalSamples, sampleRate);
+
+      for (let ch = 0; ch < channels; ch += 1) {
+        const src = audioBuffer.getChannelData(ch);
+        const out = normalized.getChannelData(ch);
+        for (let i = 0; i < totalSamples; i += 1) {
+          out[i] = Math.max(-1, Math.min(1, (src[i] || 0) * gain));
+        }
+      }
+
+      const prevUrl = entry.sampleUrl;
+      const wavBlob = encodeAudioBufferToWavBlob(normalized);
+      const nextUrl = URL.createObjectURL(wavBlob);
+      entry.sampleUrl = nextUrl;
+      entry.autoCapturePending = false;
+
+      if (prevUrl) {
+        state.waveformCache.delete(prevUrl);
+        if (prevUrl.startsWith("blob:")) URL.revokeObjectURL(prevUrl);
+      }
+      state.waveformCache.set(nextUrl, {
+        peaks: buildWaveformPeaks(normalized),
+        durationSec: Number(normalized.duration) || 0,
+        audioBuffer: normalized
+      });
+
+      return true;
+    }
+
+    async function trimEntryAudioAtLoopEnd(entry, sourceAudioBuffer = null) {
+      if (!entry || !entry.sampleUrl) return false;
+      ensureEntryEditorState(entry);
+
+      let audioBuffer = sourceAudioBuffer;
+      if (!audioBuffer) {
+        try {
+          const waveform = await getWaveformForEntry(entry);
+          audioBuffer = waveform?.audioBuffer || null;
+        } catch {
+          audioBuffer = null;
+        }
+      }
+      if (!audioBuffer) return false;
+
+      const totalSamples = Math.max(0, Number(audioBuffer.length) || 0);
+      if (totalSamples <= 4) return false;
+
+      const endNorm = clamp01(entry.loopEndNorm ?? 1);
+      const cutSample = Math.max(4, Math.min(totalSamples, Math.round(endNorm * totalSamples)));
+      if (cutSample >= totalSamples) return false;
+
+      const channels = Math.max(1, Number(audioBuffer.numberOfChannels) || 1);
+      const sampleRate = Math.max(8000, Number(audioBuffer.sampleRate) || 44100);
+      const context = ensureAudioContext();
+      const trimmed = context.createBuffer(channels, cutSample, sampleRate);
+      for (let ch = 0; ch < channels; ch += 1) {
+        const source = audioBuffer.getChannelData(ch);
+        trimmed.copyToChannel(source.subarray(0, cutSample), ch, 0);
+      }
+
+      const prevUrl = entry.sampleUrl;
+      const wavBlob = encodeAudioBufferToWavBlob(trimmed);
+      const nextUrl = URL.createObjectURL(wavBlob);
+      entry.sampleUrl = nextUrl;
+      entry.autoCapturePending = false;
+
+      const safeCutNorm = cutSample / totalSamples;
+      const startNorm = clamp01(entry.loopStartNorm ?? 0);
+      const fadeNorm = clamp01(entry.loopFadeInNorm ?? startNorm);
+      entry.loopStartNorm = safeCutNorm > 0 ? clamp01(startNorm / safeCutNorm) : 0;
+      entry.loopFadeInNorm = safeCutNorm > 0 ? clamp01(fadeNorm / safeCutNorm) : 0;
+      entry.loopEndNorm = 1;
+      entry.loopEnabled = true;
+      ensureEntryEditorState(entry);
+
+      if (prevUrl) {
+        state.waveformCache.delete(prevUrl);
+        if (prevUrl.startsWith("blob:")) URL.revokeObjectURL(prevUrl);
+      }
+      state.waveformCache.set(nextUrl, {
+        peaks: buildWaveformPeaks(trimmed),
+        durationSec: Number(trimmed.duration) || 0,
+        audioBuffer: trimmed
+      });
+
+      scheduleSessionStateSave(600);
+      return true;
+    }
+
     async function applyAutoLoopConfigToEntry(entry, payload) {
       if (!entry || !entry.sampleUrl) return;
       const loopConfig = getAutoLoopConfigFromPayload(payload);
@@ -4037,10 +5029,15 @@
       applyManualLoopConfigToEntry(entry, loopConfig, durationSec);
 
       if (loopConfig.autoLoopMode && waveform?.audioBuffer) {
-        const candidates = buildLoopCandidatesFromBuffer(entry, waveform.audioBuffer, 1, loopConfig.loopCrossfadeMs);
-        if (candidates.length > 0) {
-          applyLoopCandidateToEntry(entry, candidates[0]);
+        const candidates = buildLoopCandidatesFromBuffer(entry, waveform.audioBuffer, 7, loopConfig.loopCrossfadeMs);
+        const best = pickBestAutoLoopCandidate(waveform.audioBuffer, candidates);
+        if (best) {
+          applyLoopCandidateToEntry(entry, best);
         }
+      }
+
+      if (loopConfig.cutLoopAtEnd) {
+        await trimEntryAudioAtLoopEnd(entry, waveform?.audioBuffer || null);
       }
     }
 
@@ -4054,7 +5051,7 @@
       state.deferredAutoLoopOrders = [];
       if (!uniqueOrders.length) return;
 
-      const payload = buildNativeAutoSamplerSettings();
+      const payload = state.nativeAutoSamplerLoopPostConfig || buildAutoLoopPostConfigSnapshot();
       const tasks = uniqueOrders.map((order) => {
         const entry = getMapEntryByOrder(order);
         if (!entry) return Promise.resolve();
@@ -4064,6 +5061,7 @@
       Promise.all(tasks).then(() => {
         renderSetup();
         syncAllKnobValues();
+        scheduleSessionStateSave(320);
       });
     }
 
@@ -4091,6 +5089,10 @@
 
       if (wasActive && !state.nativeAutoSamplerActive) {
         runDeferredAutoLoopPass();
+      }
+
+      if (!state.nativeAutoSamplerActive) {
+        state.nativeAutoSamplerNormalizeRequested = false;
       }
 
       updateStartSamplingButtonLabel();
@@ -4184,22 +5186,45 @@
       updatePlayerEmptyState();
       syncAllKnobValues();
       updateStartSamplingButtonLabel();
+      scheduleSessionStateSave(hasAudioPayload ? 250 : 500);
 
       if (!hasAudioPayload) return;
 
-      const loopConfig = getAutoLoopConfigFromPayload(info);
-      applyManualLoopConfigToEntry(entry, loopConfig, null);
-      if (loopConfig.loopSamples && loopConfig.autoLoopMode) {
-        if (state.nativeAutoSamplerActive) {
-          state.deferredAutoLoopOrders.push(entry.order);
-        } else {
-          void applyAutoLoopConfigToEntry(entry, info).then(() => {
-            if (!state.entries.includes(entry)) return;
-            renderSetup();
-            syncAllKnobValues();
-          });
+      void (async () => {
+        const normalizeRequested = !!(info.normalized
+          || state.nativeAutoSamplerNormalizeRequested
+          || el.autoNormalizeRecorded?.checked);
+        if (normalizeRequested) {
+          const normalized = await normalizeEntryAudioPeak(entry).catch(() => false);
+          if (normalized && state.selectedMapEntryOrder === entry.order) {
+            await openSampleEditor(entry).catch(() => {});
+          }
         }
-      }
+
+        if (!state.entries.includes(entry)) return;
+
+        const loopPayload = state.nativeAutoSamplerLoopPostConfig || info;
+        const loopConfig = getAutoLoopConfigFromPayload(loopPayload);
+        applyManualLoopConfigToEntry(entry, loopConfig, null);
+
+        if (loopConfig.loopSamples && loopConfig.autoLoopMode) {
+          if (state.nativeAutoSamplerActive) {
+            state.deferredAutoLoopOrders.push(entry.order);
+          } else {
+            await applyAutoLoopConfigToEntry(entry, loopPayload).catch(() => {});
+          }
+        } else if (loopConfig.loopSamples && loopConfig.cutLoopAtEnd) {
+          const trimmed = await trimEntryAudioAtLoopEnd(entry).catch(() => false);
+          if (trimmed && state.selectedMapEntryOrder === entry.order) {
+            await openSampleEditor(entry).catch(() => {});
+          }
+        }
+
+        if (!state.entries.includes(entry)) return;
+        renderSetup();
+        syncAllKnobValues();
+        scheduleSessionStateSave(320);
+      })();
     }
 
     function setupNativeAutoSamplerBridge() {
@@ -4219,6 +5244,87 @@
       } catch {
         state.nativeAutoSamplerAvailable = false;
       }
+    }
+
+    function setupNativeSessionStateBridge(retryAttempt = 0) {
+      const backend = getNativeBackend();
+      if (!backend || typeof backend.addEventListener !== "function") {
+        if (retryAttempt < 40) {
+          if (!state.sessionBridgeRetryTimer) {
+            if (retryAttempt === 0 || (retryAttempt + 1) % 10 === 0) {
+              debugLoadLog(`restore bridge pending | waiting for native backend | retry=${retryAttempt + 1}`);
+            }
+            state.sessionBridgeRetryTimer = window.setTimeout(() => {
+              state.sessionBridgeRetryTimer = 0;
+              setupNativeSessionStateBridge(retryAttempt + 1);
+            }, 50);
+          }
+          return;
+        }
+        state.sessionStateRestoreAttempted = true;
+        debugLoadLog("restore bridge unavailable | no native backend after retries");
+        completeLoadingOverlay("Ready");
+        return;
+      }
+      if (state.sessionBridgeRetryTimer) {
+        window.clearTimeout(state.sessionBridgeRetryTimer);
+        state.sessionBridgeRetryTimer = 0;
+      }
+      if (state.nativeSessionListeners.length) return;
+
+      try {
+        const stateToken = backend.addEventListener("session_state_payload", (payload) => {
+          void applySessionStateFromPayload(payload);
+        });
+        const sampleDataToken = backend.addEventListener("sample_data_payload", (payload) => {
+          handleSampleDataPayload(payload);
+        });
+        state.nativeSessionListeners = [stateToken, sampleDataToken];
+      } catch {
+        state.nativeSessionListeners = [];
+        debugLoadLog("restore bridge failed | listener registration");
+        completeLoadingOverlay("Ready");
+        return;
+      }
+
+      let initialFetchAttempts = 0;
+      const maxInitialFetchAttempts = 1;
+      const requestInitialSessionState = () => {
+        initialFetchAttempts += 1;
+        emitNativeEvent("session_state_get", {
+          full: false,
+          mode: "light",
+          reason: `initial-${initialFetchAttempts}`
+        });
+        debugLoadLog(`restore requested | session_state_get emitted | mode=light | attempt=${initialFetchAttempts}`);
+
+        if (state.sessionStateRestoreTimeout) {
+          window.clearTimeout(state.sessionStateRestoreTimeout);
+        }
+        state.sessionStateRestoreTimeout = window.setTimeout(() => {
+          state.sessionStateRestoreTimeout = 0;
+          if (state.sessionStateRestored) return;
+          if (initialFetchAttempts < maxInitialFetchAttempts) {
+            debugLoadLog(`restore retry | no payload yet | nextAttempt=${initialFetchAttempts + 1}`);
+            requestInitialSessionState();
+            return;
+          }
+          if (!state.sessionStateRestoreAttempted) {
+            state.sessionStateRestoreAttempted = true;
+          }
+          debugLoadLog("restore timeout | no session payload after retries");
+          completeLoadingOverlay("Ready");
+        }, 1200);
+      };
+
+      requestInitialSessionState();
+
+      window.addEventListener("pagehide", () => {
+        void flushSessionStateToNative(true);
+      });
+      window.addEventListener("beforeunload", () => {
+        void flushSessionStateToNative(true);
+      });
     }
 
     function stripFileExtension(name) {
@@ -4378,6 +5484,7 @@
         renderPlayerKeyboard();
       }
       updateKeyswitchMapSelector();
+      scheduleSessionStateSave(650);
     }
 
     function updateKeyswitchToolbarKeyEditor() {
@@ -4434,6 +5541,7 @@
         renderKeyboardMap(undefined, true);
         renderPlayerKeyboard();
       }
+      scheduleSessionStateSave(500);
       return true;
     }
 
@@ -4562,6 +5670,7 @@
           } else {
             setStatus(el.setupStatus, `Imported keyswitch "${set.name}" (${set.key}) with ${entries.length} sample slot(s).`, "ok");
           }
+          scheduleSessionStateSave(350);
         } catch {
           setStatus(el.setupStatus, `Could not parse keyswitch file ${file.name}.`, "bad");
         }
@@ -4908,9 +6017,22 @@
       el.godRaysToggle.title = enabled ? "Disable god rays" : "Enable god rays";
     }
 
+    function updateEdgeWaveBlurToggle() {
+      if (!el.edgeWaveBlurToggle) return;
+      const enabled = !!state.playerEdgeWaveBlurEnabled;
+      el.edgeWaveBlurToggle.textContent = enabled ? "Edge Blur On" : "Edge Blur Off";
+      el.edgeWaveBlurToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
+      el.edgeWaveBlurToggle.title = enabled ? "Disable edge blur" : "Enable edge blur";
+    }
+
     function updatePlayerGodRaysState() {
       if (!el.playerStage) return;
       el.playerStage.classList.toggle("god-rays-disabled", !state.playerGodRaysEnabled);
+    }
+
+    function updatePlayerEdgeWaveBlurState() {
+      if (!el.playerStage) return;
+      el.playerStage.classList.toggle("edge-wave-blur-disabled", !state.playerEdgeWaveBlurEnabled);
     }
 
     function stopPlayerParticles(hideCanvas = true) {
@@ -5158,6 +6280,7 @@
           }
           pointerId = null;
           if (mode === "pitch") animatePitchReturn();
+          scheduleSessionStateSave(700);
         }
 
         slot.addEventListener("pointerup", release);
@@ -5334,7 +6457,10 @@
       setWallpaperMenuOpen(false);
       updateWallpaperToggle();
       updateTopBarTheme();
+      updateLoadingOverlayTheme();
+      updatePlayerEdgeWaveBlurState();
       refreshPlayerParticles();
+      scheduleSessionStateSave(350);
     }
 
     function clearWallpaper() {
@@ -5363,7 +6489,10 @@
       setWallpaperMenuOpen(false);
       updateWallpaperToggle();
       updateTopBarTheme();
+      updateLoadingOverlayTheme();
+      updatePlayerEdgeWaveBlurState();
       refreshPlayerParticles();
+      scheduleSessionStateSave(350);
     }
 
     function updateWheelBaseTheme() {
@@ -5465,6 +6594,7 @@
       const cssPos = map[normalized] || "center center";
       el.playerStage.style.setProperty("--player-wallpaper-position", cssPos);
       updateWallpaperPositionMenu();
+      scheduleSessionStateSave(350);
     }
 
     function setLogoMenuOpen(open) {
@@ -5511,6 +6641,7 @@
       el.playerLogoWrap.style.setProperty("--player-logo-right", right);
       el.playerLogoWrap.style.setProperty("--player-logo-transform", transform);
       updateLogoPositionMenu();
+      scheduleSessionStateSave(350);
     }
 
     function setLogo(file) {
@@ -5530,6 +6661,7 @@
       applyLogoPosition(state.logoPosition);
       setLogoMenuOpen(false);
       updateLogoToggle();
+      scheduleSessionStateSave(350);
     }
 
     function clearLogo() {
@@ -5548,6 +6680,7 @@
       setLogoMenuOpen(false);
       updateLogoToggle();
       updateLogoPositionMenu();
+      scheduleSessionStateSave(350);
     }
 
     function updateLogoToggle() {
@@ -5561,10 +6694,13 @@
     }
 
     function updatePlayerEmptyState() {
-      const hasKeyswitchEntries = (state.keyswitchSets || []).some((set) => (
-        Array.isArray(set?.entries) && set.entries.length > 0
+      const hasPlayableBaseEntries = (state.entries || []).some((entry) => (
+        !!entry?.valid && !!entry?.sampleUrl
       ));
-      const show = state.entries.length === 0 && !state.packLoaded && !hasKeyswitchEntries;
+      const hasPlayableKeyswitchEntries = (state.keyswitchSets || []).some((set) => (
+        Array.isArray(set?.entries) && set.entries.some((entry) => !!entry?.valid && !!entry?.sampleUrl)
+      ));
+      const show = !hasPlayableBaseEntries && !hasPlayableKeyswitchEntries;
       el.playerEmptyState.classList.toggle("hidden", !show);
       updateWheelBaseTheme();
       renderPlayerKeyboard();
@@ -5673,6 +6809,7 @@
       const range = { low: clampedLow, high: clampedHigh, minLow, maxHigh };
       const store = (manualRanges && typeof manualRanges === "object") ? manualRanges : state.manualRootRanges;
       store[rootMidi] = { low: range.low, high: range.high };
+      scheduleSessionStateSave(700);
       return range;
     }
 
@@ -5733,6 +6870,7 @@
     function setAutoVelocityLayers(next, shouldRender = true) {
       const value = clampAutoVelocityLayers(next);
       if (el.autoVelValue) el.autoVelValue.value = String(value);
+      updateAutoModwheelVelocityAvailability();
       if (shouldRender) renderAuto();
       return value;
     }
@@ -5756,18 +6894,30 @@
       return Math.max(min, Math.min(max, Math.round(Number(v) || 0)));
     }
 
+    function parseAutoNumberOrFallback(raw, fallback) {
+      const value = Number(raw);
+      return Number.isFinite(value) ? value : fallback;
+    }
+
+    function isAutoLoopEnabled() {
+      return !!el.autoLoop?.checked;
+    }
+
     function getAutoHoldMs() {
-      return clampAutoMs(el.autoHoldMs?.value ?? 1, 1, 60000);
+      const minHoldMs = isAutoLoopEnabled() ? 3000 : 1;
+      return clampAutoMs(el.autoHoldMs?.value ?? minHoldMs, minHoldMs, 60000);
     }
 
     function setAutoHoldMs(next, shouldRender = true) {
-      const value = clampAutoMs(next, 1, 60000);
+      const minHoldMs = isAutoLoopEnabled() ? 3000 : 1;
+      const value = clampAutoMs(next, minHoldMs, 60000);
       if (el.autoHoldMs) el.autoHoldMs.value = String(value);
       if (shouldRender) renderAuto();
       return value;
     }
 
     function getAutoTailMs() {
+      if (isAutoLoopEnabled()) return 0;
       return clampAutoMs(el.autoTailMs?.value ?? 0, 0, 60000);
     }
 
@@ -5794,7 +6944,7 @@
     }
 
     function getAutoLoopStartPercent() {
-      return clampAutoPercent(el.autoLoopStartPct?.value ?? 0);
+      return clampAutoPercent(parseAutoNumberOrFallback(el.autoLoopStartPct?.value, 10));
     }
 
     function setAutoLoopStartPercent(next, shouldRender = true) {
@@ -5805,7 +6955,7 @@
     }
 
     function getAutoLoopEndPercent() {
-      return clampAutoPercent(el.autoLoopEndPct?.value ?? 100);
+      return clampAutoPercent(parseAutoNumberOrFallback(el.autoLoopEndPct?.value, 90));
     }
 
     function setAutoLoopEndPercent(next, shouldRender = true) {
@@ -5816,21 +6966,65 @@
     }
 
     function getAutoLoopCrossfadeMs() {
-      return clampAutoMs(el.autoLoopCrossfadeMs?.value ?? 0, 0, 60000);
+      const minCrossfadeMs = isAutoLoopEnabled() ? 200 : 0;
+      return clampAutoMs(parseAutoNumberOrFallback(el.autoLoopCrossfadeMs?.value, minCrossfadeMs), minCrossfadeMs, 60000);
     }
 
     function setAutoLoopCrossfadeMs(next, shouldRender = true) {
-      const value = clampAutoMs(next, 0, 60000);
+      const minCrossfadeMs = isAutoLoopEnabled() ? 200 : 0;
+      const value = clampAutoMs(next, minCrossfadeMs, 60000);
       if (el.autoLoopCrossfadeMs) el.autoLoopCrossfadeMs.value = String(value);
       if (shouldRender) renderAuto();
       return value;
     }
 
-    function updateAutoLoopDetailsVisibility() {
+    function applyAutoLoopDependentConstraints(shouldRender = false) {
+      const loopEnabled = isAutoLoopEnabled();
+      let changed = false;
+
+      if (el.autoTailMs) {
+        el.autoTailMs.disabled = loopEnabled;
+        const tailField = el.autoTailMs.closest(".field");
+        if (tailField) tailField.classList.toggle("is-disabled", loopEnabled);
+      }
+
+      const holdMin = loopEnabled ? 3000 : 1;
+      const holdValue = clampAutoMs(parseAutoNumberOrFallback(el.autoHoldMs?.value, holdMin), holdMin, 60000);
+      if (el.autoHoldMs && String(holdValue) !== String(el.autoHoldMs.value)) {
+        el.autoHoldMs.value = String(holdValue);
+        changed = true;
+      }
+
+      const crossfadeMin = loopEnabled ? 200 : 0;
+      const crossfadeValue = clampAutoMs(parseAutoNumberOrFallback(el.autoLoopCrossfadeMs?.value, crossfadeMin), crossfadeMin, 60000);
+      if (el.autoLoopCrossfadeMs && String(crossfadeValue) !== String(el.autoLoopCrossfadeMs.value)) {
+        el.autoLoopCrossfadeMs.value = String(crossfadeValue);
+        changed = true;
+      }
+
+      if (shouldRender && changed) renderAuto();
+      return changed;
+    }
+
+    function updateAutoLoopDetailsVisibility(shouldRender = false) {
       if (!el.autoLoopDetails) return;
       const show = !!el.autoLoop?.checked;
       el.autoLoopDetails.classList.toggle("hidden", !show);
+      updateAutoModwheelVelocityAvailability();
+      applyAutoLoopDependentConstraints(shouldRender);
       scheduleHostResizeForActiveTab();
+    }
+
+    function updateAutoModwheelVelocityAvailability() {
+      if (!el.autoModwheelVelocityRow || !el.autoModwheelVelocity) return;
+      const rowVisible = !!el.autoLoop?.checked;
+      const enabled = getAutoVelocityLayers() >= 2;
+      el.autoModwheelVelocityRow.classList.toggle("hidden", !rowVisible);
+      el.autoModwheelVelocityRow.classList.toggle("is-disabled", !enabled);
+      el.autoModwheelVelocity.disabled = !enabled;
+      if (!enabled && el.autoModwheelVelocity.checked) {
+        el.autoModwheelVelocity.checked = false;
+      }
     }
 
     function getPackCheckByExt(ext) {
@@ -5924,6 +7118,7 @@
         loopEndPercent: getAutoLoopEndPercent(),
         cutLoopAtEnd: !!el.autoLoopCutAtEnd?.checked,
         loopCrossfadeMs: getAutoLoopCrossfadeMs(),
+        modwheelVelocityControl: !!el.autoModwheelVelocity?.checked,
         normalizeRecorded: !!el.autoNormalizeRecorded?.checked
       };
     }
@@ -5955,6 +7150,7 @@
           loopEndPercent: clampAutoPercent(sourceSettings.loopEndPercent),
           cutLoopAtEnd: !!sourceSettings.cutLoopAtEnd,
           loopCrossfadeMs: clampAutoMs(sourceSettings.loopCrossfadeMs, 0, 60000),
+          modwheelVelocityControl: !!sourceSettings.modwheelVelocityControl,
           normalizeRecorded: !!sourceSettings.normalizeRecorded
         }
       };
@@ -6001,8 +7197,10 @@
       setAutoLoopEndPercent(settings.loopEndPercent, false);
       if (el.autoLoopCutAtEnd) el.autoLoopCutAtEnd.checked = settings.cutLoopAtEnd;
       setAutoLoopCrossfadeMs(settings.loopCrossfadeMs, false);
+      if (el.autoModwheelVelocity) el.autoModwheelVelocity.checked = !!settings.modwheelVelocityControl;
       if (el.autoNormalizeRecorded) el.autoNormalizeRecorded.checked = settings.normalizeRecorded;
       updateAutoLoopDetailsVisibility();
+      applyModwheelVelocityCrossfadeLink();
       renderAuto();
     }
 
@@ -6133,6 +7331,7 @@
 
     function getVelocityCrossfadePercentForRoot(rootMidi) {
       if (!Number.isFinite(rootMidi)) return 0;
+      if (isAutoModwheelVelocityControlActiveForRoot(rootMidi)) return 30;
       const key = String(Math.round(rootMidi));
       if (Object.prototype.hasOwnProperty.call(state.velocityCrossfadeByRoot, key)) {
         return Number(state.velocityCrossfadeByRoot[key]) > 0 ? 30 : 0;
@@ -6146,7 +7345,48 @@
       const normalized = clampVelocityCrossfadePercent(nextPercent);
       state.velocityCrossfadeByRoot[key] = normalized;
       state.velocityCrossfadePercent = normalized;
+      scheduleSessionStateSave(600);
       return normalized;
+    }
+
+    function setVelocityCrossfadePercentForAllRoots(nextPercent) {
+      const normalized = clampVelocityCrossfadePercent(nextPercent);
+      const roots = new Set();
+      (state.entries || []).forEach((entry) => {
+        if (!entry?.valid || !entry?.sampleUrl || !Number.isFinite(entry.rootMidi)) return;
+        roots.add(Math.round(entry.rootMidi));
+      });
+      (state.keyswitchSets || []).forEach((set) => {
+        (set?.entries || []).forEach((entry) => {
+          if (!entry?.valid || !entry?.sampleUrl || !Number.isFinite(entry.rootMidi)) return;
+          roots.add(Math.round(entry.rootMidi));
+        });
+      });
+      roots.forEach((rootMidi) => {
+        state.velocityCrossfadeByRoot[String(rootMidi)] = normalized;
+      });
+      state.velocityCrossfadePercent = normalized;
+      scheduleSessionStateSave(600);
+      return normalized;
+    }
+
+    function isAutoModwheelVelocityControlEnabled() {
+      return !!el.autoModwheelVelocity?.checked;
+    }
+
+    function isAutoModwheelVelocityControlActiveForRoot(rootMidi, entries = state.entries) {
+      if (!isAutoModwheelVelocityControlEnabled()) return false;
+      if (!Number.isFinite(rootMidi)) return false;
+      return getVelocityLayersForRoot(Math.round(rootMidi), entries).length > 1;
+    }
+
+    function applyModwheelVelocityCrossfadeLink() {
+      if (!isAutoModwheelVelocityControlEnabled()) return;
+      const applied = setVelocityCrossfadePercentForAllRoots(30);
+      if (el.velocityXfadeToggle) {
+        el.velocityXfadeToggle.checked = applied > 0;
+      }
+      syncVelocityCrossfadeControl();
     }
 
     function ensureEntryEditorState(entry) {
@@ -6168,7 +7408,9 @@
     function isEntryLoopRegionActive(entry) {
       if (!entry) return false;
       ensureEntryEditorState(entry);
-      return entry.loopStartNorm > 0.001 || entry.loopEndNorm < 0.999;
+      const explicitLoopEnabled = !!entry.loopEnabled;
+      const implicitLoopRegion = entry.loopStartNorm > 0.001 || entry.loopEndNorm < 0.999;
+      return explicitLoopEnabled || implicitLoopRegion;
     }
 
     function getCachedDurationForEntry(entry) {
@@ -6240,6 +7482,45 @@
       });
     }
 
+    function retriggerClass(node, className, durationMs = 230) {
+      if (!node || !className) return;
+      const timerKey = `__${className}Timer`;
+      if (node[timerKey]) {
+        window.clearTimeout(node[timerKey]);
+        node[timerKey] = 0;
+      }
+      node.classList.remove(className);
+      void node.offsetWidth;
+      node.classList.add(className);
+      node[timerKey] = window.setTimeout(() => {
+        node.classList.remove(className);
+        node[timerKey] = 0;
+      }, Math.max(80, Math.round(Number(durationMs) || 230)));
+    }
+
+    function flashPlayedMapEntry(entry) {
+      if (!entry || !el.mapSamples) return;
+      const order = Number(entry.order);
+      const rootMidi = Math.round(Number(entry.rootMidi));
+      const flashedBoxes = new Set();
+
+      if (Number.isFinite(order)) {
+        const rrCells = Array.from(el.mapSamples.querySelectorAll(`.map-rr-cell[data-entry-order="${order}"]`));
+        rrCells.forEach((cell) => {
+          retriggerClass(cell, "play-flash");
+          const box = cell.closest(".map-sample-box");
+          if (box) flashedBoxes.add(box);
+        });
+      }
+
+      if (!flashedBoxes.size && Number.isFinite(rootMidi)) {
+        const rootBoxes = Array.from(el.mapSamples.querySelectorAll(`.map-sample-box[data-root-midi="${rootMidi}"]`));
+        rootBoxes.forEach((box) => flashedBoxes.add(box));
+      }
+
+      flashedBoxes.forEach((box) => retriggerClass(box, "play-flash"));
+    }
+
     function syncVelocityCrossfadeControl(entry = getMapEntryByOrder(state.selectedMapEntryOrder)) {
       if (!el.velocityXfadeToggle) return;
       if (!entry) {
@@ -6275,6 +7556,7 @@
       ensureEntryEditorState(entry);
       entry.editorGainDb = clampSampleGainDb(nextDb);
       updateSampleGainLine(entry);
+      scheduleSessionStateSave(700);
     }
 
     function updateFineTuneKnob(entry = getMapEntryByOrder(state.selectedMapEntryOrder)) {
@@ -6310,6 +7592,7 @@
       entry.fineTuneCents = clampFineTune(nextCents);
       updateFineTuneKnob(entry);
       refreshSelectedSampleMeta();
+      scheduleSessionStateSave(700);
     }
 
     function updateLoopCrossfadeKnob() {
@@ -6325,12 +7608,82 @@
       el.sampleLoopXfadeKnob.title = label;
     }
 
+    function enforceLoopCrossfadeForEntry(entry, desiredMs = state.loopCrossfadeMs, durationSec = null) {
+      if (!entry) return null;
+      ensureEntryEditorState(entry);
+
+      const duration = Number.isFinite(durationSec) && durationSec > 0.0001
+        ? Number(durationSec)
+        : getCachedDurationForEntry(entry);
+      if (!Number.isFinite(duration) || duration <= 0.0001) return null;
+
+      const minGap = 0.002;
+      const prevStart = clamp01(entry.loopStartNorm);
+      const prevEnd = clamp01(entry.loopEndNorm);
+      const prevFade = clamp01(entry.loopFadeInNorm);
+      const prevEnabled = !!entry.loopEnabled;
+
+      const requestedMs = Math.max(0, Number(desiredMs) || 0);
+      const maxCrossfadeMs = Math.max(0, Math.round(duration * 1000 * 0.5));
+      const appliedMs = Math.max(0, Math.min(requestedMs, maxCrossfadeMs));
+      const crossfadeNorm = clamp01(appliedMs / (duration * 1000));
+
+      let startNorm = prevStart;
+      let endNorm = Math.max(prevEnd, startNorm + minGap);
+      if (startNorm < crossfadeNorm) {
+        startNorm = crossfadeNorm;
+      }
+
+      if (endNorm < startNorm + minGap) {
+        endNorm = Math.min(1, startNorm + minGap);
+        startNorm = Math.max(0, endNorm - minGap);
+      }
+
+      const fadeNorm = Math.max(0, startNorm - crossfadeNorm);
+      entry.loopStartNorm = clamp01(startNorm);
+      entry.loopEndNorm = clamp01(Math.max(entry.loopStartNorm + minGap, endNorm));
+      entry.loopFadeInNorm = clamp01(Math.min(entry.loopStartNorm, fadeNorm));
+      if (crossfadeNorm > 0.0001) {
+        entry.loopEnabled = true;
+      }
+      ensureEntryEditorState(entry);
+
+      const changed = (
+        Math.abs(entry.loopStartNorm - prevStart) > 1e-6
+        || Math.abs(entry.loopEndNorm - prevEnd) > 1e-6
+        || Math.abs(entry.loopFadeInNorm - prevFade) > 1e-6
+        || (!!entry.loopEnabled !== prevEnabled)
+      );
+
+      return {
+        durationSec: duration,
+        appliedMs,
+        maxCrossfadeMs,
+        changed
+      };
+    }
+
     function setLoopCrossfadeMs(nextMs) {
       state.loopCrossfadeMs = clampLoopCrossfadeMs(nextMs);
       if (state.loopCandidates.length) clearLoopCandidates(false);
+      let changed = false;
+      const selectedEntry = getMapEntryByOrder(state.selectedMapEntryOrder);
+      if (selectedEntry) {
+        const constrained = enforceLoopCrossfadeForEntry(selectedEntry, state.loopCrossfadeMs);
+        if (constrained) {
+          if (constrained.appliedMs !== state.loopCrossfadeMs) {
+            state.loopCrossfadeMs = clampLoopCrossfadeMs(constrained.appliedMs);
+          }
+          changed = !!constrained.changed;
+        }
+      }
       updateLoopCrossfadeKnob();
+      if (changed) {
+        updateLoopHandles();
+      }
       refreshSelectedSampleMeta();
       updateLoopToolButtons();
+      scheduleSessionStateSave(700);
     }
 
     function clearLoopCandidates(updateUi = true) {
@@ -6375,7 +7728,124 @@
       entry.loopStartNorm = clamp01(candidate.startNorm);
       entry.loopEndNorm = clamp01(candidate.endNorm);
       entry.loopFadeInNorm = Math.min(entry.loopStartNorm, clamp01(candidate.fadeInNorm));
+      entry.loopEnabled = true;
       ensureEntryEditorState(entry);
+      scheduleSessionStateSave(750);
+    }
+
+    function evaluateLoopBoundaryMismatch(audioBuffer, candidate) {
+      if (!audioBuffer || !candidate) return Number.POSITIVE_INFINITY;
+      const data = audioBuffer.getChannelData(0);
+      if (!data || !data.length) return Number.POSITIVE_INFINITY;
+
+      const length = data.length;
+      const startIdx = Math.max(1, Math.min(length - 2, Math.round(clamp01(candidate.startNorm) * (length - 1))));
+      const endIdx = Math.max(startIdx + 1, Math.min(length - 1, Math.round(clamp01(candidate.endNorm) * (length - 1))));
+      const available = Math.min(startIdx, endIdx);
+      if (available < 16) return Number.POSITIVE_INFINITY;
+
+      const sampleRate = audioBuffer.sampleRate || 44100;
+      const windowSamples = Math.max(32, Math.min(1024, Math.round(sampleRate * 0.01), available));
+      const startWindow = startIdx - windowSamples;
+      const endWindow = endIdx - windowSamples;
+
+      let ampDiff = 0;
+      let slopeDiff = 0;
+      let energy = 0;
+
+      for (let i = 0; i < windowSamples; i += 1) {
+        const a = data[startWindow + i] || 0;
+        const b = data[endWindow + i] || 0;
+        const d = a - b;
+        ampDiff += d * d;
+        energy += (a * a) + (b * b);
+        if (i > 0) {
+          const aPrev = data[startWindow + i - 1] || 0;
+          const bPrev = data[endWindow + i - 1] || 0;
+          const ds = (a - aPrev) - (b - bPrev);
+          slopeDiff += ds * ds;
+        }
+      }
+
+      const denom = Math.max(1e-8, energy);
+      const edge = Math.abs((data[startIdx] || 0) - (data[endIdx] || 0));
+      return (ampDiff / denom) + ((slopeDiff / denom) * 0.55) + (edge * edge * 0.9);
+    }
+
+    function pickBestAutoLoopCandidate(audioBuffer, candidates) {
+      if (!audioBuffer || !Array.isArray(candidates) || !candidates.length) return null;
+      const evaluated = [];
+
+      candidates.forEach((candidate) => {
+        const startNorm = clamp01(candidate.startNorm);
+        const endNorm = clamp01(candidate.endNorm);
+        const spanNorm = Math.max(0, endNorm - startNorm);
+        if (spanNorm < 0.02) return;
+        const fullSpan = startNorm <= 0.003 && endNorm >= 0.997;
+        const mismatch = evaluateLoopBoundaryMismatch(audioBuffer, candidate);
+        if (!Number.isFinite(mismatch)) return;
+        evaluated.push({
+          candidate,
+          mismatch,
+          fullSpan,
+          spanNorm
+        });
+      });
+
+      if (!evaluated.length) return null;
+      evaluated.sort((a, b) => (
+        a.mismatch - b.mismatch
+        || (b.spanNorm - a.spanNorm)
+      ));
+
+      const preferred = evaluated.find((item) => !item.fullSpan) || evaluated[0];
+      return preferred?.candidate || null;
+    }
+
+    function computeRmsOverSampleRange(data, startSample, endSample) {
+      if (!data || !data.length) return 0;
+      const start = Math.max(0, Math.min(data.length - 1, Math.round(Number(startSample) || 0)));
+      const end = Math.max(start + 1, Math.min(data.length, Math.round(Number(endSample) || 0)));
+      let sumSquares = 0;
+      let count = 0;
+      for (let i = start; i < end; i += 1) {
+        const s = data[i] || 0;
+        sumSquares += s * s;
+        count += 1;
+      }
+      if (!count) return 0;
+      return Math.sqrt(sumSquares / count);
+    }
+
+    function refineLoopAnchorSample(data, sampleRate, anchorSample, minAnchorSample, maxAnchorSample) {
+      if (!data || !data.length) return Math.max(0, Math.round(Number(anchorSample) || 0));
+      const minAnchor = Math.max(0, Math.min(data.length - 1, Math.round(Number(minAnchorSample) || 0)));
+      const maxAnchor = Math.max(minAnchor, Math.min(data.length - 1, Math.round(Number(maxAnchorSample) || 0)));
+      let anchor = Math.max(minAnchor, Math.min(maxAnchor, Math.round(Number(anchorSample) || minAnchor)));
+      if (maxAnchor <= minAnchor) return anchor;
+
+      const probeHalfWindow = Math.max(24, Math.round((Number(sampleRate) || 44100) * 0.006));
+      const overallRms = computeRmsOverSampleRange(data, minAnchor, maxAnchor + 1);
+      if (!Number.isFinite(overallRms) || overallRms <= 0.000001) return anchor;
+
+      const threshold = Math.max(0.0008, overallRms * 0.42);
+      let bestSample = anchor;
+      let bestRms = computeRmsOverSampleRange(data, anchor - probeHalfWindow, anchor + probeHalfWindow);
+      if (bestRms >= threshold) return anchor;
+
+      const step = Math.max(8, Math.round((Number(sampleRate) || 44100) / 2500));
+      for (let sample = anchor + step; sample <= maxAnchor; sample += step) {
+        const rms = computeRmsOverSampleRange(data, sample - probeHalfWindow, sample + probeHalfWindow);
+        if (rms > bestRms) {
+          bestRms = rms;
+          bestSample = sample;
+        }
+        if (rms >= threshold) {
+          return sample;
+        }
+      }
+
+      return bestSample;
     }
 
     function buildLoopCandidatesFromBuffer(entry, audioBuffer, maxCandidates = 7, crossfadeOverrideMs = null) {
@@ -6389,7 +7859,7 @@
       const windowSamples = Math.max(48, Math.round(sampleRate * 0.012));
       const minLoopSamples = Math.max(windowSamples * 2, Math.round(sampleRate * 0.08));
       const lastSafeSample = Math.max(windowSamples + 2, length - windowSamples - 3);
-      const anchor = Math.max(
+      let anchor = Math.max(
         windowSamples + 2,
         Math.min(lastSafeSample, Math.round(entry.loopStartNorm * length))
       );
@@ -6397,6 +7867,8 @@
         anchor + minLoopSamples,
         Math.min(lastSafeSample, Math.round(entry.loopEndNorm * length))
       );
+      const maxAnchor = Math.max(windowSamples + 2, Math.min(lastSafeSample - minLoopSamples, searchOut - minLoopSamples));
+      anchor = refineLoopAnchorSample(data, sampleRate, anchor, windowSamples + 2, maxAnchor);
       const defaultRadius = (entry.loopEndNorm >= 0.999 && entry.loopStartNorm <= 0.001)
         ? Math.round(length * 0.35)
         : Math.round(length * 0.18);
@@ -6412,7 +7884,9 @@
 
       const step = Math.max(1, Math.round(sampleRate / 2000));
       const crossfadeMs = crossfadeOverrideMs === null ? state.loopCrossfadeMs : crossfadeOverrideMs;
-      const crossfadeSamples = Math.max(0, Math.round((Math.max(0, Number(crossfadeMs) || 0) / 1000) * sampleRate));
+      const requestedCrossfadeSamples = Math.max(0, Math.round((Math.max(0, Number(crossfadeMs) || 0) / 1000) * sampleRate));
+      const maxCrossfadeSamples = Math.max(0, Math.floor(length * 0.5));
+      const crossfadeSamples = Math.min(requestedCrossfadeSamples, maxCrossfadeSamples);
       const scores = [];
       const anchorStart = anchor - windowSamples;
 
@@ -6524,7 +7998,8 @@
         entry.loopFadeInNorm = Math.min(entry.loopStartNorm, entry.loopFadeInNorm);
         try {
           const waveform = await getWaveformForEntry(entry);
-          const best = buildLoopCandidatesFromBuffer(entry, waveform?.audioBuffer, 1)[0];
+          const candidates = buildLoopCandidatesFromBuffer(entry, waveform?.audioBuffer, 7);
+          const best = pickBestAutoLoopCandidate(waveform?.audioBuffer, candidates);
           if (best) {
             applyLoopCandidateToEntry(entry, best);
             applied += 1;
@@ -6546,6 +8021,7 @@
     function updateLoopHandles() {
       const entry = getMapEntryByOrder(state.selectedMapEntryOrder);
       if (!entry || el.sampleEditor.classList.contains("hidden")) {
+        el.sampleStartMarker.classList.add("hidden");
         el.sampleLoopFade.classList.add("hidden");
         el.sampleLoopStart.classList.add("hidden");
         el.sampleLoopEnd.classList.add("hidden");
@@ -6559,6 +8035,8 @@
       const startX = entry.loopStartNorm * contentWidth;
       const endX = entry.loopEndNorm * contentWidth;
 
+      el.sampleStartMarker.classList.remove("hidden");
+      el.sampleStartMarker.style.left = "0px";
       el.sampleLoopFade.classList.remove("hidden");
       el.sampleLoopStart.classList.remove("hidden");
       el.sampleLoopEnd.classList.remove("hidden");
@@ -7040,8 +8518,85 @@
       return waveform;
     }
 
+    function requestSampleDataForEntry(entry) {
+      if (!entry || !Number.isFinite(entry.order)) return false;
+      if (!getNativeBackend()) return false;
+
+      const requestId = (Number(state.sampleDataRequestSeq) || 0) + 1;
+      state.sampleDataRequestSeq = requestId;
+      state.pendingSampleDataRequests.set(requestId, {
+        entry,
+        startedAt: performance.now()
+      });
+
+      const emitted = emitNativeEvent("sample_data_get", {
+        requestId,
+        order: entry.order,
+        fileName: entry.fileName || "",
+        rootMidi: Number.isFinite(entry.rootMidi) ? Math.round(entry.rootMidi) : -1,
+        velocityLayer: Number.isFinite(entry.velocityLayer) ? Math.round(entry.velocityLayer) : 1,
+        rrIndex: Number.isFinite(entry.rrIndex) ? Math.round(entry.rrIndex) : 1
+      });
+
+      if (!emitted) {
+        state.pendingSampleDataRequests.delete(requestId);
+        return false;
+      }
+
+      window.setTimeout(() => {
+        if (!state.pendingSampleDataRequests.has(requestId)) return;
+        state.pendingSampleDataRequests.delete(requestId);
+        requestFullSessionStateHydration("sample-editor-timeout");
+        drawWaveformMessage("Loading sample data...");
+      }, 1500);
+
+      return true;
+    }
+
+    function handleSampleDataPayload(payload) {
+      const info = (payload && typeof payload === "object" && !Array.isArray(payload))
+        ? payload
+        : null;
+      const requestId = Math.round(Number(info?.requestId));
+      if (!Number.isFinite(requestId)) return;
+
+      const pending = state.pendingSampleDataRequests.get(requestId);
+      if (!pending) return;
+      state.pendingSampleDataRequests.delete(requestId);
+
+      const entry = pending.entry;
+      if (!entry) return;
+
+      const dataUrl = String(info?.dataUrl || "").trim();
+      if (!dataUrl) {
+        requestFullSessionStateHydration("sample-editor-fallback");
+        drawWaveformMessage("Loading sample data...");
+        return;
+      }
+
+      const previous = String(entry.sampleUrl || "").trim();
+      if (previous && previous.startsWith("blob:")) {
+        try { URL.revokeObjectURL(previous); } catch {}
+      }
+      entry.sampleUrl = dataUrl;
+      state.waveformCache.delete(previous);
+      state.waveformCache.delete(dataUrl);
+
+      if (state.selectedMapEntryOrder === entry.order || !el.sampleEditor.classList.contains("hidden")) {
+        void openSampleEditor(entry);
+      }
+    }
+
     async function openSampleEditor(entry) {
-      if (!entry || !entry.sampleUrl) return;
+      if (!entry) return;
+      if (!entry.sampleUrl) {
+        const requested = requestSampleDataForEntry(entry);
+        if (!requested) {
+          requestFullSessionStateHydration("sample-editor");
+        }
+        drawWaveformMessage("Loading sample data...");
+        return;
+      }
       ensureEntryEditorState(entry);
       stopWaveformPlayhead();
       clearLoopCandidates(false);
@@ -7068,6 +8623,17 @@
       try {
         const waveform = await getWaveformForEntry(entry);
         if (requestId !== state.waveformRequestId || state.selectedMapEntryOrder !== entry.order) return;
+        const constrained = enforceLoopCrossfadeForEntry(entry, state.loopCrossfadeMs, waveform?.durationSec);
+        if (constrained) {
+          if (constrained.appliedMs !== state.loopCrossfadeMs) {
+            state.loopCrossfadeMs = clampLoopCrossfadeMs(constrained.appliedMs);
+            updateLoopCrossfadeKnob();
+          }
+          if (constrained.changed) {
+            updateLoopHandles();
+            scheduleSessionStateSave(700);
+          }
+        }
         refreshSelectedSampleMeta();
         drawWaveformPeaks(waveform.peaks, state.waveformZoom);
         updateSampleGainLine(entry);
@@ -7105,43 +8671,63 @@
       el.octaveDownBtn.disabled = start <= bounds.minStart;
       el.octaveUpBtn.disabled = start >= bounds.maxStart;
 
+      const { rangesByRoot } = getResolvedRootRanges(valid, getActiveMapManualRanges());
+      const windowStart = start;
+      const windowEnd = start + 11;
       const buckets = Array.from({ length: 12 }, () => []);
       valid.forEach((entry) => {
-        const index = entry.rootMidi - start;
-        if (index >= 0 && index < 12) buckets[index].push(entry);
-      });
+        const rootRange = rangesByRoot.get(entry.rootMidi) || {
+          low: entry.rootMidi,
+          high: entry.rootMidi
+        };
+        const coverageStart = Math.max(windowStart, rootRange.low);
+        const coverageEnd = Math.min(windowEnd, rootRange.high);
+        if (coverageStart > coverageEnd) return;
 
-      const { rangesByRoot } = getResolvedRootRanges(valid, getActiveMapManualRanges());
+        const rootInView = entry.rootMidi >= windowStart && entry.rootMidi <= windowEnd;
+        const anchorMidi = rootInView
+          ? entry.rootMidi
+          : (entry.rootMidi < windowStart ? coverageStart : coverageEnd);
+        const keyIndex = anchorMidi - windowStart;
+        if (keyIndex < 0 || keyIndex >= 12) return;
+
+        buckets[keyIndex].push({
+          entry,
+          coverageStart,
+          coverageEnd,
+          rootInView
+        });
+      });
 
       el.mapSamples.textContent = "";
       buckets.forEach((entries, keyIndex) => {
         const col = document.createElement("div");
         col.className = "map-col";
         const layers = new Map();
-        entries.forEach((entry) => {
+        entries.forEach((item) => {
+          const entry = item.entry;
           const layer = Math.max(1, Math.min(5, Math.round(Number(entry.velocityLayer) || 1)));
           if (!layers.has(layer)) layers.set(layer, []);
-          layers.get(layer).push(entry);
+          layers.get(layer).push(item);
         });
 
         const orderedLayers = Array.from(layers.keys()).sort((a, b) => b - a);
         orderedLayers.forEach((layer) => {
           const layerEntries = [...(layers.get(layer) || [])].sort((a, b) => (
-            ((a.rrIndex ?? 999) - (b.rrIndex ?? 999)) || (a.order - b.order)
+            ((a.entry.rrIndex ?? 999) - (b.entry.rrIndex ?? 999)) || (a.entry.order - b.entry.order)
           ));
           if (!layerEntries.length) return;
 
-          const primary = layerEntries[0];
+          const primaryItem = layerEntries[0];
+          const primary = primaryItem.entry;
           ensureEntryEditorState(primary);
 
-          const rootRange = rangesByRoot.get(primary.rootMidi) || {
-            low: primary.rootMidi,
-            high: primary.rootMidi
-          };
-          const coverageStart = Math.max(start, rootRange.low);
-          const coverageEnd = Math.min(start + 11, rootRange.high);
-          const leftSpan = Math.max(0, primary.rootMidi - coverageStart);
-          const rightSpan = Math.max(0, coverageEnd - primary.rootMidi);
+          const coverageStart = primaryItem.coverageStart;
+          const coverageEnd = primaryItem.coverageEnd;
+          const rootInView = !!primaryItem.rootInView;
+          const anchorMidi = start + keyIndex;
+          const leftSpan = Math.max(0, anchorMidi - coverageStart);
+          const rightSpan = Math.max(0, coverageEnd - anchorMidi);
           const spanTotal = Math.max(1, leftSpan + rightSpan + 1);
 
           const row = document.createElement("div");
@@ -7153,36 +8739,40 @@
           box.dataset.rootMidi = String(primary.rootMidi);
           box.style.setProperty("--span-total", String(spanTotal));
           box.style.setProperty("--span-left", String(leftSpan));
-          box.style.setProperty("--root-slot", String(leftSpan));
+          box.style.setProperty("--root-slot", String(rootInView ? leftSpan : 0));
+          if (!rootInView) box.classList.add("offscreen-root");
           if (keyIndex <= 1) box.classList.add("tooltip-left");
           if (keyIndex >= 10) box.classList.add("tooltip-right");
           box.dataset.tooltip = `root:${midiToNote(primary.rootMidi)} | covers:${midiToNote(coverageStart)}-${midiToNote(coverageEnd)} | V${layer} | RR:${layerEntries.length}`;
           box.setAttribute("aria-label", box.dataset.tooltip);
 
-          const rrGrid = document.createElement("div");
-          rrGrid.className = "map-rr-grid";
-          rrGrid.style.setProperty("--rr-count", String(layerEntries.length));
+          if (rootInView) {
+            const rrGrid = document.createElement("div");
+            rrGrid.className = "map-rr-grid";
+            rrGrid.style.setProperty("--rr-count", String(layerEntries.length));
 
-          layerEntries.forEach((entry) => {
-            ensureEntryEditorState(entry);
-            const rr = entry.rrIndex === null ? "auto" : String(entry.rrIndex);
-            const loopOn = isEntryLoopRegionActive(entry);
-            const fineTune = clampFineTune(entry.fineTuneCents ?? 0);
-            const xfadePct = Math.max(0, ((entry.loopStartNorm ?? 0) - (entry.loopFadeInNorm ?? entry.loopStartNorm ?? 0)) * 100);
+            layerEntries.forEach((item) => {
+              const entry = item.entry;
+              ensureEntryEditorState(entry);
+              const rr = entry.rrIndex === null ? "auto" : String(entry.rrIndex);
+              const loopOn = isEntryLoopRegionActive(entry);
+              const fineTune = clampFineTune(entry.fineTuneCents ?? 0);
+              const xfadePct = Math.max(0, ((entry.loopStartNorm ?? 0) - (entry.loopFadeInNorm ?? entry.loopStartNorm ?? 0)) * 100);
 
-            const rrCell = document.createElement("button");
-            rrCell.type = "button";
-            rrCell.className = "map-rr-cell";
-            rrCell.dataset.entryOrder = String(entry.order);
-            rrCell.dataset.rootMidi = String(entry.rootMidi);
-            if (keyIndex <= 1) rrCell.classList.add("tooltip-left");
-            if (keyIndex >= 10) rrCell.classList.add("tooltip-right");
-            rrCell.dataset.tooltip = `${entry.fileName} | root:${midiToNote(entry.rootMidi)} | covers:${midiToNote(coverageStart)}-${midiToNote(coverageEnd)} | V${entry.velocityLayer} | RR:${rr} | tune:${fineTune >= 0 ? "+" : ""}${fineTune}c${loopOn ? ` | L:on${xfadePct > 0.05 ? ` | XF:${xfadePct.toFixed(1)}%` : ""}` : ""}`;
-            rrCell.setAttribute("aria-label", rrCell.dataset.tooltip);
-            rrGrid.appendChild(rrCell);
-          });
+              const rrCell = document.createElement("button");
+              rrCell.type = "button";
+              rrCell.className = "map-rr-cell";
+              rrCell.dataset.entryOrder = String(entry.order);
+              rrCell.dataset.rootMidi = String(entry.rootMidi);
+              if (keyIndex <= 1) rrCell.classList.add("tooltip-left");
+              if (keyIndex >= 10) rrCell.classList.add("tooltip-right");
+              rrCell.dataset.tooltip = `${entry.fileName} | root:${midiToNote(entry.rootMidi)} | covers:${midiToNote(coverageStart)}-${midiToNote(coverageEnd)} | V${entry.velocityLayer} | RR:${rr} | tune:${fineTune >= 0 ? "+" : ""}${fineTune}c${loopOn ? ` | L:on${xfadePct > 0.05 ? ` | XF:${xfadePct.toFixed(1)}%` : ""}` : ""}`;
+              rrCell.setAttribute("aria-label", rrCell.dataset.tooltip);
+              rrGrid.appendChild(rrCell);
+            });
 
-          box.appendChild(rrGrid);
+            box.appendChild(rrGrid);
+          }
 
           const leftHandle = document.createElement("div");
           leftHandle.className = "map-range-handle left";
@@ -7333,6 +8923,7 @@
         });
 
         const release = (ev) => {
+          stopPreviewVoiceForKey(midi, getPlayerVoiceSettings().releaseSec);
           if (releaseTimer) window.clearTimeout(releaseTimer);
           releaseTimer = window.setTimeout(() => {
             keyNode.classList.remove("is-down");
@@ -7444,6 +9035,16 @@
       return layers;
     }
 
+    function hasLoopedEntriesForRoot(donorRoot, entries = state.entries) {
+      if (!Number.isFinite(donorRoot)) return false;
+      return entries.some((entry) => (
+        entry.valid
+        && !!entry.sampleUrl
+        && entry.rootMidi === donorRoot
+        && isEntryLoopRegionActive(entry)
+      ));
+    }
+
     function getVelocityCrossfadePlan(donorRoot, midiVelocity, entries = state.entries) {
       const layers = getVelocityLayersForRoot(donorRoot, entries);
       if (!layers.length) return [];
@@ -7527,9 +9128,11 @@
       return Math.sqrt(sumSquares / count);
     }
 
-    function computeLoopIncomingGainScale(audioBuffer, loop) {
+    function computeLoopIncomingGainScale(audioBuffer, loop, options = null) {
       if (!state.autoGainCrossfade) return 1;
       if (!loop || !Number.isFinite(loop.crossfadeSec) || loop.crossfadeSec <= 0.0005) return 1;
+      const mixGain = Math.max(0, Math.min(1, Number(options?.mixGain) || 1));
+      const velocityLayerCount = Math.max(1, Math.round(Number(options?.velocityLayerCount) || 1));
 
       const outFrom = Math.max(0, loop.endSec - loop.crossfadeSec);
       const outTo = loop.endSec;
@@ -7540,7 +9143,18 @@
       if (outgoingRms < 0.00001 || incomingRms < 0.00001) return 1;
 
       const gainScale = outgoingRms / incomingRms;
-      return Math.max(0.25, Math.min(4, gainScale));
+      if (!Number.isFinite(gainScale) || gainScale <= 0) return 1;
+
+      // Multi-velocity playback can stack loop compensation and make pass 2 louder.
+      // Keep loop incoming gain neutral whenever layers are blended or multiple
+      // velocity layers exist for the donor root.
+      if (velocityLayerCount > 1 || mixGain < 0.999) {
+        return Math.max(0.85, Math.min(1, Math.sqrt(gainScale)));
+      }
+
+      // Single-layer playback can use mild AGC to reduce pass-2 dips without
+      // creating aggressive level jumps.
+      return Math.max(0.85, Math.min(1.25, Math.sqrt(gainScale)));
     }
 
     function dbToGain(db) {
@@ -7611,6 +9225,22 @@
       return releaseEnd;
     }
 
+    function scheduleHeldAmpEnvelope(param, now, settings, peakGain) {
+      const attackSec = Math.max(0.001, Number(settings.attackSec) || 0);
+      const decaySec = Math.max(0, Number(settings.decaySec) || 0);
+      const sustainLevel = clamp01(Number(settings.sustainLevel));
+      const peak = Math.max(0.0001, Number(peakGain) || 0.0001);
+      const sustain = Math.max(0.0001, peak * sustainLevel);
+
+      param.cancelScheduledValues(now);
+      param.setValueAtTime(0.0001, now);
+      const attackEnd = now + attackSec;
+      param.linearRampToValueAtTime(peak, attackEnd);
+      const decayEnd = attackEnd + decaySec;
+      param.linearRampToValueAtTime(sustain, decayEnd);
+      param.setValueAtTime(sustain, decayEnd + 0.0005);
+    }
+
     function schedulePlaybackSegment(
       ctx,
       destinationNode,
@@ -7644,16 +9274,35 @@
       source.connect(gain);
       gain.connect(destinationNode);
 
+      const forcedCap = cappedEndSec < naturalEndSec - 0.0005;
+      const fadeOutDuration = safeFadeOut > 0.0005
+        ? safeFadeOut
+        : (forcedCap ? Math.min(0.012, Math.max(0.002, playOutSec * 0.35)) : 0);
+
       gain.gain.setValueAtTime(0.0001, whenSec);
       if (safeFadeIn > 0.0005) {
-        gain.gain.linearRampToValueAtTime(scale, whenSec + safeFadeIn);
+        const points = 48;
+        const fadeInCurve = new Float32Array(points);
+        for (let i = 0; i < points; i += 1) {
+          const t = i / (points - 1);
+          fadeInCurve[i] = Math.max(0.0001, scale * Math.sin(t * Math.PI * 0.5));
+        }
+        gain.gain.setValueCurveAtTime(fadeInCurve, whenSec, safeFadeIn);
       } else {
         gain.gain.setValueAtTime(scale, whenSec + 0.0005);
       }
 
-      const fadeOutStartSec = Math.max(whenSec, cappedEndSec - safeFadeOut);
+      const fadeOutStartSec = Math.max(whenSec, cappedEndSec - fadeOutDuration);
       gain.gain.setValueAtTime(scale, fadeOutStartSec);
-      if (safeFadeOut > 0.0005 || cappedEndSec < naturalEndSec) {
+      if (fadeOutDuration > 0.0005) {
+        const points = 48;
+        const fadeOutCurve = new Float32Array(points);
+        for (let i = 0; i < points; i += 1) {
+          const t = i / (points - 1);
+          fadeOutCurve[i] = Math.max(0.0001, scale * Math.cos(t * Math.PI * 0.5));
+        }
+        gain.gain.setValueCurveAtTime(fadeOutCurve, fadeOutStartSec, fadeOutDuration);
+      } else if (forcedCap) {
         gain.gain.linearRampToValueAtTime(0.0001, cappedEndSec);
       }
 
@@ -7714,6 +9363,10 @@
 
     function disconnectPreviewVoiceNodes(voice) {
       if (!voice) return;
+      if (voice.loopScheduleTimer) {
+        window.clearInterval(voice.loopScheduleTimer);
+        voice.loopScheduleTimer = 0;
+      }
       if (Array.isArray(voice.sources)) {
         voice.sources.forEach((src) => {
           try { src.disconnect(); } catch {}
@@ -7796,7 +9449,8 @@
       donorRoot,
       layerMixGain = 1,
       externalKeySerial = null,
-      layerStartDelaySec = 0
+      layerStartDelaySec = 0,
+      holdLoopUntilRelease = true
     ) {
       if (!entry || !entry.sampleUrl) return;
       ensureEntryEditorState(entry);
@@ -7857,6 +9511,7 @@
           filterOutput: filter.output,
           ampEnvelope,
           sources: [],
+          loopScheduleTimer: 0,
           stopping: false
         };
         const voiceGroup = state.previewVoicesByKey.get(keyMidi);
@@ -7868,15 +9523,19 @@
 
         const segments = [];
         let stopAt = now;
+        const trackSegmentsForPlayhead = state.selectedMapEntryOrder === entry.order && !el.sampleEditor.classList.contains("hidden");
 
         const loop = getEntryLoopTimes(entry, audioBuffer.duration);
-        if (loop.active) {
-          const previewLen = 3.2;
-          stopAt = now + previewLen;
+        if (loop.active && holdLoopUntilRelease) {
           const crossfadeOutSec = Math.max(0, loop.crossfadeSec / playbackRate);
           const loopPeriodSec = Math.max(0.0001, (loop.endSec - loop.startSec) / playbackRate);
+          stopAt = Number.POSITIVE_INFINITY;
           const loopSegmentStartSec = Math.min(loop.startSec, loop.fadeStartSec);
-          const loopIncomingGain = computeLoopIncomingGainScale(audioBuffer, loop);
+          const velocityLayerCount = getVelocityLayersForRoot(donorRoot).length;
+          const loopIncomingGain = computeLoopIncomingGainScale(audioBuffer, loop, {
+            mixGain,
+            velocityLayerCount
+          });
 
           const firstSegment = schedulePlaybackSegment(
             ctx,
@@ -7888,40 +9547,59 @@
             loop.endSec,
             Math.max(0.002, voiceSettings.attackSec),
             crossfadeOutSec,
-            1,
-            stopAt + 0.04
+            1
           );
           if (firstSegment) {
-            segments.push(firstSegment);
+            if (trackSegmentsForPlayhead) segments.push(firstSegment);
             if (firstSegment.source) voiceRef.sources.push(firstSegment.source);
           }
 
           if (loopPeriodSec > 0.004) {
             let segmentStartSec = now + (loop.endSec / playbackRate) - crossfadeOutSec;
-            let count = 0;
-            const maxSegments = 512;
-            while (segmentStartSec < stopAt + 0.04 && count < maxSegments) {
-              const nextSegment = schedulePlaybackSegment(
-                ctx,
-                voiceInput,
-                audioBuffer,
-                playbackRate,
-                segmentStartSec,
-                loopSegmentStartSec,
-                loop.endSec,
-                crossfadeOutSec,
-                crossfadeOutSec,
-                loopIncomingGain,
-                stopAt + 0.04
-              );
-              if (nextSegment) {
-                segments.push(nextSegment);
-                if (nextSegment.source) voiceRef.sources.push(nextSegment.source);
+            const scheduleAheadSec = Math.max(0.35, (loopPeriodSec * 2.25) + 0.08);
+            const maxSegmentsPerPass = 256;
+            const scheduleLoopSegments = () => {
+              if (voiceRef.stopping) return;
+              if ((state.previewTriggerSerialByKey.get(keyMidi) ?? 0) !== keySerial) return;
+              const horizon = ctx.currentTime + scheduleAheadSec;
+              let count = 0;
+              while (segmentStartSec < horizon && count < maxSegmentsPerPass) {
+                const nextSegment = schedulePlaybackSegment(
+                  ctx,
+                  voiceInput,
+                  audioBuffer,
+                  playbackRate,
+                  segmentStartSec,
+                  loopSegmentStartSec,
+                  loop.endSec,
+                  crossfadeOutSec,
+                  crossfadeOutSec,
+                  loopIncomingGain
+                );
+                if (nextSegment) {
+                  if (trackSegmentsForPlayhead && segments.length < 512) segments.push(nextSegment);
+                  if (nextSegment.source) voiceRef.sources.push(nextSegment.source);
+                }
+                segmentStartSec += loopPeriodSec;
+                count += 1;
               }
-              segmentStartSec += loopPeriodSec;
-              count += 1;
-            }
+            };
+            scheduleLoopSegments();
+            voiceRef.loopScheduleTimer = window.setInterval(scheduleLoopSegments, 120);
           }
+
+          scheduleHeldAmpEnvelope(
+            ampEnvelope.gain,
+            now,
+            voiceSettings,
+            peakGain
+          );
+
+          if (trackSegmentsForPlayhead && segments.length) {
+            const previewStopForPlayhead = now + 12;
+            startWaveformPlayhead(entry, ctx, audioBuffer.duration, segments, previewStopForPlayhead);
+          }
+          return;
         } else {
           const playSec = audioBuffer.duration / playbackRate;
           stopAt = now + playSec;
@@ -7939,7 +9617,7 @@
             stopAt + 0.03
           );
           if (oneShot) {
-            segments.push(oneShot);
+            if (trackSegmentsForPlayhead) segments.push(oneShot);
             if (oneShot.source) voiceRef.sources.push(oneShot.source);
           }
         }
@@ -7952,7 +9630,7 @@
           peakGain
         );
 
-        if (segments.length && state.selectedMapEntryOrder === entry.order && !el.sampleEditor.classList.contains("hidden")) {
+        if (trackSegmentsForPlayhead && segments.length) {
           startWaveformPlayhead(entry, ctx, audioBuffer.duration, segments, stopAt);
         }
 
@@ -8029,9 +9707,15 @@
       if (!manualRanges || typeof manualRanges !== "object") manualRanges = state.manualRootRanges;
       const ratio = Math.max(0, Math.min(1, pointerRatioY));
       const velocityNorm = ratio;
-      const midiVelocity = Math.round((velocityNorm * 126) + 1);
       const donorRoot = selectDonorRootForPlayedNote(midi, sourceEntries, manualRanges);
       if (donorRoot === null) return false;
+      const useModwheelVelocity = isAutoModwheelVelocityControlActiveForRoot(donorRoot, sourceEntries);
+      const loopedVelocityRoot = hasLoopedEntriesForRoot(donorRoot, sourceEntries);
+      const lockVelocityToModwheelMode = useModwheelVelocity && loopedVelocityRoot;
+      const velocitySelectorNorm = useModwheelVelocity
+        ? Math.max(0, Math.min(1, Number(state.modWheelValue) || 0))
+        : velocityNorm;
+      const midiVelocity = Math.round((velocitySelectorNorm * 126) + 1);
       const playbackPlan = getVelocityCrossfadePlan(donorRoot, midiVelocity, sourceEntries);
       if (!playbackPlan.length) return false;
 
@@ -8041,6 +9725,9 @@
       stopPreviewVoiceForKey(keyMidi, SAME_KEY_RETRIGGER_FADE_SEC);
       state.previewVoicesByKey.set(keyMidi, { serial: keySerial, voices: [] });
       state.previewHtmlAudioByKey.set(keyMidi, { serial: keySerial, audios: [] });
+      const holdLoopUntilRelease = options && Object.prototype.hasOwnProperty.call(options, "holdLoopUntilRelease")
+        ? !!options.holdLoopUntilRelease
+        : !hasExplicitSource;
 
       let startedCount = 0;
       playbackPlan.forEach((item) => {
@@ -8048,8 +9735,10 @@
         if (gain <= 0.0001) return;
         const entry = pickSampleEntryForPlayback(midi, donorRoot, item.velocityLayer, sourceEntries);
         if (!entry) return;
+        flashPlayedMapEntry(entry);
         const delaySec = Math.max(0, Math.min(0.003, Number(item.startDelaySec) || 0));
-        playMappedSampleEntry(entry, velocityNorm, midi, donorRoot, gain, keySerial, delaySec);
+        const playbackVelocityNorm = lockVelocityToModwheelMode ? 1 : velocityNorm;
+        playMappedSampleEntry(entry, playbackVelocityNorm, midi, donorRoot, gain, keySerial, delaySec, holdLoopUntilRelease);
         startedCount += 1;
       });
 
@@ -8427,6 +10116,7 @@
       updatePlayerEmptyState();
       setImportPackCollapsed(true);
       syncAllKnobValues();
+      scheduleSessionStateSave(350);
     }
 
     function clearInstrument() {
@@ -8439,6 +10129,7 @@
       state.nativeAutoSamplerCaptured = 0;
       state.nativeAutoSamplerTakeCount = 0;
       state.deferredAutoLoopOrders = [];
+      state.nativeAutoSamplerLoopPostConfig = null;
       state.nativeAutoSamplerInputDetected = false;
       state.nativeAutoSamplerMessage = "";
       updateStartSamplingButtonLabel();
@@ -8454,12 +10145,14 @@
       state.packLoaded = false;
       state.rrCursor = {};
       state.waveformCache.clear();
+      state.pendingSampleDataRequests.clear();
       state.velocityCrossfadeByRoot = {};
       state.velocityCrossfadePercent = 0;
       closeSampleEditor();
       renderSetup();
       updatePlayerEmptyState();
       syncAllKnobValues();
+      scheduleSessionStateSave(250);
     }
 
     function buildManifestMapping(entries) {
@@ -8553,7 +10246,9 @@
           autoLoopEndPercent: getAutoLoopEndPercent(),
           autoLoopCutAtEnd: !!el.autoLoopCutAtEnd?.checked,
           autoLoopCrossfadeMs: getAutoLoopCrossfadeMs(),
-          autoNormalizeRecorded: !!el.autoNormalizeRecorded?.checked
+          autoModwheelVelocityControl: !!el.autoModwheelVelocity?.checked,
+          autoNormalizeRecorded: !!el.autoNormalizeRecorded?.checked,
+          edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled
         },
         wallpaper: {
           enabled: !!state.wallpaperName,
@@ -8701,111 +10396,191 @@
       }
     }
 
+    async function applyLoadedPackData(data, options = {}) {
+      const sourceLabel = String(options?.sourceLabel || "").trim();
+      const silentStatus = !!options?.silentStatus;
+
+      stopAutoSamplingCountdown(false);
+      if (state.nativeAutoSamplerAvailable && state.nativeAutoSamplerActive) {
+        emitNativeEvent("autosampler_control", { action: "stop" });
+        state.nativeAutoSamplerActive = false;
+        state.nativeAutoSamplerExpected = 0;
+        state.nativeAutoSamplerCaptured = 0;
+        state.nativeAutoSamplerTakeCount = 0;
+        state.deferredAutoLoopOrders = [];
+        state.nativeAutoSamplerLoopPostConfig = null;
+        updateStartSamplingButtonLabel();
+      }
+
+      stopAllPreviewVoices();
+      state.entries.forEach((entry) => {
+        if (entry.sampleUrl) URL.revokeObjectURL(entry.sampleUrl);
+      });
+      (state.keyswitchSets || []).forEach((set) => {
+        (set.entries || []).forEach((entry) => {
+          if (entry?.sampleUrl) URL.revokeObjectURL(entry.sampleUrl);
+        });
+      });
+
+      const baseEntries = buildKeyswitchEntriesFromManifest(data, { useVirtualOrder: false, startOrder: 0 });
+      let nextOrder = baseEntries.length;
+      const importedKeyswitchSets = [];
+      const keyswitchSetRecords = Array.isArray(data?.keyswitchSets) ? data.keyswitchSets : [];
+      keyswitchSetRecords.forEach((rawSet, index) => {
+        const setEntries = buildKeyswitchEntriesFromManifest(rawSet, { useVirtualOrder: false, startOrder: nextOrder });
+        nextOrder += setEntries.length;
+        const keySource = rawSet?.keyswitchKey ?? rawSet?.key ?? rawSet?.author ?? "";
+        const keyInfo = normalizeKeyswitchKey(keySource, 12);
+        importedKeyswitchSets.push({
+          id: `ks_loaded_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 6)}`,
+          name: String(rawSet?.name || rawSet?.instrumentName || `Keyswitch ${index + 1}`).trim() || `Keyswitch ${index + 1}`,
+          key: keyInfo.key,
+          keyMidi: keyInfo.keyMidi,
+          sourceFile: sourceLabel,
+          entries: setEntries,
+          manualRanges: {}
+        });
+      });
+
+      state.entries = baseEntries;
+      state.keyswitchSets = importedKeyswitchSets;
+      state.manualRootRanges = {};
+      state.activeMapSetId = importedKeyswitchSets.length > 0 ? importedKeyswitchSets[0].id : "base";
+      state.nextVirtualOrder = -1;
+      state.rrCursor = {};
+      state.sessionStateLightweight = false;
+      state.sessionStateHydrationRequested = false;
+      closeSampleEditor();
+
+      const author = typeof data?.author === "string"
+        ? data.author
+        : (typeof data?.metadata?.author === "string" ? data.metadata.author : "");
+      if (el.autoAuthor) el.autoAuthor.value = author.trim();
+      if (el.autoInstrument && typeof data?.instrumentName === "string") {
+        el.autoInstrument.value = data.instrumentName.trim();
+      }
+      const loadedSettings = (data?.settings && typeof data.settings === "object") ? data.settings : null;
+      if (el.autoModwheelVelocity && loadedSettings && Object.prototype.hasOwnProperty.call(loadedSettings, "autoModwheelVelocityControl")) {
+        el.autoModwheelVelocity.checked = !!loadedSettings.autoModwheelVelocityControl;
+      }
+      if (loadedSettings && Object.prototype.hasOwnProperty.call(loadedSettings, "edgeWaveBlurEnabled")) {
+        state.playerEdgeWaveBlurEnabled = !!loadedSettings.edgeWaveBlurEnabled;
+      }
+      const count = Array.isArray(data.mapping) ? data.mapping.length : 0;
+      state.packLoaded = true;
+      if (!silentStatus) {
+        const duplicateNotes = getDuplicateKeyswitchNotes();
+        if (duplicateNotes.length > 0) {
+          setStatus(el.setupStatus, `Loaded preset with duplicate keyswitch keys: ${duplicateNotes.join(", ")}. Change keys in Keyboard Map.`, "warn");
+        } else {
+          const ksCount = importedKeyswitchSets.length;
+          setStatus(el.setupStatus, `Loaded .smpinst preset with ${count} mapping bucket(s) and ${ksCount} keyswitch set(s).`, "ok");
+        }
+      }
+
+      const wallpaperDataUrl = String(data?.wallpaper?.dataUrl || "").trim();
+      if (wallpaperDataUrl) {
+        const wallpaperBlob = dataUrlToBlob(wallpaperDataUrl);
+        if (wallpaperBlob) {
+          const fileName = String(data?.wallpaper?.filename || data?.wallpaper?.path || "wallpaper.png");
+          const wallpaperFile = new File([wallpaperBlob], fileName, { type: wallpaperBlob.type || "image/png" });
+          await setWallpaper(wallpaperFile);
+        } else {
+          clearWallpaper();
+        }
+      } else {
+        clearWallpaper();
+      }
+
+      const logoDataUrl = String(data?.logo?.dataUrl || "").trim();
+      if (logoDataUrl) {
+        const logoBlob = dataUrlToBlob(logoDataUrl);
+        if (logoBlob) {
+          const fileName = String(data?.logo?.filename || data?.logo?.path || "logo.png");
+          const logoFile = new File([logoBlob], fileName, { type: logoBlob.type || "image/png" });
+          setLogo(logoFile);
+        } else {
+          clearLogo();
+        }
+      } else {
+        clearLogo();
+      }
+
+      renderSetup();
+      renderAuto();
+      applyModwheelVelocityCrossfadeLink();
+      updateEdgeWaveBlurToggle();
+      updatePlayerEdgeWaveBlurState();
+      updatePlayerEmptyState();
+      syncAllKnobValues();
+    }
+
     function loadPack(file) {
+      if (!file) return;
+      const loadSeq = Math.max(1, Math.round(Number(state.manualPackLoadSeq) || 0) + 1);
+      state.manualPackLoadSeq = loadSeq;
+      setLoadingOverlay(4, "Loading .smpinst...");
+      debugLoadLog(`loadPack start | seq=${loadSeq} | file=${String(file?.name || "")} | bytes=${Math.max(0, Number(file?.size) || 0)}`);
       const reader = new FileReader();
+      reader.onerror = () => {
+        const reason = reader.error ? String(reader.error.message || reader.error.name || "read-error") : "read-error";
+        debugLoadLog(`loadPack read failed | seq=${loadSeq} | reason=${reason}`);
+        releaseSessionPayloadLock(0);
+        state.manualPackLoadInProgress = false;
+        state.ignoreSessionPayloadUntil = Date.now() + 120;
+        setStatus(el.setupStatus, "Could not read selected .smpinst file.", "bad");
+        completeLoadingOverlay("Ready");
+      };
       reader.onload = async () => {
-        stopAutoSamplingCountdown(false);
-        if (state.nativeAutoSamplerAvailable && state.nativeAutoSamplerActive) {
-          emitNativeEvent("autosampler_control", { action: "stop" });
-          state.nativeAutoSamplerActive = false;
-          state.nativeAutoSamplerExpected = 0;
-          state.nativeAutoSamplerCaptured = 0;
-          state.nativeAutoSamplerTakeCount = 0;
-          state.deferredAutoLoopOrders = [];
-          updateStartSamplingButtonLabel();
+        if (loadSeq !== state.manualPackLoadSeq) {
+          debugLoadLog(`loadPack ignored | stale seq=${loadSeq} latest=${state.manualPackLoadSeq}`);
+          return;
         }
+        if (state.sessionStateRestoreTimeout) {
+          window.clearTimeout(state.sessionStateRestoreTimeout);
+          state.sessionStateRestoreTimeout = 0;
+        }
+        releaseSessionPayloadLock(0);
+        state.sessionPayloadLock = true;
+        state.manualPackLoadInProgress = true;
+        state.ignoreSessionPayloadUntil = Date.now() + 4500;
+        setLoadingOverlay(8, "Loading .smpinst...");
+        let loadSucceeded = false;
         try {
-          const data = JSON.parse(String(reader.result || "{}"));
-          stopAllPreviewVoices();
-          state.entries.forEach((entry) => {
-            if (entry.sampleUrl) URL.revokeObjectURL(entry.sampleUrl);
+          const rawText = String(reader.result || "");
+          const normalizedText = rawText.replace(/^\uFEFF/, "");
+          debugLoadLog(`loadPack file read | seq=${loadSeq} | chars=${normalizedText.length}`);
+          const data = JSON.parse(normalizedText || "{}");
+          setLoadingOverlay(36, "Loading instrument...");
+          await applyLoadedPackData(data, {
+            sourceLabel: file?.name || "",
+            silentStatus: false
           });
-          (state.keyswitchSets || []).forEach((set) => {
-            (set.entries || []).forEach((entry) => {
-              if (entry?.sampleUrl) URL.revokeObjectURL(entry.sampleUrl);
-            });
-          });
-
-          const baseEntries = buildKeyswitchEntriesFromManifest(data, { useVirtualOrder: false, startOrder: 0 });
-          let nextOrder = baseEntries.length;
-          const importedKeyswitchSets = [];
-          const keyswitchSetRecords = Array.isArray(data?.keyswitchSets) ? data.keyswitchSets : [];
-          keyswitchSetRecords.forEach((rawSet, index) => {
-            const setEntries = buildKeyswitchEntriesFromManifest(rawSet, { useVirtualOrder: false, startOrder: nextOrder });
-            nextOrder += setEntries.length;
-            const keySource = rawSet?.keyswitchKey ?? rawSet?.key ?? rawSet?.author ?? "";
-            const keyInfo = normalizeKeyswitchKey(keySource, 12);
-            importedKeyswitchSets.push({
-              id: `ks_loaded_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 6)}`,
-              name: String(rawSet?.name || rawSet?.instrumentName || `Keyswitch ${index + 1}`).trim() || `Keyswitch ${index + 1}`,
-              key: keyInfo.key,
-              keyMidi: keyInfo.keyMidi,
-              sourceFile: file?.name || "",
-              entries: setEntries,
-              manualRanges: {}
-            });
-          });
-
-          state.entries = baseEntries;
-          state.keyswitchSets = importedKeyswitchSets;
-          state.manualRootRanges = {};
-          state.activeMapSetId = importedKeyswitchSets.length > 0 ? importedKeyswitchSets[0].id : "base";
-          state.nextVirtualOrder = -1;
-          state.rrCursor = {};
-          closeSampleEditor();
-
-          const author = typeof data?.author === "string"
-            ? data.author
-            : (typeof data?.metadata?.author === "string" ? data.metadata.author : "");
-          if (el.autoAuthor) el.autoAuthor.value = author.trim();
-          if (el.autoInstrument && typeof data?.instrumentName === "string") {
-            el.autoInstrument.value = data.instrumentName.trim();
-          }
-          const count = Array.isArray(data.mapping) ? data.mapping.length : 0;
-          state.packLoaded = true;
-          const duplicateNotes = getDuplicateKeyswitchNotes();
-          if (duplicateNotes.length > 0) {
-            setStatus(el.setupStatus, `Loaded preset with duplicate keyswitch keys: ${duplicateNotes.join(", ")}. Change keys in Keyboard Map.`, "warn");
-          } else {
-            const ksCount = importedKeyswitchSets.length;
-            setStatus(el.setupStatus, `Loaded .smpinst preset with ${count} mapping bucket(s) and ${ksCount} keyswitch set(s).`, "ok");
-          }
-
-          const wallpaperDataUrl = String(data?.wallpaper?.dataUrl || "").trim();
-          if (wallpaperDataUrl) {
-            const wallpaperBlob = dataUrlToBlob(wallpaperDataUrl);
-            if (wallpaperBlob) {
-              const fileName = String(data?.wallpaper?.filename || data?.wallpaper?.path || "wallpaper.png");
-              const wallpaperFile = new File([wallpaperBlob], fileName, { type: wallpaperBlob.type || "image/png" });
-              await setWallpaper(wallpaperFile);
-            } else {
-              clearWallpaper();
-            }
-          } else {
-            clearWallpaper();
-          }
-
-          const logoDataUrl = String(data?.logo?.dataUrl || "").trim();
-          if (logoDataUrl) {
-            const logoBlob = dataUrlToBlob(logoDataUrl);
-            if (logoBlob) {
-              const fileName = String(data?.logo?.filename || data?.logo?.path || "logo.png");
-              const logoFile = new File([logoBlob], fileName, { type: logoBlob.type || "image/png" });
-              setLogo(logoFile);
-            } else {
-              clearLogo();
-            }
-          } else {
-            clearLogo();
-          }
-
-          renderSetup();
-          renderAuto();
-        } catch {
-          setStatus(el.setupStatus, "Could not parse selected pack file as JSON preview.", "bad");
+          setLoadingOverlay(74, "Saving session...");
+          await waitForNativeBackend(1200);
+          await flushSessionStateToNative(true);
+          setLoadingOverlay(96, "Finalizing...");
+          state.sessionStateRestoreAttempted = true;
+          state.sessionStateRestored = true;
+          state.sessionStateRestoreCompletedAt = Date.now();
+          state.sessionStateLightweight = false;
+          state.sessionStateHydrationRequested = false;
+          state.lastSessionPayloadSig = "";
+          loadSucceeded = true;
+          debugLoadLog(`loadPack done | seq=${loadSeq} | entries=${state.entries.length} | sets=${state.keyswitchSets.length}`);
+        } catch (error) {
+          const reason = error && typeof error === "object" && "message" in error
+            ? String(error.message || "unknown")
+            : "unknown";
+          debugLoadLog(`loadPack failed | seq=${loadSeq} | reason=${reason}`);
+          setStatus(el.setupStatus, "Could not load selected .smpinst file.", "bad");
+        } finally {
+          state.manualPackLoadInProgress = false;
+          const suppressMs = loadSucceeded ? 1200 : 200;
+          state.ignoreSessionPayloadUntil = Date.now() + suppressMs;
+          releaseSessionPayloadLock(suppressMs);
+          completeLoadingOverlay("Ready");
         }
-        updatePlayerEmptyState();
-        syncAllKnobValues();
       };
       reader.readAsText(file);
     }
@@ -8849,12 +10624,13 @@
       const vel = getAutoVelocityLayers();
       const rr = getAutoRRPerNote();
       const total = notes.length * vel * rr;
-      const perRenderMs = getAutoHoldMs() + getAutoTailMs() + getAutoPrerollMs();
-      const totalRecordMs = total * perRenderMs;
+      const capturePerRenderMs = getAutoHoldMs() + getAutoTailMs() + getAutoPrerollMs();
+      const interTakePauseMs = AUTO_SAMPLE_INTER_TAKE_PAUSE_MS;
+      const totalRecordMs = (total * capturePerRenderMs) + (Math.max(0, total - 1) * interTakePauseMs);
 
       const loopCutEnabled = !!el.autoLoop?.checked && !!el.autoLoopCutAtEnd?.checked;
       const loopEndRatio = loopCutEnabled ? clamp01(getAutoLoopEndPercent() / 100) : 1;
-      const storedPerRenderMs = perRenderMs * loopEndRatio;
+      const storedPerRenderMs = capturePerRenderMs * loopEndRatio;
 
       const sampleRate = getAutoRenderSampleRate();
       const bitDepth = 32; // WebAudio engine runs float32.
@@ -8943,6 +10719,7 @@
 
     function renderAuto() {
       updatePlayerAuthorDisplay();
+      updateAutoModwheelVelocityAvailability();
       const summary = getAutoRenderEstimate();
       if (!summary.notes.length) {
         if (el.renderTotal) el.renderTotal.innerHTML = "<strong>0</strong> total renders";
@@ -8965,6 +10742,14 @@
       }
       updateStartSamplingButtonLabel();
       scheduleHostResizeForActiveTab();
+    }
+
+    function scheduleAutoRender() {
+      if (state.autoRenderRaf) return;
+      state.autoRenderRaf = window.requestAnimationFrame(() => {
+        state.autoRenderRaf = 0;
+        renderAuto();
+      });
     }
 
     function updatePlayerAuthorDisplay(activeTab = null) {
@@ -9164,6 +10949,7 @@
           state.playerParticlesEnabled = !state.playerParticlesEnabled;
           updateParticlesToggle();
           refreshPlayerParticles();
+          scheduleSessionStateSave(300);
         });
       }
 
@@ -9172,6 +10958,16 @@
           state.playerGodRaysEnabled = !state.playerGodRaysEnabled;
           updateGodRaysToggle();
           updatePlayerGodRaysState();
+          scheduleSessionStateSave(300);
+        });
+      }
+
+      if (el.edgeWaveBlurToggle) {
+        el.edgeWaveBlurToggle.addEventListener("click", () => {
+          state.playerEdgeWaveBlurEnabled = !state.playerEdgeWaveBlurEnabled;
+          updateEdgeWaveBlurToggle();
+          updatePlayerEdgeWaveBlurState();
+          scheduleSessionStateSave(300);
         });
       }
 
@@ -9244,7 +11040,9 @@
 
       updateParticlesToggle();
       updateGodRaysToggle();
+      updateEdgeWaveBlurToggle();
       updatePlayerGodRaysState();
+      updatePlayerEdgeWaveBlurState();
     }
 
     function setupImport() {
@@ -9264,6 +11062,11 @@
 
       if (el.velocityXfadeToggle) {
         const applyVelocityCrossfadePercent = () => {
+          if (isAutoModwheelVelocityControlEnabled()) {
+            applyModwheelVelocityCrossfadeLink();
+            el.velocityXfadeToggle.checked = true;
+            return;
+          }
           const normalized = el.velocityXfadeToggle.checked ? 30 : 0;
           const selectedEntry = getMapEntryByOrder(state.selectedMapEntryOrder);
           if (!selectedEntry) {
@@ -9355,6 +11158,7 @@
         el.autoLoopStartPct,
         el.autoLoopEndPct,
         el.autoLoopCutAtEnd,
+        el.autoModwheelVelocity,
         el.autoNormalizeRecorded,
         el.autoLoopCrossfadeMs,
         el.autoDestination,
@@ -9364,9 +11168,29 @@
 
       controls.forEach((control) => {
         if (!control) return;
-        control.addEventListener("input", renderAuto);
-        control.addEventListener("change", renderAuto);
+        const onAutoControlChanged = () => {
+          scheduleAutoRender();
+          scheduleSessionStateSave(850);
+        };
+        const tagName = String(control.tagName || "").toUpperCase();
+        const type = String(control.type || "").toLowerCase();
+        const isToggle = tagName === "SELECT" || type === "checkbox" || type === "radio";
+        if (isToggle) {
+          control.addEventListener("change", onAutoControlChanged);
+        } else {
+          control.addEventListener("input", onAutoControlChanged);
+        }
       });
+
+      if (el.autoModwheelVelocity) {
+        el.autoModwheelVelocity.addEventListener("change", () => {
+          if (el.autoModwheelVelocity.checked) {
+            applyModwheelVelocityCrossfadeLink();
+          }
+          syncVelocityCrossfadeControl();
+          updateAutoModwheelVelocityAvailability();
+        });
+      }
 
       if (el.startSamplingBtn) {
         el.startSamplingBtn.addEventListener("click", () => {
@@ -9383,9 +11207,10 @@
               return;
             }
 
+            const loopPostConfig = buildAutoLoopPostConfigSnapshot();
             const started = emitNativeEvent("autosampler_control", {
               action: "start",
-              settings: buildNativeAutoSamplerSettings()
+              settings: buildNativeAutoSamplerSettings({ forceLoopCaptureOff: true })
             });
 
             if (!started) {
@@ -9397,6 +11222,8 @@
             state.nativeAutoSamplerCaptured = 0;
             state.nativeAutoSamplerTakeCount = 0;
             state.deferredAutoLoopOrders = [];
+            state.nativeAutoSamplerLoopPostConfig = loopPostConfig;
+            state.nativeAutoSamplerNormalizeRequested = !!el.autoNormalizeRecorded?.checked;
             state.nativeAutoSamplerExpected = summary.total;
             state.nativeAutoSamplerInputDetected = false;
             state.nativeAutoSamplerMessage = "Sampling armed. Sending MIDI notes to target instrument.";
@@ -9554,6 +11381,7 @@
             });
           }
           applyPackFormatRules(true);
+          scheduleSessionStateSave(700);
         });
       });
 
@@ -9709,7 +11537,7 @@
       bindAutoPercentInput(el.autoLoopEndPct, setAutoLoopEndPercent);
 
       if (el.autoLoop) {
-        el.autoLoop.addEventListener("change", updateAutoLoopDetailsVisibility);
+        el.autoLoop.addEventListener("change", () => updateAutoLoopDetailsVisibility(false));
       }
 
       if (el.autoIntervalDown) {
@@ -9748,10 +11576,11 @@
       setAutoRRPerNote(el.autoRRValue?.value ?? 2, false);
       setAutoHoldMs(el.autoHoldMs?.value ?? 1800, false);
       setAutoTailMs(el.autoTailMs?.value ?? 700, false);
-      setAutoPrerollMs(el.autoPrerollMs?.value ?? 120, false);
+      setAutoPrerollMs(el.autoPrerollMs?.value ?? 0, false);
       setAutoLoopStartPercent(el.autoLoopStartPct?.value ?? 10, false);
       setAutoLoopEndPercent(el.autoLoopEndPct?.value ?? 90, false);
-      setAutoLoopCrossfadeMs(el.autoLoopCrossfadeMs?.value ?? 30, false);
+      setAutoLoopCrossfadeMs(el.autoLoopCrossfadeMs?.value ?? 200, false);
+      if (el.autoModwheelVelocity?.checked) applyModwheelVelocityCrossfadeLink();
       normalizeAutoNoteInput(el.autoStart, 36, false);
       normalizeAutoNoteInput(el.autoEnd, 72, false);
       updateAutoLoopDetailsVisibility();
@@ -9759,6 +11588,8 @@
     }
 
     function init() {
+      const initStart = performance.now();
+      debugLoadLog("init start");
       const collapseState = loadSetupCollapseState();
       window.addEventListener("resize", scheduleHostResizeForActiveTab);
       setupNativeAutoSamplerBridge();
@@ -9792,7 +11623,9 @@
       renderSetup();
       updatePlayerEmptyState();
       renderAuto();
+      setupNativeSessionStateBridge();
       requestHostResizeForActiveTab();
+      debugLoadLog(`init done | elapsedMs=${(performance.now() - initStart).toFixed(1)}`);
     }
 
     init();

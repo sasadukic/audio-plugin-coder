@@ -42,6 +42,7 @@ private:
     bool lastAutoSamplerInputDetected = false;
     int lastEditorWidth = defaultEditorWidth;
     int lastEditorHeight = defaultPlayerHeight;
+    juce::String lastPushedLightweightSessionJson;
 
     std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);
     static juce::WebBrowserComponent::Options createWebOptions (SamplePlayerAudioProcessorEditor& editor);
@@ -51,6 +52,10 @@ private:
     void timerCallback() override;
     void handleAutoSamplerControlEvent (const juce::var& eventPayload);
     void handleUIResizeEvent (const juce::var& eventPayload);
+    void handleSessionStateSetEvent (const juce::var& eventPayload);
+    void handleSessionStateGetEvent (const juce::var& eventPayload);
+    void handleSampleDataGetEvent (const juce::var& eventPayload);
+    void handleDebugLogEvent (const juce::var& eventPayload);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplePlayerAudioProcessorEditor)
 };

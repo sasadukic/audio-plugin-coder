@@ -8,6 +8,26 @@
 #include <limits>
 #include <vector>
 
+namespace
+{
+void appendUiDebugLog (const juce::String& message)
+{
+    const auto logFile = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                             .getChildFile ("SamplePlayer")
+                             .getChildFile ("load_debug.log");
+    const auto parent = logFile.getParentDirectory();
+    if (! parent.isDirectory())
+        parent.createDirectory();
+
+    juce::String line;
+    line << juce::Time::getCurrentTime().toString (true, true, true, true)
+         << " | UI | "
+         << message
+         << "\n";
+    logFile.appendText (line, false, false, "\n");
+}
+} // namespace
+
 SamplePlayerAudioProcessorEditor::SamplePlayerAudioProcessorEditor (SamplePlayerAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
@@ -52,6 +72,22 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
                      .withEventListener ("autosampler_control", [&editor] (const juce::var& payload)
                      {
                          editor.handleAutoSamplerControlEvent (payload);
+                     })
+                     .withEventListener ("session_state_set", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleSessionStateSetEvent (payload);
+                     })
+                     .withEventListener ("session_state_get", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleSessionStateGetEvent (payload);
+                     })
+                     .withEventListener ("sample_data_get", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleSampleDataGetEvent (payload);
+                     })
+                     .withEventListener ("debug_log", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleDebugLogEvent (payload);
                      })
                      .withEventListener ("ui_resize", [&editor] (const juce::var& payload)
                      {
@@ -178,6 +214,20 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
 {
     if (! webView)
         return;
+
+    const auto lightweightSessionJson = audioProcessor.getUiSessionStateJson (true);
+    if (lightweightSessionJson.isNotEmpty()
+        && lightweightSessionJson != lastPushedLightweightSessionJson)
+    {
+        lastPushedLightweightSessionJson = lightweightSessionJson;
+        auto payloadObject = juce::DynamicObject::Ptr (new juce::DynamicObject());
+        payloadObject->setProperty ("json", lightweightSessionJson);
+        payloadObject->setProperty ("lightweight", true);
+        payloadObject->setProperty ("full", false);
+        webView->emitEventIfBrowserIsVisible ("session_state_payload", juce::var (payloadObject.get()));
+        appendUiDebugLog ("session_state_push auto | bytesOut="
+                          + juce::String (lightweightSessionJson.getNumBytesAsUTF8()));
+    }
 
     const auto emitTakeEvent = [this] (const juce::String& fileName,
                                        int rootMidi,
@@ -351,4 +401,118 @@ void SamplePlayerAudioProcessorEditor::handleUIResizeEvent (const juce::var& eve
     lastEditorWidth = nextWidth;
     lastEditorHeight = nextHeight;
     setSize (nextWidth, nextHeight);
+}
+
+void SamplePlayerAudioProcessorEditor::handleSessionStateSetEvent (const juce::var& eventPayload)
+{
+    juce::String jsonPayload;
+
+    if (const auto* object = eventPayload.getDynamicObject())
+        jsonPayload = object->getProperty ("json").toString();
+    else if (eventPayload.isString())
+        jsonPayload = eventPayload.toString();
+
+    audioProcessor.setUiSessionStateJson (jsonPayload);
+}
+
+void SamplePlayerAudioProcessorEditor::handleSessionStateGetEvent (const juce::var& eventPayload)
+{
+    if (! webView)
+        return;
+
+    const auto requestStartMs = juce::Time::getMillisecondCounterHiRes();
+    bool requestFull = false;
+    auto reason = juce::String ("default");
+
+    if (const auto* object = eventPayload.getDynamicObject())
+    {
+        requestFull = static_cast<bool> (object->getProperty ("full"));
+        const auto mode = object->getProperty ("mode").toString().trim().toLowerCase();
+        if (mode == "full")
+            requestFull = true;
+        else if (mode == "light")
+            requestFull = false;
+
+        const auto payloadReason = object->getProperty ("reason").toString().trim();
+        if (payloadReason.isNotEmpty())
+            reason = payloadReason;
+    }
+
+    appendUiDebugLog ("session_state_get begin | mode=" + juce::String (requestFull ? "full" : "light")
+                      + " | reason=" + reason);
+    const auto payloadFetchStartMs = juce::Time::getMillisecondCounterHiRes();
+    const auto jsonPayload = audioProcessor.getUiSessionStateJson (! requestFull);
+    const auto payloadFetchMs = juce::Time::getMillisecondCounterHiRes() - payloadFetchStartMs;
+
+    auto object = juce::DynamicObject::Ptr (new juce::DynamicObject());
+    object->setProperty ("json", jsonPayload);
+    object->setProperty ("lightweight", ! requestFull);
+    object->setProperty ("full", requestFull);
+    const auto emitStartMs = juce::Time::getMillisecondCounterHiRes();
+    webView->emitEventIfBrowserIsVisible ("session_state_payload", juce::var (object.get()));
+    const auto emitMs = juce::Time::getMillisecondCounterHiRes() - emitStartMs;
+
+    appendUiDebugLog ("session_state_get handled | mode=" + juce::String (requestFull ? "full" : "light")
+                      + " | reason=" + reason
+                      + " | bytesOut=" + juce::String (jsonPayload.getNumBytesAsUTF8())
+                      + " | fetchMs=" + juce::String (payloadFetchMs, 2)
+                      + " | emitMs=" + juce::String (emitMs, 2)
+                      + " | elapsedMs=" + juce::String (juce::Time::getMillisecondCounterHiRes() - requestStartMs, 2));
+}
+
+void SamplePlayerAudioProcessorEditor::handleSampleDataGetEvent (const juce::var& eventPayload)
+{
+    if (! webView)
+        return;
+
+    int requestId = -1;
+    int order = -1;
+    int rootMidi = 60;
+    int velocityLayer = 1;
+    int rrIndex = 1;
+    juce::String fileName;
+
+    if (const auto* object = eventPayload.getDynamicObject())
+    {
+        requestId = static_cast<int> (std::round (double (object->getProperty ("requestId"))));
+        order = static_cast<int> (std::round (double (object->getProperty ("order"))));
+        rootMidi = static_cast<int> (std::round (double (object->getProperty ("rootMidi"))));
+        velocityLayer = static_cast<int> (std::round (double (object->getProperty ("velocityLayer"))));
+        rrIndex = static_cast<int> (std::round (double (object->getProperty ("rrIndex"))));
+        fileName = object->getProperty ("fileName").toString().trim();
+    }
+
+    const auto requestStartMs = juce::Time::getMillisecondCounterHiRes();
+    const auto dataUrl = audioProcessor.getSampleDataUrlForMapEntry (rootMidi, velocityLayer, rrIndex, fileName);
+
+    auto object = juce::DynamicObject::Ptr (new juce::DynamicObject());
+    object->setProperty ("requestId", requestId);
+    object->setProperty ("order", order);
+    object->setProperty ("dataUrl", dataUrl);
+    object->setProperty ("hasData", dataUrl.isNotEmpty());
+    webView->emitEventIfBrowserIsVisible ("sample_data_payload", juce::var (object.get()));
+
+    appendUiDebugLog ("sample_data_get handled | requestId=" + juce::String (requestId)
+                      + " | order=" + juce::String (order)
+                      + " | root=" + juce::String (rootMidi)
+                      + " | velocityLayer=" + juce::String (velocityLayer)
+                      + " | rr=" + juce::String (rrIndex)
+                      + " | bytesOut=" + juce::String (dataUrl.getNumBytesAsUTF8())
+                      + " | elapsedMs=" + juce::String (juce::Time::getMillisecondCounterHiRes() - requestStartMs, 2));
+}
+
+void SamplePlayerAudioProcessorEditor::handleDebugLogEvent (const juce::var& eventPayload)
+{
+    juce::String message;
+
+    if (const auto* object = eventPayload.getDynamicObject())
+        message = object->getProperty ("message").toString();
+    else if (eventPayload.isString())
+        message = eventPayload.toString();
+
+    message = message.trim();
+    if (message.isEmpty())
+        return;
+
+    appendUiDebugLog (message);
 }
