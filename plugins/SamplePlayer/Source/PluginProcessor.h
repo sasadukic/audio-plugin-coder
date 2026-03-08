@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <utility>
 #include <unordered_map>
 #include <vector>
@@ -24,6 +25,16 @@ public:
         float sustainMs = 1800.0f;
         float releaseTailMs = 700.0f;
         float prerollMs = 0.0f;
+        juce::String destinationFolder;
+        juce::String instrumentName;
+        bool keyswitchMode = false;
+        juce::String keyswitchKey;
+        juce::String wallpaperSourcePath;
+        juce::String wallpaperDataUrl;
+        juce::String wallpaperFileName;
+        juce::String logoSourcePath;
+        juce::String logoDataUrl;
+        juce::String logoFileName;
         bool loopSamples = false;
         bool autoLoopMode = true;
         float loopStartPercent = 10.0f;
@@ -71,6 +82,7 @@ public:
         bool cutLoopAtEnd = false;
         float loopCrossfadeMs = 200.0f;
         bool normalized = false;
+        juce::String filePath;
         juce::AudioBuffer<float> audio;
     };
 
@@ -100,6 +112,7 @@ public:
         int lowVelocity = 1;
         int highVelocity = 127;
         int roundRobinIndex = 1;
+        int mapSetSlot = 0;
     };
 
     struct ZoneEditorInfo
@@ -151,11 +164,19 @@ public:
     bool setWallpaperFile (const juce::File& file);
     juce::File getWallpaperFile() const;
     void setUiSessionStateJson (const juce::String& json);
-    juce::String getUiSessionStateJson (bool lightweightPreferred = false) const;
+    void setActiveMapSetId (const juce::String& setId);
+    juce::String getUiSessionStateJson (bool lightweightPreferred = false);
     juce::String getSampleDataUrlForMapEntry (int rootMidi,
                                               int velocityLayer,
                                               int rrIndex,
                                               const juce::String& fileName) const;
+    juce::String getSampleDataUrlForAbsolutePath (const juce::String& absolutePath,
+                                                  const juce::String& fileNameHint = {}) const;
+    void queuePreviewMidiEvent (bool noteOn, int midiNote, int velocity127, int midiChannel = 1);
+    std::pair<juce::uint64, juce::uint64> getHeldMidiMaskForUi() const noexcept;
+    int getActiveMapSetSlotForUi() const noexcept;
+    int getSequencerCurrentStepForUi() const noexcept;
+    void setSequencerHostTriggerEnabled (bool enabled);
 
     static juce::String getZoneNamingHint();
 
@@ -181,6 +202,9 @@ private:
         std::vector<std::shared_ptr<SampleZone>> zones;
         juce::StringArray sourcePaths;
         juce::String summary;
+        std::unordered_map<std::string, int> mapSetSlotById;
+        std::unordered_map<int, bool> loopPlaybackBySlot;
+        std::array<int, 128> keyswitchSlotByMidi {};
     };
 
     struct DecodedEmbeddedAudioCacheEntry
@@ -230,6 +254,7 @@ private:
         std::array<FilterState, 2> filterStates {};
 
         uint64_t age = 0;
+        bool ignoreMonoNoteDedupe = false;
     };
 
     struct BlockSettings
@@ -239,7 +264,7 @@ private:
         float attackMs = 5.0f;
         float decayMs = 250.0f;
         float sustainLevel = 1.0f;
-        float releaseMs = 350.0f;
+        float releaseMs = 2000.0f;
 
         bool loopEnabled = true;
         float loopStartPercent = 5.0f;
@@ -247,7 +272,7 @@ private:
         float loopCrossfadeMs = 15.0f;
 
         bool filterEnabled = false;
-        float filterCutoffHz = 18000.0f;
+        float filterCutoffHz = 20000.0f;
         float filterResonance = 0.1f;
         float filterEnvelopeAmountOctaves = 0.0f;
     };
@@ -276,13 +301,17 @@ private:
     void markPresetLoadPlayable (const juce::String& stage, int zoneCount);
     void finishPresetLoadTrace (const juce::String& stage, const juce::String& outcome);
 
-    void handleMidiMessage (const juce::MidiMessage& message, const BlockSettings& settings);
+    void handleMidiMessage (const juce::MidiMessage& message, const BlockSettings& settings, bool previewMessage = false);
     void startVoiceForNote (int midiChannel, int midiNoteNumber, float velocity, const BlockSettings& settings);
     void releaseVoicesForNote (int midiChannel, int midiNoteNumber, bool allowTailOff, const BlockSettings& settings);
+    void enforceSingleVoicePerMidiNote();
     void stopAllVoices();
 
     VoiceState* findFreeVoice();
+    VoiceState* findFreeStealTailVoice();
     VoiceState* stealOldestVoice();
+    void startStealTailFromVoice (const VoiceState& sourceVoice);
+    void setMidiHeldState (int midiNote, bool held) noexcept;
 
     std::shared_ptr<const SampleZone> pickZoneForNote (int midiNoteNumber, int velocity127, bool* usedModwheelLayerSelection = nullptr);
 
@@ -314,7 +343,42 @@ private:
     void storeDecodedEmbeddedAudioInCache (juce::uint64 key, std::shared_ptr<DecodedEmbeddedAudioCacheEntry> entry);
     void trimDecodedEmbeddedAudioCache();
 
-    static constexpr int maxVoices = 32;
+    struct PendingPreviewMidiEvent
+    {
+        bool noteOn = true;
+        int midiNote = 60;
+        int velocity127 = 100;
+        int midiChannel = 1;
+    };
+
+    struct StepSequencerRuntime
+    {
+        struct Step
+        {
+            int noteMidi = 60;
+            int velocity127 = 100;
+            int keyswitchSlot = -1;
+        };
+
+        bool enabled = false;
+        int currentStep = -1;
+        std::array<Step, 16> steps {};
+        std::array<int, 128> triggerToPlayedNote {};
+        std::array<int, 128> triggerDepthByMidi {};
+        std::array<int, 128> playedDepthByMidi {};
+
+        StepSequencerRuntime()
+        {
+            triggerToPlayedNote.fill (-1);
+            triggerDepthByMidi.fill (0);
+            playedDepthByMidi.fill (0);
+        }
+    };
+
+    static constexpr int maxPlayableVoices = 32;
+    static constexpr int maxStealTailVoices = 4;
+    static constexpr int maxVoices = maxPlayableVoices + maxStealTailVoices;
+    static constexpr float voiceStealFadeOutMs = 10.0f;
     static constexpr std::size_t maxDecodedEmbeddedAudioCacheBytes = static_cast<std::size_t> (128 * 1024 * 1024);
 
     juce::AudioFormatManager formatManager;
@@ -322,9 +386,18 @@ private:
 
     std::array<VoiceState, maxVoices> voices;
     uint64_t voiceAgeCounter = 0;
+    std::array<int, 128> midiNoteOnCounts {};
+    std::atomic<juce::uint64> midiHeldMaskLo { 0 };
+    std::atomic<juce::uint64> midiHeldMaskHi { 0 };
     std::unordered_map<int, int> roundRobinCounters;
+    mutable juce::CriticalSection pendingPreviewMidiLock;
+    std::vector<PendingPreviewMidiEvent> pendingPreviewMidiEvents;
 
     std::shared_ptr<const SampleSet> currentSampleSet;
+    std::shared_ptr<StepSequencerRuntime> stepSequencerRuntime;
+    std::atomic<int> activeMapSetSlot { 0 };
+    std::atomic<int> pendingActiveMapSetSlotFromMidi { -1 };
+    std::atomic<int> sequencerCurrentStepForUi { -1 };
     std::atomic<bool> resetVoicesRequested { false };
 
     mutable juce::CriticalSection wallpaperLock;
@@ -332,11 +405,13 @@ private:
     mutable juce::CriticalSection uiSessionStateLock;
     juce::String uiSessionStateJson;
     juce::String uiSessionStateLightweightJson;
+    juce::String pendingActiveMapSetId;
     mutable juce::CriticalSection sessionMapSyncLock;
     juce::String lastSessionMapSignature;
     std::atomic<int> sessionStateSyncRequestId { 0 };
     std::atomic<bool> modwheelVelocityLayerControlEnabled { false };
     std::atomic<float> modwheelVelocityLayerControlValue01 { 0.0f };
+    std::atomic<bool> activeMapLoopPlaybackEnabled { true };
     mutable juce::CriticalSection decodedEmbeddedAudioCacheLock;
     std::unordered_map<juce::uint64, std::shared_ptr<DecodedEmbeddedAudioCacheEntry>> decodedEmbeddedAudioCache;
     std::size_t decodedEmbeddedAudioCacheTotalBytes = 0;
@@ -364,6 +439,17 @@ private:
         int velocityLow = 1;
         int velocityHigh = 127;
         int rrIndex = 1;
+    };
+
+    struct SavedAutoSamplerTake
+    {
+        int rootMidi = 60;
+        int velocityLayer = 1;
+        int velocityLow = 1;
+        int velocityHigh = 127;
+        int rrIndex = 1;
+        bool normalized = false;
+        juce::String fileName;
     };
 
     static std::pair<int, int> velocityBoundsForLayer (int layer, int totalLayers);
@@ -399,6 +485,13 @@ private:
     int autoSamplerHistoryWrite = 0;
     int autoSamplerHistoryValid = 0;
     int autoSamplerHistorySize = 0;
+    juce::File autoSamplerDestinationRoot;
+    juce::File autoSamplerOutputDirectory;
+    int autoSamplerFilesWritten = 0;
+    int autoSamplerWriteFailures = 0;
+    std::vector<SavedAutoSamplerTake> autoSamplerSavedTakes;
+    bool autoSamplerManifestWriteFailed = false;
+    juce::String autoSamplerManifestPath;
     juce::ThreadPool sessionStateSyncThreadPool { 1 };
     mutable juce::CriticalSection presetLoadTraceLock;
     int presetLoadTraceId = 0;

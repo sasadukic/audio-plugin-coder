@@ -20,7 +20,7 @@ private:
     static constexpr int defaultPlayerHeight = 760;
     static constexpr int minEditorWidth = 720;
     static constexpr int maxEditorWidth = 2200;
-    static constexpr int minEditorHeight = 560;
+    static constexpr int minEditorHeight = 240;
     static constexpr int maxEditorHeight = 2600;
 
     struct SinglePageBrowser : juce::WebBrowserComponent
@@ -43,18 +43,33 @@ private:
     int lastEditorWidth = defaultEditorWidth;
     int lastEditorHeight = defaultPlayerHeight;
     juce::String lastPushedLightweightSessionJson;
+    juce::uint64 lastPushedHeldMidiMaskLo = 0;
+    juce::uint64 lastPushedHeldMidiMaskHi = 0;
+    int lastPushedActiveMapSetSlot = -1;
+    int lastPushedSequencerStep = -2;
+    std::unique_ptr<juce::FileChooser> destinationFolderChooser;
+    std::unique_ptr<juce::FileChooser> saveInstrumentChooser;
+    std::unique_ptr<juce::FileChooser> loadInstrumentChooser;
 
     std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);
     static juce::WebBrowserComponent::Options createWebOptions (SamplePlayerAudioProcessorEditor& editor);
     static juce::var makeAutoSamplerStatusVar (const SamplePlayerAudioProcessor::AutoSamplerProgress& progress);
     static juce::String buildAudioWavDataUrl (const SamplePlayerAudioProcessor::AutoSamplerCompletedTake& take);
+    static juce::String buildFileDataUrl (const juce::File& file);
 
     void timerCallback() override;
     void handleAutoSamplerControlEvent (const juce::var& eventPayload);
+    void handleDestinationFolderPickEvent (const juce::var& eventPayload);
+    void handlePickInstrumentManifestEvent (const juce::var& eventPayload);
     void handleUIResizeEvent (const juce::var& eventPayload);
     void handleSessionStateSetEvent (const juce::var& eventPayload);
+    void handleActiveMapSetEvent (const juce::var& eventPayload);
+    void handleSequencerHostTriggerSetEvent (const juce::var& eventPayload);
     void handleSessionStateGetEvent (const juce::var& eventPayload);
     void handleSampleDataGetEvent (const juce::var& eventPayload);
+    void handleGraphicDataGetEvent (const juce::var& eventPayload);
+    void handlePreviewMidiEvent (const juce::var& eventPayload);
+    void handleSaveInstrumentBundleEvent (const juce::var& eventPayload);
     void handleDebugLogEvent (const juce::var& eventPayload);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplePlayerAudioProcessorEditor)
