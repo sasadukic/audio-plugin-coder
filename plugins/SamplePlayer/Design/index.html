@@ -6954,7 +6954,10 @@
     }
 
     function normalizeStrumStep(step) {
-      const rateIndex = Math.max(0, Math.min(4, Math.round(Number(step?.rateIndex) || 2)));
+      const rawRateIndex = Number(step?.rateIndex);
+      const rateIndex = Number.isFinite(rawRateIndex)
+        ? Math.max(0, Math.min(4, Math.round(rawRateIndex)))
+        : 2;
       const legacyVelocity = Math.max(1, Math.min(127, Math.round(Number(step?.velocity) || 100)));
       let subVelocities = Array.isArray(step?.subVelocities)
         ? step.subVelocities.map((value) => Math.max(1, Math.min(127, Math.round(Number(value) || legacyVelocity))))
