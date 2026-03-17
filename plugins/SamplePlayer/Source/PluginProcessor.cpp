@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <limits>
 #include <map>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -751,6 +752,7 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     juce::MidiBuffer renderMidi = transposedIncomingMidi;
     renderMidi.addEvents (generatedMidi, 0, buffer.getNumSamples(), 0);
+    const auto settings = getBlockSettingsSnapshot();
 
     if (auto runtime = std::atomic_load (&strumSequencerRuntime);
         runtime != nullptr && runtime->enabled)
@@ -767,41 +769,93 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
         if (hasHeldTrigger)
         {
-            constexpr std::array<int, 4> subdivisionsByRate { 1, 2, 4, 8 };
-            int nextStepIndex = (juce::jmax (-1, runtime->currentStep) + 1)
-                              % static_cast<int> (runtime->steps.size());
-            int effectiveRate = runtime->rateIndex;
-            if (nextStepIndex >= 0 && nextStepIndex < static_cast<int> (runtime->steps.size()))
+            const auto subdivisionCountForRate = [] (int rateIndex) -> int
             {
-                const int stepRate = runtime->steps[static_cast<size_t> (nextStepIndex)].rateIndex;
-                if (stepRate >= 0 && stepRate <= 3)
-                    effectiveRate = stepRate;
+                if (rateIndex == 0) return 1;
+                if (rateIndex == 1) return 2;
+                if (rateIndex == 2) return 4;
+                if (rateIndex == 3) return 8;
+                return 0;
+            };
+
+            const int quarterSamples = juce::jmax (1, static_cast<int> (currentSampleRate * 0.5));
+            if (runtime->currentStep < 0 || runtime->currentStep >= static_cast<int> (runtime->steps.size()))
+            {
+                runtime->currentStep = 0;
+                runtime->currentSubdivision = 0;
             }
 
-            const int clampedRate = juce::jlimit (0, 3, effectiveRate);
-            const int subdivisions = subdivisionsByRate[static_cast<size_t> (clampedRate)];
-            const int intervalSamples = juce::jmax (1, static_cast<int> ((currentSampleRate * 0.5) / static_cast<double> (subdivisions)));
-
-            int nextTickSample = runtime->samplesUntilNextStep;
-            while (nextTickSample < buffer.getNumSamples())
+            const auto advanceSubdivisionState = [&]() -> int
             {
-                for (int note = 0; note <= 127; ++note)
-                {
-                    if (runtime->triggerDepthByMidi[static_cast<size_t> (note)] <= 0)
-                        continue;
+                const auto& step = runtime->steps[static_cast<size_t> (runtime->currentStep)];
+                const int subdivisions = subdivisionCountForRate (step.rateIndex);
+                const int interval = juce::jmax (1, quarterSamples / juce::jmax (1, subdivisions));
 
-                    const int channel = juce::jlimit (1, 16, runtime->triggerChannelByMidi[static_cast<size_t> (note)]);
-                    renderMidi.addEvent (juce::MidiMessage::noteOn (channel, note, static_cast<juce::uint8> (100)), nextTickSample);
+                if (subdivisions <= 0)
+                {
+                    runtime->currentSubdivision = 0;
+                    runtime->currentStep = (runtime->currentStep + 1) % static_cast<int> (runtime->steps.size());
+                    return quarterSamples;
                 }
 
-                nextTickSample += intervalSamples;
+                ++runtime->currentSubdivision;
+                if (runtime->currentSubdivision >= subdivisions)
+                {
+                    runtime->currentSubdivision = 0;
+                    runtime->currentStep = (runtime->currentStep + 1) % static_cast<int> (runtime->steps.size());
+                }
+                return interval;
+            };
+
+            int nextTickSample = runtime->samplesUntilNextSubstep;
+            while (nextTickSample < buffer.getNumSamples())
+            {
+                const auto& step = runtime->steps[static_cast<size_t> (runtime->currentStep)];
+                const int subdivisions = subdivisionCountForRate (step.rateIndex);
+
+                if (step.keyswitchSlot >= 0)
+                {
+                    activeMapSetSlot.store (step.keyswitchSlot, std::memory_order_relaxed);
+                    pendingActiveMapSetSlotFromMidi.store (step.keyswitchSlot, std::memory_order_relaxed);
+                }
+
+                if (subdivisions > 0)
+                {
+                    const int subIndex = juce::jlimit (0, subdivisions - 1, runtime->currentSubdivision);
+                    const int velocity127 = juce::jlimit (1, 127, step.subVelocities[static_cast<size_t> (subIndex)]);
+                    const float velocity01 = static_cast<float> (velocity127) / 127.0f;
+
+                    for (int note = 0; note <= 127; ++note)
+                    {
+                        if (runtime->triggerDepthByMidi[static_cast<size_t> (note)] <= 0)
+                            continue;
+
+                        const int channel = juce::jlimit (1, 16, runtime->triggerChannelByMidi[static_cast<size_t> (note)]);
+                        const bool canDouble = runtime->doubling && hasMultipleRoundRobinsForNote (note, velocity127);
+                        if (canDouble)
+                        {
+                            startVoiceForNoteInternal (channel, note, velocity01, settings, false, -1.0f, 0);
+                            startVoiceForNoteInternal (channel, note, velocity01, settings, true, 1.0f, 1);
+                        }
+                        else
+                        {
+                            startVoiceForNote (channel, note, velocity01, settings);
+                        }
+                    }
+                }
+
+                nextTickSample += advanceSubdivisionState();
             }
 
-            runtime->samplesUntilNextStep = nextTickSample - buffer.getNumSamples();
+            runtime->samplesUntilNextSubstep = nextTickSample - buffer.getNumSamples();
+            runtime->samplesUntilNextStep = runtime->samplesUntilNextSubstep;
         }
         else
         {
             runtime->samplesUntilNextStep = 0;
+            runtime->samplesUntilNextSubstep = 0;
+            runtime->currentStep = -1;
+            runtime->currentSubdivision = 0;
         }
     }
 
@@ -852,8 +906,6 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             outputBuffer.addFrom (ch, 0, monitorBuffer, sourceChannel, 0, monitorSamples, 1.0f);
         }
     }
-
-    const auto settings = getBlockSettingsSnapshot();
 
     std::vector<PendingPreviewMidiEvent> previewMidiEvents;
     {
@@ -2092,6 +2144,8 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
         step.noteMidi = 60;
         step.velocity127 = 100;
         step.keyswitchSlot = -1;
+        step.rateIndex = 2;
+        step.subVelocities = { 100, 100, 100, 100, 100, 100, 100, 100 };
     }
 
     if (const auto* object = payload.getDynamicObject())
@@ -2126,6 +2180,17 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
                 else
                     step.velocity127 = juce::jlimit (1, 127, static_cast<int> (stepObj->getProperty ("velocity")));
 
+                step.subVelocities.fill (step.velocity127 > 0 ? step.velocity127 : 100);
+                if (const auto* subVelocities = stepObj->getProperty ("subVelocities").getArray())
+                {
+                    const int count = juce::jmin (static_cast<int> (step.subVelocities.size()), subVelocities->size());
+                    for (int subIndex = 0; subIndex < count; ++subIndex)
+                    {
+                        step.subVelocities[static_cast<size_t> (subIndex)] = juce::jlimit (1, 127,
+                            static_cast<int> ((*subVelocities)[subIndex]));
+                    }
+                }
+
                 const auto keyswitchId = stepObj->getProperty ("keyswitchSetId").toString().trim();
                 if (sampleSet != nullptr && keyswitchId.isNotEmpty())
                 {
@@ -2148,7 +2213,9 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
     runtime->doubling = doubling;
     runtime->rateIndex = uiRateIndex;
     runtime->samplesUntilNextStep = 0;
+    runtime->samplesUntilNextSubstep = 0;
     runtime->currentStep = -1;
+    runtime->currentSubdivision = 0;
     runtime->triggerToPlayedNote.fill (-1);
     runtime->triggerDepthByMidi.fill (0);
     runtime->triggerChannelByMidi.fill (1);
@@ -4502,7 +4569,8 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
 
         if (! previewMessage)
         {
-            const auto processRuntime = [&] (const std::shared_ptr<StepSequencerRuntime>& runtime) -> bool
+            const auto processRuntime = [&] (const std::shared_ptr<StepSequencerRuntime>& runtime,
+                                             bool isStrumRuntime) -> bool
             {
                 if (runtime == nullptr
                     || ! runtime->enabled
@@ -4523,15 +4591,47 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                         releaseVoicesForNote (message.getChannel(), previousPlayedNote, true, settings);
                 }
 
+                const bool hadHeldTriggerBefore = std::any_of (runtime->triggerDepthByMidi.begin(),
+                                                               runtime->triggerDepthByMidi.end(),
+                                                               [] (int depth) { return depth > 0; });
+
                 runtime->triggerDepthByMidi[static_cast<size_t> (note)] = 1;
                 runtime->triggerChannelByMidi[static_cast<size_t> (note)] = message.getChannel();
 
-                const int nextStep = (juce::jmax (-1, runtime->currentStep) + 1)
-                                   % static_cast<int> (runtime->steps.size());
-                runtime->currentStep = nextStep;
-                sequencerCurrentStepForUi.store (nextStep, std::memory_order_relaxed);
+                const auto subdivisionCountForRate = [] (int rateIndex) -> int
+                {
+                    if (rateIndex == 0) return 1;
+                    if (rateIndex == 1) return 2;
+                    if (rateIndex == 2) return 4;
+                    if (rateIndex == 3) return 8;
+                    return 0;
+                };
 
-                const auto& step = runtime->steps[static_cast<size_t> (nextStep)];
+                int stepIndex = 0;
+                if (isStrumRuntime)
+                {
+                    if (! hadHeldTriggerBefore)
+                    {
+                        runtime->currentStep = 0;
+                        runtime->currentSubdivision = 0;
+                    }
+                    else if (runtime->currentStep < 0 || runtime->currentStep >= static_cast<int> (runtime->steps.size()))
+                    {
+                        runtime->currentStep = 0;
+                        runtime->currentSubdivision = 0;
+                    }
+                    stepIndex = runtime->currentStep;
+                }
+                else
+                {
+                    stepIndex = (juce::jmax (-1, runtime->currentStep) + 1)
+                              % static_cast<int> (runtime->steps.size());
+                    runtime->currentStep = stepIndex;
+                }
+
+                sequencerCurrentStepForUi.store (stepIndex, std::memory_order_relaxed);
+
+                const auto& step = runtime->steps[static_cast<size_t> (stepIndex)];
                 if (step.keyswitchSlot >= 0)
                 {
                     activeMapSetSlot.store (step.keyswitchSlot, std::memory_order_relaxed);
@@ -4562,8 +4662,34 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 setMidiHeldState (note, false);
                 setMidiHeldState (playedNote, true);
 
-                const float velocity01 = static_cast<float> (juce::jlimit (1, 127, step.velocity127)) / 127.0f;
-                if (runtime->doubling)
+                int velocity127 = juce::jlimit (1, 127, step.velocity127);
+                if (isStrumRuntime)
+                {
+                    const int subdivisions = subdivisionCountForRate (step.rateIndex);
+                    if (subdivisions <= 0)
+                    {
+                        runtime->samplesUntilNextSubstep = juce::jmax (1, static_cast<int> (currentSampleRate * 0.5));
+                        runtime->samplesUntilNextStep = runtime->samplesUntilNextSubstep;
+                        runtime->currentSubdivision = 0;
+                        runtime->currentStep = (runtime->currentStep + 1) % static_cast<int> (runtime->steps.size());
+                        return true;
+                    }
+
+                    const int subIndex = juce::jlimit (0, subdivisions - 1, runtime->currentSubdivision);
+                    velocity127 = juce::jlimit (1, 127, step.subVelocities[static_cast<size_t> (subIndex)]);
+                    runtime->currentSubdivision = (runtime->currentSubdivision + 1) % subdivisions;
+                    if (runtime->currentSubdivision == 0)
+                        runtime->currentStep = (runtime->currentStep + 1) % static_cast<int> (runtime->steps.size());
+
+                    const int interval = juce::jmax (1,
+                        static_cast<int> ((currentSampleRate * 0.5) / static_cast<double> (subdivisions)));
+                    runtime->samplesUntilNextSubstep = interval;
+                    runtime->samplesUntilNextStep = interval;
+                }
+
+                const float velocity01 = static_cast<float> (velocity127) / 127.0f;
+                const bool canDouble = runtime->doubling && hasMultipleRoundRobinsForNote (playedNote, velocity127);
+                if (canDouble)
                 {
                     startVoiceForNoteInternal (message.getChannel(),
                                                playedNote,
@@ -4587,10 +4713,10 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 return true;
             };
 
-            if (processRuntime (std::atomic_load (&strumSequencerRuntime)))
+            if (processRuntime (std::atomic_load (&strumSequencerRuntime), true))
                 return;
 
-            if (processRuntime (std::atomic_load (&stepSequencerRuntime)))
+            if (processRuntime (std::atomic_load (&stepSequencerRuntime), false))
                 return;
         }
 
@@ -4823,6 +4949,7 @@ void SamplePlayerAudioProcessor::startVoiceForNoteInternal (int midiChannel,
     const float leftGain = std::sqrt (0.5f * (1.0f - voice->pan));
     const float rightGain = std::sqrt (0.5f * (1.0f + voice->pan));
     voice->panGains = { leftGain, rightGain };
+    voice->ignoreMonoNoteDedupe = std::abs (voice->pan) > 0.001f;
 
     voice->attackSamplesRemaining = msToSamples (currentSampleRate, settings.attackMs);
     if (voice->attackSamplesRemaining > 0)
@@ -5093,6 +5220,42 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     rrCounter = (rrCounter + 1) % 8192;
 
     return candidatePool->at (static_cast<size_t> (wrappedIndex));
+}
+
+bool SamplePlayerAudioProcessor::hasMultipleRoundRobinsForNote (int midiNoteNumber, int velocity127) const
+{
+    const auto sampleSet = std::atomic_load (&currentSampleSet);
+    if (sampleSet == nullptr || sampleSet->zones.empty())
+        return false;
+
+    const int clampedNote = juce::jlimit (0, 127, midiNoteNumber);
+    const int clampedVelocity = juce::jlimit (1, 127, velocity127);
+    const int activeSlot = juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
+
+    std::set<int> rrMatches;
+    std::set<int> rrNoteMatches;
+
+    for (const auto& zone : sampleSet->zones)
+    {
+        if (zone == nullptr)
+            continue;
+
+        const auto& m = zone->metadata;
+        if (m.mapSetSlot != activeSlot)
+            continue;
+
+        if (clampedNote < m.lowNote || clampedNote > m.highNote)
+            continue;
+
+        rrNoteMatches.insert (m.roundRobinIndex);
+        if (clampedVelocity >= m.lowVelocity && clampedVelocity <= m.highVelocity)
+            rrMatches.insert (m.roundRobinIndex);
+    }
+
+    if (rrMatches.size() > 1)
+        return true;
+
+    return rrMatches.empty() && rrNoteMatches.size() > 1;
 }
 
 SamplePlayerAudioProcessor::BlockSettings SamplePlayerAudioProcessor::getBlockSettingsSnapshot() const

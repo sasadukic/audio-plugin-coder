@@ -328,6 +328,7 @@ private:
                                                        int velocity127,
                                                        bool* usedModwheelLayerSelection = nullptr,
                                                        int rrOffset = 0);
+    bool hasMultipleRoundRobinsForNote (int midiNoteNumber, int velocity127) const;
 
     BlockSettings getBlockSettingsSnapshot() const;
     LoopSettings buildLoopSettingsForZone (const SampleZone& zone, const BlockSettings& settings) const;
@@ -372,7 +373,8 @@ private:
             int noteMidi = 60;
             int velocity127 = 100;
             int keyswitchSlot = -1;
-                    int rateIndex = 2;
+            int rateIndex = 2;
+            std::array<int, 8> subVelocities { 100, 100, 100, 100, 100, 100, 100, 100 };
         };
 
         bool enabled = false;
@@ -380,7 +382,9 @@ private:
         bool doubling = false;
         int rateIndex = 2;
         int samplesUntilNextStep = 0;
+        int samplesUntilNextSubstep = 0;
         int currentStep = -1;
+        int currentSubdivision = 0;
         std::array<Step, 16> steps {};
         std::array<int, 128> triggerToPlayedNote {};
         std::array<int, 128> triggerDepthByMidi {};
