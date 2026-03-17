@@ -2024,6 +2024,76 @@ void SamplePlayerAudioProcessor::setSequencerHostTriggerEnabled (bool enabled)
     resetVoicesRequested.store (true);
 }
 
+void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payload)
+{
+    bool enabled = true;
+    std::array<StepSequencerRuntime::Step, 8> strumSteps {};
+    int parsedStepCount = 0;
+
+    for (auto& step : strumSteps)
+    {
+        step.noteMidi = 60;
+        step.velocity127 = 100;
+        step.keyswitchSlot = -1;
+    }
+
+    if (const auto* object = payload.getDynamicObject())
+    {
+        const auto enabledVar = object->getProperty ("enabled");
+        if (! enabledVar.isVoid())
+            enabled = static_cast<bool> (enabledVar);
+
+        if (const auto* stepPattern = object->getProperty ("stepPattern").getArray())
+        {
+            const auto sampleSet = std::atomic_load (&currentSampleSet);
+            const int stepCount = juce::jmin (static_cast<int> (strumSteps.size()), stepPattern->size());
+
+            for (int i = 0; i < stepCount; ++i)
+            {
+                const auto* stepObj = (*stepPattern)[i].getDynamicObject();
+                if (stepObj == nullptr)
+                    continue;
+
+                auto& step = strumSteps[static_cast<size_t> (i)];
+
+                const int rateIndex = juce::jlimit (0, 4, static_cast<int> (stepObj->getProperty ("rateIndex")));
+                if (rateIndex >= 4)
+                    step.velocity127 = 0; // Rest
+                else
+                    step.velocity127 = juce::jlimit (1, 127, static_cast<int> (stepObj->getProperty ("velocity")));
+
+                const auto keyswitchId = stepObj->getProperty ("keyswitchSetId").toString().trim();
+                if (sampleSet != nullptr && keyswitchId.isNotEmpty())
+                {
+                    if (const auto it = sampleSet->mapSetSlotById.find (keyswitchId.toStdString());
+                        it != sampleSet->mapSetSlotById.end())
+                    {
+                        step.keyswitchSlot = it->second;
+                    }
+                }
+            }
+
+            parsedStepCount = stepCount;
+        }
+    }
+
+    const int activeStepCount = juce::jmax (1, parsedStepCount);
+    auto runtime = std::make_shared<StepSequencerRuntime>();
+    runtime->enabled = enabled;
+    runtime->followsInputNote = true;
+    runtime->currentStep = -1;
+    runtime->triggerToPlayedNote.fill (-1);
+    runtime->triggerDepthByMidi.fill (0);
+    runtime->playedDepthByMidi.fill (0);
+
+    for (size_t i = 0; i < runtime->steps.size(); ++i)
+        runtime->steps[i] = strumSteps[i % static_cast<size_t> (activeStepCount)];
+
+    std::atomic_store (&stepSequencerRuntime, runtime);
+    sequencerCurrentStepForUi.store (-1, std::memory_order_relaxed);
+    resetVoicesRequested.store (true);
+}
+
 void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::String& jsonPayload, int requestId)
 {
     const auto syncStartMs = juce::Time::getMillisecondCounterHiRes();
@@ -4402,7 +4472,15 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                     activeMapLoopPlaybackEnabled.store (loopEnabled, std::memory_order_relaxed);
                 }
 
-                const int playedNote = juce::jlimit (0, 127, step.noteMidi);
+                if (step.velocity127 <= 0)
+                {
+                    sequencerRuntime->triggerToPlayedNote[static_cast<size_t> (note)] = -1;
+                    return;
+                }
+
+                const int playedNote = sequencerRuntime->followsInputNote
+                    ? note
+                    : juce::jlimit (0, 127, step.noteMidi);
                 sequencerRuntime->triggerToPlayedNote[static_cast<size_t> (note)] = playedNote;
 
                 auto& playedDepth = sequencerRuntime->playedDepthByMidi[static_cast<size_t> (playedNote)];

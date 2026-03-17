@@ -177,6 +177,7 @@ public:
     int getActiveMapSetSlotForUi() const noexcept;
     int getSequencerCurrentStepForUi() const noexcept;
     void setSequencerHostTriggerEnabled (bool enabled);
+    void applyStrumSettingsFromUi (const juce::var& payload);
 
     static juce::String getZoneNamingHint();
 
@@ -361,6 +362,7 @@ private:
         };
 
         bool enabled = false;
+        bool followsInputNote = false;
         int currentStep = -1;
         std::array<Step, 16> steps {};
         std::array<int, 128> triggerToPlayedNote {};
