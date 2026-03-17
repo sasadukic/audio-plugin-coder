@@ -4379,15 +4379,6 @@
                 </div>
                 <button id="strumDoublingBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Doubling Off</button>
                 <div class="strum-menu-wrap">
-                  <button id="strumRateBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Rate 1/16</button>
-                  <div id="strumRateMenu" class="strum-menu hidden" role="menu" aria-label="Strum rate">
-                    <button class="strum-menu-item" type="button" data-rate-index="0">1/4</button>
-                    <button class="strum-menu-item" type="button" data-rate-index="1">1/8</button>
-                    <button class="strum-menu-item" type="button" data-rate-index="2">1/16</button>
-                    <button class="strum-menu-item" type="button" data-rate-index="3">1/32</button>
-                  </div>
-                </div>
-                <div class="strum-menu-wrap">
                   <button id="strumSwingBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Swing 0%</button>
                   <div id="strumSwingMenu" class="strum-menu hidden" role="menu" aria-label="Strum swing">
                     <button class="strum-menu-item" type="button" data-swing-value="0">0%</button>
@@ -6935,7 +6926,7 @@
         enabled: true,
         sequencerMode: stepCount <= 0 ? 0 : (stepCount <= 4 ? 1 : 2),
         doubling: !!state.strumDoubling,
-        rateIndex: Math.max(0, Math.min(3, Number(state.strumRateIndex) || 0)),
+        rateIndex: getStrumEffectiveRateIndex(),
         swingPercent: Math.max(0, Math.min(75, Number(state.strumSwingPercent) || 0)),
         velocityHumanizePercent: Math.max(0, Math.min(40, Number(state.strumVelocityHumanizePercent) || 0)),
         timingHumanizeMs: Math.max(0, Math.min(30, Number(state.strumTimingHumanizeMs) || 0)),
@@ -7052,6 +7043,15 @@
           keyswitchSetId: normalized.keyswitchSetId
         };
       });
+    }
+
+    function getStrumEffectiveRateIndex() {
+      const visibleSteps = getVisibleStrumStepPattern();
+      for (const step of visibleSteps) {
+        const idx = Math.max(0, Math.min(4, Number(step?.rateIndex) || 0));
+        if (idx <= 3) return idx;
+      }
+      return 2;
     }
 
     function renderStrumStepGrid() {
