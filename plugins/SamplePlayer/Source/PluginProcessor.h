@@ -381,10 +381,14 @@ private:
         bool followsInputNote = false;
         bool doubling = false;
         int rateIndex = 2;
+        int swingPercent = 0;
+        int velocityHumanizePercent = 0;
+        int timingHumanizeMs = 0;
         int samplesUntilNextStep = 0;
         int samplesUntilNextSubstep = 0;
         int currentStep = -1;
         int currentSubdivision = 0;
+        juce::uint32 randomState = 0x12345678u;
         std::array<Step, 16> steps {};
         std::array<int, 128> triggerToPlayedNote {};
         std::array<int, 128> triggerDepthByMidi {};

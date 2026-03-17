@@ -4389,8 +4389,6 @@
                     <button class="strum-menu-item" type="button" data-swing-value="40">40%</button>
                     <button class="strum-menu-item" type="button" data-swing-value="50">50%</button>
                     <button class="strum-menu-item" type="button" data-swing-value="60">60%</button>
-                    <button class="strum-menu-item" type="button" data-swing-value="70">70%</button>
-                    <button class="strum-menu-item" type="button" data-swing-value="75">75%</button>
                   </div>
                 </div>
                 <div class="strum-menu-wrap">
@@ -4401,10 +4399,6 @@
                     <button class="strum-menu-item" type="button" data-vel-human-value="10">10%</button>
                     <button class="strum-menu-item" type="button" data-vel-human-value="15">15%</button>
                     <button class="strum-menu-item" type="button" data-vel-human-value="20">20%</button>
-                    <button class="strum-menu-item" type="button" data-vel-human-value="25">25%</button>
-                    <button class="strum-menu-item" type="button" data-vel-human-value="30">30%</button>
-                    <button class="strum-menu-item" type="button" data-vel-human-value="35">35%</button>
-                    <button class="strum-menu-item" type="button" data-vel-human-value="40">40%</button>
                   </div>
                 </div>
                 <div class="strum-menu-wrap">
@@ -4416,11 +4410,6 @@
                     <button class="strum-menu-item" type="button" data-time-human-value="6">6ms</button>
                     <button class="strum-menu-item" type="button" data-time-human-value="8">8ms</button>
                     <button class="strum-menu-item" type="button" data-time-human-value="10">10ms</button>
-                    <button class="strum-menu-item" type="button" data-time-human-value="12">12ms</button>
-                    <button class="strum-menu-item" type="button" data-time-human-value="16">16ms</button>
-                    <button class="strum-menu-item" type="button" data-time-human-value="20">20ms</button>
-                    <button class="strum-menu-item" type="button" data-time-human-value="24">24ms</button>
-                    <button class="strum-menu-item" type="button" data-time-human-value="30">30ms</button>
                   </div>
                 </div>
               </div>
@@ -6928,9 +6917,9 @@
         sequencerMode: stepCount <= 0 ? 0 : (stepCount <= 4 ? 1 : 2),
         doubling: !!state.strumDoubling,
         rateIndex: getStrumEffectiveRateIndex(),
-        swingPercent: Math.max(0, Math.min(75, Number(state.strumSwingPercent) || 0)),
-        velocityHumanizePercent: Math.max(0, Math.min(40, Number(state.strumVelocityHumanizePercent) || 0)),
-        timingHumanizeMs: Math.max(0, Math.min(30, Number(state.strumTimingHumanizeMs) || 0)),
+        swingPercent: Math.max(0, Math.min(60, Number(state.strumSwingPercent) || 0)),
+        velocityHumanizePercent: Math.max(0, Math.min(20, Number(state.strumVelocityHumanizePercent) || 0)),
+        timingHumanizeMs: Math.max(0, Math.min(10, Number(state.strumTimingHumanizeMs) || 0)),
         stepPattern: getVisibleStrumStepPattern()
       });
     }
@@ -7168,40 +7157,40 @@
         }
       }
 
-      const swing = Math.max(0, Math.min(75, Number(state.strumSwingPercent) || 0));
+      const swing = Math.max(0, Math.min(60, Number(state.strumSwingPercent) || 0));
       if (el.strumSwingBtn) {
         el.strumSwingBtn.textContent = `Swing ${swing}%`;
         if (el.strumSwingMenu) {
           const isOpen = !el.strumSwingMenu.classList.contains("hidden");
           el.strumSwingBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
           Array.from(el.strumSwingMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
-            const val = Math.max(0, Math.min(75, Number(item.dataset.swingValue) || 0));
+            const val = Math.max(0, Math.min(60, Number(item.dataset.swingValue) || 0));
             item.classList.toggle("active", val === swing);
           });
         }
       }
 
-      const velHum = Math.max(0, Math.min(40, Number(state.strumVelocityHumanizePercent) || 0));
+      const velHum = Math.max(0, Math.min(20, Number(state.strumVelocityHumanizePercent) || 0));
       if (el.strumVelHumanBtn) {
         el.strumVelHumanBtn.textContent = `Velocity Humanization ${velHum}%`;
         if (el.strumVelHumanMenu) {
           const isOpen = !el.strumVelHumanMenu.classList.contains("hidden");
           el.strumVelHumanBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
           Array.from(el.strumVelHumanMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
-            const val = Math.max(0, Math.min(40, Number(item.dataset.velHumanValue) || 0));
+            const val = Math.max(0, Math.min(20, Number(item.dataset.velHumanValue) || 0));
             item.classList.toggle("active", val === velHum);
           });
         }
       }
 
-      const timeHum = Math.max(0, Math.min(30, Number(state.strumTimingHumanizeMs) || 0));
+      const timeHum = Math.max(0, Math.min(10, Number(state.strumTimingHumanizeMs) || 0));
       if (el.strumTimeHumanBtn) {
         el.strumTimeHumanBtn.textContent = `Timing Humanization ${timeHum}ms`;
         if (el.strumTimeHumanMenu) {
           const isOpen = !el.strumTimeHumanMenu.classList.contains("hidden");
           el.strumTimeHumanBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
           Array.from(el.strumTimeHumanMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
-            const val = Math.max(0, Math.min(30, Number(item.dataset.timeHumanValue) || 0));
+            const val = Math.max(0, Math.min(10, Number(item.dataset.timeHumanValue) || 0));
             item.classList.toggle("active", val === timeHum);
           });
         }
@@ -7292,15 +7281,15 @@
       });
 
       setupStrumMenu(el.strumSwingBtn, el.strumSwingMenu, ".strum-menu-item", (item) => {
-        state.strumSwingPercent = Math.max(0, Math.min(75, Number(item.dataset.swingValue) || 0));
+        state.strumSwingPercent = Math.max(0, Math.min(60, Number(item.dataset.swingValue) || 0));
       });
 
       setupStrumMenu(el.strumVelHumanBtn, el.strumVelHumanMenu, ".strum-menu-item", (item) => {
-        state.strumVelocityHumanizePercent = Math.max(0, Math.min(40, Number(item.dataset.velHumanValue) || 0));
+        state.strumVelocityHumanizePercent = Math.max(0, Math.min(20, Number(item.dataset.velHumanValue) || 0));
       });
 
       setupStrumMenu(el.strumTimeHumanBtn, el.strumTimeHumanMenu, ".strum-menu-item", (item) => {
-        state.strumTimingHumanizeMs = Math.max(0, Math.min(30, Number(item.dataset.timeHumanValue) || 0));
+        state.strumTimingHumanizeMs = Math.max(0, Math.min(10, Number(item.dataset.timeHumanValue) || 0));
       });
 
       if (el.strumStepGrid) {

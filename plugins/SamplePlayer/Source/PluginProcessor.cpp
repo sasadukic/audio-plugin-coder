@@ -778,6 +778,18 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 return 0;
             };
 
+            const auto nextRandom01 = [&runtime]() -> float
+            {
+                runtime->randomState = runtime->randomState * 1664525u + 1013904223u;
+                const auto sample = (runtime->randomState >> 8) & 0x00ffffffu;
+                return static_cast<float> (sample) / static_cast<float> (0x00ffffffu);
+            };
+
+            const auto nextRandomSigned = [&nextRandom01]() -> float
+            {
+                return (nextRandom01() * 2.0f) - 1.0f;
+            };
+
             const int quarterSamples = juce::jmax (1, static_cast<int> (currentSampleRate * 0.5));
             if (runtime->currentStep < 0 || runtime->currentStep >= static_cast<int> (runtime->steps.size()))
             {
@@ -822,7 +834,15 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 if (subdivisions > 0)
                 {
                     const int subIndex = juce::jlimit (0, subdivisions - 1, runtime->currentSubdivision);
-                    const int velocity127 = juce::jlimit (1, 127, step.subVelocities[static_cast<size_t> (subIndex)]);
+                    int velocity127 = juce::jlimit (1, 127, step.subVelocities[static_cast<size_t> (subIndex)]);
+                    if (runtime->velocityHumanizePercent > 0)
+                    {
+                        const float depth = static_cast<float> (runtime->velocityHumanizePercent) * 0.01f;
+                        const float jitter = nextRandomSigned() * depth;
+                        const float scaled = static_cast<float> (velocity127) * (1.0f + jitter);
+                        velocity127 = juce::jlimit (1, 127, static_cast<int> (std::round (scaled)));
+                    }
+
                     const float velocity01 = static_cast<float> (velocity127) / 127.0f;
 
                     for (int note = 0; note <= 127; ++note)
@@ -844,7 +864,34 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     }
                 }
 
-                nextTickSample += advanceSubdivisionState();
+                int nextInterval = advanceSubdivisionState();
+                if (runtime->swingPercent > 0)
+                {
+                    const auto& currentStepState = runtime->steps[static_cast<size_t> (runtime->currentStep)];
+                    const int currentSubdivisions = subdivisionCountForRate (currentStepState.rateIndex);
+                    if (currentSubdivisions > 1)
+                    {
+                        const float swingDepth = static_cast<float> (runtime->swingPercent) * 0.01f * 0.5f;
+                        if ((runtime->currentSubdivision & 1) != 0)
+                            nextInterval = static_cast<int> (std::round (static_cast<float> (nextInterval) * (1.0f + swingDepth)));
+                        else
+                            nextInterval = static_cast<int> (std::round (static_cast<float> (nextInterval) * (1.0f - swingDepth)));
+                        nextInterval = juce::jmax (1, nextInterval);
+                    }
+                }
+
+                if (runtime->timingHumanizeMs > 0)
+                {
+                    const int jitterSamples = juce::jmax (0,
+                        msToSamples (currentSampleRate, static_cast<float> (runtime->timingHumanizeMs)));
+                    if (jitterSamples > 0)
+                    {
+                        const int jitter = static_cast<int> (std::round (nextRandomSigned() * static_cast<float> (jitterSamples)));
+                        nextInterval = juce::jmax (1, nextInterval + jitter);
+                    }
+                }
+
+                nextTickSample += nextInterval;
             }
 
             runtime->samplesUntilNextSubstep = nextTickSample - buffer.getNumSamples();
@@ -2136,6 +2183,9 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
     bool enabled = true;
     bool doubling = false;
     int uiRateIndex = 2;
+    int swingPercent = 0;
+    int velocityHumanizePercent = 0;
+    int timingHumanizeMs = 0;
     std::array<StepSequencerRuntime::Step, 8> strumSteps {};
     int parsedStepCount = 0;
 
@@ -2159,6 +2209,9 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
             doubling = static_cast<bool> (doublingVar);
 
         uiRateIndex = juce::jlimit (0, 3, static_cast<int> (object->getProperty ("rateIndex")));
+        swingPercent = juce::jlimit (0, 60, static_cast<int> (object->getProperty ("swingPercent")));
+        velocityHumanizePercent = juce::jlimit (0, 20, static_cast<int> (object->getProperty ("velocityHumanizePercent")));
+        timingHumanizeMs = juce::jlimit (0, 10, static_cast<int> (object->getProperty ("timingHumanizeMs")));
 
         if (const auto* stepPattern = object->getProperty ("stepPattern").getArray())
         {
@@ -2212,10 +2265,14 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
     runtime->followsInputNote = true;
     runtime->doubling = doubling;
     runtime->rateIndex = uiRateIndex;
+    runtime->swingPercent = swingPercent;
+    runtime->velocityHumanizePercent = velocityHumanizePercent;
+    runtime->timingHumanizeMs = timingHumanizeMs;
     runtime->samplesUntilNextStep = 0;
     runtime->samplesUntilNextSubstep = 0;
     runtime->currentStep = -1;
     runtime->currentSubdivision = 0;
+    runtime->randomState = juce::uint32 (juce::Time::getMillisecondCounter());
     runtime->triggerToPlayedNote.fill (-1);
     runtime->triggerDepthByMidi.fill (0);
     runtime->triggerChannelByMidi.fill (1);
