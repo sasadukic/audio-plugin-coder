@@ -177,6 +177,44 @@
       cursor: pointer;
     }
 
+    /* Strum rate dropdown styles */
+    .rate-menu-wrap {
+      position: relative;
+      display: inline-block;
+    }
+
+    .rate-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      min-width: 84px;
+      background: rgba(30,32,36,0.98);
+      border: 1px solid rgba(140,146,156,0.18);
+      border-radius: 8px;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.45);
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 120;
+    }
+
+    .rate-menu.hidden { display: none; }
+
+    .rate-item {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      padding: 6px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .rate-item:hover { background: rgba(255,255,255,0.03); }
+
     button:not(.player-key):hover,
     .file-btn:hover {
       border-color: rgba(140, 146, 156, 0.5);
@@ -4128,15 +4166,18 @@
                 <button id="strumEnableBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Enable Off</button>
                 <button id="strumSequencerBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Seq Off</button>
                 <button id="strumDoublingBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Doubling Off</button>
+                <div class="rate-menu-wrap">
+                  <button id="strumRateBtn" class="sample-loop-tool-btn rate-btn" type="button" aria-haspopup="true" aria-expanded="false">Rate 1/16</button>
+                  <div id="strumRateMenu" class="rate-menu hidden" role="menu" aria-label="Strum rate">
+                    <button class="rate-item" type="button" data-rate-index="0">1/4</button>
+                    <button class="rate-item" type="button" data-rate-index="1">1/8</button>
+                    <button class="rate-item" type="button" data-rate-index="2">1/16</button>
+                    <button class="rate-item" type="button" data-rate-index="3">1/32</button>
+                  </div>
+                </div>
               </div>
               <div class="sample-loop-row sample-loop-row-small" style="margin-top:8px;">
-                <label for="strumRateSelect">Rate</label>
-                <select id="strumRateSelect">
-                  <option value="0">1/4</option>
-                  <option value="1">1/8</option>
-                  <option value="2" selected>1/16</option>
-                  <option value="3">1/32</option>
-                </select>
+                <!-- Rate moved to the top row as a dropdown button -->
                 <label for="strumSwingInput">Swing</label>
                 <input id="strumSwingInput" type="number" min="0" max="75" step="1" value="0">
                 <label for="strumVelHumanInput">Vel Hum</label>
@@ -4457,7 +4498,8 @@
       strumEnableBtn: document.getElementById("strumEnableBtn"),
       strumSequencerBtn: document.getElementById("strumSequencerBtn"),
       strumDoublingBtn: document.getElementById("strumDoublingBtn"),
-      strumRateSelect: document.getElementById("strumRateSelect"),
+      strumRateBtn: document.getElementById("strumRateBtn"),
+      strumRateMenu: document.getElementById("strumRateMenu"),
       strumSwingInput: document.getElementById("strumSwingInput"),
       strumVelHumanInput: document.getElementById("strumVelHumanInput"),
       strumTimeHumanInput: document.getElementById("strumTimeHumanInput"),
@@ -6670,7 +6712,12 @@
         el.strumDoublingBtn.classList.toggle("active", on);
       }
 
-      if (el.strumRateSelect) el.strumRateSelect.value = String(Math.max(0, Math.min(3, Number(state.strumRateIndex) || 0)));
+      const _rateLabels = ["1/4","1/8","1/16","1/32"];
+      if (el.strumRateBtn) {
+        const idx = Math.max(0, Math.min(3, Number(state.strumRateIndex) || 0));
+        el.strumRateBtn.textContent = `Rate ${_rateLabels[idx]}`;
+        el.strumRateBtn.setAttribute('aria-expanded', 'false');
+      }
       if (el.strumSwingInput) el.strumSwingInput.value = String(Math.max(0, Math.min(75, Number(state.strumSwingPercent) || 0)));
       if (el.strumVelHumanInput) el.strumVelHumanInput.value = String(Math.max(0, Math.min(40, Number(state.strumVelocityHumanizePercent) || 0)));
       if (el.strumTimeHumanInput) el.strumTimeHumanInput.value = String(Math.max(0, Math.min(30, Number(state.strumTimingHumanizeMs) || 0)));
@@ -6704,11 +6751,40 @@
         });
       }
 
-      if (el.strumRateSelect) {
-        el.strumRateSelect.addEventListener("change", () => {
-          state.strumRateIndex = Math.max(0, Math.min(3, Math.round(Number(el.strumRateSelect.value) || 0)));
-          updateStrumUi();
-          emitStrumSettings();
+      if (el.strumRateBtn && el.strumRateMenu) {
+        const _rateLabels2 = ["1/4","1/8","1/16","1/32"];
+        el.strumRateBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const open = !el.strumRateMenu.classList.contains("hidden");
+          if (open) {
+            el.strumRateMenu.classList.add("hidden");
+            el.strumRateBtn.setAttribute('aria-expanded','false');
+          } else {
+            el.strumRateMenu.classList.remove("hidden");
+            el.strumRateBtn.setAttribute('aria-expanded','true');
+          }
+        });
+
+        Array.from(el.strumRateMenu.querySelectorAll('.rate-item')).forEach((btn) => {
+          btn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            const idx = Math.max(0, Math.min(3, Number(btn.dataset.rateIndex) || 0));
+            state.strumRateIndex = idx;
+            updateStrumUi();
+            emitStrumSettings();
+            el.strumRateMenu.classList.add('hidden');
+            el.strumRateBtn.setAttribute('aria-expanded','false');
+          });
+        });
+
+        document.addEventListener('click', (ev) => {
+          const target = ev.target;
+          if (!el.strumRateMenu.contains(target) && target !== el.strumRateBtn) {
+            if (!el.strumRateMenu.classList.contains('hidden')) {
+              el.strumRateMenu.classList.add('hidden');
+              el.strumRateBtn.setAttribute('aria-expanded','false');
+            }
+          }
         });
       }
 
