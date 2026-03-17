@@ -294,6 +294,11 @@
       min-width: 0;
     }
 
+    .strum-step-card.is-inactive {
+      opacity: 0.44;
+      filter: saturate(0.2);
+    }
+
     .strum-step-head {
       margin: 0;
       font-size: 8px;
@@ -310,27 +315,54 @@
       border: 1px solid rgba(140, 146, 156, 0.3);
       border-radius: 6px;
       background: rgba(12, 17, 26, 0.86);
-      padding: 6px;
+      padding: 4px;
       display: flex;
-      align-items: flex-end;
-      justify-content: center;
+      align-items: stretch;
+      justify-content: stretch;
       cursor: ns-resize;
     }
 
     .strum-step-velocity-track {
-      width: 16px;
+      width: 100%;
       height: 100%;
       border-radius: 5px;
       background: rgba(59, 64, 74, 0.85);
       border: 1px solid rgba(140, 146, 156, 0.24);
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      gap: 3px;
+      padding: 3px;
+      overflow: hidden;
+    }
+
+    .strum-step-velocity-track.is-rest {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .strum-step-velocity-bar {
+      border-radius: 3px;
+      border: 1px solid rgba(140, 146, 156, 0.24);
+      background: rgba(40, 45, 54, 0.88);
       display: flex;
       align-items: flex-end;
+      min-width: 0;
       overflow: hidden;
     }
 
     .strum-step-velocity-fill {
       width: 100%;
       background: linear-gradient(180deg, rgba(255, 225, 128, 0.92), rgba(255, 190, 67, 0.95));
+    }
+
+    .strum-step-rest-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
     }
 
     .strum-step-velocity-label {
@@ -367,6 +399,11 @@
       width: 100%;
       min-width: 0;
       z-index: 230;
+    }
+
+    .strum-step-card.is-inactive .strum-step-velocity-btn,
+    .strum-step-card.is-inactive .strum-step-rate-btn {
+      cursor: default;
     }
 
     button:not(.player-key):hover,
@@ -4464,6 +4501,7 @@
     const SEQUENCER_STEP_COUNT = 16;
     const STRUM_RATE_LABELS = ["1/4", "1/8", "1/16", "1/32"];
     const STRUM_STEP_RATE_LABELS = ["1/4", "1/8", "1/16", "1/32", "Rest"];
+    const STRUM_STEP_MAX_SUBDIVISIONS = 8;
 
     const state = {
       wallpaperUrl: "",
@@ -4548,7 +4586,7 @@
       strumVelocityHumanizePercent: 0,
       strumTimingHumanizeMs: 0,
       strumStepPattern: Array.from({ length: 8 }, () => ({
-        velocity: 100,
+        subVelocities: Array.from({ length: STRUM_STEP_MAX_SUBDIVISIONS }, () => 100),
         rateIndex: 2
       })),
       nextVirtualOrder: -1,
@@ -6897,19 +6935,55 @@
       return 0;
     }
 
+    function getStrumSubdivisionCount(rateIndex) {
+      if (rateIndex === 0) return 1;
+      if (rateIndex === 1) return 2;
+      if (rateIndex === 2) return 4;
+      if (rateIndex === 3) return 8;
+      return 0;
+    }
+
     function normalizeStrumStep(step) {
-      const velocity = Math.max(1, Math.min(127, Math.round(Number(step?.velocity) || 100)));
       const rateIndex = Math.max(0, Math.min(4, Math.round(Number(step?.rateIndex) || 2)));
+      const legacyVelocity = Math.max(1, Math.min(127, Math.round(Number(step?.velocity) || 100)));
+      let subVelocities = Array.isArray(step?.subVelocities)
+        ? step.subVelocities.map((value) => Math.max(1, Math.min(127, Math.round(Number(value) || legacyVelocity))))
+        : [];
+
+      if (!subVelocities.length) {
+        subVelocities = Array.from({ length: STRUM_STEP_MAX_SUBDIVISIONS }, () => legacyVelocity);
+      }
+
+      while (subVelocities.length < STRUM_STEP_MAX_SUBDIVISIONS) {
+        subVelocities.push(subVelocities[subVelocities.length - 1] || legacyVelocity);
+      }
+
+      if (subVelocities.length > STRUM_STEP_MAX_SUBDIVISIONS) {
+        subVelocities = subVelocities.slice(0, STRUM_STEP_MAX_SUBDIVISIONS);
+      }
+
+      const activeSubdivisionCount = getStrumSubdivisionCount(rateIndex);
+      const activeVelocities = activeSubdivisionCount > 0
+        ? subVelocities.slice(0, activeSubdivisionCount)
+        : [];
+      const velocity = activeVelocities.length
+        ? Math.max(1, Math.min(127, Math.round(activeVelocities.reduce((sum, value) => sum + value, 0) / activeVelocities.length)))
+        : 0;
+
       return {
         velocity,
-        rateIndex
+        rateIndex,
+        subVelocities
       };
     }
 
     function ensureStrumStepPattern() {
       if (!Array.isArray(state.strumStepPattern)) state.strumStepPattern = [];
       while (state.strumStepPattern.length < 8) {
-        state.strumStepPattern.push({ velocity: 100, rateIndex: 2 });
+        state.strumStepPattern.push({
+          subVelocities: Array.from({ length: STRUM_STEP_MAX_SUBDIVISIONS }, () => 100),
+          rateIndex: 2
+        });
       }
       if (state.strumStepPattern.length > 8) {
         state.strumStepPattern = state.strumStepPattern.slice(0, 8);
@@ -6920,31 +6994,49 @@
     function getVisibleStrumStepPattern() {
       ensureStrumStepPattern();
       const count = getStrumVisibleStepCount();
-      return state.strumStepPattern.slice(0, count).map(normalizeStrumStep);
+      return state.strumStepPattern.slice(0, count).map((step) => {
+        const normalized = normalizeStrumStep(step);
+        const subdivisionCount = getStrumSubdivisionCount(normalized.rateIndex);
+        return {
+          velocity: normalized.velocity,
+          rateIndex: normalized.rateIndex,
+          subVelocities: normalized.subVelocities.slice(0, subdivisionCount)
+        };
+      });
     }
 
     function renderStrumStepGrid() {
       if (!el.strumStepGrid) return;
       ensureStrumStepPattern();
-      const stepCount = getStrumVisibleStepCount();
+      const activeStepCount = getStrumVisibleStepCount();
       el.strumStepGrid.innerHTML = "";
-      el.strumStepGrid.classList.toggle("hidden", stepCount === 0);
-      if (stepCount === 0) return;
+      el.strumStepGrid.classList.toggle("hidden", activeStepCount === 0);
+      if (activeStepCount === 0) return;
 
-      for (let stepIndex = 0; stepIndex < stepCount; stepIndex += 1) {
+      for (let stepIndex = 0; stepIndex < 8; stepIndex += 1) {
         const step = normalizeStrumStep(state.strumStepPattern[stepIndex]);
+        const isInactive = stepIndex >= activeStepCount;
+        const subdivisionCount = getStrumSubdivisionCount(step.rateIndex);
+        const barsMarkup = subdivisionCount > 0
+          ? Array.from({ length: subdivisionCount }, (_, barIndex) => {
+              const vel = Math.max(1, Math.min(127, Math.round(Number(step.subVelocities[barIndex]) || 100)));
+              return `<span class="strum-step-velocity-bar" data-step-index="${stepIndex}" data-bar-index="${barIndex}"><span class="strum-step-velocity-fill" style="height: ${(vel / 127) * 100}%;"></span></span>`;
+            }).join("")
+          : '<span class="strum-step-rest-label">Rest</span>';
+
         const stepCard = document.createElement("div");
-        stepCard.className = "strum-step-card";
+        stepCard.className = `strum-step-card${isInactive ? " is-inactive" : ""}`;
+        stepCard.setAttribute("aria-disabled", isInactive ? "true" : "false");
         stepCard.innerHTML = `
           <p class="strum-step-head">Step ${stepIndex + 1}</p>
-          <button class="strum-step-velocity-btn" type="button" data-step-index="${stepIndex}" aria-label="Set velocity for step ${stepIndex + 1}">
-            <span class="strum-step-velocity-track">
-              <span class="strum-step-velocity-fill" style="height: ${(step.velocity / 127) * 100}%;"></span>
+          <button class="strum-step-velocity-btn" type="button" data-step-index="${stepIndex}" aria-label="Set velocity for step ${stepIndex + 1}" ${isInactive ? "disabled" : ""}>
+            <span class="strum-step-velocity-track${subdivisionCount === 0 ? " is-rest" : ""}">
+              ${barsMarkup}
             </span>
           </button>
           <p class="strum-step-velocity-label">Velocity ${step.velocity}</p>
           <div class="strum-step-rate-wrap">
-            <button class="sample-loop-tool-btn strum-menu-btn strum-step-rate-btn" type="button" data-step-index="${stepIndex}" aria-haspopup="true" aria-expanded="false">Rate ${STRUM_STEP_RATE_LABELS[step.rateIndex]}</button>
+            <button class="sample-loop-tool-btn strum-menu-btn strum-step-rate-btn" type="button" data-step-index="${stepIndex}" aria-haspopup="true" aria-expanded="false" ${isInactive ? "disabled" : ""}>Rate ${STRUM_STEP_RATE_LABELS[step.rateIndex]}</button>
             <div class="strum-menu strum-step-rate-menu hidden" role="menu" aria-label="Step ${stepIndex + 1} rate">
               <button class="strum-menu-item strum-step-rate-item" type="button" data-step-index="${stepIndex}" data-step-rate-index="0">1/4</button>
               <button class="strum-menu-item strum-step-rate-item" type="button" data-step-index="${stepIndex}" data-step-rate-index="1">1/8</button>
@@ -7133,16 +7225,22 @@
       });
 
       if (el.strumStepGrid) {
-        const setVelocityFromPointer = (stepIndex, clientY, velocityBtn) => {
+        const setVelocityFromPointer = (stepIndex, barIndex, clientY, velocityBtn) => {
+          const activeStepCount = getStrumVisibleStepCount();
           const index = Math.max(0, Math.min(7, Number(stepIndex) || 0));
+          if (index >= activeStepCount) return;
           const rect = velocityBtn.getBoundingClientRect();
           const normalized = 1 - ((clientY - rect.top) / Math.max(1, rect.height));
           const clamped = Math.max(0, Math.min(1, normalized));
           const velocity = Math.max(1, Math.min(127, Math.round(clamped * 127)));
+          const subdivisionIndex = Math.max(0, Math.min(STRUM_STEP_MAX_SUBDIVISIONS - 1, Number(barIndex) || 0));
           ensureStrumStepPattern();
+          const normalizedStep = normalizeStrumStep(state.strumStepPattern[index]);
+          const nextSubVelocities = normalizedStep.subVelocities.slice();
+          nextSubVelocities[subdivisionIndex] = velocity;
           state.strumStepPattern[index] = {
-            ...normalizeStrumStep(state.strumStepPattern[index]),
-            velocity
+            ...normalizedStep,
+            subVelocities: nextSubVelocities
           };
           updateStrumUi();
           emitStrumSettings();
@@ -7152,14 +7250,19 @@
         el.strumStepGrid.addEventListener("pointerdown", (ev) => {
           const target = ev.target;
           if (!(target instanceof Element)) return;
+          const velocityBar = target.closest(".strum-step-velocity-bar");
+          if (!(velocityBar instanceof HTMLElement)) return;
           const velocityBtn = target.closest(".strum-step-velocity-btn");
           if (!(velocityBtn instanceof HTMLButtonElement)) return;
+          if (velocityBtn.disabled) return;
           const stepIndex = Number(velocityBtn.dataset.stepIndex);
+          const barIndex = Number(velocityBar.dataset.barIndex);
           if (!Number.isFinite(stepIndex)) return;
+          if (!Number.isFinite(barIndex)) return;
           ev.preventDefault();
-          setVelocityFromPointer(stepIndex, ev.clientY, velocityBtn);
+          setVelocityFromPointer(stepIndex, barIndex, ev.clientY, velocityBtn);
 
-          const onMove = (moveEv) => setVelocityFromPointer(stepIndex, moveEv.clientY, velocityBtn);
+          const onMove = (moveEv) => setVelocityFromPointer(stepIndex, barIndex, moveEv.clientY, velocityBtn);
           const onUp = () => {
             window.removeEventListener("pointermove", onMove);
             window.removeEventListener("pointerup", onUp);
@@ -7176,10 +7279,13 @@
           const rateItem = target.closest(".strum-step-rate-item");
           if (rateItem instanceof HTMLButtonElement) {
             const stepIndex = Math.max(0, Math.min(7, Number(rateItem.dataset.stepIndex) || 0));
+            const activeStepCount = getStrumVisibleStepCount();
+            if (stepIndex >= activeStepCount) return;
             const rateIndex = Math.max(0, Math.min(4, Number(rateItem.dataset.stepRateIndex) || 0));
             ensureStrumStepPattern();
+            const normalizedStep = normalizeStrumStep(state.strumStepPattern[stepIndex]);
             state.strumStepPattern[stepIndex] = {
-              ...normalizeStrumStep(state.strumStepPattern[stepIndex]),
+              ...normalizedStep,
               rateIndex
             };
             closeStrumMenus();
@@ -7191,6 +7297,7 @@
 
           const rateBtn = target.closest(".strum-step-rate-btn");
           if (rateBtn instanceof HTMLButtonElement) {
+            if (rateBtn.disabled) return;
             ev.stopPropagation();
             const menu = rateBtn.parentElement?.querySelector(".strum-step-rate-menu");
             if (!(menu instanceof HTMLElement)) return;
