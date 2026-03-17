@@ -177,7 +177,7 @@
       cursor: pointer;
     }
 
-    /* Strum rate dropdown styles */
+    /* Strum dropdown controls */
     .strum-controls-row {
       overflow: visible;
       flex-wrap: wrap;
@@ -185,56 +185,62 @@
       z-index: 6;
     }
 
-    .rate-menu-wrap {
+    .strum-menu-wrap {
       position: relative;
-      display: inline-block;
+      display: inline-flex;
     }
 
-    .rate-btn {
+    .strum-menu-btn {
       text-transform: none;
-    }
-
-    .rate-btn::after {
-      content: " \25BE";
       font-size: 10px;
-      opacity: 0.8;
+      letter-spacing: 0.04em;
     }
 
-    .rate-menu {
+    .strum-menu {
       position: absolute;
       left: 0;
-      top: calc(100% + 8px);
-      min-width: 84px;
-      background: rgba(30,32,36,0.98);
-      border: 1px solid rgba(140,146,156,0.18);
-      border-radius: 8px;
-      box-shadow: 0 8px 18px rgba(0,0,0,0.45);
-      padding: 6px;
+      top: calc(100% + 6px);
+      min-width: 100%;
+      background: rgba(12, 17, 26, 0.96);
+      border: 1px solid rgba(140, 146, 156, 0.3);
+      border-radius: 4px;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+      padding: 4px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      z-index: 120;
+      gap: 4px;
+      z-index: 220;
     }
 
-    .rate-menu.hidden { display: none; }
+    .strum-menu.hidden { display: none; }
 
-    .rate-item {
+    .strum-menu-item {
       appearance: none;
-      border: 0;
+      border: 1px solid transparent;
       background: transparent;
       color: var(--text);
       text-align: left;
-      padding: 6px 8px;
-      border-radius: 6px;
+      padding: 0 6px;
+      height: 22px;
+      border-radius: 4px;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      text-transform: none;
+      line-height: 1;
+      display: flex;
+      align-items: center;
     }
 
-    .rate-item:hover { background: rgba(255,255,255,0.07); }
+    .strum-menu-item:hover {
+      background: rgba(55, 58, 66, 0.94);
+      border-color: rgba(140, 146, 156, 0.5);
+    }
 
-    .rate-item.active {
-      background: rgba(121, 169, 161, 0.22);
-      color: #eaf2f0;
+    .strum-menu-item.active {
+      border-color: rgba(255, 216, 92, 0.72);
+      color: #ffdf7e;
+      background: rgba(28, 24, 13, 0.86);
     }
 
     button:not(.player-key):hover,
@@ -4188,24 +4194,59 @@
                 <button id="strumEnableBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Enable Off</button>
                 <button id="strumSequencerBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Seq Off</button>
                 <button id="strumDoublingBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Doubling Off</button>
-                <div class="rate-menu-wrap">
-                  <button id="strumRateBtn" class="sample-loop-tool-btn rate-btn" type="button" aria-haspopup="true" aria-expanded="false">Rate 1/16</button>
-                  <div id="strumRateMenu" class="rate-menu hidden" role="menu" aria-label="Strum rate">
-                    <button class="rate-item" type="button" data-rate-index="0">1/4</button>
-                    <button class="rate-item" type="button" data-rate-index="1">1/8</button>
-                    <button class="rate-item" type="button" data-rate-index="2">1/16</button>
-                    <button class="rate-item" type="button" data-rate-index="3">1/32</button>
+                <div class="strum-menu-wrap">
+                  <button id="strumRateBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Rate 1/16</button>
+                  <div id="strumRateMenu" class="strum-menu hidden" role="menu" aria-label="Strum rate">
+                    <button class="strum-menu-item" type="button" data-rate-index="0">1/4</button>
+                    <button class="strum-menu-item" type="button" data-rate-index="1">1/8</button>
+                    <button class="strum-menu-item" type="button" data-rate-index="2">1/16</button>
+                    <button class="strum-menu-item" type="button" data-rate-index="3">1/32</button>
                   </div>
                 </div>
-              </div>
-              <div class="sample-loop-row sample-loop-row-small" style="margin-top:8px;">
-                <!-- Rate moved to the top row as a dropdown button -->
-                <label for="strumSwingInput">Swing</label>
-                <input id="strumSwingInput" type="number" min="0" max="75" step="1" value="0">
-                <label for="strumVelHumanInput">Vel Hum</label>
-                <input id="strumVelHumanInput" type="number" min="0" max="40" step="1" value="0">
-                <label for="strumTimeHumanInput">Time Hum</label>
-                <input id="strumTimeHumanInput" type="number" min="0" max="30" step="1" value="0">
+                <div class="strum-menu-wrap">
+                  <button id="strumSwingBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Swing 0%</button>
+                  <div id="strumSwingMenu" class="strum-menu hidden" role="menu" aria-label="Strum swing">
+                    <button class="strum-menu-item" type="button" data-swing-value="0">0%</button>
+                    <button class="strum-menu-item" type="button" data-swing-value="10">10%</button>
+                    <button class="strum-menu-item" type="button" data-swing-value="20">20%</button>
+                    <button class="strum-menu-item" type="button" data-swing-value="30">30%</button>
+                    <button class="strum-menu-item" type="button" data-swing-value="40">40%</button>
+                    <button class="strum-menu-item" type="button" data-swing-value="50">50%</button>
+                    <button class="strum-menu-item" type="button" data-swing-value="60">60%</button>
+                    <button class="strum-menu-item" type="button" data-swing-value="70">70%</button>
+                    <button class="strum-menu-item" type="button" data-swing-value="75">75%</button>
+                  </div>
+                </div>
+                <div class="strum-menu-wrap">
+                  <button id="strumVelHumanBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Vel Hum 0%</button>
+                  <div id="strumVelHumanMenu" class="strum-menu hidden" role="menu" aria-label="Strum velocity humanize">
+                    <button class="strum-menu-item" type="button" data-vel-human-value="0">0%</button>
+                    <button class="strum-menu-item" type="button" data-vel-human-value="5">5%</button>
+                    <button class="strum-menu-item" type="button" data-vel-human-value="10">10%</button>
+                    <button class="strum-menu-item" type="button" data-vel-human-value="15">15%</button>
+                    <button class="strum-menu-item" type="button" data-vel-human-value="20">20%</button>
+                    <button class="strum-menu-item" type="button" data-vel-human-value="25">25%</button>
+                    <button class="strum-menu-item" type="button" data-vel-human-value="30">30%</button>
+                    <button class="strum-menu-item" type="button" data-vel-human-value="35">35%</button>
+                    <button class="strum-menu-item" type="button" data-vel-human-value="40">40%</button>
+                  </div>
+                </div>
+                <div class="strum-menu-wrap">
+                  <button id="strumTimeHumanBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Time Hum 0ms</button>
+                  <div id="strumTimeHumanMenu" class="strum-menu hidden" role="menu" aria-label="Strum timing humanize">
+                    <button class="strum-menu-item" type="button" data-time-human-value="0">0ms</button>
+                    <button class="strum-menu-item" type="button" data-time-human-value="2">2ms</button>
+                    <button class="strum-menu-item" type="button" data-time-human-value="4">4ms</button>
+                    <button class="strum-menu-item" type="button" data-time-human-value="6">6ms</button>
+                    <button class="strum-menu-item" type="button" data-time-human-value="8">8ms</button>
+                    <button class="strum-menu-item" type="button" data-time-human-value="10">10ms</button>
+                    <button class="strum-menu-item" type="button" data-time-human-value="12">12ms</button>
+                    <button class="strum-menu-item" type="button" data-time-human-value="16">16ms</button>
+                    <button class="strum-menu-item" type="button" data-time-human-value="20">20ms</button>
+                    <button class="strum-menu-item" type="button" data-time-human-value="24">24ms</button>
+                    <button class="strum-menu-item" type="button" data-time-human-value="30">30ms</button>
+                  </div>
+                </div>
               </div>
               <div id="strumStatus" class="status"></div>
             </div>
@@ -4522,9 +4563,12 @@
       strumDoublingBtn: document.getElementById("strumDoublingBtn"),
       strumRateBtn: document.getElementById("strumRateBtn"),
       strumRateMenu: document.getElementById("strumRateMenu"),
-      strumSwingInput: document.getElementById("strumSwingInput"),
-      strumVelHumanInput: document.getElementById("strumVelHumanInput"),
-      strumTimeHumanInput: document.getElementById("strumTimeHumanInput"),
+      strumSwingBtn: document.getElementById("strumSwingBtn"),
+      strumSwingMenu: document.getElementById("strumSwingMenu"),
+      strumVelHumanBtn: document.getElementById("strumVelHumanBtn"),
+      strumVelHumanMenu: document.getElementById("strumVelHumanMenu"),
+      strumTimeHumanBtn: document.getElementById("strumTimeHumanBtn"),
+      strumTimeHumanMenu: document.getElementById("strumTimeHumanMenu"),
       strumStatus: document.getElementById("strumStatus"),
       sequencerArpSection: document.getElementById("sequencerArpSection"),
       sequencerArpToggle: document.getElementById("sequencerArpToggle"),
@@ -6734,26 +6778,96 @@
         el.strumDoublingBtn.classList.toggle("active", on);
       }
 
-      const _rateLabels = ["1/4","1/8","1/16","1/32"];
+      const _rateLabels = ["1/4", "1/8", "1/16", "1/32"];
       if (el.strumRateBtn) {
         const idx = Math.max(0, Math.min(3, Number(state.strumRateIndex) || 0));
         el.strumRateBtn.textContent = `Rate ${_rateLabels[idx]}`;
         if (el.strumRateMenu) {
           const isOpen = !el.strumRateMenu.classList.contains("hidden");
           el.strumRateBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
-          const items = Array.from(el.strumRateMenu.querySelectorAll(".rate-item"));
+          const items = Array.from(el.strumRateMenu.querySelectorAll(".strum-menu-item"));
           items.forEach((item, itemIndex) => {
             item.classList.toggle("active", itemIndex === idx);
           });
         }
       }
-      if (el.strumSwingInput) el.strumSwingInput.value = String(Math.max(0, Math.min(75, Number(state.strumSwingPercent) || 0)));
-      if (el.strumVelHumanInput) el.strumVelHumanInput.value = String(Math.max(0, Math.min(40, Number(state.strumVelocityHumanizePercent) || 0)));
-      if (el.strumTimeHumanInput) el.strumTimeHumanInput.value = String(Math.max(0, Math.min(30, Number(state.strumTimingHumanizeMs) || 0)));
+
+      const swing = Math.max(0, Math.min(75, Number(state.strumSwingPercent) || 0));
+      if (el.strumSwingBtn) {
+        el.strumSwingBtn.textContent = `Swing ${swing}%`;
+        if (el.strumSwingMenu) {
+          const isOpen = !el.strumSwingMenu.classList.contains("hidden");
+          el.strumSwingBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+          Array.from(el.strumSwingMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
+            const val = Math.max(0, Math.min(75, Number(item.dataset.swingValue) || 0));
+            item.classList.toggle("active", val === swing);
+          });
+        }
+      }
+
+      const velHum = Math.max(0, Math.min(40, Number(state.strumVelocityHumanizePercent) || 0));
+      if (el.strumVelHumanBtn) {
+        el.strumVelHumanBtn.textContent = `Vel Hum ${velHum}%`;
+        if (el.strumVelHumanMenu) {
+          const isOpen = !el.strumVelHumanMenu.classList.contains("hidden");
+          el.strumVelHumanBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+          Array.from(el.strumVelHumanMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
+            const val = Math.max(0, Math.min(40, Number(item.dataset.velHumanValue) || 0));
+            item.classList.toggle("active", val === velHum);
+          });
+        }
+      }
+
+      const timeHum = Math.max(0, Math.min(30, Number(state.strumTimingHumanizeMs) || 0));
+      if (el.strumTimeHumanBtn) {
+        el.strumTimeHumanBtn.textContent = `Time Hum ${timeHum}ms`;
+        if (el.strumTimeHumanMenu) {
+          const isOpen = !el.strumTimeHumanMenu.classList.contains("hidden");
+          el.strumTimeHumanBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+          Array.from(el.strumTimeHumanMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
+            const val = Math.max(0, Math.min(30, Number(item.dataset.timeHumanValue) || 0));
+            item.classList.toggle("active", val === timeHum);
+          });
+        }
+      }
     }
 
     function setupStrum() {
       updateStrumUi();
+
+      const closeStrumMenus = () => {
+        const menus = [el.strumRateMenu, el.strumSwingMenu, el.strumVelHumanMenu, el.strumTimeHumanMenu];
+        const buttons = [el.strumRateBtn, el.strumSwingBtn, el.strumVelHumanBtn, el.strumTimeHumanBtn];
+        menus.forEach((menu) => {
+          if (menu) menu.classList.add("hidden");
+        });
+        buttons.forEach((btn) => {
+          if (btn) btn.setAttribute("aria-expanded", "false");
+        });
+      };
+
+      const setupStrumMenu = (btn, menu, itemSelector, onSelect) => {
+        if (!btn || !menu) return;
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const open = !menu.classList.contains("hidden");
+          closeStrumMenus();
+          if (!open) {
+            menu.classList.remove("hidden");
+            btn.setAttribute("aria-expanded", "true");
+          }
+        });
+
+        Array.from(menu.querySelectorAll(itemSelector)).forEach((item) => {
+          item.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            onSelect(item);
+            updateStrumUi();
+            emitStrumSettings();
+            closeStrumMenus();
+          });
+        });
+      };
 
       if (el.strumEnableBtn) {
         el.strumEnableBtn.addEventListener("click", () => {
@@ -6780,66 +6894,31 @@
         });
       }
 
-      if (el.strumRateBtn && el.strumRateMenu) {
-        el.strumRateBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const open = !el.strumRateMenu.classList.contains("hidden");
-          if (open) {
-            el.strumRateMenu.classList.add("hidden");
-            el.strumRateBtn.setAttribute('aria-expanded','false');
-          } else {
-            el.strumRateMenu.classList.remove("hidden");
-            el.strumRateBtn.setAttribute('aria-expanded','true');
-          }
-        });
+      setupStrumMenu(el.strumRateBtn, el.strumRateMenu, ".strum-menu-item", (item) => {
+        state.strumRateIndex = Math.max(0, Math.min(3, Number(item.dataset.rateIndex) || 0));
+      });
 
-        Array.from(el.strumRateMenu.querySelectorAll('.rate-item')).forEach((btn) => {
-          btn.addEventListener('click', (ev) => {
-            ev.stopPropagation();
-            const idx = Math.max(0, Math.min(3, Number(btn.dataset.rateIndex) || 0));
-            state.strumRateIndex = idx;
-            updateStrumUi();
-            emitStrumSettings();
-            el.strumRateMenu.classList.add('hidden');
-            el.strumRateBtn.setAttribute('aria-expanded','false');
-          });
-        });
+      setupStrumMenu(el.strumSwingBtn, el.strumSwingMenu, ".strum-menu-item", (item) => {
+        state.strumSwingPercent = Math.max(0, Math.min(75, Number(item.dataset.swingValue) || 0));
+      });
 
-        document.addEventListener('click', (ev) => {
-          const target = ev.target;
-          if (!(target instanceof Node)) return;
-          if (!el.strumRateMenu.contains(target) && target !== el.strumRateBtn) {
-            if (!el.strumRateMenu.classList.contains('hidden')) {
-              el.strumRateMenu.classList.add('hidden');
-              el.strumRateBtn.setAttribute('aria-expanded','false');
-            }
-          }
-        });
-      }
+      setupStrumMenu(el.strumVelHumanBtn, el.strumVelHumanMenu, ".strum-menu-item", (item) => {
+        state.strumVelocityHumanizePercent = Math.max(0, Math.min(40, Number(item.dataset.velHumanValue) || 0));
+      });
 
-      if (el.strumSwingInput) {
-        el.strumSwingInput.addEventListener("change", () => {
-          state.strumSwingPercent = Math.max(0, Math.min(75, Math.round(Number(el.strumSwingInput.value) || 0)));
-          updateStrumUi();
-          emitStrumSettings();
-        });
-      }
+      setupStrumMenu(el.strumTimeHumanBtn, el.strumTimeHumanMenu, ".strum-menu-item", (item) => {
+        state.strumTimingHumanizeMs = Math.max(0, Math.min(30, Number(item.dataset.timeHumanValue) || 0));
+      });
 
-      if (el.strumVelHumanInput) {
-        el.strumVelHumanInput.addEventListener("change", () => {
-          state.strumVelocityHumanizePercent = Math.max(0, Math.min(40, Math.round(Number(el.strumVelHumanInput.value) || 0)));
-          updateStrumUi();
-          emitStrumSettings();
-        });
-      }
-
-      if (el.strumTimeHumanInput) {
-        el.strumTimeHumanInput.addEventListener("change", () => {
-          state.strumTimingHumanizeMs = Math.max(0, Math.min(30, Math.round(Number(el.strumTimeHumanInput.value) || 0)));
-          updateStrumUi();
-          emitStrumSettings();
-        });
-      }
+      document.addEventListener("click", (ev) => {
+        const target = ev.target;
+        if (!(target instanceof Node)) return;
+        const menus = [el.strumRateMenu, el.strumSwingMenu, el.strumVelHumanMenu, el.strumTimeHumanMenu];
+        const buttons = [el.strumRateBtn, el.strumSwingBtn, el.strumVelHumanBtn, el.strumTimeHumanBtn];
+        const clickedInsideMenu = menus.some((menu) => !!menu && menu.contains(target));
+        const clickedMenuButton = buttons.some((btn) => !!btn && btn === target);
+        if (!clickedInsideMenu && !clickedMenuButton) closeStrumMenus();
+      });
     }
 
     function updateKeyswitchLoopModeButton(enabled) {
