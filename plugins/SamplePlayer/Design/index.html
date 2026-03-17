@@ -4367,6 +4367,7 @@
                 <div class="strum-menu-wrap">
                   <button id="strumSequencerBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Sequencer 8</button>
                   <div id="strumSequencerMenu" class="strum-menu hidden" role="menu" aria-label="Strum sequencer steps">
+                    <button class="strum-menu-item" type="button" data-sequencer-steps="0">Off</button>
                     <button class="strum-menu-item" type="button" data-sequencer-steps="1">1 Step</button>
                     <button class="strum-menu-item" type="button" data-sequencer-steps="2">2 Steps</button>
                     <button class="strum-menu-item" type="button" data-sequencer-steps="3">3 Steps</button>
@@ -6923,7 +6924,7 @@
     function emitStrumSettings() {
       const stepCount = getStrumVisibleStepCount();
       emitNativeEvent("strum_settings_set", {
-        enabled: true,
+        enabled: stepCount > 0,
         sequencerMode: stepCount <= 0 ? 0 : (stepCount <= 4 ? 1 : 2),
         doubling: !!state.strumDoubling,
         rateIndex: getStrumEffectiveRateIndex(),
@@ -6937,12 +6938,12 @@
     function getStrumVisibleStepCount() {
       const explicit = Number(state.strumSequencerSteps);
       if (Number.isFinite(explicit)) {
-        return Math.max(1, Math.min(8, Math.round(explicit)));
+        return Math.max(0, Math.min(8, Math.round(explicit)));
       }
       const legacyMode = Math.max(0, Math.min(2, Number(state.strumSequencerMode) || 0));
       if (legacyMode === 1) return 4;
       if (legacyMode === 2) return 8;
-      return 8;
+      return 0;
     }
 
     function getStrumSubdivisionCount(rateIndex) {
@@ -7133,14 +7134,15 @@
 
       if (el.strumSequencerBtn) {
         const stepCount = getStrumVisibleStepCount();
-        el.strumSequencerBtn.textContent = `Sequencer ${stepCount}`;
-        el.strumSequencerBtn.setAttribute("aria-pressed", "true");
-        el.strumSequencerBtn.classList.add("active");
+        el.strumSequencerBtn.textContent = stepCount <= 0 ? "Sequencer Off" : `Sequencer ${stepCount}`;
+        el.strumSequencerBtn.setAttribute("aria-pressed", stepCount > 0 ? "true" : "false");
+        el.strumSequencerBtn.classList.toggle("active", stepCount > 0);
         if (el.strumSequencerMenu) {
           const isOpen = !el.strumSequencerMenu.classList.contains("hidden");
           el.strumSequencerBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
           Array.from(el.strumSequencerMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
-            const steps = Math.max(1, Math.min(8, Number(item.dataset.sequencerSteps) || 8));
+            const rawSteps = Number(item.dataset.sequencerSteps);
+            const steps = Number.isFinite(rawSteps) ? Math.max(0, Math.min(8, Math.round(rawSteps))) : 8;
             item.classList.toggle("active", steps === stepCount);
           });
         }
@@ -7271,8 +7273,9 @@
 
       if (el.strumSequencerBtn) {
         setupStrumMenu(el.strumSequencerBtn, el.strumSequencerMenu, ".strum-menu-item", (item) => {
-          state.strumSequencerSteps = Math.max(1, Math.min(8, Number(item.dataset.sequencerSteps) || 8));
-          state.strumSequencerMode = state.strumSequencerSteps <= 4 ? 1 : 2;
+          const rawSteps = Number(item.dataset.sequencerSteps);
+          state.strumSequencerSteps = Number.isFinite(rawSteps) ? Math.max(0, Math.min(8, Math.round(rawSteps))) : 8;
+          state.strumSequencerMode = state.strumSequencerSteps <= 0 ? 0 : (state.strumSequencerSteps <= 4 ? 1 : 2);
         });
       }
 
