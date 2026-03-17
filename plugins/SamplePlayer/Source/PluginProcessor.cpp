@@ -752,6 +752,49 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     juce::MidiBuffer renderMidi = transposedIncomingMidi;
     renderMidi.addEvents (generatedMidi, 0, buffer.getNumSamples(), 0);
 
+    if (auto runtime = std::atomic_load (&strumSequencerRuntime);
+        runtime != nullptr && runtime->enabled)
+    {
+        bool hasHeldTrigger = false;
+        for (int note = 0; note <= 127; ++note)
+        {
+            if (runtime->triggerDepthByMidi[static_cast<size_t> (note)] > 0)
+            {
+                hasHeldTrigger = true;
+                break;
+            }
+        }
+
+        if (hasHeldTrigger)
+        {
+            constexpr std::array<int, 4> subdivisionsByRate { 1, 2, 4, 8 };
+            const int clampedRate = juce::jlimit (0, 3, runtime->rateIndex);
+            const int subdivisions = subdivisionsByRate[static_cast<size_t> (clampedRate)];
+            const int intervalSamples = juce::jmax (1, static_cast<int> ((currentSampleRate * 0.5) / static_cast<double> (subdivisions)));
+
+            int nextTickSample = runtime->samplesUntilNextStep;
+            while (nextTickSample < buffer.getNumSamples())
+            {
+                for (int note = 0; note <= 127; ++note)
+                {
+                    if (runtime->triggerDepthByMidi[static_cast<size_t> (note)] <= 0)
+                        continue;
+
+                    const int channel = juce::jlimit (1, 16, runtime->triggerChannelByMidi[static_cast<size_t> (note)]);
+                    renderMidi.addEvent (juce::MidiMessage::noteOn (channel, note, static_cast<juce::uint8> (100)), nextTickSample);
+                }
+
+                nextTickSample += intervalSamples;
+            }
+
+            runtime->samplesUntilNextStep = nextTickSample - buffer.getNumSamples();
+        }
+        else
+        {
+            runtime->samplesUntilNextStep = 0;
+        }
+    }
+
     auto inputBuffer = getBusBuffer (buffer, true, 0);
     auto outputBuffer = getBusBuffer (buffer, false, 0);
     const bool inputHasChannels = inputBuffer.getNumChannels() > 0;
@@ -2029,6 +2072,7 @@ void SamplePlayerAudioProcessor::setSequencerHostTriggerEnabled (bool enabled)
 void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payload)
 {
     bool enabled = true;
+    int uiRateIndex = 2;
     std::array<StepSequencerRuntime::Step, 8> strumSteps {};
     int parsedStepCount = 0;
 
@@ -2044,6 +2088,8 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
         const auto enabledVar = object->getProperty ("enabled");
         if (! enabledVar.isVoid())
             enabled = static_cast<bool> (enabledVar);
+
+        uiRateIndex = juce::jlimit (0, 3, static_cast<int> (object->getProperty ("rateIndex")));
 
         if (const auto* stepPattern = object->getProperty ("stepPattern").getArray())
         {
@@ -2083,9 +2129,12 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
     auto runtime = std::make_shared<StepSequencerRuntime>();
     runtime->enabled = enabled;
     runtime->followsInputNote = true;
+    runtime->rateIndex = uiRateIndex;
+    runtime->samplesUntilNextStep = 0;
     runtime->currentStep = -1;
     runtime->triggerToPlayedNote.fill (-1);
     runtime->triggerDepthByMidi.fill (0);
+    runtime->triggerChannelByMidi.fill (1);
     runtime->playedDepthByMidi.fill (0);
 
     for (size_t i = 0; i < runtime->steps.size(); ++i)
@@ -4458,6 +4507,7 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 }
 
                 runtime->triggerDepthByMidi[static_cast<size_t> (note)] = 1;
+                runtime->triggerChannelByMidi[static_cast<size_t> (note)] = message.getChannel();
 
                 const int nextStep = (juce::jmax (-1, runtime->currentStep) + 1)
                                    % static_cast<int> (runtime->steps.size());
@@ -4579,6 +4629,7 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 setMidiHeldState (note, false);
                 runtime->triggerDepthByMidi[static_cast<size_t> (note)] = 0;
                 runtime->triggerToPlayedNote[static_cast<size_t> (note)] = -1;
+                runtime->triggerChannelByMidi[static_cast<size_t> (note)] = 1;
 
                 auto& playedDepth = runtime->playedDepthByMidi[static_cast<size_t> (playedNote)];
                 if (playedDepth > 0)

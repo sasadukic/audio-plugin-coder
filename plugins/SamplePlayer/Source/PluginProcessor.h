@@ -363,16 +363,20 @@ private:
 
         bool enabled = false;
         bool followsInputNote = false;
+        int rateIndex = 2;
+        int samplesUntilNextStep = 0;
         int currentStep = -1;
         std::array<Step, 16> steps {};
         std::array<int, 128> triggerToPlayedNote {};
         std::array<int, 128> triggerDepthByMidi {};
+        std::array<int, 128> triggerChannelByMidi {};
         std::array<int, 128> playedDepthByMidi {};
 
         StepSequencerRuntime()
         {
             triggerToPlayedNote.fill (-1);
             triggerDepthByMidi.fill (0);
+            triggerChannelByMidi.fill (1);
             playedDepthByMidi.fill (0);
         }
     };
