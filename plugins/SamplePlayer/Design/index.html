@@ -189,6 +189,25 @@
       gap: 8px;
     }
 
+    /* Make all controls in the strum row equal width */
+    .strum-controls-row .sample-loop-tool-btn,
+    .strum-controls-row .strum-menu-btn {
+      min-width: 120px;
+      width: 120px;
+      padding: 0 8px;
+      height: 26px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      white-space: nowrap;
+      text-transform: none;
+    }
+
+    .strum-controls-row .strum-menu {
+      min-width: 120px;
+    }
+
     .strum-menu-wrap {
       position: relative;
       display: inline-flex;
@@ -4195,7 +4214,6 @@
             <h2 id="strumToggle" role="button" tabindex="0" aria-expanded="true" aria-controls="strumBody">Strum</h2>
             <div id="strumBody" class="section-body">
               <div class="btn-row import-pack-controls strum-controls-row">
-                <button id="strumEnableBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Enable Off</button>
                 <button id="strumSequencerBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Sequencer Off</button>
                 <button id="strumDoublingBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Doubling Off</button>
                 <div class="strum-menu-wrap">
