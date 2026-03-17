@@ -4359,7 +4359,19 @@
             <h2 id="strumToggle" role="button" tabindex="0" aria-expanded="true" aria-controls="strumBody">Strum</h2>
             <div id="strumBody" class="section-body">
               <div class="btn-row import-pack-controls strum-controls-row">
-                <button id="strumSequencerBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Sequencer Off</button>
+                <div class="strum-menu-wrap">
+                  <button id="strumSequencerBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Sequencer 8</button>
+                  <div id="strumSequencerMenu" class="strum-menu hidden" role="menu" aria-label="Strum sequencer steps">
+                    <button class="strum-menu-item" type="button" data-sequencer-steps="1">1 Step</button>
+                    <button class="strum-menu-item" type="button" data-sequencer-steps="2">2 Steps</button>
+                    <button class="strum-menu-item" type="button" data-sequencer-steps="3">3 Steps</button>
+                    <button class="strum-menu-item" type="button" data-sequencer-steps="4">4 Steps</button>
+                    <button class="strum-menu-item" type="button" data-sequencer-steps="5">5 Steps</button>
+                    <button class="strum-menu-item" type="button" data-sequencer-steps="6">6 Steps</button>
+                    <button class="strum-menu-item" type="button" data-sequencer-steps="7">7 Steps</button>
+                    <button class="strum-menu-item" type="button" data-sequencer-steps="8">8 Steps</button>
+                  </div>
+                </div>
                 <button id="strumDoublingBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Doubling Off</button>
                 <div class="strum-menu-wrap">
                   <button id="strumRateBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Rate 1/16</button>
@@ -4574,6 +4586,7 @@
       })),
       strumEnabled: false,
       strumSequencerMode: 0,
+      strumSequencerSteps: 8,
       strumDoubling: false,
       strumRateIndex: 2,
       strumSwingPercent: 0,
@@ -4725,6 +4738,7 @@
       strumToggle: document.getElementById("strumToggle"),
       strumEnableBtn: document.getElementById("strumEnableBtn"),
       strumSequencerBtn: document.getElementById("strumSequencerBtn"),
+      strumSequencerMenu: document.getElementById("strumSequencerMenu"),
       strumDoublingBtn: document.getElementById("strumDoublingBtn"),
       strumRateBtn: document.getElementById("strumRateBtn"),
       strumRateMenu: document.getElementById("strumRateMenu"),
@@ -6911,9 +6925,10 @@
     }
 
     function emitStrumSettings() {
+      const stepCount = getStrumVisibleStepCount();
       emitNativeEvent("strum_settings_set", {
         enabled: !!state.strumEnabled,
-        sequencerMode: Math.max(0, Math.min(2, Number(state.strumSequencerMode) || 0)),
+        sequencerMode: stepCount <= 0 ? 0 : (stepCount <= 4 ? 1 : 2),
         doubling: !!state.strumDoubling,
         rateIndex: Math.max(0, Math.min(3, Number(state.strumRateIndex) || 0)),
         swingPercent: Math.max(0, Math.min(75, Number(state.strumSwingPercent) || 0)),
@@ -6924,10 +6939,14 @@
     }
 
     function getStrumVisibleStepCount() {
-      const mode = Math.max(0, Math.min(2, Number(state.strumSequencerMode) || 0));
-      if (mode === 1) return 4;
-      if (mode === 2) return 8;
-      return 0;
+      const explicit = Number(state.strumSequencerSteps);
+      if (Number.isFinite(explicit)) {
+        return Math.max(1, Math.min(8, Math.round(explicit)));
+      }
+      const legacyMode = Math.max(0, Math.min(2, Number(state.strumSequencerMode) || 0));
+      if (legacyMode === 1) return 4;
+      if (legacyMode === 2) return 8;
+      return 8;
     }
 
     function getStrumSubdivisionCount(rateIndex) {
@@ -7108,10 +7127,18 @@
       }
 
       if (el.strumSequencerBtn) {
-        const mode = Math.max(0, Math.min(2, Number(state.strumSequencerMode) || 0));
-        el.strumSequencerBtn.textContent = mode === 0 ? "Sequencer Off" : (mode === 1 ? "Sequencer 4" : "Sequencer 8");
-        el.strumSequencerBtn.setAttribute("aria-pressed", mode > 0 ? "true" : "false");
-        el.strumSequencerBtn.classList.toggle("active", mode > 0);
+        const stepCount = getStrumVisibleStepCount();
+        el.strumSequencerBtn.textContent = `Sequencer ${stepCount}`;
+        el.strumSequencerBtn.setAttribute("aria-pressed", "true");
+        el.strumSequencerBtn.classList.add("active");
+        if (el.strumSequencerMenu) {
+          const isOpen = !el.strumSequencerMenu.classList.contains("hidden");
+          el.strumSequencerBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+          Array.from(el.strumSequencerMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
+            const steps = Math.max(1, Math.min(8, Number(item.dataset.sequencerSteps) || 8));
+            item.classList.toggle("active", steps === stepCount);
+          });
+        }
       }
 
       if (el.strumDoublingBtn) {
@@ -7181,6 +7208,7 @@
 
       const closeStrumMenus = () => {
         const menus = [
+          el.strumSequencerMenu,
           el.strumRateMenu,
           el.strumSwingMenu,
           el.strumVelHumanMenu,
@@ -7189,6 +7217,7 @@
           ...Array.from(document.querySelectorAll(".strum-step-keyswitch-menu"))
         ];
         const buttons = [
+          el.strumSequencerBtn,
           el.strumRateBtn,
           el.strumSwingBtn,
           el.strumVelHumanBtn,
@@ -7236,11 +7265,9 @@
       }
 
       if (el.strumSequencerBtn) {
-        el.strumSequencerBtn.addEventListener("click", () => {
-          const next = (Number(state.strumSequencerMode) || 0) + 1;
-          state.strumSequencerMode = next > 2 ? 0 : next;
-          updateStrumUi();
-          emitStrumSettings();
+        setupStrumMenu(el.strumSequencerBtn, el.strumSequencerMenu, ".strum-menu-item", (item) => {
+          state.strumSequencerSteps = Math.max(1, Math.min(8, Number(item.dataset.sequencerSteps) || 8));
+          state.strumSequencerMode = state.strumSequencerSteps <= 4 ? 1 : 2;
         });
       }
 
