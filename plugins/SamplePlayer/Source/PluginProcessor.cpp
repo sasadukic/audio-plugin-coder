@@ -5006,7 +5006,7 @@ void SamplePlayerAudioProcessor::startVoiceForNoteInternal (int midiChannel,
     const float leftGain = std::sqrt (0.5f * (1.0f - voice->pan));
     const float rightGain = std::sqrt (0.5f * (1.0f + voice->pan));
     voice->panGains = { leftGain, rightGain };
-    voice->ignoreMonoNoteDedupe = std::abs (voice->pan) > 0.001f;
+    voice->ignoreMonoNoteDedupe = suppressMonoCut;
 
     voice->attackSamplesRemaining = msToSamples (currentSampleRate, settings.attackMs);
     if (voice->attackSamplesRemaining > 0)
