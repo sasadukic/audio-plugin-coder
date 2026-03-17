@@ -189,11 +189,16 @@
       gap: 8px;
     }
 
-    /* Make all controls in the strum row equal width */
+    /* Make all controls in the strum row fluid: distribute available width */
+    .strum-controls-row .strum-menu-wrap {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
     .strum-controls-row .sample-loop-tool-btn,
     .strum-controls-row .strum-menu-btn {
-      min-width: 120px;
-      width: 120px;
+      flex: 1 1 0;
+      min-width: 0;
       padding: 0 8px;
       height: 26px;
       display: inline-flex;
@@ -205,7 +210,9 @@
     }
 
     .strum-controls-row .strum-menu {
-      min-width: 120px;
+      left: 0;
+      width: 100%;
+      min-width: 0;
     }
 
     .strum-menu-wrap {
