@@ -183,6 +183,10 @@
       flex-wrap: wrap;
       position: relative;
       z-index: 6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
     }
 
     .strum-menu-wrap {
@@ -4192,7 +4196,7 @@
             <div id="strumBody" class="section-body">
               <div class="btn-row import-pack-controls strum-controls-row">
                 <button id="strumEnableBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Enable Off</button>
-                <button id="strumSequencerBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Seq Off</button>
+                <button id="strumSequencerBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Sequencer Off</button>
                 <button id="strumDoublingBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Doubling Off</button>
                 <div class="strum-menu-wrap">
                   <button id="strumRateBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Rate 1/16</button>
@@ -4218,7 +4222,7 @@
                   </div>
                 </div>
                 <div class="strum-menu-wrap">
-                  <button id="strumVelHumanBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Vel Hum 0%</button>
+                  <button id="strumVelHumanBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Velocity Humanization 0%</button>
                   <div id="strumVelHumanMenu" class="strum-menu hidden" role="menu" aria-label="Strum velocity humanize">
                     <button class="strum-menu-item" type="button" data-vel-human-value="0">0%</button>
                     <button class="strum-menu-item" type="button" data-vel-human-value="5">5%</button>
@@ -4232,7 +4236,7 @@
                   </div>
                 </div>
                 <div class="strum-menu-wrap">
-                  <button id="strumTimeHumanBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Time Hum 0ms</button>
+                  <button id="strumTimeHumanBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Timing Humanization 0ms</button>
                   <div id="strumTimeHumanMenu" class="strum-menu hidden" role="menu" aria-label="Strum timing humanize">
                     <button class="strum-menu-item" type="button" data-time-human-value="0">0ms</button>
                     <button class="strum-menu-item" type="button" data-time-human-value="2">2ms</button>
@@ -6766,7 +6770,7 @@
 
       if (el.strumSequencerBtn) {
         const mode = Math.max(0, Math.min(2, Number(state.strumSequencerMode) || 0));
-        el.strumSequencerBtn.textContent = mode === 0 ? "Seq Off" : (mode === 1 ? "Seq 4" : "Seq 8");
+        el.strumSequencerBtn.textContent = mode === 0 ? "Sequencer Off" : (mode === 1 ? "Sequencer 4" : "Sequencer 8");
         el.strumSequencerBtn.setAttribute("aria-pressed", mode > 0 ? "true" : "false");
         el.strumSequencerBtn.classList.toggle("active", mode > 0);
       }
@@ -6807,7 +6811,7 @@
 
       const velHum = Math.max(0, Math.min(40, Number(state.strumVelocityHumanizePercent) || 0));
       if (el.strumVelHumanBtn) {
-        el.strumVelHumanBtn.textContent = `Vel Hum ${velHum}%`;
+        el.strumVelHumanBtn.textContent = `Velocity Humanization ${velHum}%`;
         if (el.strumVelHumanMenu) {
           const isOpen = !el.strumVelHumanMenu.classList.contains("hidden");
           el.strumVelHumanBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
@@ -6820,7 +6824,7 @@
 
       const timeHum = Math.max(0, Math.min(30, Number(state.strumTimingHumanizeMs) || 0));
       if (el.strumTimeHumanBtn) {
-        el.strumTimeHumanBtn.textContent = `Time Hum ${timeHum}ms`;
+        el.strumTimeHumanBtn.textContent = `Timing Humanization ${timeHum}ms`;
         if (el.strumTimeHumanMenu) {
           const isOpen = !el.strumTimeHumanMenu.classList.contains("hidden");
           el.strumTimeHumanBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
