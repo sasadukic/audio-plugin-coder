@@ -458,6 +458,8 @@ SamplePlayerAudioProcessor::SamplePlayerAudioProcessor()
 
     auto initialSequencerRuntime = std::make_shared<StepSequencerRuntime>();
     std::atomic_store (&stepSequencerRuntime, initialSequencerRuntime);
+    auto initialStrumRuntime = std::make_shared<StepSequencerRuntime>();
+    std::atomic_store (&strumSequencerRuntime, initialStrumRuntime);
     sequencerCurrentStepForUi.store (-1, std::memory_order_relaxed);
 }
 
@@ -2089,7 +2091,7 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
     for (size_t i = 0; i < runtime->steps.size(); ++i)
         runtime->steps[i] = strumSteps[i % static_cast<size_t> (activeStepCount)];
 
-    std::atomic_store (&stepSequencerRuntime, runtime);
+    std::atomic_store (&strumSequencerRuntime, runtime);
     sequencerCurrentStepForUi.store (-1, std::memory_order_relaxed);
     resetVoicesRequested.store (true);
 }
@@ -4434,16 +4436,20 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
 
         if (! previewMessage)
         {
-            auto sequencerRuntime = std::atomic_load (&stepSequencerRuntime);
-            if (sequencerRuntime != nullptr
-                && sequencerRuntime->enabled
-                && sampleSet != nullptr
-                && ! sampleSet->zones.empty())
+            const auto processRuntime = [&] (const std::shared_ptr<StepSequencerRuntime>& runtime) -> bool
             {
-                const int previousPlayedNote = sequencerRuntime->triggerToPlayedNote[static_cast<size_t> (note)];
+                if (runtime == nullptr
+                    || ! runtime->enabled
+                    || sampleSet == nullptr
+                    || sampleSet->zones.empty())
+                {
+                    return false;
+                }
+
+                const int previousPlayedNote = runtime->triggerToPlayedNote[static_cast<size_t> (note)];
                 if (previousPlayedNote >= 0 && previousPlayedNote <= 127)
                 {
-                    auto& previousDepth = sequencerRuntime->playedDepthByMidi[static_cast<size_t> (previousPlayedNote)];
+                    auto& previousDepth = runtime->playedDepthByMidi[static_cast<size_t> (previousPlayedNote)];
                     if (previousDepth > 0)
                         --previousDepth;
                     setMidiHeldState (previousPlayedNote, previousDepth > 0);
@@ -4451,14 +4457,14 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                         releaseVoicesForNote (message.getChannel(), previousPlayedNote, true, settings);
                 }
 
-                sequencerRuntime->triggerDepthByMidi[static_cast<size_t> (note)] = 1;
+                runtime->triggerDepthByMidi[static_cast<size_t> (note)] = 1;
 
-                const int nextStep = (juce::jmax (-1, sequencerRuntime->currentStep) + 1)
-                                   % static_cast<int> (sequencerRuntime->steps.size());
-                sequencerRuntime->currentStep = nextStep;
+                const int nextStep = (juce::jmax (-1, runtime->currentStep) + 1)
+                                   % static_cast<int> (runtime->steps.size());
+                runtime->currentStep = nextStep;
                 sequencerCurrentStepForUi.store (nextStep, std::memory_order_relaxed);
 
-                const auto& step = sequencerRuntime->steps[static_cast<size_t> (nextStep)];
+                const auto& step = runtime->steps[static_cast<size_t> (nextStep)];
                 if (step.keyswitchSlot >= 0)
                 {
                     activeMapSetSlot.store (step.keyswitchSlot, std::memory_order_relaxed);
@@ -4474,16 +4480,16 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
 
                 if (step.velocity127 <= 0)
                 {
-                    sequencerRuntime->triggerToPlayedNote[static_cast<size_t> (note)] = -1;
-                    return;
+                    runtime->triggerToPlayedNote[static_cast<size_t> (note)] = -1;
+                    return true;
                 }
 
-                const int playedNote = sequencerRuntime->followsInputNote
+                const int playedNote = runtime->followsInputNote
                     ? note
                     : juce::jlimit (0, 127, step.noteMidi);
-                sequencerRuntime->triggerToPlayedNote[static_cast<size_t> (note)] = playedNote;
+                runtime->triggerToPlayedNote[static_cast<size_t> (note)] = playedNote;
 
-                auto& playedDepth = sequencerRuntime->playedDepthByMidi[static_cast<size_t> (playedNote)];
+                auto& playedDepth = runtime->playedDepthByMidi[static_cast<size_t> (playedNote)];
                 playedDepth = juce::jmin (1024, playedDepth + 1);
 
                 setMidiHeldState (note, false);
@@ -4491,8 +4497,14 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
 
                 const float velocity01 = static_cast<float> (juce::jlimit (1, 127, step.velocity127)) / 127.0f;
                 startVoiceForNote (message.getChannel(), playedNote, velocity01, settings);
+                return true;
+            };
+
+            if (processRuntime (std::atomic_load (&strumSequencerRuntime)))
                 return;
-            }
+
+            if (processRuntime (std::atomic_load (&stepSequencerRuntime)))
+                return;
         }
 
         if (sampleSet != nullptr)
@@ -4555,26 +4567,33 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
 
         if (! previewMessage)
         {
-            auto sequencerRuntime = std::atomic_load (&stepSequencerRuntime);
-            if (sequencerRuntime != nullptr && sequencerRuntime->enabled)
+            const auto releaseRuntimeForNote = [&] (const std::shared_ptr<StepSequencerRuntime>& runtime) -> bool
             {
+                if (runtime == nullptr || ! runtime->enabled)
+                    return false;
+
+                const int playedNote = runtime->triggerToPlayedNote[static_cast<size_t> (note)];
+                if (playedNote < 0 || playedNote > 127)
+                    return false;
+
                 setMidiHeldState (note, false);
-                sequencerRuntime->triggerDepthByMidi[static_cast<size_t> (note)] = 0;
+                runtime->triggerDepthByMidi[static_cast<size_t> (note)] = 0;
+                runtime->triggerToPlayedNote[static_cast<size_t> (note)] = -1;
 
-                const int playedNote = sequencerRuntime->triggerToPlayedNote[static_cast<size_t> (note)];
-                sequencerRuntime->triggerToPlayedNote[static_cast<size_t> (note)] = -1;
-                if (playedNote >= 0 && playedNote <= 127)
-                {
-                    auto& playedDepth = sequencerRuntime->playedDepthByMidi[static_cast<size_t> (playedNote)];
-                    if (playedDepth > 0)
-                        --playedDepth;
-                    setMidiHeldState (playedNote, playedDepth > 0);
-                    if (playedDepth <= 0)
-                        releaseVoicesForNote (message.getChannel(), playedNote, true, settings);
-                }
+                auto& playedDepth = runtime->playedDepthByMidi[static_cast<size_t> (playedNote)];
+                if (playedDepth > 0)
+                    --playedDepth;
+                setMidiHeldState (playedNote, playedDepth > 0);
+                if (playedDepth <= 0)
+                    releaseVoicesForNote (message.getChannel(), playedNote, true, settings);
+                return true;
+            };
 
+            if (releaseRuntimeForNote (std::atomic_load (&strumSequencerRuntime)))
                 return;
-            }
+
+            if (releaseRuntimeForNote (std::atomic_load (&stepSequencerRuntime)))
+                return;
         }
 
         if (const auto sampleSet = std::atomic_load (&currentSampleSet); sampleSet != nullptr)

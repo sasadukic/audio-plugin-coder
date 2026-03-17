@@ -397,6 +397,7 @@ private:
 
     std::shared_ptr<const SampleSet> currentSampleSet;
     std::shared_ptr<StepSequencerRuntime> stepSequencerRuntime;
+    std::shared_ptr<StepSequencerRuntime> strumSequencerRuntime;
     std::atomic<int> activeMapSetSlot { 0 };
     std::atomic<int> pendingActiveMapSetSlotFromMidi { -1 };
     std::atomic<int> sequencerCurrentStepForUi { -1 };
