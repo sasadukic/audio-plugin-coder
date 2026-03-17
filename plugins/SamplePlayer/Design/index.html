@@ -366,16 +366,6 @@
       text-transform: uppercase;
     }
 
-    .strum-step-velocity-label {
-      font-size: 8px;
-      color: var(--text-dim);
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      text-align: center;
-      line-height: 1;
-      margin: 0;
-    }
-
     .strum-step-rate-wrap {
       position: relative;
       display: flex;
@@ -7047,7 +7037,6 @@
               ${barsMarkup}
             </span>
           </button>
-          <p class="strum-step-velocity-label">Velocity ${step.velocity}</p>
           <div class="strum-step-rate-wrap">
             <button class="sample-loop-tool-btn strum-menu-btn strum-step-rate-btn" type="button" data-step-index="${stepIndex}" aria-haspopup="true" aria-expanded="false" ${isInactive ? "disabled" : ""}>Rate ${STRUM_STEP_RATE_LABELS[step.rateIndex]}</button>
             <div class="strum-menu strum-step-rate-menu hidden" role="menu" aria-label="Step ${stepIndex + 1} rate">
