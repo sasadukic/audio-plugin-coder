@@ -179,10 +179,10 @@
 
     /* Strum dropdown controls */
     .strum-controls-row {
-      overflow: visible;
+      overflow: visible !important;
       flex-wrap: wrap;
       position: relative;
-      z-index: 6;
+      z-index: 20050;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -218,6 +218,7 @@
     .strum-menu-wrap {
       position: relative;
       display: inline-flex;
+      z-index: 20060;
     }
 
     .strum-menu-btn {
@@ -239,7 +240,11 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
-      z-index: 9999;
+      z-index: 21000;
+    }
+
+    #strumSequencerMenu {
+      z-index: 22000;
     }
 
     .strum-menu.hidden { display: none; }
