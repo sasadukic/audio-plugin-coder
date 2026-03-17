@@ -4121,6 +4121,33 @@
             </div>
           </div>
 
+          <div id="strumSection" class="section collapsible">
+            <h2 id="strumToggle" role="button" tabindex="0" aria-expanded="true" aria-controls="strumBody">Strum</h2>
+            <div id="strumBody" class="section-body">
+              <div class="btn-row import-pack-controls">
+                <button id="strumEnableBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Enable Off</button>
+                <button id="strumSequencerBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Seq Off</button>
+                <button id="strumDoublingBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Doubling Off</button>
+              </div>
+              <div class="sample-loop-row sample-loop-row-small" style="margin-top:8px;">
+                <label for="strumRateSelect">Rate</label>
+                <select id="strumRateSelect">
+                  <option value="0">1/4</option>
+                  <option value="1">1/8</option>
+                  <option value="2" selected>1/16</option>
+                  <option value="3">1/32</option>
+                </select>
+                <label for="strumSwingInput">Swing</label>
+                <input id="strumSwingInput" type="number" min="0" max="75" step="1" value="0">
+                <label for="strumVelHumanInput">Vel Hum</label>
+                <input id="strumVelHumanInput" type="number" min="0" max="40" step="1" value="0">
+                <label for="strumTimeHumanInput">Time Hum</label>
+                <input id="strumTimeHumanInput" type="number" min="0" max="30" step="1" value="0">
+              </div>
+              <div id="strumStatus" class="status"></div>
+            </div>
+          </div>
+
           <div id="sequencerArpSection" class="section collapsible collapsed">
             <h2 id="sequencerArpToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="sequencerArpBody">Sequencer and arp</h2>
             <div id="sequencerArpBody" class="section-body">
@@ -4281,6 +4308,13 @@
         velocity: 100,
         keyswitchSetId: ""
       })),
+      strumEnabled: false,
+      strumSequencerMode: 0,
+      strumDoubling: false,
+      strumRateIndex: 2,
+      strumSwingPercent: 0,
+      strumVelocityHumanizePercent: 0,
+      strumTimingHumanizeMs: 0,
       nextVirtualOrder: -1,
       samplingCountdownTimer: 0,
       samplingCountdownEndsAt: 0,
@@ -4418,6 +4452,16 @@
       keyboardMapToggle: document.getElementById("keyboardMapToggle"),
       modulationSection: document.getElementById("modulationSection"),
       modulationToggle: document.getElementById("modulationToggle"),
+      strumSection: document.getElementById("strumSection"),
+      strumToggle: document.getElementById("strumToggle"),
+      strumEnableBtn: document.getElementById("strumEnableBtn"),
+      strumSequencerBtn: document.getElementById("strumSequencerBtn"),
+      strumDoublingBtn: document.getElementById("strumDoublingBtn"),
+      strumRateSelect: document.getElementById("strumRateSelect"),
+      strumSwingInput: document.getElementById("strumSwingInput"),
+      strumVelHumanInput: document.getElementById("strumVelHumanInput"),
+      strumTimeHumanInput: document.getElementById("strumTimeHumanInput"),
+      strumStatus: document.getElementById("strumStatus"),
       sequencerArpSection: document.getElementById("sequencerArpSection"),
       sequencerArpToggle: document.getElementById("sequencerArpToggle"),
       sequencerArpStatus: document.getElementById("sequencerArpStatus"),
@@ -4507,6 +4551,7 @@
         autoSampler: true,
         keyboardMap: true,
         modulation: true,
+        strum: false,
         sequencerArp: true
       };
     }
@@ -6589,6 +6634,107 @@
 
       updateSequencerModeButton();
       renderSequencerArpControls();
+    }
+
+    function emitStrumSettings() {
+      emitNativeEvent("strum_settings_set", {
+        enabled: !!state.strumEnabled,
+        sequencerMode: Math.max(0, Math.min(2, Number(state.strumSequencerMode) || 0)),
+        doubling: !!state.strumDoubling,
+        rateIndex: Math.max(0, Math.min(3, Number(state.strumRateIndex) || 0)),
+        swingPercent: Math.max(0, Math.min(75, Number(state.strumSwingPercent) || 0)),
+        velocityHumanizePercent: Math.max(0, Math.min(40, Number(state.strumVelocityHumanizePercent) || 0)),
+        timingHumanizeMs: Math.max(0, Math.min(30, Number(state.strumTimingHumanizeMs) || 0))
+      });
+    }
+
+    function updateStrumUi() {
+      if (el.strumEnableBtn) {
+        const on = !!state.strumEnabled;
+        el.strumEnableBtn.textContent = on ? "Enable On" : "Enable Off";
+        el.strumEnableBtn.setAttribute("aria-pressed", on ? "true" : "false");
+        el.strumEnableBtn.classList.toggle("active", on);
+      }
+
+      if (el.strumSequencerBtn) {
+        const mode = Math.max(0, Math.min(2, Number(state.strumSequencerMode) || 0));
+        el.strumSequencerBtn.textContent = mode === 0 ? "Seq Off" : (mode === 1 ? "Seq 4" : "Seq 8");
+        el.strumSequencerBtn.setAttribute("aria-pressed", mode > 0 ? "true" : "false");
+        el.strumSequencerBtn.classList.toggle("active", mode > 0);
+      }
+
+      if (el.strumDoublingBtn) {
+        const on = !!state.strumDoubling;
+        el.strumDoublingBtn.textContent = on ? "Doubling On" : "Doubling Off";
+        el.strumDoublingBtn.setAttribute("aria-pressed", on ? "true" : "false");
+        el.strumDoublingBtn.classList.toggle("active", on);
+      }
+
+      if (el.strumRateSelect) el.strumRateSelect.value = String(Math.max(0, Math.min(3, Number(state.strumRateIndex) || 0)));
+      if (el.strumSwingInput) el.strumSwingInput.value = String(Math.max(0, Math.min(75, Number(state.strumSwingPercent) || 0)));
+      if (el.strumVelHumanInput) el.strumVelHumanInput.value = String(Math.max(0, Math.min(40, Number(state.strumVelocityHumanizePercent) || 0)));
+      if (el.strumTimeHumanInput) el.strumTimeHumanInput.value = String(Math.max(0, Math.min(30, Number(state.strumTimingHumanizeMs) || 0)));
+    }
+
+    function setupStrum() {
+      updateStrumUi();
+
+      if (el.strumEnableBtn) {
+        el.strumEnableBtn.addEventListener("click", () => {
+          state.strumEnabled = !state.strumEnabled;
+          updateStrumUi();
+          emitStrumSettings();
+        });
+      }
+
+      if (el.strumSequencerBtn) {
+        el.strumSequencerBtn.addEventListener("click", () => {
+          const next = (Number(state.strumSequencerMode) || 0) + 1;
+          state.strumSequencerMode = next > 2 ? 0 : next;
+          updateStrumUi();
+          emitStrumSettings();
+        });
+      }
+
+      if (el.strumDoublingBtn) {
+        el.strumDoublingBtn.addEventListener("click", () => {
+          state.strumDoubling = !state.strumDoubling;
+          updateStrumUi();
+          emitStrumSettings();
+        });
+      }
+
+      if (el.strumRateSelect) {
+        el.strumRateSelect.addEventListener("change", () => {
+          state.strumRateIndex = Math.max(0, Math.min(3, Math.round(Number(el.strumRateSelect.value) || 0)));
+          updateStrumUi();
+          emitStrumSettings();
+        });
+      }
+
+      if (el.strumSwingInput) {
+        el.strumSwingInput.addEventListener("change", () => {
+          state.strumSwingPercent = Math.max(0, Math.min(75, Math.round(Number(el.strumSwingInput.value) || 0)));
+          updateStrumUi();
+          emitStrumSettings();
+        });
+      }
+
+      if (el.strumVelHumanInput) {
+        el.strumVelHumanInput.addEventListener("change", () => {
+          state.strumVelocityHumanizePercent = Math.max(0, Math.min(40, Math.round(Number(el.strumVelHumanInput.value) || 0)));
+          updateStrumUi();
+          emitStrumSettings();
+        });
+      }
+
+      if (el.strumTimeHumanInput) {
+        el.strumTimeHumanInput.addEventListener("change", () => {
+          state.strumTimingHumanizeMs = Math.max(0, Math.min(30, Math.round(Number(el.strumTimeHumanInput.value) || 0)));
+          updateStrumUi();
+          emitStrumSettings();
+        });
+      }
     }
 
     function updateKeyswitchLoopModeButton(enabled) {
@@ -14479,6 +14625,32 @@
       });
     }
 
+    function setStrumCollapsed(collapsed) {
+      if (!el.strumSection || !el.strumToggle) return;
+      const next = !!collapsed;
+      el.strumSection.classList.toggle("collapsed", next);
+      el.strumToggle.setAttribute("aria-expanded", String(!next));
+      saveSetupCollapseState("strum", next);
+      scheduleHostResizeForActiveTab();
+    }
+
+    function setupStrumCollapse() {
+      if (!el.strumSection || !el.strumToggle) return;
+
+      function toggleCollapsed() {
+        const collapsed = el.strumSection.classList.contains("collapsed");
+        setStrumCollapsed(!collapsed);
+      }
+
+      el.strumToggle.addEventListener("click", toggleCollapsed);
+      el.strumToggle.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" || ev.key === " ") {
+          ev.preventDefault();
+          toggleCollapsed();
+        }
+      });
+    }
+
     function setSequencerArpCollapsed(collapsed) {
       if (!el.sequencerArpSection || !el.sequencerArpToggle) return;
       const next = !!collapsed;
@@ -15217,11 +15389,13 @@
       setupAutoSamplerCollapse();
       setupKeyboardMapCollapse();
       setupModulationCollapse();
+      setupStrumCollapse();
       setupSequencerArpCollapse();
       setGraphicsCollapsed(collapseState.graphics);
       setAutoSamplerCollapsed(collapseState.autoSampler);
       setKeyboardMapCollapsed(collapseState.keyboardMap);
       setModulationCollapsed(collapseState.modulation);
+      setStrumCollapsed(collapseState.strum);
       setSequencerArpCollapsed(collapseState.sequencerArp);
       setupKnobs();
       setupPlayerControlsVisibility();
@@ -15231,6 +15405,7 @@
       setupWallpaper();
       renderPlayerKeyboard();
       setupKeyboardMap();
+      setupStrum();
       setupSequencerArp();
       setupImport();
       setupSummaryModal();
