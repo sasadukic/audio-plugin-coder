@@ -393,6 +393,11 @@
       z-index: 230;
     }
 
+    .strum-step-keyswitch-btn:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
     .strum-step-rate-wrap {
       z-index: 240;
     }
@@ -4415,17 +4420,6 @@
             </div>
           </div>
 
-          <div id="sequencerArpSection" class="section collapsible collapsed">
-            <h2 id="sequencerArpToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="sequencerArpBody">Sequencer and arp</h2>
-            <div id="sequencerArpBody" class="section-body">
-              <div class="sequencer-toggle-row">
-                <button id="sequencerModeBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Off</button>
-              </div>
-              <div id="sequencerGrid" class="sequencer-grid" aria-label="16 step sequencer"></div>
-              <div id="sequencerArpStatus" class="status"></div>
-            </div>
-          </div>
-
           <div id="graphicsSection" class="section collapsible collapsed">
             <h2 id="graphicsToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="graphicsBody">Graphics</h2>
             <div id="graphicsBody" class="section-body">
@@ -4587,7 +4581,8 @@
       strumTimingHumanizeMs: 0,
       strumStepPattern: Array.from({ length: 8 }, () => ({
         subVelocities: Array.from({ length: STRUM_STEP_MAX_SUBDIVISIONS }, () => 100),
-        rateIndex: 2
+        rateIndex: 2,
+        keyswitchSetId: ""
       })),
       nextVirtualOrder: -1,
       samplingCountdownTimer: 0,
@@ -6948,6 +6943,10 @@
       const rateIndex = Number.isFinite(rawRateIndex)
         ? Math.max(0, Math.min(4, Math.round(rawRateIndex)))
         : 2;
+      const rawKeyswitchSetId = String(step?.keyswitchSetId || "").trim();
+      const keyswitchSetId = rawKeyswitchSetId && getKeyswitchSetById(rawKeyswitchSetId)
+        ? rawKeyswitchSetId
+        : "";
       const legacyVelocity = Math.max(1, Math.min(127, Math.round(Number(step?.velocity) || 100)));
       let subVelocities = Array.isArray(step?.subVelocities)
         ? step.subVelocities.map((value) => Math.max(1, Math.min(127, Math.round(Number(value) || legacyVelocity))))
@@ -6976,8 +6975,29 @@
       return {
         velocity,
         rateIndex,
-        subVelocities
+        subVelocities,
+        keyswitchSetId
       };
+    }
+
+    function getStrumKeyswitchOptions() {
+      const keyswitchSets = Array.isArray(state.keyswitchSets) ? state.keyswitchSets : [];
+      const options = [{ value: "", label: "Keep" }];
+      keyswitchSets.forEach((set, index) => {
+        const setId = String(set?.id || "").trim();
+        if (!setId) return;
+        const setName = String(set?.name || setId || `Set ${index + 1}`).trim() || `Set ${index + 1}`;
+        options.push({ value: setId, label: setName });
+      });
+      return options;
+    }
+
+    function getStrumKeyswitchLabel(keyswitchSetId) {
+      const id = String(keyswitchSetId || "").trim();
+      if (!id) return "Keyswitch Keep";
+      const set = getKeyswitchSetById(id);
+      const label = String(set?.name || id).trim() || id;
+      return `Keyswitch ${label}`;
     }
 
     function ensureStrumStepPattern() {
@@ -6985,7 +7005,8 @@
       while (state.strumStepPattern.length < 8) {
         state.strumStepPattern.push({
           subVelocities: Array.from({ length: STRUM_STEP_MAX_SUBDIVISIONS }, () => 100),
-          rateIndex: 2
+          rateIndex: 2,
+          keyswitchSetId: ""
         });
       }
       if (state.strumStepPattern.length > 8) {
@@ -7003,7 +7024,8 @@
         return {
           velocity: normalized.velocity,
           rateIndex: normalized.rateIndex,
-          subVelocities: normalized.subVelocities.slice(0, subdivisionCount)
+          subVelocities: normalized.subVelocities.slice(0, subdivisionCount),
+          keyswitchSetId: normalized.keyswitchSetId
         };
       });
     }
@@ -7012,6 +7034,8 @@
       if (!el.strumStepGrid) return;
       ensureStrumStepPattern();
       const activeStepCount = getStrumVisibleStepCount();
+      const keyswitchOptions = getStrumKeyswitchOptions();
+      const hasKeyswitchOptions = keyswitchOptions.length > 1;
       el.strumStepGrid.innerHTML = "";
       el.strumStepGrid.classList.toggle("hidden", activeStepCount === 0);
       if (activeStepCount === 0) return;
@@ -7030,6 +7054,10 @@
         const stepCard = document.createElement("div");
         stepCard.className = `strum-step-card${isInactive ? " is-inactive" : ""}`;
         stepCard.setAttribute("aria-disabled", isInactive ? "true" : "false");
+        const keyswitchDisabled = isInactive || !hasKeyswitchOptions;
+        const keyswitchItemsMarkup = keyswitchOptions.map((option) => (
+          `<button class="strum-menu-item strum-step-keyswitch-item" type="button" data-step-index="${stepIndex}" data-step-keyswitch-id="${option.value}">${option.label}</button>`
+        )).join("");
         stepCard.innerHTML = `
           <p class="strum-step-head">Step ${stepIndex + 1}</p>
           <button class="strum-step-velocity-btn" type="button" data-step-index="${stepIndex}" aria-label="Set velocity for step ${stepIndex + 1}" ${isInactive ? "disabled" : ""}>
@@ -7047,12 +7075,24 @@
               <button class="strum-menu-item strum-step-rate-item" type="button" data-step-index="${stepIndex}" data-step-rate-index="4">Rest</button>
             </div>
           </div>
+          <div class="strum-step-rate-wrap">
+            <button class="sample-loop-tool-btn strum-menu-btn strum-step-rate-btn strum-step-keyswitch-btn" type="button" data-step-index="${stepIndex}" aria-haspopup="true" aria-expanded="false" ${keyswitchDisabled ? "disabled" : ""}>${getStrumKeyswitchLabel(step.keyswitchSetId)}</button>
+            <div class="strum-menu strum-step-keyswitch-menu hidden" role="menu" aria-label="Step ${stepIndex + 1} keyswitch">
+              ${keyswitchItemsMarkup}
+            </div>
+          </div>
         `;
 
         const rateItems = Array.from(stepCard.querySelectorAll(".strum-step-rate-item"));
         rateItems.forEach((item) => {
           const itemRateIndex = Math.max(0, Math.min(4, Number(item.dataset.stepRateIndex) || 0));
           item.classList.toggle("active", itemRateIndex === step.rateIndex);
+        });
+
+        const keyswitchItems = Array.from(stepCard.querySelectorAll(".strum-step-keyswitch-item"));
+        keyswitchItems.forEach((item) => {
+          const itemKeyswitchId = String(item.dataset.stepKeyswitchId || "").trim();
+          item.classList.toggle("active", itemKeyswitchId === String(step.keyswitchSetId || "").trim());
         });
 
         el.strumStepGrid.appendChild(stepCard);
@@ -7145,14 +7185,16 @@
           el.strumSwingMenu,
           el.strumVelHumanMenu,
           el.strumTimeHumanMenu,
-          ...Array.from(document.querySelectorAll(".strum-step-rate-menu"))
+          ...Array.from(document.querySelectorAll(".strum-step-rate-menu")),
+          ...Array.from(document.querySelectorAll(".strum-step-keyswitch-menu"))
         ];
         const buttons = [
           el.strumRateBtn,
           el.strumSwingBtn,
           el.strumVelHumanBtn,
           el.strumTimeHumanBtn,
-          ...Array.from(document.querySelectorAll(".strum-step-rate-btn"))
+          ...Array.from(document.querySelectorAll(".strum-step-rate-btn")),
+          ...Array.from(document.querySelectorAll(".strum-step-keyswitch-btn"))
         ];
         menus.forEach((menu) => {
           if (menu) menu.classList.add("hidden");
@@ -7311,6 +7353,43 @@
             if (!open) {
               menu.classList.remove("hidden");
               rateBtn.setAttribute("aria-expanded", "true");
+            }
+            return;
+          }
+
+          const keyswitchItem = target.closest(".strum-step-keyswitch-item");
+          if (keyswitchItem instanceof HTMLButtonElement) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const stepIndex = Math.max(0, Math.min(7, Number(keyswitchItem.dataset.stepIndex) || 0));
+            const activeStepCount = getStrumVisibleStepCount();
+            if (stepIndex >= activeStepCount) return;
+            const keyswitchSetId = String(keyswitchItem.dataset.stepKeyswitchId || "").trim();
+            ensureStrumStepPattern();
+            const normalizedStep = normalizeStrumStep(state.strumStepPattern[stepIndex]);
+            state.strumStepPattern[stepIndex] = {
+              ...normalizedStep,
+              keyswitchSetId: keyswitchSetId && getKeyswitchSetById(keyswitchSetId) ? keyswitchSetId : ""
+            };
+            closeStrumMenus();
+            updateStrumUi();
+            emitStrumSettings();
+            scheduleSessionStateSave(280);
+            return;
+          }
+
+          const keyswitchBtn = target.closest(".strum-step-keyswitch-btn");
+          if (keyswitchBtn instanceof HTMLButtonElement) {
+            if (keyswitchBtn.disabled) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            const menu = keyswitchBtn.parentElement?.querySelector(".strum-step-keyswitch-menu");
+            if (!(menu instanceof HTMLElement)) return;
+            const open = !menu.classList.contains("hidden");
+            closeStrumMenus();
+            if (!open) {
+              menu.classList.remove("hidden");
+              keyswitchBtn.setAttribute("aria-expanded", "true");
             }
           }
         });
