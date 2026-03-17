@@ -292,6 +292,8 @@
       display: grid;
       gap: 6px;
       min-width: 0;
+      position: relative;
+      overflow: visible;
     }
 
     .strum-step-card.is-inactive {
@@ -378,6 +380,7 @@
       position: relative;
       display: flex;
       min-width: 0;
+      overflow: visible;
     }
 
     .strum-step-rate-btn {
@@ -7279,12 +7282,14 @@
           window.addEventListener("pointerup", onUp);
         });
 
-        el.strumStepGrid.addEventListener("click", (ev) => {
+        el.strumStepGrid.addEventListener("pointerdown", (ev) => {
           const target = ev.target;
           if (!(target instanceof Element)) return;
 
           const rateItem = target.closest(".strum-step-rate-item");
           if (rateItem instanceof HTMLButtonElement) {
+            ev.preventDefault();
+            ev.stopPropagation();
             const stepIndex = Math.max(0, Math.min(7, Number(rateItem.dataset.stepIndex) || 0));
             const activeStepCount = getStrumVisibleStepCount();
             if (stepIndex >= activeStepCount) return;
@@ -7305,6 +7310,7 @@
           const rateBtn = target.closest(".strum-step-rate-btn");
           if (rateBtn instanceof HTMLButtonElement) {
             if (rateBtn.disabled) return;
+            ev.preventDefault();
             ev.stopPropagation();
             const menu = rateBtn.parentElement?.querySelector(".strum-step-rate-menu");
             if (!(menu instanceof HTMLElement)) return;
