@@ -273,6 +273,102 @@
       background: rgba(28, 24, 13, 0.86);
     }
 
+    .strum-step-grid {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+      gap: 8px;
+    }
+
+    .strum-step-grid.hidden {
+      display: none;
+    }
+
+    .strum-step-card {
+      border: 1px solid rgba(140, 146, 156, 0.28);
+      border-radius: 6px;
+      background: rgba(9, 13, 20, 0.62);
+      padding: 6px;
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .strum-step-head {
+      margin: 0;
+      font-size: 8px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      text-align: center;
+      line-height: 1;
+    }
+
+    .strum-step-velocity-btn {
+      width: 100%;
+      height: 78px;
+      border: 1px solid rgba(140, 146, 156, 0.3);
+      border-radius: 6px;
+      background: rgba(12, 17, 26, 0.86);
+      padding: 6px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      cursor: ns-resize;
+    }
+
+    .strum-step-velocity-track {
+      width: 16px;
+      height: 100%;
+      border-radius: 5px;
+      background: rgba(59, 64, 74, 0.85);
+      border: 1px solid rgba(140, 146, 156, 0.24);
+      display: flex;
+      align-items: flex-end;
+      overflow: hidden;
+    }
+
+    .strum-step-velocity-fill {
+      width: 100%;
+      background: linear-gradient(180deg, rgba(255, 225, 128, 0.92), rgba(255, 190, 67, 0.95));
+    }
+
+    .strum-step-velocity-label {
+      font-size: 8px;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      text-align: center;
+      line-height: 1;
+      margin: 0;
+    }
+
+    .strum-step-rate-wrap {
+      position: relative;
+      display: flex;
+      min-width: 0;
+    }
+
+    .strum-step-rate-btn {
+      width: 100%;
+      min-width: 0;
+      height: 24px;
+      padding: 0 6px;
+      font-size: 10px;
+      text-transform: none;
+      letter-spacing: 0.04em;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .strum-step-rate-wrap .strum-menu {
+      left: 0;
+      width: 100%;
+      min-width: 0;
+      z-index: 230;
+    }
+
     button:not(.player-key):hover,
     .file-btn:hover {
       border-color: rgba(140, 146, 156, 0.5);
@@ -4277,6 +4373,7 @@
                   </div>
                 </div>
               </div>
+              <div id="strumStepGrid" class="strum-step-grid hidden" aria-label="Strum sequencer steps"></div>
               <div id="strumStatus" class="status"></div>
             </div>
           </div>
@@ -4365,6 +4462,8 @@
     const AUTO_SAMPLE_INTER_TAKE_PAUSE_MS = 1000;
     const UI_LOAD_DEBUG = true;
     const SEQUENCER_STEP_COUNT = 16;
+    const STRUM_RATE_LABELS = ["1/4", "1/8", "1/16", "1/32"];
+    const STRUM_STEP_RATE_LABELS = ["1/4", "1/8", "1/16", "1/32", "Rest"];
 
     const state = {
       wallpaperUrl: "",
@@ -4448,6 +4547,10 @@
       strumSwingPercent: 0,
       strumVelocityHumanizePercent: 0,
       strumTimingHumanizeMs: 0,
+      strumStepPattern: Array.from({ length: 8 }, () => ({
+        velocity: 100,
+        rateIndex: 2
+      })),
       nextVirtualOrder: -1,
       samplingCountdownTimer: 0,
       samplingCountdownEndsAt: 0,
@@ -4598,6 +4701,7 @@
       strumVelHumanMenu: document.getElementById("strumVelHumanMenu"),
       strumTimeHumanBtn: document.getElementById("strumTimeHumanBtn"),
       strumTimeHumanMenu: document.getElementById("strumTimeHumanMenu"),
+      strumStepGrid: document.getElementById("strumStepGrid"),
       strumStatus: document.getElementById("strumStatus"),
       sequencerArpSection: document.getElementById("sequencerArpSection"),
       sequencerArpToggle: document.getElementById("sequencerArpToggle"),
@@ -6781,8 +6885,84 @@
         rateIndex: Math.max(0, Math.min(3, Number(state.strumRateIndex) || 0)),
         swingPercent: Math.max(0, Math.min(75, Number(state.strumSwingPercent) || 0)),
         velocityHumanizePercent: Math.max(0, Math.min(40, Number(state.strumVelocityHumanizePercent) || 0)),
-        timingHumanizeMs: Math.max(0, Math.min(30, Number(state.strumTimingHumanizeMs) || 0))
+        timingHumanizeMs: Math.max(0, Math.min(30, Number(state.strumTimingHumanizeMs) || 0)),
+        stepPattern: getVisibleStrumStepPattern()
       });
+    }
+
+    function getStrumVisibleStepCount() {
+      const mode = Math.max(0, Math.min(2, Number(state.strumSequencerMode) || 0));
+      if (mode === 1) return 4;
+      if (mode === 2) return 8;
+      return 0;
+    }
+
+    function normalizeStrumStep(step) {
+      const velocity = Math.max(1, Math.min(127, Math.round(Number(step?.velocity) || 100)));
+      const rateIndex = Math.max(0, Math.min(4, Math.round(Number(step?.rateIndex) || 2)));
+      return {
+        velocity,
+        rateIndex
+      };
+    }
+
+    function ensureStrumStepPattern() {
+      if (!Array.isArray(state.strumStepPattern)) state.strumStepPattern = [];
+      while (state.strumStepPattern.length < 8) {
+        state.strumStepPattern.push({ velocity: 100, rateIndex: 2 });
+      }
+      if (state.strumStepPattern.length > 8) {
+        state.strumStepPattern = state.strumStepPattern.slice(0, 8);
+      }
+      state.strumStepPattern = state.strumStepPattern.map(normalizeStrumStep);
+    }
+
+    function getVisibleStrumStepPattern() {
+      ensureStrumStepPattern();
+      const count = getStrumVisibleStepCount();
+      return state.strumStepPattern.slice(0, count).map(normalizeStrumStep);
+    }
+
+    function renderStrumStepGrid() {
+      if (!el.strumStepGrid) return;
+      ensureStrumStepPattern();
+      const stepCount = getStrumVisibleStepCount();
+      el.strumStepGrid.innerHTML = "";
+      el.strumStepGrid.classList.toggle("hidden", stepCount === 0);
+      if (stepCount === 0) return;
+
+      for (let stepIndex = 0; stepIndex < stepCount; stepIndex += 1) {
+        const step = normalizeStrumStep(state.strumStepPattern[stepIndex]);
+        const stepCard = document.createElement("div");
+        stepCard.className = "strum-step-card";
+        stepCard.innerHTML = `
+          <p class="strum-step-head">Step ${stepIndex + 1}</p>
+          <button class="strum-step-velocity-btn" type="button" data-step-index="${stepIndex}" aria-label="Set velocity for step ${stepIndex + 1}">
+            <span class="strum-step-velocity-track">
+              <span class="strum-step-velocity-fill" style="height: ${(step.velocity / 127) * 100}%;"></span>
+            </span>
+          </button>
+          <p class="strum-step-velocity-label">Velocity ${step.velocity}</p>
+          <div class="strum-step-rate-wrap">
+            <button class="sample-loop-tool-btn strum-menu-btn strum-step-rate-btn" type="button" data-step-index="${stepIndex}" aria-haspopup="true" aria-expanded="false">Rate ${STRUM_STEP_RATE_LABELS[step.rateIndex]}</button>
+            <div class="strum-menu strum-step-rate-menu hidden" role="menu" aria-label="Step ${stepIndex + 1} rate">
+              <button class="strum-menu-item strum-step-rate-item" type="button" data-step-index="${stepIndex}" data-step-rate-index="0">1/4</button>
+              <button class="strum-menu-item strum-step-rate-item" type="button" data-step-index="${stepIndex}" data-step-rate-index="1">1/8</button>
+              <button class="strum-menu-item strum-step-rate-item" type="button" data-step-index="${stepIndex}" data-step-rate-index="2">1/16</button>
+              <button class="strum-menu-item strum-step-rate-item" type="button" data-step-index="${stepIndex}" data-step-rate-index="3">1/32</button>
+              <button class="strum-menu-item strum-step-rate-item" type="button" data-step-index="${stepIndex}" data-step-rate-index="4">Rest</button>
+            </div>
+          </div>
+        `;
+
+        const rateItems = Array.from(stepCard.querySelectorAll(".strum-step-rate-item"));
+        rateItems.forEach((item) => {
+          const itemRateIndex = Math.max(0, Math.min(4, Number(item.dataset.stepRateIndex) || 0));
+          item.classList.toggle("active", itemRateIndex === step.rateIndex);
+        });
+
+        el.strumStepGrid.appendChild(stepCard);
+      }
     }
 
     function updateStrumUi() {
@@ -6807,10 +6987,9 @@
         el.strumDoublingBtn.classList.toggle("active", on);
       }
 
-      const _rateLabels = ["1/4", "1/8", "1/16", "1/32"];
       if (el.strumRateBtn) {
         const idx = Math.max(0, Math.min(3, Number(state.strumRateIndex) || 0));
-        el.strumRateBtn.textContent = `Rate ${_rateLabels[idx]}`;
+        el.strumRateBtn.textContent = `Rate ${STRUM_RATE_LABELS[idx]}`;
         if (el.strumRateMenu) {
           const isOpen = !el.strumRateMenu.classList.contains("hidden");
           el.strumRateBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
@@ -6859,14 +7038,28 @@
           });
         }
       }
+
+      renderStrumStepGrid();
     }
 
     function setupStrum() {
       updateStrumUi();
 
       const closeStrumMenus = () => {
-        const menus = [el.strumRateMenu, el.strumSwingMenu, el.strumVelHumanMenu, el.strumTimeHumanMenu];
-        const buttons = [el.strumRateBtn, el.strumSwingBtn, el.strumVelHumanBtn, el.strumTimeHumanBtn];
+        const menus = [
+          el.strumRateMenu,
+          el.strumSwingMenu,
+          el.strumVelHumanMenu,
+          el.strumTimeHumanMenu,
+          ...Array.from(document.querySelectorAll(".strum-step-rate-menu"))
+        ];
+        const buttons = [
+          el.strumRateBtn,
+          el.strumSwingBtn,
+          el.strumVelHumanBtn,
+          el.strumTimeHumanBtn,
+          ...Array.from(document.querySelectorAll(".strum-step-rate-btn"))
+        ];
         menus.forEach((menu) => {
           if (menu) menu.classList.add("hidden");
         });
@@ -6939,13 +7132,83 @@
         state.strumTimingHumanizeMs = Math.max(0, Math.min(30, Number(item.dataset.timeHumanValue) || 0));
       });
 
+      if (el.strumStepGrid) {
+        const setVelocityFromPointer = (stepIndex, clientY, velocityBtn) => {
+          const index = Math.max(0, Math.min(7, Number(stepIndex) || 0));
+          const rect = velocityBtn.getBoundingClientRect();
+          const normalized = 1 - ((clientY - rect.top) / Math.max(1, rect.height));
+          const clamped = Math.max(0, Math.min(1, normalized));
+          const velocity = Math.max(1, Math.min(127, Math.round(clamped * 127)));
+          ensureStrumStepPattern();
+          state.strumStepPattern[index] = {
+            ...normalizeStrumStep(state.strumStepPattern[index]),
+            velocity
+          };
+          updateStrumUi();
+          emitStrumSettings();
+          scheduleSessionStateSave(280);
+        };
+
+        el.strumStepGrid.addEventListener("pointerdown", (ev) => {
+          const target = ev.target;
+          if (!(target instanceof Element)) return;
+          const velocityBtn = target.closest(".strum-step-velocity-btn");
+          if (!(velocityBtn instanceof HTMLButtonElement)) return;
+          const stepIndex = Number(velocityBtn.dataset.stepIndex);
+          if (!Number.isFinite(stepIndex)) return;
+          ev.preventDefault();
+          setVelocityFromPointer(stepIndex, ev.clientY, velocityBtn);
+
+          const onMove = (moveEv) => setVelocityFromPointer(stepIndex, moveEv.clientY, velocityBtn);
+          const onUp = () => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+          };
+
+          window.addEventListener("pointermove", onMove);
+          window.addEventListener("pointerup", onUp);
+        });
+
+        el.strumStepGrid.addEventListener("click", (ev) => {
+          const target = ev.target;
+          if (!(target instanceof Element)) return;
+
+          const rateItem = target.closest(".strum-step-rate-item");
+          if (rateItem instanceof HTMLButtonElement) {
+            const stepIndex = Math.max(0, Math.min(7, Number(rateItem.dataset.stepIndex) || 0));
+            const rateIndex = Math.max(0, Math.min(4, Number(rateItem.dataset.stepRateIndex) || 0));
+            ensureStrumStepPattern();
+            state.strumStepPattern[stepIndex] = {
+              ...normalizeStrumStep(state.strumStepPattern[stepIndex]),
+              rateIndex
+            };
+            closeStrumMenus();
+            updateStrumUi();
+            emitStrumSettings();
+            scheduleSessionStateSave(280);
+            return;
+          }
+
+          const rateBtn = target.closest(".strum-step-rate-btn");
+          if (rateBtn instanceof HTMLButtonElement) {
+            ev.stopPropagation();
+            const menu = rateBtn.parentElement?.querySelector(".strum-step-rate-menu");
+            if (!(menu instanceof HTMLElement)) return;
+            const open = !menu.classList.contains("hidden");
+            closeStrumMenus();
+            if (!open) {
+              menu.classList.remove("hidden");
+              rateBtn.setAttribute("aria-expanded", "true");
+            }
+          }
+        });
+      }
+
       document.addEventListener("click", (ev) => {
         const target = ev.target;
-        if (!(target instanceof Node)) return;
-        const menus = [el.strumRateMenu, el.strumSwingMenu, el.strumVelHumanMenu, el.strumTimeHumanMenu];
-        const buttons = [el.strumRateBtn, el.strumSwingBtn, el.strumVelHumanBtn, el.strumTimeHumanBtn];
-        const clickedInsideMenu = menus.some((menu) => !!menu && menu.contains(target));
-        const clickedMenuButton = buttons.some((btn) => !!btn && btn === target);
+        if (!(target instanceof Element)) return;
+        const clickedInsideMenu = !!target.closest(".strum-menu");
+        const clickedMenuButton = !!target.closest(".strum-menu-btn");
         if (!clickedInsideMenu && !clickedMenuButton) closeStrumMenus();
       });
     }
