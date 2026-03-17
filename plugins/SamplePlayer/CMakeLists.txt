@@ -31,6 +31,7 @@ juce_add_binary_data(sampleplayer_WebUI
 
 juce_add_plugin(sample_player
     COMPANY_NAME "Noizefield"
+    VERSION "1.0.1"
     PLUGIN_MANUFACTURER_CODE NPSA
     PLUGIN_CODE SMP2
     FORMATS ${PLUGIN_FORMATS}
