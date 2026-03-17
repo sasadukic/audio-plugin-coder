@@ -239,7 +239,7 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
-      z-index: 220;
+      z-index: 9999;
     }
 
     .strum-menu.hidden { display: none; }
@@ -390,7 +390,7 @@
       left: 0;
       width: 100%;
       min-width: 0;
-      z-index: 230;
+      z-index: 10000;
     }
 
     .strum-step-keyswitch-btn:disabled {
@@ -403,7 +403,7 @@
     }
 
     .strum-step-rate-menu {
-      z-index: 260;
+      z-index: 10001;
     }
 
     .strum-step-card.is-inactive .strum-step-velocity-btn,
@@ -4584,7 +4584,7 @@
         velocity: 100,
         keyswitchSetId: ""
       })),
-      strumEnabled: false,
+      strumEnabled: true,
       strumSequencerMode: 0,
       strumSequencerSteps: 8,
       strumDoubling: false,
@@ -6927,7 +6927,7 @@
     function emitStrumSettings() {
       const stepCount = getStrumVisibleStepCount();
       emitNativeEvent("strum_settings_set", {
-        enabled: !!state.strumEnabled,
+        enabled: true,
         sequencerMode: stepCount <= 0 ? 0 : (stepCount <= 4 ? 1 : 2),
         doubling: !!state.strumDoubling,
         rateIndex: Math.max(0, Math.min(3, Number(state.strumRateIndex) || 0)),
@@ -7013,7 +7013,7 @@
 
     function getStrumKeyswitchLabel(keyswitchSetId) {
       const id = String(keyswitchSetId || "").trim();
-      if (!id) return "Keyswitch Keep";
+      if (!id) return "Keyswitch";
       const set = getKeyswitchSetById(id);
       const label = String(set?.name || id).trim() || id;
       return `Keyswitch ${label}`;
