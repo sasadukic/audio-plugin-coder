@@ -254,6 +254,9 @@ private:
 
         std::array<FilterState, 2> filterStates {};
 
+        float pan = 0.0f;
+        std::array<float, 2> panGains { 0.70710677f, 0.70710677f };
+
         uint64_t age = 0;
         bool ignoreMonoNoteDedupe = false;
     };
@@ -304,6 +307,13 @@ private:
 
     void handleMidiMessage (const juce::MidiMessage& message, const BlockSettings& settings, bool previewMessage = false);
     void startVoiceForNote (int midiChannel, int midiNoteNumber, float velocity, const BlockSettings& settings);
+    void startVoiceForNoteInternal (int midiChannel,
+                                    int midiNoteNumber,
+                                    float velocity,
+                                    const BlockSettings& settings,
+                                    bool suppressMonoCut,
+                                    float pan,
+                                    int rrOffset);
     void releaseVoicesForNote (int midiChannel, int midiNoteNumber, bool allowTailOff, const BlockSettings& settings);
     void enforceSingleVoicePerMidiNote();
     void stopAllVoices();
@@ -314,7 +324,10 @@ private:
     void startStealTailFromVoice (const VoiceState& sourceVoice);
     void setMidiHeldState (int midiNote, bool held) noexcept;
 
-    std::shared_ptr<const SampleZone> pickZoneForNote (int midiNoteNumber, int velocity127, bool* usedModwheelLayerSelection = nullptr);
+    std::shared_ptr<const SampleZone> pickZoneForNote (int midiNoteNumber,
+                                                       int velocity127,
+                                                       bool* usedModwheelLayerSelection = nullptr,
+                                                       int rrOffset = 0);
 
     BlockSettings getBlockSettingsSnapshot() const;
     LoopSettings buildLoopSettingsForZone (const SampleZone& zone, const BlockSettings& settings) const;
@@ -359,10 +372,12 @@ private:
             int noteMidi = 60;
             int velocity127 = 100;
             int keyswitchSlot = -1;
+                    int rateIndex = 2;
         };
 
         bool enabled = false;
         bool followsInputNote = false;
+        bool doubling = false;
         int rateIndex = 2;
         int samplesUntilNextStep = 0;
         int currentStep = -1;

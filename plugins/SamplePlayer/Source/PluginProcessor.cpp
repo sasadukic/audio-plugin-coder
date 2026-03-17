@@ -768,7 +768,17 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         if (hasHeldTrigger)
         {
             constexpr std::array<int, 4> subdivisionsByRate { 1, 2, 4, 8 };
-            const int clampedRate = juce::jlimit (0, 3, runtime->rateIndex);
+            int nextStepIndex = (juce::jmax (-1, runtime->currentStep) + 1)
+                              % static_cast<int> (runtime->steps.size());
+            int effectiveRate = runtime->rateIndex;
+            if (nextStepIndex >= 0 && nextStepIndex < static_cast<int> (runtime->steps.size()))
+            {
+                const int stepRate = runtime->steps[static_cast<size_t> (nextStepIndex)].rateIndex;
+                if (stepRate >= 0 && stepRate <= 3)
+                    effectiveRate = stepRate;
+            }
+
+            const int clampedRate = juce::jlimit (0, 3, effectiveRate);
             const int subdivisions = subdivisionsByRate[static_cast<size_t> (clampedRate)];
             const int intervalSamples = juce::jmax (1, static_cast<int> ((currentSampleRate * 0.5) / static_cast<double> (subdivisions)));
 
@@ -2072,6 +2082,7 @@ void SamplePlayerAudioProcessor::setSequencerHostTriggerEnabled (bool enabled)
 void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payload)
 {
     bool enabled = true;
+    bool doubling = false;
     int uiRateIndex = 2;
     std::array<StepSequencerRuntime::Step, 8> strumSteps {};
     int parsedStepCount = 0;
@@ -2089,6 +2100,10 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
         if (! enabledVar.isVoid())
             enabled = static_cast<bool> (enabledVar);
 
+        const auto doublingVar = object->getProperty ("doubling");
+        if (! doublingVar.isVoid())
+            doubling = static_cast<bool> (doublingVar);
+
         uiRateIndex = juce::jlimit (0, 3, static_cast<int> (object->getProperty ("rateIndex")));
 
         if (const auto* stepPattern = object->getProperty ("stepPattern").getArray())
@@ -2105,6 +2120,7 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
                 auto& step = strumSteps[static_cast<size_t> (i)];
 
                 const int rateIndex = juce::jlimit (0, 4, static_cast<int> (stepObj->getProperty ("rateIndex")));
+                step.rateIndex = rateIndex;
                 if (rateIndex >= 4)
                     step.velocity127 = 0; // Rest
                 else
@@ -2129,6 +2145,7 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
     auto runtime = std::make_shared<StepSequencerRuntime>();
     runtime->enabled = enabled;
     runtime->followsInputNote = true;
+    runtime->doubling = doubling;
     runtime->rateIndex = uiRateIndex;
     runtime->samplesUntilNextStep = 0;
     runtime->currentStep = -1;
@@ -4546,7 +4563,27 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 setMidiHeldState (playedNote, true);
 
                 const float velocity01 = static_cast<float> (juce::jlimit (1, 127, step.velocity127)) / 127.0f;
-                startVoiceForNote (message.getChannel(), playedNote, velocity01, settings);
+                if (runtime->doubling)
+                {
+                    startVoiceForNoteInternal (message.getChannel(),
+                                               playedNote,
+                                               velocity01,
+                                               settings,
+                                               false,
+                                               -1.0f,
+                                               0);
+                    startVoiceForNoteInternal (message.getChannel(),
+                                               playedNote,
+                                               velocity01,
+                                               settings,
+                                               true,
+                                               1.0f,
+                                               1);
+                }
+                else
+                {
+                    startVoiceForNote (message.getChannel(), playedNote, velocity01, settings);
+                }
                 return true;
             };
 
@@ -4718,25 +4755,39 @@ void SamplePlayerAudioProcessor::startVoiceForNote (int midiChannel,
                                                      float velocity,
                                                      const BlockSettings& settings)
 {
+    startVoiceForNoteInternal (midiChannel, midiNoteNumber, velocity, settings, false, 0.0f, 0);
+}
+
+void SamplePlayerAudioProcessor::startVoiceForNoteInternal (int midiChannel,
+                                                            int midiNoteNumber,
+                                                            float velocity,
+                                                            const BlockSettings& settings,
+                                                            bool suppressMonoCut,
+                                                            float pan,
+                                                            int rrOffset)
+{
     const int velocity127 = juce::jlimit (1, 127, static_cast<int> (std::round (velocity * 127.0f)));
     bool usedModwheelLayerSelection = false;
-    auto zone = pickZoneForNote (midiNoteNumber, velocity127, &usedModwheelLayerSelection);
+    auto zone = pickZoneForNote (midiNoteNumber, velocity127, &usedModwheelLayerSelection, rrOffset);
 
     if (zone == nullptr)
         return;
 
-    // Enforce strict mono-per-key retrigger behavior (channel-agnostic): any
-    // previous voice on the same key is hard-cut immediately, independent of
-    // ADSR release time.
-    for (auto& existing : voices)
+    if (! suppressMonoCut)
     {
-        if (! existing.active)
-            continue;
+        // Enforce strict mono-per-key retrigger behavior (channel-agnostic): any
+        // previous voice on the same key is hard-cut immediately, independent of
+        // ADSR release time.
+        for (auto& existing : voices)
+        {
+            if (! existing.active)
+                continue;
 
-        if (existing.midiNote != midiNoteNumber)
-            continue;
+            if (existing.midiNote != midiNoteNumber)
+                continue;
 
-        existing = VoiceState {};
+            existing = VoiceState {};
+        }
     }
 
     auto* voice = findFreeVoice();
@@ -4768,6 +4819,10 @@ void SamplePlayerAudioProcessor::startVoiceForNote (int midiChannel,
     voice->pitchRatio = juce::jmax (0.0001, sampleRateRatio * pitch);
 
     voice->sustainLevel = juce::jlimit (0.0f, 1.0f, settings.sustainLevel);
+    voice->pan = juce::jlimit (-1.0f, 1.0f, pan);
+    const float leftGain = std::sqrt (0.5f * (1.0f - voice->pan));
+    const float rightGain = std::sqrt (0.5f * (1.0f + voice->pan));
+    voice->panGains = { leftGain, rightGain };
 
     voice->attackSamplesRemaining = msToSamples (currentSampleRate, settings.attackMs);
     if (voice->attackSamplesRemaining > 0)
@@ -4946,7 +5001,8 @@ void SamplePlayerAudioProcessor::startStealTailFromVoice (const VoiceState& sour
 
 std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioProcessor::pickZoneForNote (int midiNoteNumber,
                                                                                                               int velocity127,
-                                                                                                              bool* usedModwheelLayerSelection)
+                                                                                                              bool* usedModwheelLayerSelection,
+                                                                                                              int rrOffset)
 {
     if (usedModwheelLayerSelection != nullptr)
         *usedModwheelLayerSelection = false;
@@ -5031,7 +5087,9 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     const int rrKey = (activeSlot << 8) | juce::jlimit (0, 127, midiNoteNumber);
     auto& rrCounter = roundRobinCounters[rrKey];
     const auto poolSize = static_cast<int> (candidatePool->size());
-    const int wrappedIndex = poolSize > 0 ? (rrCounter % poolSize) : 0;
+    const int wrappedIndex = poolSize > 0
+        ? ((rrCounter + juce::jmax (0, rrOffset)) % poolSize)
+        : 0;
     rrCounter = (rrCounter + 1) % 8192;
 
     return candidatePool->at (static_cast<size_t> (wrappedIndex));
@@ -5220,7 +5278,12 @@ void SamplePlayerAudioProcessor::renderSingleVoice (VoiceState& voice,
                 }
 
                 sampleValue = processVoiceFilterSample (voice, channel, sampleValue, settings);
-                outputBuffer.addSample (channel, startSample + i, sampleValue * amp);
+                float panGain = 1.0f;
+                if (channel == 0)
+                    panGain = voice.panGains[0];
+                else if (channel == 1)
+                    panGain = voice.panGains[1];
+                outputBuffer.addSample (channel, startSample + i, sampleValue * amp * panGain);
             }
         }
 
