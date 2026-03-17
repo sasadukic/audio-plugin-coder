@@ -4708,9 +4708,11 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                     return true;
                 }
 
-                const int playedNote = runtime->followsInputNote
+                const int playedNote = isStrumRuntime
                     ? note
-                    : juce::jlimit (0, 127, step.noteMidi);
+                    : (runtime->followsInputNote
+                        ? note
+                        : juce::jlimit (0, 127, step.noteMidi));
                 runtime->triggerToPlayedNote[static_cast<size_t> (note)] = playedNote;
 
                 auto& playedDepth = runtime->playedDepthByMidi[static_cast<size_t> (playedNote)];
