@@ -6737,9 +6737,9 @@
 
     function applyStrumSnapshot(snapshot) {
       const source = (snapshot && typeof snapshot === "object") ? snapshot : {};
-      state.strumEnabled = source.enabled !== undefined ? !!source.enabled : false;
       state.strumSequencerSteps = Number.isFinite(source.sequencerSteps) ? Math.max(0, Math.min(8, Math.round(source.sequencerSteps))) : 0;
       state.strumSequencerMode = Number.isFinite(source.sequencerMode) ? Math.max(0, Math.min(2, Math.round(source.sequencerMode))) : 0;
+      state.strumEnabled = source.enabled !== undefined ? !!source.enabled : (state.strumSequencerSteps > 0);
       state.strumDoubling = !!source.doubling;
       state.strumRateIndex = Number.isFinite(source.rateIndex) ? Math.max(0, Math.min(3, Math.round(source.rateIndex))) : 2;
       state.strumSwingPercent = Number.isFinite(source.swingPercent) ? Math.max(0, Math.min(60, Math.round(source.swingPercent))) : 0;
@@ -6957,7 +6957,7 @@
 
     function emitStrumSettings() {
       const stepCount = getStrumVisibleStepCount();
-      emitNativeEvent("strum_settings_set", {
+      const payload = {
         enabled: !!state.strumEnabled && stepCount > 0,
         sequencerMode: stepCount <= 0 ? 0 : (stepCount <= 4 ? 1 : 2),
         doubling: !!state.strumDoubling,
@@ -6966,7 +6966,8 @@
         velocityHumanizePercent: Math.max(0, Math.min(20, Number(state.strumVelocityHumanizePercent) || 0)),
         timingHumanizeMs: Math.max(0, Math.min(10, Number(state.strumTimingHumanizeMs) || 0)),
         stepPattern: getVisibleStrumStepPattern()
-      });
+      };
+      emitNativeEvent("strum_settings_set", payload);
     }
 
     function getStrumVisibleStepCount() {
@@ -7315,6 +7316,7 @@
           const rawSteps = Number(item.dataset.sequencerSteps);
           state.strumSequencerSteps = Number.isFinite(rawSteps) ? Math.max(0, Math.min(8, Math.round(rawSteps))) : 8;
           state.strumSequencerMode = state.strumSequencerSteps <= 0 ? 0 : (state.strumSequencerSteps <= 4 ? 1 : 2);
+          state.strumEnabled = state.strumSequencerSteps > 0;
         });
       }
 

@@ -4814,8 +4814,12 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 return true;
             };
 
-            if (processRuntime (std::atomic_load (&strumSequencerRuntime), true))
-                return;
+            {
+                auto strumRT = std::atomic_load (&strumSequencerRuntime);
+                const bool strumEnabled = strumRT != nullptr && strumRT->enabled;
+                if (strumEnabled && processRuntime (strumRT, true))
+                    return;
+            }
 
             if (! previewMessage)
             {
