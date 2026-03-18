@@ -4667,7 +4667,6 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
         const auto sampleSet = std::atomic_load (&currentSampleSet);
         const int activeSlot = juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
 
-        if (! previewMessage)
         {
             const auto processRuntime = [&] (const std::shared_ptr<StepSequencerRuntime>& runtime,
                                              bool isStrumRuntime) -> bool
@@ -4818,8 +4817,11 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
             if (processRuntime (std::atomic_load (&strumSequencerRuntime), true))
                 return;
 
-            if (processRuntime (std::atomic_load (&stepSequencerRuntime), false))
-                return;
+            if (! previewMessage)
+            {
+                if (processRuntime (std::atomic_load (&stepSequencerRuntime), false))
+                    return;
+            }
         }
 
         if (sampleSet != nullptr)
@@ -4871,7 +4873,6 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
     {
         const int note = juce::jlimit (0, 127, message.getNoteNumber());
 
-        if (! previewMessage)
         {
             const auto releaseRuntimeForNote = [&] (const std::shared_ptr<StepSequencerRuntime>& runtime) -> bool
             {
@@ -4899,8 +4900,11 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
             if (releaseRuntimeForNote (std::atomic_load (&strumSequencerRuntime)))
                 return;
 
-            if (releaseRuntimeForNote (std::atomic_load (&stepSequencerRuntime)))
-                return;
+            if (! previewMessage)
+            {
+                if (releaseRuntimeForNote (std::atomic_load (&stepSequencerRuntime)))
+                    return;
+            }
         }
 
         if (const auto sampleSet = std::atomic_load (&currentSampleSet); sampleSet != nullptr)
