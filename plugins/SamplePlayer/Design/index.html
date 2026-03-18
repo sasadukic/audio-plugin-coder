@@ -9706,7 +9706,7 @@
         fileName: String(file?.name || "sample.wav"),
         manifestPath: sourcePath,
         order: getNextMapEntryOrder(),
-        sampleUrl: URL.createObjectURL(file),
+        sampleUrl: getNativeBackend() ? "" : URL.createObjectURL(file),
         sampleDataUrl: "",
         fineTuneCents: 0,
         sampleStartNorm: 0,
@@ -9862,7 +9862,7 @@
           rrColumns > 1 ? targetRr : null
         );
         owner.push(entry);
-        if (!entry.manifestPath) {
+        if (!entry.manifestPath && !getNativeBackend()) {
           cacheEntrySampleDataUrlFromFile(entry, file);
         }
         ensureEntryEditorState(entry);
@@ -14141,7 +14141,6 @@
         const hasEntryMove = Number.isFinite(draggedOrder);
 
         if (hasFilePayload || droppedFiles.length > 0) {
-          if (getNativeBackend()) return;
           ev.preventDefault();
           ev.stopPropagation();
           if (ev.dataTransfer) ev.dataTransfer.dropEffect = "copy";
@@ -14236,7 +14235,6 @@
         const droppedFiles = getDroppedAudioFiles(ev.dataTransfer?.files || []);
         const hasFilePayload = dataTransferHasFilePayload(ev.dataTransfer);
         if (!droppedFiles.length && !hasFilePayload) return;
-        if (getNativeBackend()) return;
         ev.preventDefault();
         ev.stopPropagation();
         if (ev.dataTransfer) ev.dataTransfer.dropEffect = "copy";
@@ -14477,10 +14475,11 @@
 
       ensureSessionStateWritable("ingest-audio");
       state.packLoaded = false;
+      const nativeAvailable = !!getNativeBackend();
       const start = state.entries.length;
       files.forEach((file, idx) => {
         const parsed = parseFilename(file.name);
-        const sampleUrl = parsed.valid ? URL.createObjectURL(file) : "";
+        const sampleUrl = (parsed.valid && !nativeAvailable) ? URL.createObjectURL(file) : "";
         const sourcePath = (file && typeof file.path === "string") ? String(file.path).trim() : "";
         const entry = {
           fileName: file.name,
@@ -14496,7 +14495,7 @@
           ...parsed
         };
         state.entries.push(entry);
-        if (parsed.valid && !sourcePath) {
+        if (parsed.valid && !sourcePath && !nativeAvailable) {
           cacheEntrySampleDataUrlFromFile(entry, file);
         }
       });

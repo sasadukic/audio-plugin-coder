@@ -3164,7 +3164,18 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
             {
                 const auto recursiveHit = findFileByNameRecursive (rootDir, nameOnly, 4);
                 if (recursiveHit.existsAsFile())
+                {
+                    const auto discoveredDir = recursiveHit.getParentDirectory();
+                    if (discoveredDir.isDirectory())
+                    {
+                        bool alreadyKnown = false;
+                        for (const auto& existing : samplePathSearchRoots)
+                            if (existing == discoveredDir) { alreadyKnown = true; break; }
+                        if (! alreadyKnown)
+                            samplePathSearchRoots.add (discoveredDir);
+                    }
                     return recursiveHit;
+                }
             }
 
             const auto cacheKey = nameOnly.toLowerCase().toStdString();
@@ -3181,6 +3192,15 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                 if (recursiveHit.existsAsFile())
                 {
                     broadNameLookupCache[cacheKey] = recursiveHit;
+                    const auto discoveredDir = recursiveHit.getParentDirectory();
+                    if (discoveredDir.isDirectory())
+                    {
+                        bool alreadyKnown = false;
+                        for (const auto& existing : samplePathSearchRoots)
+                            if (existing == discoveredDir) { alreadyKnown = true; break; }
+                        if (! alreadyKnown)
+                            samplePathSearchRoots.add (discoveredDir);
+                    }
                     return recursiveHit;
                 }
             }
