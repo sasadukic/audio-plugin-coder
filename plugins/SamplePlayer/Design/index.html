@@ -4383,12 +4383,10 @@
                   <button id="strumSwingBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Swing 0%</button>
                   <div id="strumSwingMenu" class="strum-menu hidden" role="menu" aria-label="Strum swing">
                     <button class="strum-menu-item" type="button" data-swing-value="0">0%</button>
+                    <button class="strum-menu-item" type="button" data-swing-value="5">5%</button>
                     <button class="strum-menu-item" type="button" data-swing-value="10">10%</button>
+                    <button class="strum-menu-item" type="button" data-swing-value="15">15%</button>
                     <button class="strum-menu-item" type="button" data-swing-value="20">20%</button>
-                    <button class="strum-menu-item" type="button" data-swing-value="30">30%</button>
-                    <button class="strum-menu-item" type="button" data-swing-value="40">40%</button>
-                    <button class="strum-menu-item" type="button" data-swing-value="50">50%</button>
-                    <button class="strum-menu-item" type="button" data-swing-value="60">60%</button>
                   </div>
                 </div>
                 <div class="strum-menu-wrap">
@@ -6721,7 +6719,7 @@
         sequencerMode: Math.max(0, Math.min(2, Number(state.strumSequencerMode) || 0)),
         doubling: !!state.strumDoubling,
         rateIndex: Math.max(0, Math.min(3, Number(state.strumRateIndex) || 0)),
-        swingPercent: Math.max(0, Math.min(60, Number(state.strumSwingPercent) || 0)),
+        swingPercent: Math.max(0, Math.min(20, Number(state.strumSwingPercent) || 0)),
         velocityHumanizePercent: Math.max(0, Math.min(20, Number(state.strumVelocityHumanizePercent) || 0)),
         timingHumanizeMs: Math.max(0, Math.min(10, Number(state.strumTimingHumanizeMs) || 0)),
         stepPattern: state.strumStepPattern.slice(0, 8).map((step) => {
@@ -6742,7 +6740,7 @@
       state.strumEnabled = source.enabled !== undefined ? !!source.enabled : (state.strumSequencerSteps > 0);
       state.strumDoubling = !!source.doubling;
       state.strumRateIndex = Number.isFinite(source.rateIndex) ? Math.max(0, Math.min(3, Math.round(source.rateIndex))) : 2;
-      state.strumSwingPercent = Number.isFinite(source.swingPercent) ? Math.max(0, Math.min(60, Math.round(source.swingPercent))) : 0;
+      state.strumSwingPercent = Number.isFinite(source.swingPercent) ? Math.max(0, Math.min(20, Math.round(source.swingPercent))) : 0;
       state.strumVelocityHumanizePercent = Number.isFinite(source.velocityHumanizePercent) ? Math.max(0, Math.min(20, Math.round(source.velocityHumanizePercent))) : 0;
       state.strumTimingHumanizeMs = Number.isFinite(source.timingHumanizeMs) ? Math.max(0, Math.min(10, Math.round(source.timingHumanizeMs))) : 0;
       if (Array.isArray(source.stepPattern)) {
@@ -6962,7 +6960,7 @@
         sequencerMode: stepCount <= 0 ? 0 : (stepCount <= 4 ? 1 : 2),
         doubling: !!state.strumDoubling,
         rateIndex: getStrumEffectiveRateIndex(),
-        swingPercent: Math.max(0, Math.min(60, Number(state.strumSwingPercent) || 0)),
+        swingPercent: Math.max(0, Math.min(20, Number(state.strumSwingPercent) || 0)),
         velocityHumanizePercent: Math.max(0, Math.min(20, Number(state.strumVelocityHumanizePercent) || 0)),
         timingHumanizeMs: Math.max(0, Math.min(10, Number(state.strumTimingHumanizeMs) || 0)),
         stepPattern: getVisibleStrumStepPattern()
@@ -7203,14 +7201,14 @@
         }
       }
 
-      const swing = Math.max(0, Math.min(60, Number(state.strumSwingPercent) || 0));
+      const swing = Math.max(0, Math.min(20, Number(state.strumSwingPercent) || 0));
       if (el.strumSwingBtn) {
         el.strumSwingBtn.textContent = `Swing ${swing}%`;
         if (el.strumSwingMenu) {
           const isOpen = !el.strumSwingMenu.classList.contains("hidden");
           el.strumSwingBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
           Array.from(el.strumSwingMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
-            const val = Math.max(0, Math.min(60, Number(item.dataset.swingValue) || 0));
+            const val = Math.max(0, Math.min(20, Number(item.dataset.swingValue) || 0));
             item.classList.toggle("active", val === swing);
           });
         }
@@ -7333,7 +7331,7 @@
       });
 
       setupStrumMenu(el.strumSwingBtn, el.strumSwingMenu, ".strum-menu-item", (item) => {
-        state.strumSwingPercent = Math.max(0, Math.min(60, Number(item.dataset.swingValue) || 0));
+        state.strumSwingPercent = Math.max(0, Math.min(20, Number(item.dataset.swingValue) || 0));
       });
 
       setupStrumMenu(el.strumVelHumanBtn, el.strumVelHumanMenu, ".strum-menu-item", (item) => {
