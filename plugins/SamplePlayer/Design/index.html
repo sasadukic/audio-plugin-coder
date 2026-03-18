@@ -4349,9 +4349,7 @@
                 <div id="mapEmpty" class="map-empty hidden"></div>
                 <div id="mapSamples" class="map-samples"></div>
                 <div id="mapKeys" class="map-keys"></div>
-                <div id="mapKeyContextMenu" class="map-key-context-menu">
-                  <div class="map-key-context-menu-item" data-action="load-samples">Load samples</div>
-                </div>
+                <div id="mapKeyContextMenu" class="map-key-context-menu"></div>
               </div>
             </div>
             </div>
@@ -4639,6 +4637,7 @@
       mapMatrixPaintActive: false,
       mapMatrixLastPaintCellKey: "",
       keyContextMenuTargetMidi: null,
+      keyContextMenuTargetLayer: null,
       sequencerHostTriggerEnabled: false,
       sequencerCurrentStep: -1,
       sequencerSteps: Array.from({ length: SEQUENCER_STEP_COUNT }, () => ({
@@ -6465,10 +6464,12 @@
       if (!audioFiles.length) return;
 
       const targetMidi = state.keyContextMenuTargetMidi;
+      const targetLayer = state.keyContextMenuTargetLayer;
       state.keyContextMenuTargetMidi = null;
+      state.keyContextMenuTargetLayer = null;
 
       if (Number.isFinite(targetMidi)) {
-        handleNativePickedAudioFilesForKey(audioFiles, targetMidi);
+        handleNativePickedAudioFilesForKey(audioFiles, targetMidi, targetLayer);
         return;
       }
 
@@ -6506,7 +6507,7 @@
       scheduleSessionStateSave(350);
     }
 
-    function handleNativePickedAudioFilesForKey(audioFiles, rootMidi) {
+    function handleNativePickedAudioFilesForKey(audioFiles, rootMidi, chosenLayer) {
       ensureSessionStateWritable("native-audio-pick-key");
       state.packLoaded = false;
       const root = Math.max(0, Math.min(127, Math.round(rootMidi)));
@@ -6519,7 +6520,7 @@
         const activeEntries = getActiveMapEntries().filter((e) => e && e.valid);
         const intervalRoots = getMapMatrixIntervalRoots(activeEntries, interval);
         const targetRoot = quantizeMidiToMapMatrixRoot(root, interval, intervalRoots);
-        const targetLayer = 1;
+        const targetLayer = Number.isFinite(chosenLayer) ? clampMapMatrixVelocityLayers(chosenLayer) : 1;
         const mapLookup = getMapMatrixEntryLookup(activeEntries, rrColumns);
         const cursorKey = getMapMatrixCursorKey(targetRoot, targetLayer);
         let cursorStart = Math.max(1, Math.min(rrColumns, Math.round(Number(state.mapMatrixRrCursor[cursorKey]) || 1)));
@@ -14053,6 +14054,28 @@
         el.mapKeyContextMenu.classList.remove("visible");
       };
 
+      const buildKeyContextMenuItems = () => {
+        const menu = el.mapKeyContextMenu;
+        menu.textContent = "";
+        if (state.mapMatrixSplitEnabled && state.mapMatrixVelocityLayers > 1) {
+          const layers = clampMapMatrixVelocityLayers(state.mapMatrixVelocityLayers);
+          for (let v = 1; v <= layers; v++) {
+            const item = document.createElement("div");
+            item.className = "map-key-context-menu-item";
+            item.dataset.action = "load-samples";
+            item.dataset.layer = String(v);
+            item.textContent = "Load samples \u2192 V" + v;
+            menu.appendChild(item);
+          }
+        } else {
+          const item = document.createElement("div");
+          item.className = "map-key-context-menu-item";
+          item.dataset.action = "load-samples";
+          item.textContent = "Load samples";
+          menu.appendChild(item);
+        }
+      };
+
       el.mapKeys.addEventListener("contextmenu", (ev) => {
         const keyNode = ev.target.closest(".map-key");
         if (!keyNode || keyNode.classList.contains("disabled")) return;
@@ -14061,6 +14084,8 @@
         ev.preventDefault();
         ev.stopPropagation();
         state.keyContextMenuTargetMidi = midi;
+        state.keyContextMenuTargetLayer = null;
+        buildKeyContextMenuItems();
         const menu = el.mapKeyContextMenu;
         menu.style.left = ev.clientX + "px";
         menu.style.top = ev.clientY + "px";
@@ -14077,6 +14102,9 @@
         if (!item) return;
         hideKeyContextMenu();
         if (item.dataset.action === "load-samples") {
+          if (item.dataset.layer) {
+            state.keyContextMenuTargetLayer = Number(item.dataset.layer);
+          }
           if (getNativeBackend()) {
             emitNativeEvent("pick_audio_files", {});
           }
