@@ -210,9 +210,7 @@
     }
 
     .strum-controls-row .strum-menu {
-      left: 0;
-      width: 100%;
-      min-width: 0;
+      /* positioned dynamically via JS */
     }
 
     .strum-menu-wrap {
@@ -228,10 +226,8 @@
     }
 
     .strum-menu {
-      position: absolute;
-      left: 0;
-      top: calc(100% + 6px);
-      min-width: 100%;
+      position: fixed;
+      min-width: 100px;
       background: rgba(12, 17, 26, 0.96);
       border: 1px solid rgba(140, 146, 156, 0.3);
       border-radius: 4px;
@@ -240,11 +236,11 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
-      z-index: 21000;
+      z-index: 100000;
     }
 
     #strumSequencerMenu {
-      z-index: 22000;
+      z-index: 100001;
     }
 
     .strum-menu.hidden { display: none; }
@@ -392,10 +388,7 @@
     }
 
     .strum-step-rate-wrap .strum-menu {
-      left: 0;
-      width: 100%;
-      min-width: 0;
-      z-index: 10000;
+      /* positioned dynamically via JS */
     }
 
     .strum-step-keyswitch-btn:disabled {
@@ -7272,6 +7265,29 @@
     function setupStrum() {
       updateStrumUi();
 
+      const positionStrumMenuAt = (btn, menu) => {
+        if (!btn || !menu) return;
+        const r = btn.getBoundingClientRect();
+        const menuGap = 6;
+        menu.style.left = "";
+        menu.style.top = "";
+        menu.style.right = "";
+        menu.style.bottom = "";
+        menu.style.minWidth = `${Math.max(100, Math.round(r.width))}px`;
+        menu.classList.remove("hidden");
+        const mRect = menu.getBoundingClientRect();
+        let top = r.bottom + menuGap;
+        let left = r.left;
+        if (top + mRect.height > window.innerHeight) {
+          top = Math.max(0, r.top - menuGap - mRect.height);
+        }
+        if (left + mRect.width > window.innerWidth) {
+          left = Math.max(0, window.innerWidth - mRect.width - 4);
+        }
+        menu.style.top = `${Math.round(top)}px`;
+        menu.style.left = `${Math.round(left)}px`;
+      };
+
       const closeStrumMenus = () => {
         const menus = [
           el.strumSequencerMenu,
@@ -7292,7 +7308,14 @@
           ...Array.from(document.querySelectorAll(".strum-step-keyswitch-btn"))
         ];
         menus.forEach((menu) => {
-          if (menu) menu.classList.add("hidden");
+          if (menu) {
+            menu.classList.add("hidden");
+            menu.style.top = "";
+            menu.style.left = "";
+            menu.style.right = "";
+            menu.style.bottom = "";
+            menu.style.minWidth = "";
+          }
         });
         buttons.forEach((btn) => {
           if (btn) btn.setAttribute("aria-expanded", "false");
@@ -7306,7 +7329,7 @@
           const open = !menu.classList.contains("hidden");
           closeStrumMenus();
           if (!open) {
-            menu.classList.remove("hidden");
+            positionStrumMenuAt(btn, menu);
             btn.setAttribute("aria-expanded", "true");
           }
         });
@@ -7478,7 +7501,7 @@
             const open = !menu.classList.contains("hidden");
             closeStrumMenus();
             if (!open) {
-              menu.classList.remove("hidden");
+              positionStrumMenuAt(rateBtn, menu);
               rateBtn.setAttribute("aria-expanded", "true");
             }
             return;
@@ -7515,7 +7538,7 @@
             const open = !menu.classList.contains("hidden");
             closeStrumMenus();
             if (!open) {
-              menu.classList.remove("hidden");
+              positionStrumMenuAt(keyswitchBtn, menu);
               keyswitchBtn.setAttribute("aria-expanded", "true");
             }
           }
