@@ -178,6 +178,10 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
                      {
                          editor.handlePickAudioFolderEvent (payload);
                      })
+                     .withEventListener ("export_elmulti", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleExportElmultiEvent (payload);
+                     })
                      .withEventListener ("ui_resize", [&editor] (const juce::var& payload)
                      {
                          editor.handleUIResizeEvent (payload);
@@ -1253,6 +1257,173 @@ void SamplePlayerAudioProcessorEditor::handlePickAudioFolderEvent (const juce::v
         appendUiDebugLog ("native audio folder picked | folder=" + folder.getFullPathName()
                           + " | fileCount=" + juce::String (audioFiles.size()));
         safeThis->audioFileChooser.reset();
+    });
+}
+
+void SamplePlayerAudioProcessorEditor::handleExportElmultiEvent (const juce::var& eventPayload)
+{
+    const auto* obj = eventPayload.getDynamicObject();
+    if (obj == nullptr) return;
+
+    const auto instrumentName = obj->getProperty ("instrumentName").toString().trim();
+    const auto* keyZonesArray = obj->getProperty ("keyZones").getArray();
+    if (keyZonesArray == nullptr || keyZonesArray->isEmpty())
+        return;
+
+    juce::StringArray searchPaths;
+    if (const auto* sp = obj->getProperty ("searchPaths").getArray())
+    {
+        for (const auto& p : *sp)
+        {
+            const auto path = p.toString().trim();
+            if (path.isNotEmpty())
+                searchPaths.add (path);
+        }
+    }
+
+    auto resolveFile = [&searchPaths] (const juce::String& manifestPath,
+                                        const juce::String& fileName) -> juce::File
+    {
+        if (manifestPath.isNotEmpty())
+        {
+            juce::File f (manifestPath);
+            if (f.existsAsFile())
+                return f;
+        }
+        for (const auto& root : searchPaths)
+        {
+            auto candidate = juce::File (root).getChildFile (fileName);
+            if (candidate.existsAsFile())
+                return candidate;
+            for (const auto& entry : juce::RangedDirectoryIterator (juce::File (root), true, fileName, juce::File::findFiles))
+                return entry.getFile();
+        }
+        return {};
+    };
+
+    juce::AudioFormatManager fmtMgr;
+    fmtMgr.registerBasicFormats();
+
+    auto getFrameCount = [&fmtMgr] (const juce::File& file) -> juce::int64
+    {
+        if (! file.existsAsFile()) return 0;
+        auto reader = std::unique_ptr<juce::AudioFormatReader> (fmtMgr.createReaderFor (file));
+        if (reader == nullptr) return 0;
+        return static_cast<juce::int64> (reader->lengthInSamples);
+    };
+
+    juce::String toml;
+    toml << "version = 0\n";
+    toml << "name = '" << instrumentName.replace ("'", "") << "'\n";
+    toml << "\n";
+
+    for (const auto& kzVar : *keyZonesArray)
+    {
+        const auto* kz = kzVar.getDynamicObject();
+        if (kz == nullptr) continue;
+
+        const int pitch = static_cast<int> (kz->getProperty ("pitch"));
+        const double keyCenter = static_cast<double> (kz->getProperty ("keyCenter"));
+
+        toml << "[[key-zones]]\n";
+        toml << "pitch = " << juce::String (pitch) << "\n";
+        toml << "key-center = " << juce::String (keyCenter, 1) << "\n";
+        toml << "\n";
+
+        const auto* velLayers = kz->getProperty ("velocityLayers").getArray();
+        if (velLayers == nullptr) continue;
+
+        for (const auto& vlVar : *velLayers)
+        {
+            const auto* vl = vlVar.getDynamicObject();
+            if (vl == nullptr) continue;
+
+            const double velocity = static_cast<double> (vl->getProperty ("velocity"));
+            const auto strategy = vl->getProperty ("strategy").toString();
+
+            toml << "[[key-zones.velocity-layers]]\n";
+            toml << "velocity = " << juce::String (velocity, 8) << "\n";
+            toml << "strategy = '" << strategy << "'\n";
+            toml << "\n";
+
+            const auto* sampleSlots = vl->getProperty ("sampleSlots").getArray();
+            if (sampleSlots == nullptr) continue;
+
+            for (const auto& ssVar : *sampleSlots)
+            {
+                const auto* ss = ssVar.getDynamicObject();
+                if (ss == nullptr) continue;
+
+                const auto fileName = ss->getProperty ("fileName").toString().trim();
+                const auto manifestPath = ss->getProperty ("manifestPath").toString().trim();
+                const bool loopEnabled = static_cast<bool> (ss->getProperty ("loopEnabled"));
+                const double loopStartNorm = static_cast<double> (ss->getProperty ("loopStartNorm"));
+                const double loopEndNorm = static_cast<double> (ss->getProperty ("loopEndNorm"));
+                const double loopFadeInNorm = static_cast<double> (ss->getProperty ("loopFadeInNorm"));
+
+                juce::int64 totalFrames = 0;
+                const auto resolved = resolveFile (manifestPath, fileName);
+                if (resolved.existsAsFile())
+                    totalFrames = getFrameCount (resolved);
+
+                const juce::int64 loopStart = static_cast<juce::int64> (loopStartNorm * totalFrames);
+                const juce::int64 loopEnd   = static_cast<juce::int64> (loopEndNorm * totalFrames);
+                const juce::int64 loopCrossfade = static_cast<juce::int64> (std::max (0.0, loopFadeInNorm - loopStartNorm) * totalFrames);
+
+                toml << "[[key-zones.velocity-layers.sample-slots]]\n";
+                toml << "sample = '" << fileName.replace ("'", "") << "'\n";
+                toml << "loop-mode = '" << (loopEnabled ? "Forward" : "None") << "'\n";
+                toml << "loop-start = " << juce::String (loopStart) << "\n";
+                toml << "loop-end = " << juce::String (loopEnd) << "\n";
+                toml << "loop-crossfade = " << juce::String (loopCrossfade) << "\n";
+                toml << "keep-looping-on-release = " << (loopEnabled ? "true" : "false") << "\n";
+                toml << "\n";
+            }
+        }
+    }
+
+    const auto defaultName = juce::File::createLegalFileName (
+        instrumentName.isNotEmpty() ? instrumentName : "Instrument") + ".elmulti";
+
+    juce::File initialDir = juce::File::getSpecialLocation (juce::File::userHomeDirectory);
+    elmultiExportChooser = std::make_unique<juce::FileChooser> ("Export .elmulti",
+                                                                 initialDir.getChildFile (defaultName),
+                                                                 "*.elmulti",
+                                                                 true);
+
+    juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> safeThis (this);
+    const auto tomlCopy = toml;
+
+    elmultiExportChooser->launchAsync (juce::FileBrowserComponent::saveMode
+                                       | juce::FileBrowserComponent::canSelectFiles
+                                       | juce::FileBrowserComponent::warnAboutOverwriting,
+                                       [safeThis, tomlCopy] (const juce::FileChooser& chooser)
+    {
+        if (safeThis == nullptr)
+            return;
+
+        const auto chosen = chooser.getResult();
+        if (chosen == juce::File())
+        {
+            safeThis->elmultiExportChooser.reset();
+            return;
+        }
+
+        auto resultObj = new juce::DynamicObject();
+        if (chosen.replaceWithText (tomlCopy, false, false, "\n"))
+        {
+            resultObj->setProperty ("success", true);
+            resultObj->setProperty ("message", "Exported to " + chosen.getFullPathName());
+            appendUiDebugLog ("elmulti export | path=" + chosen.getFullPathName());
+        }
+        else
+        {
+            resultObj->setProperty ("success", false);
+            resultObj->setProperty ("message", "Could not write .elmulti file.");
+        }
+
+        safeThis->webView->emitEventIfBrowserIsVisible ("elmulti_export_result", juce::var (resultObj));
+        safeThis->elmultiExportChooser.reset();
     });
 }
 

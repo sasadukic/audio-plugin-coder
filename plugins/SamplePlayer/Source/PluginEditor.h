@@ -51,6 +51,7 @@ private:
     std::unique_ptr<juce::FileChooser> saveInstrumentChooser;
     std::unique_ptr<juce::FileChooser> loadInstrumentChooser;
     std::unique_ptr<juce::FileChooser> audioFileChooser;
+    std::unique_ptr<juce::FileChooser> elmultiExportChooser;
 
     std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);
     static juce::WebBrowserComponent::Options createWebOptions (SamplePlayerAudioProcessorEditor& editor);
@@ -75,6 +76,7 @@ private:
     void handleDebugLogEvent (const juce::var& eventPayload);
     void handlePickAudioFilesEvent (const juce::var& eventPayload);
     void handlePickAudioFolderEvent (const juce::var& eventPayload);
+    void handleExportElmultiEvent (const juce::var& eventPayload);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplePlayerAudioProcessorEditor)
 };

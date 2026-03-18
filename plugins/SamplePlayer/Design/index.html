@@ -6726,7 +6726,10 @@
         const nativeAudioPickToken = backend.addEventListener("native_audio_files_picked", (payload) => {
           handleNativePickedAudioFiles(payload);
         });
-        state.nativeSessionListeners = [stateToken, sampleDataToken, graphicDataToken, manifestPickToken, saveResultToken, midiActivityToken, nativeAudioPickToken];
+        const elmultiExportToken = backend.addEventListener("elmulti_export_result", (payload) => {
+          handleElmultiExportResult(payload);
+        });
+        state.nativeSessionListeners = [stateToken, sampleDataToken, graphicDataToken, manifestPickToken, saveResultToken, midiActivityToken, nativeAudioPickToken, elmultiExportToken];
       } catch {
         state.nativeSessionListeners = [];
         debugLoadLog("restore bridge failed | listener registration");
@@ -15162,6 +15165,98 @@
       }
     }
 
+    function exportElmultiMapping() {
+      const entries = getActiveMapEntries();
+      if (!entries.length) {
+        setStatus(el.setupStatus, "No samples mapped — nothing to export.", "bad");
+        return;
+      }
+
+      const instrumentName = (el.autoInstrument.value || "Instrument").trim();
+
+      const groups = new Map();
+      entries.filter((e) => e.valid).forEach((e) => {
+        ensureEntryEditorState(e);
+        const key = `${e.rootMidi}-${e.velocityLayer}`;
+        if (!groups.has(key)) {
+          groups.set(key, {
+            rootMidi: e.rootMidi,
+            velocityLayer: e.velocityLayer,
+            slots: []
+          });
+        }
+        groups.get(key).slots.push({
+          fileName: e.fileName,
+          manifestPath: String(e.manifestPath || "").trim(),
+          loopEnabled: isEntryLoopRegionActive(e),
+          loopStartNorm: Number((e.loopStartNorm ?? 0).toFixed(6)),
+          loopEndNorm: Number((e.loopEndNorm ?? 1).toFixed(6)),
+          loopFadeInNorm: Number((e.loopFadeInNorm ?? e.loopStartNorm ?? 0).toFixed(6)),
+          rrIndex: Number.isFinite(Number(e.rrIndex)) ? Math.max(1, Math.round(Number(e.rrIndex))) : 1
+        });
+      });
+
+      const maxLayer = Math.max(...Array.from(groups.values()).map((g) => g.velocityLayer || 1));
+
+      const keyZones = [];
+      const byRoot = new Map();
+      for (const g of groups.values()) {
+        if (!byRoot.has(g.rootMidi)) byRoot.set(g.rootMidi, []);
+        byRoot.get(g.rootMidi).push(g);
+      }
+
+      const sortedRoots = Array.from(byRoot.keys()).sort((a, b) => a - b);
+      for (const rootMidi of sortedRoots) {
+        const layers = byRoot.get(rootMidi).sort((a, b) => (a.velocityLayer || 1) - (b.velocityLayer || 1));
+        const velocityLayers = [];
+        for (const layer of layers) {
+          const sorted = layer.slots.slice().sort((a, b) => a.rrIndex - b.rrIndex);
+          const strategy = sorted.length > 1 ? "RandomNoRepeat" : "Forward";
+          const velNorm = maxLayer > 1
+            ? ((layer.velocityLayer || 1) - 1) / maxLayer
+            : 0.49411765;
+          velocityLayers.push({
+            velocity: velNorm,
+            strategy,
+            sampleSlots: sorted.map((s) => ({
+              fileName: s.fileName,
+              manifestPath: s.manifestPath,
+              loopEnabled: s.loopEnabled,
+              loopStartNorm: s.loopStartNorm,
+              loopEndNorm: s.loopEndNorm,
+              loopFadeInNorm: s.loopFadeInNorm
+            }))
+          });
+        }
+        keyZones.push({
+          pitch: rootMidi,
+          keyCenter: rootMidi,
+          velocityLayers
+        });
+      }
+
+      const searchPaths = [];
+      const basePath = getPackManifestBasePath();
+      if (basePath) searchPaths.push(basePath);
+      const destDir = (el.autoDestination?.value || "").trim();
+      if (destDir) searchPaths.push(destDir);
+
+      emitNativeEvent("export_elmulti", {
+        instrumentName,
+        keyZones,
+        searchPaths
+      });
+    }
+
+    function handleElmultiExportResult(payload) {
+      const info = (payload && typeof payload === "object") ? payload : {};
+      if (info.success) {
+        setStatus(el.setupStatus, info.message || "Exported .elmulti file.", "ok");
+      } else {
+        setStatus(el.setupStatus, info.message || "Could not export .elmulti.", "bad");
+      }
+    }
+
     async function restoreGraphicFromManifest(kind, manifestBasePath, relativePath, fallbackFileName) {
       const absolutePath = resolveManifestAssetPath(manifestBasePath, relativePath);
       if (!absolutePath) return false;
@@ -16110,6 +16205,9 @@
       el.clearInstrumentBtn.addEventListener("click", clearInstrument);
       if (el.importKeyswitchesBtn && el.keyswitchInput) {
         el.importKeyswitchesBtn.addEventListener("click", () => el.keyswitchInput.click());
+      }
+      if (el.exportElmultiBtn) {
+        el.exportElmultiBtn.addEventListener("click", () => exportElmultiMapping());
       }
       if (el.saveSmpinstBtn) {
         el.saveSmpinstBtn.addEventListener("click", () => {
