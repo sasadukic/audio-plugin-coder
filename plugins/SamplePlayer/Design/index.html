@@ -14141,6 +14141,7 @@
         const hasEntryMove = Number.isFinite(draggedOrder);
 
         if (hasFilePayload || droppedFiles.length > 0) {
+          if (getNativeBackend()) return;
           ev.preventDefault();
           ev.stopPropagation();
           if (ev.dataTransfer) ev.dataTransfer.dropEffect = "copy";
@@ -14235,6 +14236,7 @@
         const droppedFiles = getDroppedAudioFiles(ev.dataTransfer?.files || []);
         const hasFilePayload = dataTransferHasFilePayload(ev.dataTransfer);
         if (!droppedFiles.length && !hasFilePayload) return;
+        if (getNativeBackend()) return;
         ev.preventDefault();
         ev.stopPropagation();
         if (ev.dataTransfer) ev.dataTransfer.dropEffect = "copy";
