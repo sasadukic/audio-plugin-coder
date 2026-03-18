@@ -14216,9 +14216,7 @@
           renderSetup();
           renderPlayerKeyboard();
           updatePlayerEmptyState();
-          if ((state.pendingCacheCount || 0) <= 0) {
-            scheduleSessionStateSave(320);
-          }
+          scheduleSessionStateSave(320);
         }
 
         if (skippedDueToFull > 0) {
@@ -14509,9 +14507,7 @@
       updatePlayerEmptyState();
       setKeyboardMapCollapsed(false);
       syncAllKnobValues();
-      if ((state.pendingCacheCount || 0) <= 0) {
-        scheduleSessionStateSave(350);
-      }
+      scheduleSessionStateSave(350);
     }
 
     function clearInstrument() {
