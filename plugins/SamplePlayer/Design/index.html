@@ -5380,8 +5380,9 @@
 
     async function buildSessionStateSnapshot() {
       ensurePackManifestBasePathHint();
-      await waitForPendingCaches(8000);
-      await ensureRuntimeSampleDataForSession();
+      if ((state.pendingCacheCount || 0) <= 0) {
+        await ensureRuntimeSampleDataForSession();
+      }
       await ensureWallpaperDataUrlForAutoSampler();
       await ensureLogoDataUrlForAutoSampler();
       const manifest = buildManifestSkeleton("smpinst", { preserveRuntimePaths: true });
@@ -8695,21 +8696,6 @@
             scheduleSessionStateSave(200);
           }
         });
-    }
-
-    function waitForPendingCaches(timeoutMs = 8000) {
-      if ((state.pendingCacheCount || 0) <= 0) return Promise.resolve();
-      return new Promise((resolve) => {
-        const start = performance.now();
-        const check = () => {
-          if ((state.pendingCacheCount || 0) <= 0 || performance.now() - start > timeoutMs) {
-            resolve();
-            return;
-          }
-          setTimeout(check, 60);
-        };
-        check();
-      });
     }
 
     async function ensureEntryRuntimeSampleDataUrl(entry) {
@@ -14063,7 +14049,7 @@
           renderSetup();
           renderPlayerKeyboard();
           updatePlayerEmptyState();
-          scheduleSessionStateSave((state.pendingCacheCount || 0) > 0 ? 1500 : 320);
+          scheduleSessionStateSave(320);
         }
 
         if (skippedDueToFull > 0) {
@@ -14354,7 +14340,7 @@
       updatePlayerEmptyState();
       setKeyboardMapCollapsed(false);
       syncAllKnobValues();
-      scheduleSessionStateSave((state.pendingCacheCount || 0) > 0 ? 1500 : 350);
+      scheduleSessionStateSave(350);
     }
 
     function clearInstrument() {
