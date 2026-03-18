@@ -4654,6 +4654,8 @@
       sessionStateSaveInFlight: false,
       sessionStateSaveQueued: false,
       sessionStateFlushDebugCount: 0,
+      lastFlushedJsonHash: "",
+      pendingCacheCount: 0,
       sessionStateRestoreCompletedAt: 0,
       lastSessionPayloadSig: "",
       sessionStateLightweight: false,
@@ -5378,13 +5380,13 @@
 
     async function buildSessionStateSnapshot() {
       ensurePackManifestBasePathHint();
+      await waitForPendingCaches(8000);
       await ensureRuntimeSampleDataForSession();
       await ensureWallpaperDataUrlForAutoSampler();
       await ensureLogoDataUrlForAutoSampler();
       const manifest = buildManifestSkeleton("smpinst", { preserveRuntimePaths: true });
       return {
         version: 1,
-        savedAtUtc: new Date().toISOString(),
         manifest,
         ui: {
           setupOctaveStart: Math.max(0, Math.min(120, Math.round(Number(state.setupOctaveStart) || 48))),
@@ -5441,7 +5443,6 @@
         : { formatVersion: 1, instrumentName: "Instrument", mapping: [] };
       return {
         version: 1,
-        savedAtUtc: new Date().toISOString(),
         manifest: safeManifest,
         ui: {
           setupOctaveStart: Math.max(0, Math.min(120, Math.round(Number(state.setupOctaveStart) || 48))),
@@ -5503,7 +5504,18 @@
         const snapshot = await buildSessionStateSnapshot();
         const snapshotMs = performance.now() - snapshotStart;
         const jsonPayload = JSON.stringify(snapshot);
-        emitNativeEvent("session_state_set", { json: jsonPayload });
+        let jsonHash = 0;
+        for (let i = 0, len = jsonPayload.length; i < len; i++) {
+          jsonHash = ((jsonHash << 5) - jsonHash + jsonPayload.charCodeAt(i)) | 0;
+        }
+        const hashSig = `${jsonPayload.length}:${jsonHash}`;
+        if (hashSig === state.lastFlushedJsonHash && !force) {
+          const totalMs = performance.now() - flushStart;
+          debugLoadLog(`flush skipped | identical payload | totalMs=${totalMs.toFixed(1)}`);
+        } else {
+          state.lastFlushedJsonHash = hashSig;
+          emitNativeEvent("session_state_set", { json: jsonPayload });
+        }
         const totalMs = performance.now() - flushStart;
         const debugCount = Number(state.sessionStateFlushDebugCount) || 0;
         if (debugCount < 5 || snapshotMs > 400 || totalMs > 500) {
@@ -8668,15 +8680,36 @@
 
     function cacheEntrySampleDataUrlFromFile(entry, fileLike) {
       if (!entry || !entry.valid || !(fileLike instanceof Blob)) return;
+      state.pendingCacheCount = (state.pendingCacheCount || 0) + 1;
       readFileAsDataUrl(fileLike)
         .then((dataUrl) => {
           if (!entry.valid) return;
           const normalized = String(dataUrl || "").trim();
           if (!normalized.startsWith("data:")) return;
           entry.sampleDataUrl = normalized;
-          scheduleSessionStateSave(900);
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => {
+          state.pendingCacheCount = Math.max(0, (state.pendingCacheCount || 0) - 1);
+          if (state.pendingCacheCount <= 0) {
+            scheduleSessionStateSave(200);
+          }
+        });
+    }
+
+    function waitForPendingCaches(timeoutMs = 8000) {
+      if ((state.pendingCacheCount || 0) <= 0) return Promise.resolve();
+      return new Promise((resolve) => {
+        const start = performance.now();
+        const check = () => {
+          if ((state.pendingCacheCount || 0) <= 0 || performance.now() - start > timeoutMs) {
+            resolve();
+            return;
+          }
+          setTimeout(check, 60);
+        };
+        check();
+      });
     }
 
     async function ensureEntryRuntimeSampleDataUrl(entry) {
@@ -14030,7 +14063,7 @@
           renderSetup();
           renderPlayerKeyboard();
           updatePlayerEmptyState();
-          scheduleSessionStateSave(320);
+          scheduleSessionStateSave((state.pendingCacheCount || 0) > 0 ? 1500 : 320);
         }
 
         if (skippedDueToFull > 0) {
@@ -14321,7 +14354,7 @@
       updatePlayerEmptyState();
       setKeyboardMapCollapsed(false);
       syncAllKnobValues();
-      scheduleSessionStateSave(350);
+      scheduleSessionStateSave((state.pendingCacheCount || 0) > 0 ? 1500 : 350);
     }
 
     function clearInstrument() {
@@ -14375,6 +14408,7 @@
       state.packManifestBasePath = "";
       state.nextVirtualOrder = -1;
       state.packLoaded = false;
+      state.lastFlushedJsonHash = "";
       state.rrCursor = {};
       state.waveformCache.clear();
       state.pendingSampleDataRequests.clear();
@@ -15128,6 +15162,7 @@
         state.sessionStateLightweight = false;
         state.sessionStateHydrationRequested = false;
         state.lastSessionPayloadSig = "";
+        state.lastFlushedJsonHash = "";
         loadSucceeded = true;
         debugLoadLog(`loadPack done | seq=${loadSeq} | entries=${state.entries.length} | sets=${state.keyswitchSets.length}`);
       } catch (error) {
