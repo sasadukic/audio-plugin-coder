@@ -4360,8 +4360,8 @@
             </div>
           </div>
 
-          <div id="strumSection" class="section collapsible">
-            <h2 id="strumToggle" role="button" tabindex="0" aria-expanded="true" aria-controls="strumBody">Strum</h2>
+          <div id="strumSection" class="section collapsible collapsed">
+            <h2 id="strumToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="strumBody">Strum</h2>
             <div id="strumBody" class="section-body">
               <div class="btn-row import-pack-controls strum-controls-row">
                 <div class="strum-menu-wrap">
@@ -4823,7 +4823,7 @@
         autoSampler: true,
         keyboardMap: true,
         modulation: true,
-        strum: false,
+        strum: true,
         sequencerArp: true
       };
     }
@@ -16173,7 +16173,7 @@
       setAutoSamplerCollapsed(collapseState.autoSampler);
       setKeyboardMapCollapsed(collapseState.keyboardMap);
       setModulationCollapsed(collapseState.modulation);
-      setStrumCollapsed(collapseState.strum);
+      setStrumCollapsed(collapseState.strum || getStrumVisibleStepCount() <= 0);
       setSequencerArpCollapsed(collapseState.sequencerArp);
       setupKnobs();
       setupPlayerControlsVisibility();
