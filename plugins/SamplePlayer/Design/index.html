@@ -3845,6 +3845,36 @@
       filter: brightness(1.06);
     }
 
+    .map-key-context-menu {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      min-width: 160px;
+      background: #1e1e1e;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+      padding: 4px 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+    }
+
+    .map-key-context-menu.visible {
+      display: block;
+    }
+
+    .map-key-context-menu-item {
+      padding: 6px 14px;
+      color: #e0e0e0;
+      cursor: default;
+      white-space: nowrap;
+    }
+
+    .map-key-context-menu-item:hover {
+      background: rgba(80, 140, 255, 0.25);
+      color: #fff;
+    }
+
     .hidden {
       display: none;
     }
@@ -4319,6 +4349,9 @@
                 <div id="mapEmpty" class="map-empty hidden"></div>
                 <div id="mapSamples" class="map-samples"></div>
                 <div id="mapKeys" class="map-keys"></div>
+                <div id="mapKeyContextMenu" class="map-key-context-menu">
+                  <div class="map-key-context-menu-item" data-action="load-samples">Load samples</div>
+                </div>
               </div>
             </div>
             </div>
@@ -4605,6 +4638,7 @@
       mapMatrixRrCursor: {},
       mapMatrixPaintActive: false,
       mapMatrixLastPaintCellKey: "",
+      keyContextMenuTargetMidi: null,
       sequencerHostTriggerEnabled: false,
       sequencerCurrentStep: -1,
       sequencerSteps: Array.from({ length: SEQUENCER_STEP_COUNT }, () => ({
@@ -4719,6 +4753,7 @@
       octaveUpBtn: document.getElementById("octaveUpBtn"),
       mapSamples: document.getElementById("mapSamples"),
       mapKeys: document.getElementById("mapKeys"),
+      mapKeyContextMenu: document.getElementById("mapKeyContextMenu"),
       mapEmpty: document.getElementById("mapEmpty"),
       keyswitchMapToolbar: document.getElementById("keyswitchMapToolbar"),
       mapMatrixIntervalInput: document.getElementById("mapMatrixIntervalInput"),
@@ -6429,6 +6464,14 @@
       const audioFiles = files.filter((f) => f && typeof f.name === "string" && AUDIO_REGEX.test(f.name));
       if (!audioFiles.length) return;
 
+      const targetMidi = state.keyContextMenuTargetMidi;
+      state.keyContextMenuTargetMidi = null;
+
+      if (Number.isFinite(targetMidi)) {
+        handleNativePickedAudioFilesForKey(audioFiles, targetMidi);
+        return;
+      }
+
       ensureSessionStateWritable("native-audio-pick");
       state.packLoaded = false;
       const start = state.entries.length;
@@ -6457,6 +6500,81 @@
       state.mapMatrixLastPaintCellKey = "";
       assignImplicitVelocityLayers();
       renderSetup();
+      updatePlayerEmptyState();
+      setKeyboardMapCollapsed(false);
+      syncAllKnobValues();
+      scheduleSessionStateSave(350);
+    }
+
+    function handleNativePickedAudioFilesForKey(audioFiles, rootMidi) {
+      ensureSessionStateWritable("native-audio-pick-key");
+      state.packLoaded = false;
+      const root = Math.max(0, Math.min(127, Math.round(rootMidi)));
+      const noteToken = midiToNote(root);
+      const owner = getMutableActiveMapEntriesStore();
+      if (!Array.isArray(owner)) return;
+
+      if (state.mapMatrixSplitEnabled) {
+        const { rrColumns, interval } = normalizeMapMatrixState();
+        const activeEntries = getActiveMapEntries().filter((e) => e && e.valid);
+        const intervalRoots = getMapMatrixIntervalRoots(activeEntries, interval);
+        const targetRoot = quantizeMidiToMapMatrixRoot(root, interval, intervalRoots);
+        const targetLayer = 1;
+        const mapLookup = getMapMatrixEntryLookup(activeEntries, rrColumns);
+        const cursorKey = getMapMatrixCursorKey(targetRoot, targetLayer);
+        let cursorStart = Math.max(1, Math.min(rrColumns, Math.round(Number(state.mapMatrixRrCursor[cursorKey]) || 1)));
+
+        audioFiles.forEach((file) => {
+          const targetRr = findNextMapMatrixRrSlot(targetRoot, targetLayer, rrColumns, mapLookup, cursorStart);
+          if (targetRr === null) return;
+          const entry = createMatrixMappedEntryFromFile(
+            { name: file.name, path: file.path || "" },
+            targetRoot,
+            targetLayer,
+            rrColumns > 1 ? targetRr : null
+          );
+          owner.push(entry);
+          ensureEntryEditorState(entry);
+          mapLookup.set(getMapMatrixCellKey(targetRoot, targetLayer, targetRr), entry);
+          cursorStart = (targetRr % rrColumns) + 1;
+        });
+        state.mapMatrixRrCursor[cursorKey] = cursorStart;
+      } else {
+        audioFiles.forEach((file) => {
+          const parsed = parseFilename(String(file.name || ""));
+          const loopEnabled = parsed.valid ? !!parsed.loopEnabled : hasLoopTokenInFileName(file.name);
+          const entry = {
+            fileName: String(file.name || "sample.wav"),
+            manifestPath: String(file.path || ""),
+            order: getNextMapEntryOrder(),
+            sampleUrl: "",
+            sampleDataUrl: "",
+            fineTuneCents: 0,
+            sampleStartNorm: 0,
+            loopStartNorm: 0,
+            loopEndNorm: 1,
+            loopFadeInNorm: 0,
+            valid: true,
+            reason: "",
+            noteToken,
+            rootMidi: root,
+            velocityLayer: parsed.valid && Number.isFinite(parsed.velocityLayer) ? parsed.velocityLayer : 1,
+            rrIndex: parsed.valid && Number.isFinite(parsed.rrIndex) ? parsed.rrIndex : null,
+            loopEnabled,
+            hasVelocityToken: parsed.valid && !!parsed.hasVelocityToken,
+            hasRRToken: parsed.valid && !!parsed.hasRRToken,
+            suffixSerial: parsed.valid && Number.isFinite(parsed.suffixSerial) ? parsed.suffixSerial : null
+          };
+          owner.push(entry);
+          ensureEntryEditorState(entry);
+        });
+      }
+
+      state.mapMatrixPaintActive = false;
+      state.mapMatrixLastPaintCellKey = "";
+      applyMapMatrixIntervalRanges(getActiveMapEntries());
+      renderSetup();
+      renderPlayerKeyboard();
       updatePlayerEmptyState();
       setKeyboardMapCollapsed(false);
       syncAllKnobValues();
@@ -13928,6 +14046,48 @@
         });
         keyNode.classList.add("pressed");
         window.setTimeout(() => keyNode.classList.remove("pressed"), 120);
+      });
+
+      /* ---- right-click context menu on keyboard map keys ---- */
+      const hideKeyContextMenu = () => {
+        el.mapKeyContextMenu.classList.remove("visible");
+      };
+
+      el.mapKeys.addEventListener("contextmenu", (ev) => {
+        const keyNode = ev.target.closest(".map-key");
+        if (!keyNode || keyNode.classList.contains("disabled")) return;
+        const midi = Number(keyNode.dataset.midi);
+        if (!Number.isFinite(midi)) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        state.keyContextMenuTargetMidi = midi;
+        const menu = el.mapKeyContextMenu;
+        menu.style.left = ev.clientX + "px";
+        menu.style.top = ev.clientY + "px";
+        menu.classList.add("visible");
+        requestAnimationFrame(() => {
+          const rect = menu.getBoundingClientRect();
+          if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 4) + "px";
+          if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 4) + "px";
+        });
+      });
+
+      el.mapKeyContextMenu.addEventListener("click", (ev) => {
+        const item = ev.target.closest(".map-key-context-menu-item");
+        if (!item) return;
+        hideKeyContextMenu();
+        if (item.dataset.action === "load-samples") {
+          if (getNativeBackend()) {
+            emitNativeEvent("pick_audio_files", {});
+          }
+        }
+      });
+
+      document.addEventListener("pointerdown", (ev) => {
+        if (!el.mapKeyContextMenu.contains(ev.target)) hideKeyContextMenu();
+      });
+      document.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape") hideKeyContextMenu();
       });
 
       const getMatrixDropTarget = (targetNode) => {
