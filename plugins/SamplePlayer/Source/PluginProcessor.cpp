@@ -2268,22 +2268,52 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
     runtime->swingPercent = swingPercent;
     runtime->velocityHumanizePercent = velocityHumanizePercent;
     runtime->timingHumanizeMs = timingHumanizeMs;
-    runtime->samplesUntilNextStep = 0;
-    runtime->samplesUntilNextSubstep = 0;
-    runtime->currentStep = -1;
-    runtime->currentSubdivision = 0;
     runtime->randomState = juce::uint32 (juce::Time::getMillisecondCounter());
-    runtime->triggerToPlayedNote.fill (-1);
-    runtime->triggerDepthByMidi.fill (0);
-    runtime->triggerChannelByMidi.fill (1);
-    runtime->playedDepthByMidi.fill (0);
 
     for (size_t i = 0; i < runtime->steps.size(); ++i)
         runtime->steps[i] = strumSteps[i % static_cast<size_t> (activeStepCount)];
 
+    // Carry over live trigger state from the old runtime so held notes
+    // are not orphaned when the user tweaks swing, rate, etc.
+    auto oldRuntime = std::atomic_load (&strumSequencerRuntime);
+    const bool oldWasEnabled = oldRuntime != nullptr && oldRuntime->enabled;
+
+    if (enabled && oldWasEnabled)
+    {
+        runtime->triggerDepthByMidi   = oldRuntime->triggerDepthByMidi;
+        runtime->triggerChannelByMidi = oldRuntime->triggerChannelByMidi;
+        runtime->triggerToPlayedNote  = oldRuntime->triggerToPlayedNote;
+        runtime->playedDepthByMidi    = oldRuntime->playedDepthByMidi;
+        runtime->currentStep          = oldRuntime->currentStep;
+        runtime->currentSubdivision   = oldRuntime->currentSubdivision;
+        runtime->samplesUntilNextStep    = oldRuntime->samplesUntilNextStep;
+        runtime->samplesUntilNextSubstep = oldRuntime->samplesUntilNextSubstep;
+
+        // Clamp currentStep to the new step count
+        if (runtime->currentStep >= activeStepCount)
+        {
+            runtime->currentStep = 0;
+            runtime->currentSubdivision = 0;
+        }
+    }
+    else
+    {
+        runtime->samplesUntilNextStep = 0;
+        runtime->samplesUntilNextSubstep = 0;
+        runtime->currentStep = -1;
+        runtime->currentSubdivision = 0;
+        runtime->triggerToPlayedNote.fill (-1);
+        runtime->triggerDepthByMidi.fill (0);
+        runtime->triggerChannelByMidi.fill (1);
+        runtime->playedDepthByMidi.fill (0);
+    }
+
     std::atomic_store (&strumSequencerRuntime, runtime);
     sequencerCurrentStepForUi.store (-1, std::memory_order_relaxed);
-    resetVoicesRequested.store (true);
+
+    // Only kill voices when strum is being disabled (not on setting tweaks)
+    if (! enabled && oldWasEnabled)
+        resetVoicesRequested.store (true);
 }
 
 void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::String& jsonPayload, int requestId)
