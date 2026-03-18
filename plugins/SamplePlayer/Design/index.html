@@ -6913,7 +6913,7 @@
     function emitStrumSettings() {
       const stepCount = getStrumVisibleStepCount();
       emitNativeEvent("strum_settings_set", {
-        enabled: stepCount > 0,
+        enabled: !!state.strumEnabled && stepCount > 0,
         sequencerMode: stepCount <= 0 ? 0 : (stepCount <= 4 ? 1 : 2),
         doubling: !!state.strumDoubling,
         rateIndex: getStrumEffectiveRateIndex(),
@@ -7255,8 +7255,13 @@
       if (el.strumEnableBtn) {
         el.strumEnableBtn.addEventListener("click", () => {
           state.strumEnabled = !state.strumEnabled;
+          if (state.strumEnabled && getStrumVisibleStepCount() <= 0) {
+            state.strumSequencerSteps = 4;
+            state.strumSequencerMode = 1;
+          }
           updateStrumUi();
           emitStrumSettings();
+          scheduleSessionStateSave(220);
         });
       }
 
