@@ -1317,6 +1317,7 @@ void SamplePlayerAudioProcessorEditor::handleExportElmultiEvent (const juce::var
     toml << "name = '" << instrumentName.replace ("'", "") << "'\n";
     toml << "\n";
 
+    int keyZoneCount = 0;
     for (const auto& kzVar : *keyZonesArray)
     {
         const auto* kz = kzVar.getDynamicObject();
@@ -1329,6 +1330,7 @@ void SamplePlayerAudioProcessorEditor::handleExportElmultiEvent (const juce::var
         toml << "pitch = " << juce::String (pitch) << "\n";
         toml << "key-center = " << juce::String (keyCenter, 1) << "\n";
         toml << "\n";
+        ++keyZoneCount;
 
         const auto* velLayers = kz->getProperty ("velocityLayers").getArray();
         if (velLayers == nullptr) continue;
@@ -1385,7 +1387,29 @@ void SamplePlayerAudioProcessorEditor::handleExportElmultiEvent (const juce::var
     const auto defaultName = juce::File::createLegalFileName (
         instrumentName.isNotEmpty() ? instrumentName : "Instrument") + ".elmulti";
 
-    juce::File initialDir = juce::File::getSpecialLocation (juce::File::userHomeDirectory);
+    appendUiDebugLog ("elmulti export | keyZones=" + juce::String (keyZoneCount)
+                      + " | tomlLen=" + juce::String (toml.length())
+                      + " | name=" + instrumentName);
+
+    if (keyZoneCount == 0)
+    {
+        auto resultObj = new juce::DynamicObject();
+        resultObj->setProperty ("success", false);
+        resultObj->setProperty ("message", "No key zones found in mapping data.");
+        webView->emitEventIfBrowserIsVisible ("elmulti_export_result", juce::var (resultObj));
+        return;
+    }
+
+    juce::File initialDir = juce::File::getSpecialLocation (juce::File::userDesktopDirectory);
+    if (searchPaths.size() > 0)
+    {
+        juce::File candidate (searchPaths[0]);
+        if (candidate.isDirectory())
+            initialDir = candidate;
+        else if (candidate.getParentDirectory().isDirectory())
+            initialDir = candidate.getParentDirectory();
+    }
+
     elmultiExportChooser = std::make_unique<juce::FileChooser> ("Export .elmulti",
                                                                  initialDir.getChildFile (defaultName),
                                                                  "*.elmulti",
@@ -1402,24 +1426,31 @@ void SamplePlayerAudioProcessorEditor::handleExportElmultiEvent (const juce::var
         if (safeThis == nullptr)
             return;
 
-        const auto chosen = chooser.getResult();
+        auto chosen = chooser.getResult();
         if (chosen == juce::File())
         {
             safeThis->elmultiExportChooser.reset();
             return;
         }
 
+        if (! chosen.hasFileExtension ("elmulti"))
+            chosen = chosen.withFileExtension ("elmulti");
+
+        appendUiDebugLog ("elmulti export | writing to " + chosen.getFullPathName()
+                          + " | bytes=" + juce::String (tomlCopy.getNumBytesAsUTF8()));
+
         auto resultObj = new juce::DynamicObject();
         if (chosen.replaceWithText (tomlCopy, false, false, "\n"))
         {
             resultObj->setProperty ("success", true);
             resultObj->setProperty ("message", "Exported to " + chosen.getFullPathName());
-            appendUiDebugLog ("elmulti export | path=" + chosen.getFullPathName());
+            appendUiDebugLog ("elmulti export | SUCCESS path=" + chosen.getFullPathName());
         }
         else
         {
             resultObj->setProperty ("success", false);
-            resultObj->setProperty ("message", "Could not write .elmulti file.");
+            resultObj->setProperty ("message", "Could not write .elmulti file to " + chosen.getFullPathName());
+            appendUiDebugLog ("elmulti export | FAILED to write " + chosen.getFullPathName());
         }
 
         safeThis->webView->emitEventIfBrowserIsVisible ("elmulti_export_result", juce::var (resultObj));
