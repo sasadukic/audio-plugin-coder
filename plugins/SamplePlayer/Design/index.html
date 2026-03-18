@@ -1462,11 +1462,6 @@
 
     #strumSection {
       grid-column: 1 / -1;
-      overflow: visible;
-    }
-
-    #strumBody {
-      overflow: visible;
     }
 
     .setup-map-wide {
@@ -7302,15 +7297,6 @@
         buttons.forEach((btn) => {
           if (btn) btn.setAttribute("aria-expanded", "false");
         });
-        // Restore panel scrolling after dropdown closes
-        const setupPanel = el.panels?.setup;
-        if (setupPanel) setupPanel.style.removeProperty("overflow");
-      };
-
-      const openStrumMenuOverflow = () => {
-        // Temporarily disable panel clipping so absolutely-positioned dropdowns are visible
-        const setupPanel = el.panels?.setup;
-        if (setupPanel) setupPanel.style.overflow = "visible";
       };
 
       const setupStrumMenu = (btn, menu, itemSelector, onSelect) => {
@@ -7322,7 +7308,6 @@
           if (!open) {
             menu.classList.remove("hidden");
             btn.setAttribute("aria-expanded", "true");
-            openStrumMenuOverflow();
           }
         });
 
@@ -7333,6 +7318,11 @@
             updateStrumUi();
             emitStrumSettings();
             closeStrumMenus();
+            scheduleSessionStateSave(220);
+            // Double-rAF ensures layout settles before host measures new content height
+            window.requestAnimationFrame(() => {
+              window.requestAnimationFrame(() => requestHostResizeForActiveTab());
+            });
           });
         });
       };
@@ -7347,6 +7337,9 @@
           updateStrumUi();
           emitStrumSettings();
           scheduleSessionStateSave(220);
+          window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => requestHostResizeForActiveTab());
+          });
         });
       }
 
@@ -7487,7 +7480,6 @@
             if (!open) {
               menu.classList.remove("hidden");
               rateBtn.setAttribute("aria-expanded", "true");
-              openStrumMenuOverflow();
             }
             return;
           }
@@ -7525,7 +7517,6 @@
             if (!open) {
               menu.classList.remove("hidden");
               keyswitchBtn.setAttribute("aria-expanded", "true");
-              openStrumMenuOverflow();
             }
           }
         });
