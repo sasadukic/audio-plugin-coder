@@ -3268,33 +3268,48 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                 continue;
             }
 
-            auto reader = std::unique_ptr<juce::AudioFormatReader> (asyncFormatManager.createReaderFor (resolvedSourceFile));
-            if (reader == nullptr || reader->lengthInSamples < 2)
+            const auto fileCacheKey = static_cast<juce::uint64> (
+                resolvedSourceFile.getFullPathName().hashCode64()
+                ^ (static_cast<juce::int64> (resolvedSourceFile.getSize()) * 0x9E3779B97F4A7C15ULL)
+                ^ (resolvedSourceFile.getLastModificationTime().toMilliseconds() * 0x517CC1B727220A95ULL));
+
+            cachedAudio = findDecodedEmbeddedAudioInCache (fileCacheKey);
+            if (cachedAudio != nullptr)
             {
-                ++decodeFailures;
-                continue;
+                ++cacheHits;
             }
-
-            const int channels = static_cast<int> (juce::jlimit<juce::uint32> (1U, 2U, reader->numChannels));
-            const auto totalSamples64 = juce::jmin<juce::int64> (reader->lengthInSamples,
-                                                                 static_cast<juce::int64> (std::numeric_limits<int>::max()));
-            const int totalSamples = static_cast<int> (totalSamples64);
-
-            if (totalSamples < 2)
+            else
             {
-                ++decodeFailures;
-                continue;
-            }
+                auto reader = std::unique_ptr<juce::AudioFormatReader> (asyncFormatManager.createReaderFor (resolvedSourceFile));
+                if (reader == nullptr || reader->lengthInSamples < 2)
+                {
+                    ++decodeFailures;
+                    continue;
+                }
 
-            auto decodedEntry = std::make_shared<DecodedEmbeddedAudioCacheEntry>();
-            decodedEntry->sampleRate = reader->sampleRate > 0.0 ? reader->sampleRate : 44100.0;
-            decodedEntry->audio.setSize (channels, totalSamples);
-            reader->read (&decodedEntry->audio, 0, totalSamples, 0, true, true);
-            decodedEntry->bytes = static_cast<std::size_t> (channels)
-                                * static_cast<std::size_t> (totalSamples)
-                                * sizeof (float);
-            cachedAudio = decodedEntry;
-            ++filePathLoads;
+                const int channels = static_cast<int> (juce::jlimit<juce::uint32> (1U, 2U, reader->numChannels));
+                const auto totalSamples64 = juce::jmin<juce::int64> (reader->lengthInSamples,
+                                                                     static_cast<juce::int64> (std::numeric_limits<int>::max()));
+                const int totalSamples = static_cast<int> (totalSamples64);
+
+                if (totalSamples < 2)
+                {
+                    ++decodeFailures;
+                    continue;
+                }
+
+                auto decodedEntry = std::make_shared<DecodedEmbeddedAudioCacheEntry>();
+                decodedEntry->sampleRate = reader->sampleRate > 0.0 ? reader->sampleRate : 44100.0;
+                decodedEntry->audio.setSize (channels, totalSamples);
+                reader->read (&decodedEntry->audio, 0, totalSamples, 0, true, true);
+                decodedEntry->bytes = static_cast<std::size_t> (channels)
+                                    * static_cast<std::size_t> (totalSamples)
+                                    * sizeof (float);
+
+                storeDecodedEmbeddedAudioInCache (fileCacheKey, decodedEntry);
+                cachedAudio = decodedEntry;
+                ++filePathLoads;
+            }
         }
 
         if (cachedAudio == nullptr || cachedAudio->audio.getNumSamples() < 2 || cachedAudio->audio.getNumChannels() <= 0)
