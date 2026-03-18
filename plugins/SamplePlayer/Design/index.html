@@ -7319,6 +7319,14 @@
       el.doublingToggle.title = on ? "Doubling On" : "Doubling";
     }
 
+    function syncStrumDoublingBtn() {
+      if (!el.strumDoublingBtn) return;
+      const on = !!state.strumDoubling;
+      el.strumDoublingBtn.textContent = on ? "Doubling On" : "Doubling Off";
+      el.strumDoublingBtn.setAttribute("aria-pressed", on ? "true" : "false");
+      el.strumDoublingBtn.classList.toggle("active", on);
+    }
+
     function setupStrum() {
       updateStrumUi();
       syncDoublingToggle();
@@ -7436,17 +7444,18 @@
       if (el.strumDoublingBtn) {
         el.strumDoublingBtn.addEventListener("click", () => {
           state.strumDoubling = !state.strumDoubling;
-          updateStrumUi();
           syncDoublingToggle();
+          syncStrumDoublingBtn();
           emitStrumSettings();
+          scheduleSessionStateSave(220);
         });
       }
 
       if (el.doublingToggle) {
         el.doublingToggle.addEventListener("click", () => {
           state.strumDoubling = !state.strumDoubling;
-          updateStrumUi();
           syncDoublingToggle();
+          syncStrumDoublingBtn();
           emitStrumSettings();
           scheduleSessionStateSave(220);
         });
