@@ -75,7 +75,6 @@ private:
     void handleDebugLogEvent (const juce::var& eventPayload);
     void handlePickAudioFilesEvent (const juce::var& eventPayload);
     void handlePickAudioFolderEvent (const juce::var& eventPayload);
-    void handleExportElmultiEvent (const juce::var& eventPayload);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplePlayerAudioProcessorEditor)
 };
