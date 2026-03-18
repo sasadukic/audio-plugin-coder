@@ -1401,67 +1401,40 @@ void SamplePlayerAudioProcessorEditor::handleExportElmultiEvent (const juce::var
     }
 
     const auto manifestFilePath = obj->getProperty ("manifestFilePath").toString().trim();
-    juce::File initialDir = juce::File::getSpecialLocation (juce::File::userDesktopDirectory);
+
+    juce::File targetFile;
     if (manifestFilePath.isNotEmpty())
     {
-        juce::File manifestFile (manifestFilePath);
-        if (manifestFile.getParentDirectory().isDirectory())
-            initialDir = manifestFile.getParentDirectory();
+        targetFile = juce::File (manifestFilePath).withFileExtension ("elmulti");
     }
-    else if (searchPaths.size() > 0)
+    else
     {
-        juce::File candidate (searchPaths[0]);
-        if (candidate.isDirectory())
-            initialDir = candidate;
-        else if (candidate.getParentDirectory().isDirectory())
-            initialDir = candidate.getParentDirectory();
+        juce::File dir = juce::File::getSpecialLocation (juce::File::userDesktopDirectory);
+        for (const auto& root : searchPaths)
+        {
+            juce::File candidate (root);
+            if (candidate.isDirectory()) { dir = candidate; break; }
+            if (candidate.getParentDirectory().isDirectory()) { dir = candidate.getParentDirectory(); break; }
+        }
+        targetFile = dir.getChildFile (defaultName);
     }
 
-    elmultiExportChooser = std::make_unique<juce::FileChooser> ("Export .elmulti",
-                                                                 initialDir.getChildFile (defaultName),
-                                                                 "*.elmulti",
-                                                                 true);
+    appendUiDebugLog ("elmulti export | target=" + targetFile.getFullPathName());
 
-    juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> safeThis (this);
-    const auto tomlCopy = toml;
-
-    elmultiExportChooser->launchAsync (juce::FileBrowserComponent::saveMode
-                                       | juce::FileBrowserComponent::canSelectFiles
-                                       | juce::FileBrowserComponent::warnAboutOverwriting,
-                                       [safeThis, tomlCopy] (const juce::FileChooser& chooser)
+    auto resultObj = new juce::DynamicObject();
+    if (targetFile.replaceWithText (toml, false, false, "\n"))
     {
-        if (safeThis == nullptr)
-            return;
+        resultObj->setProperty ("success", true);
+        resultObj->setProperty ("message", "Exported to " + targetFile.getFullPathName());
+        appendUiDebugLog ("elmulti export | SUCCESS path=" + targetFile.getFullPathName());
+    }
+    else
+    {
+        resultObj->setProperty ("success", false);
+        resultObj->setProperty ("message", "Could not write .elmulti file to " + targetFile.getFullPathName());
+        appendUiDebugLog ("elmulti export | FAILED to write " + targetFile.getFullPathName());
+    }
 
-        auto chosen = chooser.getResult();
-        if (chosen == juce::File())
-        {
-            safeThis->elmultiExportChooser.reset();
-            return;
-        }
-
-        if (! chosen.hasFileExtension ("elmulti"))
-            chosen = chosen.withFileExtension ("elmulti");
-
-        appendUiDebugLog ("elmulti export | writing to " + chosen.getFullPathName()
-                          + " | bytes=" + juce::String (tomlCopy.getNumBytesAsUTF8()));
-
-        auto resultObj = new juce::DynamicObject();
-        if (chosen.replaceWithText (tomlCopy, false, false, "\n"))
-        {
-            resultObj->setProperty ("success", true);
-            resultObj->setProperty ("message", "Exported to " + chosen.getFullPathName());
-            appendUiDebugLog ("elmulti export | SUCCESS path=" + chosen.getFullPathName());
-        }
-        else
-        {
-            resultObj->setProperty ("success", false);
-            resultObj->setProperty ("message", "Could not write .elmulti file to " + chosen.getFullPathName());
-            appendUiDebugLog ("elmulti export | FAILED to write " + chosen.getFullPathName());
-        }
-
-        safeThis->webView->emitEventIfBrowserIsVisible ("elmulti_export_result", juce::var (resultObj));
-        safeThis->elmultiExportChooser.reset();
-    });
+    webView->emitEventIfBrowserIsVisible ("elmulti_export_result", juce::var (resultObj));
 }
 
