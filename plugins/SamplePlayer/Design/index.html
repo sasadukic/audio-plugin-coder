@@ -6419,6 +6419,161 @@
       }
     }
 
+    // -----------------------------------------------------------------------
+    //  Native file picker / drag-drop handlers
+    // -----------------------------------------------------------------------
+
+    function handleNativePickedAudioFiles(payload) {
+      const files = Array.isArray(payload?.files) ? payload.files : [];
+      if (!files.length) return;
+      const audioFiles = files.filter((f) => f && typeof f.name === "string" && AUDIO_REGEX.test(f.name));
+      if (!audioFiles.length) return;
+
+      ensureSessionStateWritable("native-audio-pick");
+      state.packLoaded = false;
+      const start = state.entries.length;
+      audioFiles.forEach((file, idx) => {
+        const parsed = parseFilename(String(file.name || ""));
+        const entry = {
+          fileName: String(file.name || "sample.wav"),
+          manifestPath: String(file.path || ""),
+          order: start + idx,
+          sampleUrl: "",
+          sampleDataUrl: "",
+          fineTuneCents: 0,
+          sampleStartNorm: 0,
+          loopStartNorm: 0,
+          loopEndNorm: 1,
+          loopFadeInNorm: 0,
+          ...parsed
+        };
+        state.entries.push(entry);
+      });
+
+      state.activeMapSetId = "base";
+      state.rrCursor = {};
+      state.mapMatrixRrCursor = {};
+      state.mapMatrixPaintActive = false;
+      state.mapMatrixLastPaintCellKey = "";
+      assignImplicitVelocityLayers();
+      renderSetup();
+      updatePlayerEmptyState();
+      setKeyboardMapCollapsed(false);
+      syncAllKnobValues();
+      scheduleSessionStateSave(350);
+    }
+
+    function handleNativeFilesDropped(payload) {
+      const files = Array.isArray(payload?.files) ? payload.files : [];
+      if (!files.length) return;
+      const audioFiles = files.filter((f) => f && typeof f.name === "string" && AUDIO_REGEX.test(f.name));
+      if (!audioFiles.length) return;
+
+      const dropX = Number(payload?.dropX);
+      const dropY = Number(payload?.dropY);
+      const hasDropCoords = Number.isFinite(dropX) && Number.isFinite(dropY);
+
+      let targetCell = null;
+      if (hasDropCoords && state.mapMatrixSplitEnabled) {
+        const targetNode = document.elementFromPoint(dropX, dropY);
+        if (targetNode instanceof Element) {
+          const matrixCell = targetNode.closest('.map-rr-cell[data-matrix-cell="1"]');
+          if (matrixCell) {
+            const rootMidi = Number(matrixCell.dataset.rootMidi);
+            const velocityLayer = Number(matrixCell.dataset.velocityLayer);
+            if (Number.isFinite(rootMidi) && Number.isFinite(velocityLayer)) {
+              targetCell = { rootMidi, velocityLayer };
+            }
+          }
+          if (!targetCell) {
+            const matrixBox = targetNode.closest(".map-sample-box.map-matrix-box");
+            if (matrixBox) {
+              const rootMidi = Number(matrixBox.dataset.rootMidi);
+              const velocityLayer = Number(matrixBox.dataset.velocityLayer);
+              if (Number.isFinite(rootMidi) && Number.isFinite(velocityLayer)) {
+                targetCell = { rootMidi, velocityLayer };
+              }
+            }
+          }
+        }
+      }
+
+      const filesHaveTokens = audioFiles.some((f) => {
+        const p = parseFilename(String(f.name || ""));
+        return !!p?.valid;
+      });
+
+      if (targetCell && state.mapMatrixSplitEnabled && !filesHaveTokens) {
+        ensureSessionStateWritable("native-drop-matrix");
+        state.packLoaded = false;
+        const owner = getMutableActiveMapEntriesStore();
+        if (!Array.isArray(owner)) return;
+        const { rrColumns, interval } = normalizeMapMatrixState();
+        const activeEntries = getActiveMapEntries().filter((e) => e && e.valid);
+        const intervalRoots = getMapMatrixIntervalRoots(activeEntries, interval);
+        const targetRoot = quantizeMidiToMapMatrixRoot(targetCell.rootMidi, interval, intervalRoots);
+        const targetLayer = clampMapMatrixVelocityLayers(targetCell.velocityLayer);
+        const mapLookup = getMapMatrixEntryLookup(activeEntries, rrColumns);
+        const cursorKey = getMapMatrixCursorKey(targetRoot, targetLayer);
+        let cursorStart = Math.max(1, Math.min(rrColumns, Math.round(Number(state.mapMatrixRrCursor[cursorKey]) || 1)));
+        let added = 0;
+        audioFiles.forEach((file) => {
+          const targetRr = findNextMapMatrixRrSlot(targetRoot, targetLayer, rrColumns, mapLookup, cursorStart);
+          if (targetRr === null) return;
+          const parsed = parseFilename(String(file.name || ""));
+          const loopEnabled = parsed.valid ? !!parsed.loopEnabled : hasLoopTokenInFileName(file.name);
+          const root = Math.max(0, Math.min(127, Math.round(Number(targetRoot) || 0)));
+          const layer = clampMapMatrixVelocityLayers(targetLayer);
+          const entry = {
+            fileName: String(file.name || "sample.wav"),
+            manifestPath: String(file.path || ""),
+            order: getNextMapEntryOrder(),
+            sampleUrl: "",
+            sampleDataUrl: "",
+            fineTuneCents: 0,
+            sampleStartNorm: 0,
+            loopStartNorm: 0,
+            loopEndNorm: 1,
+            loopFadeInNorm: 0,
+            valid: true,
+            reason: "",
+            noteToken: midiToNote(root),
+            rootMidi: root,
+            velocityLayer: layer,
+            rrIndex: rrColumns > 1 ? targetRr : null,
+            loopEnabled,
+            hasVelocityToken: true,
+            hasRRToken: targetRr !== null,
+            suffixSerial: null
+          };
+          owner.push(entry);
+          ensureEntryEditorState(entry);
+          mapLookup.set(getMapMatrixCellKey(targetRoot, targetLayer, targetRr), entry);
+          cursorStart = (targetRr % rrColumns) + 1;
+          added += 1;
+        });
+        if (added > 0) {
+          state.mapMatrixRrCursor[cursorKey] = cursorStart;
+          state.mapMatrixPaintActive = false;
+          state.mapMatrixLastPaintCellKey = "";
+          applyMapMatrixIntervalRanges(getActiveMapEntries());
+          renderSetup();
+          renderPlayerKeyboard();
+          updatePlayerEmptyState();
+          scheduleSessionStateSave(320);
+        }
+        return;
+      }
+
+      handleNativePickedAudioFiles(payload);
+    }
+
+    function handleNativeDragEnter() {
+    }
+
+    function handleNativeDragExit() {
+    }
+
     function setupNativeSessionStateBridge(retryAttempt = 0) {
       const backend = getNativeBackend();
       if (!backend || typeof backend.addEventListener !== "function") {
@@ -6464,7 +6619,19 @@
         const midiActivityToken = backend.addEventListener("midi_activity", (payload) => {
           handleNativeMidiActivity(payload);
         });
-        state.nativeSessionListeners = [stateToken, sampleDataToken, graphicDataToken, manifestPickToken, saveResultToken, midiActivityToken];
+        const nativeAudioPickToken = backend.addEventListener("native_audio_files_picked", (payload) => {
+          handleNativePickedAudioFiles(payload);
+        });
+        const nativeDropToken = backend.addEventListener("native_files_dropped", (payload) => {
+          handleNativeFilesDropped(payload);
+        });
+        const nativeDragEnterToken = backend.addEventListener("native_drag_enter", () => {
+          handleNativeDragEnter();
+        });
+        const nativeDragExitToken = backend.addEventListener("native_drag_exit", () => {
+          handleNativeDragExit();
+        });
+        state.nativeSessionListeners = [stateToken, sampleDataToken, graphicDataToken, manifestPickToken, saveResultToken, midiActivityToken, nativeAudioPickToken, nativeDropToken, nativeDragEnterToken, nativeDragExitToken];
       } catch {
         state.nativeSessionListeners = [];
         debugLoadLog("restore bridge failed | listener registration");
@@ -14049,7 +14216,9 @@
           renderSetup();
           renderPlayerKeyboard();
           updatePlayerEmptyState();
-          scheduleSessionStateSave(320);
+          if ((state.pendingCacheCount || 0) <= 0) {
+            scheduleSessionStateSave(320);
+          }
         }
 
         if (skippedDueToFull > 0) {
@@ -14340,7 +14509,9 @@
       updatePlayerEmptyState();
       setKeyboardMapCollapsed(false);
       syncAllKnobValues();
-      scheduleSessionStateSave(350);
+      if ((state.pendingCacheCount || 0) <= 0) {
+        scheduleSessionStateSave(350);
+      }
     }
 
     function clearInstrument() {
@@ -15724,8 +15895,20 @@
     }
 
     function setupImport() {
-      el.addFilesBtn.addEventListener("click", () => el.filesInput.click());
-      el.addFolderBtn.addEventListener("click", () => el.folderInput.click());
+      el.addFilesBtn.addEventListener("click", () => {
+        if (getNativeBackend()) {
+          emitNativeEvent("pick_audio_files", {});
+          return;
+        }
+        el.filesInput.click();
+      });
+      el.addFolderBtn.addEventListener("click", () => {
+        if (getNativeBackend()) {
+          emitNativeEvent("pick_audio_folder", {});
+          return;
+        }
+        el.folderInput.click();
+      });
       el.clearInstrumentBtn.addEventListener("click", clearInstrument);
       if (el.importKeyswitchesBtn && el.keyswitchInput) {
         el.importKeyswitchesBtn.addEventListener("click", () => el.keyswitchInput.click());

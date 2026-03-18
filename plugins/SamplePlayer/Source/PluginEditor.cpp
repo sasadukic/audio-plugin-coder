@@ -170,6 +170,14 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
                      {
                          editor.handleDebugLogEvent (payload);
                      })
+                     .withEventListener ("pick_audio_files", [&editor] (const juce::var& payload)
+                     {
+                         editor.handlePickAudioFilesEvent (payload);
+                     })
+                     .withEventListener ("pick_audio_folder", [&editor] (const juce::var& payload)
+                     {
+                         editor.handlePickAudioFolderEvent (payload);
+                     })
                      .withEventListener ("ui_resize", [&editor] (const juce::var& payload)
                      {
                          editor.handleUIResizeEvent (payload);
@@ -1127,4 +1135,192 @@ void SamplePlayerAudioProcessorEditor::handleDebugLogEvent (const juce::var& eve
         return;
 
     appendUiDebugLog (message);
+}
+
+// ---------------------------------------------------------------------------
+//  Native audio file / folder picker handlers
+// ---------------------------------------------------------------------------
+
+static bool isAudioFileExtension (const juce::String& ext)
+{
+    const auto lower = ext.toLowerCase();
+    return lower == ".wav" || lower == ".wave" || lower == ".aif" || lower == ".aiff"
+        || lower == ".flac" || lower == ".ogg" || lower == ".mp3";
+}
+
+static juce::var buildNativeFileListPayload (const juce::Array<juce::File>& files)
+{
+    juce::Array<juce::var> entries;
+
+    for (const auto& file : files)
+    {
+        if (! file.existsAsFile())
+            continue;
+        if (! isAudioFileExtension (file.getFileExtension()))
+            continue;
+
+        auto entry = juce::DynamicObject::Ptr (new juce::DynamicObject());
+        entry->setProperty ("name", file.getFileName());
+        entry->setProperty ("path", file.getFullPathName());
+        entry->setProperty ("size", file.getSize());
+        entries.add (juce::var (entry.get()));
+    }
+
+    auto payload = juce::DynamicObject::Ptr (new juce::DynamicObject());
+    payload->setProperty ("files", entries);
+    return juce::var (payload.get());
+}
+
+void SamplePlayerAudioProcessorEditor::handlePickAudioFilesEvent (const juce::var& /*eventPayload*/)
+{
+    if (! webView)
+        return;
+
+    const auto chooserFlags = juce::FileBrowserComponent::openMode
+                            | juce::FileBrowserComponent::canSelectFiles
+                            | juce::FileBrowserComponent::canSelectMultipleItems;
+
+    audioFileChooser = std::make_unique<juce::FileChooser> (
+        "Select audio files",
+        juce::File::getSpecialLocation (juce::File::userDesktopDirectory),
+        "*.wav;*.aif;*.aiff;*.flac;*.ogg;*.mp3",
+        true);
+
+    juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> safeThis (this);
+    audioFileChooser->launchAsync (chooserFlags, [safeThis] (const juce::FileChooser& chooser)
+    {
+        if (safeThis == nullptr || safeThis->webView == nullptr)
+            return;
+
+        const auto results = chooser.getResults();
+        if (results.isEmpty())
+        {
+            safeThis->audioFileChooser.reset();
+            return;
+        }
+
+        safeThis->webView->emitEventIfBrowserIsVisible ("native_audio_files_picked",
+                                                         buildNativeFileListPayload (results));
+        appendUiDebugLog ("native audio files picked | count=" + juce::String (results.size()));
+        safeThis->audioFileChooser.reset();
+    });
+}
+
+void SamplePlayerAudioProcessorEditor::handlePickAudioFolderEvent (const juce::var& /*eventPayload*/)
+{
+    if (! webView)
+        return;
+
+    const auto chooserFlags = juce::FileBrowserComponent::openMode
+                            | juce::FileBrowserComponent::canSelectDirectories;
+
+    audioFileChooser = std::make_unique<juce::FileChooser> (
+        "Select folder with audio files",
+        juce::File::getSpecialLocation (juce::File::userDesktopDirectory),
+        "*",
+        true);
+
+    juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> safeThis (this);
+    audioFileChooser->launchAsync (chooserFlags, [safeThis] (const juce::FileChooser& chooser)
+    {
+        if (safeThis == nullptr || safeThis->webView == nullptr)
+            return;
+
+        const auto folder = chooser.getResult();
+        if (! folder.isDirectory())
+        {
+            safeThis->audioFileChooser.reset();
+            return;
+        }
+
+        juce::Array<juce::File> audioFiles;
+        for (const auto& entry : juce::RangedDirectoryIterator (folder,
+                                                                 true,
+                                                                 "*.wav;*.aif;*.aiff;*.flac;*.ogg;*.mp3",
+                                                                 juce::File::findFiles))
+        {
+            audioFiles.add (entry.getFile());
+        }
+
+        if (audioFiles.isEmpty())
+        {
+            safeThis->audioFileChooser.reset();
+            return;
+        }
+
+        safeThis->webView->emitEventIfBrowserIsVisible ("native_audio_files_picked",
+                                                         buildNativeFileListPayload (audioFiles));
+        appendUiDebugLog ("native audio folder picked | folder=" + folder.getFullPathName()
+                          + " | fileCount=" + juce::String (audioFiles.size()));
+        safeThis->audioFileChooser.reset();
+    });
+}
+
+// ---------------------------------------------------------------------------
+//  FileDragAndDropTarget — intercept native file drops for instant paths
+// ---------------------------------------------------------------------------
+
+bool SamplePlayerAudioProcessorEditor::isInterestedInFileDrag (const juce::StringArray& files)
+{
+    for (const auto& path : files)
+    {
+        if (isAudioFileExtension (juce::File (path).getFileExtension()))
+            return true;
+    }
+    return false;
+}
+
+void SamplePlayerAudioProcessorEditor::fileDragEnter (const juce::StringArray& /*files*/, int /*x*/, int /*y*/)
+{
+    if (webView)
+        webView->emitEventIfBrowserIsVisible ("native_drag_enter", juce::var());
+}
+
+void SamplePlayerAudioProcessorEditor::fileDragExit (const juce::StringArray& /*files*/)
+{
+    if (webView)
+        webView->emitEventIfBrowserIsVisible ("native_drag_exit", juce::var());
+}
+
+void SamplePlayerAudioProcessorEditor::filesDropped (const juce::StringArray& files, int x, int y)
+{
+    if (! webView)
+        return;
+
+    juce::Array<juce::File> audioFiles;
+    for (const auto& path : files)
+    {
+        const juce::File file (path);
+        if (file.isDirectory())
+        {
+            for (const auto& entry : juce::RangedDirectoryIterator (file,
+                                                                     true,
+                                                                     "*.wav;*.aif;*.aiff;*.flac;*.ogg;*.mp3",
+                                                                     juce::File::findFiles))
+            {
+                audioFiles.add (entry.getFile());
+            }
+        }
+        else if (file.existsAsFile() && isAudioFileExtension (file.getFileExtension()))
+        {
+            audioFiles.add (file);
+        }
+    }
+
+    if (audioFiles.isEmpty())
+        return;
+
+    auto payload = buildNativeFileListPayload (audioFiles);
+    if (auto* obj = payload.getDynamicObject())
+    {
+        const auto webViewBounds = webView->getBounds();
+        const auto relX = x - webViewBounds.getX();
+        const auto relY = y - webViewBounds.getY();
+        obj->setProperty ("dropX", relX);
+        obj->setProperty ("dropY", relY);
+    }
+
+    webView->emitEventIfBrowserIsVisible ("native_files_dropped", payload);
+    appendUiDebugLog ("native files dropped | count=" + juce::String (audioFiles.size())
+                      + " | x=" + juce::String (x) + " y=" + juce::String (y));
 }

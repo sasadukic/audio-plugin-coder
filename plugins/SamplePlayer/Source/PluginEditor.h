@@ -6,6 +6,7 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 
 class SamplePlayerAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                         public juce::FileDragAndDropTarget,
                                          private juce::Timer
 {
 public:
@@ -14,6 +15,11 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+
+    bool isInterestedInFileDrag (const juce::StringArray& files) override;
+    void filesDropped (const juce::StringArray& files, int x, int y) override;
+    void fileDragEnter (const juce::StringArray& files, int x, int y) override;
+    void fileDragExit (const juce::StringArray& files) override;
 
 private:
     static constexpr int defaultEditorWidth = 1040;
@@ -50,6 +56,7 @@ private:
     std::unique_ptr<juce::FileChooser> destinationFolderChooser;
     std::unique_ptr<juce::FileChooser> saveInstrumentChooser;
     std::unique_ptr<juce::FileChooser> loadInstrumentChooser;
+    std::unique_ptr<juce::FileChooser> audioFileChooser;
 
     std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);
     static juce::WebBrowserComponent::Options createWebOptions (SamplePlayerAudioProcessorEditor& editor);
@@ -72,6 +79,8 @@ private:
     void handlePreviewMidiEvent (const juce::var& eventPayload);
     void handleSaveInstrumentBundleEvent (const juce::var& eventPayload);
     void handleDebugLogEvent (const juce::var& eventPayload);
+    void handlePickAudioFilesEvent (const juce::var& eventPayload);
+    void handlePickAudioFolderEvent (const juce::var& eventPayload);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplePlayerAudioProcessorEditor)
 };
