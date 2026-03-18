@@ -6463,111 +6463,6 @@
       scheduleSessionStateSave(350);
     }
 
-    function handleNativeFilesDropped(payload) {
-      const files = Array.isArray(payload?.files) ? payload.files : [];
-      if (!files.length) return;
-      const audioFiles = files.filter((f) => f && typeof f.name === "string" && AUDIO_REGEX.test(f.name));
-      if (!audioFiles.length) return;
-
-      const dropX = Number(payload?.dropX);
-      const dropY = Number(payload?.dropY);
-      const hasDropCoords = Number.isFinite(dropX) && Number.isFinite(dropY);
-
-      let targetCell = null;
-      if (hasDropCoords && state.mapMatrixSplitEnabled) {
-        const targetNode = document.elementFromPoint(dropX, dropY);
-        if (targetNode instanceof Element) {
-          const matrixCell = targetNode.closest('.map-rr-cell[data-matrix-cell="1"]');
-          if (matrixCell) {
-            const rootMidi = Number(matrixCell.dataset.rootMidi);
-            const velocityLayer = Number(matrixCell.dataset.velocityLayer);
-            if (Number.isFinite(rootMidi) && Number.isFinite(velocityLayer)) {
-              targetCell = { rootMidi, velocityLayer };
-            }
-          }
-          if (!targetCell) {
-            const matrixBox = targetNode.closest(".map-sample-box.map-matrix-box");
-            if (matrixBox) {
-              const rootMidi = Number(matrixBox.dataset.rootMidi);
-              const velocityLayer = Number(matrixBox.dataset.velocityLayer);
-              if (Number.isFinite(rootMidi) && Number.isFinite(velocityLayer)) {
-                targetCell = { rootMidi, velocityLayer };
-              }
-            }
-          }
-        }
-      }
-
-      const filesHaveTokens = audioFiles.some((f) => {
-        const p = parseFilename(String(f.name || ""));
-        return !!p?.valid;
-      });
-
-      if (targetCell && state.mapMatrixSplitEnabled && !filesHaveTokens) {
-        ensureSessionStateWritable("native-drop-matrix");
-        state.packLoaded = false;
-        const owner = getMutableActiveMapEntriesStore();
-        if (!Array.isArray(owner)) return;
-        const { rrColumns, interval } = normalizeMapMatrixState();
-        const activeEntries = getActiveMapEntries().filter((e) => e && e.valid);
-        const intervalRoots = getMapMatrixIntervalRoots(activeEntries, interval);
-        const targetRoot = quantizeMidiToMapMatrixRoot(targetCell.rootMidi, interval, intervalRoots);
-        const targetLayer = clampMapMatrixVelocityLayers(targetCell.velocityLayer);
-        const mapLookup = getMapMatrixEntryLookup(activeEntries, rrColumns);
-        const cursorKey = getMapMatrixCursorKey(targetRoot, targetLayer);
-        let cursorStart = Math.max(1, Math.min(rrColumns, Math.round(Number(state.mapMatrixRrCursor[cursorKey]) || 1)));
-        let added = 0;
-        audioFiles.forEach((file) => {
-          const targetRr = findNextMapMatrixRrSlot(targetRoot, targetLayer, rrColumns, mapLookup, cursorStart);
-          if (targetRr === null) return;
-          const parsed = parseFilename(String(file.name || ""));
-          const loopEnabled = parsed.valid ? !!parsed.loopEnabled : hasLoopTokenInFileName(file.name);
-          const root = Math.max(0, Math.min(127, Math.round(Number(targetRoot) || 0)));
-          const layer = clampMapMatrixVelocityLayers(targetLayer);
-          const entry = {
-            fileName: String(file.name || "sample.wav"),
-            manifestPath: String(file.path || ""),
-            order: getNextMapEntryOrder(),
-            sampleUrl: "",
-            sampleDataUrl: "",
-            fineTuneCents: 0,
-            sampleStartNorm: 0,
-            loopStartNorm: 0,
-            loopEndNorm: 1,
-            loopFadeInNorm: 0,
-            valid: true,
-            reason: "",
-            noteToken: midiToNote(root),
-            rootMidi: root,
-            velocityLayer: layer,
-            rrIndex: rrColumns > 1 ? targetRr : null,
-            loopEnabled,
-            hasVelocityToken: true,
-            hasRRToken: targetRr !== null,
-            suffixSerial: null
-          };
-          owner.push(entry);
-          ensureEntryEditorState(entry);
-          mapLookup.set(getMapMatrixCellKey(targetRoot, targetLayer, targetRr), entry);
-          cursorStart = (targetRr % rrColumns) + 1;
-          added += 1;
-        });
-        if (added > 0) {
-          state.mapMatrixRrCursor[cursorKey] = cursorStart;
-          state.mapMatrixPaintActive = false;
-          state.mapMatrixLastPaintCellKey = "";
-          applyMapMatrixIntervalRanges(getActiveMapEntries());
-          renderSetup();
-          renderPlayerKeyboard();
-          updatePlayerEmptyState();
-          scheduleSessionStateSave(320);
-        }
-        return;
-      }
-
-      handleNativePickedAudioFiles(payload);
-    }
-
     function handleNativeDragEnter() {
     }
 
@@ -6622,16 +6517,7 @@
         const nativeAudioPickToken = backend.addEventListener("native_audio_files_picked", (payload) => {
           handleNativePickedAudioFiles(payload);
         });
-        const nativeDropToken = backend.addEventListener("native_files_dropped", (payload) => {
-          handleNativeFilesDropped(payload);
-        });
-        const nativeDragEnterToken = backend.addEventListener("native_drag_enter", () => {
-          handleNativeDragEnter();
-        });
-        const nativeDragExitToken = backend.addEventListener("native_drag_exit", () => {
-          handleNativeDragExit();
-        });
-        state.nativeSessionListeners = [stateToken, sampleDataToken, graphicDataToken, manifestPickToken, saveResultToken, midiActivityToken, nativeAudioPickToken, nativeDropToken, nativeDragEnterToken, nativeDragExitToken];
+        state.nativeSessionListeners = [stateToken, sampleDataToken, graphicDataToken, manifestPickToken, saveResultToken, midiActivityToken, nativeAudioPickToken];
       } catch {
         state.nativeSessionListeners = [];
         debugLoadLog("restore bridge failed | listener registration");
@@ -12511,7 +12397,7 @@
         if (hasAnyLoadedSamples) {
           el.mapEmpty.classList.add("hidden");
         } else {
-          el.mapEmpty.textContent = "Drag and drop batch import (NOTE(required), V1..V5, RRn, L)";
+          el.mapEmpty.textContent = "Filename format: NOTE(required), V1..V5, RRn, L";
           el.mapEmpty.classList.remove("hidden");
         }
       }
@@ -14135,17 +14021,8 @@
       });
 
       el.mapSamples.addEventListener("dragover", (ev) => {
-        const droppedFiles = getDroppedAudioFiles(ev.dataTransfer?.files || []);
-        const hasFilePayload = dataTransferHasFilePayload(ev.dataTransfer);
         const draggedOrder = Number(ev.dataTransfer?.getData("application/x-sample-map-entry-order"));
         const hasEntryMove = Number.isFinite(draggedOrder);
-
-        if (hasFilePayload || droppedFiles.length > 0) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          if (ev.dataTransfer) ev.dataTransfer.dropEffect = "copy";
-          return;
-        }
 
         if (!hasEntryMove || !state.mapMatrixSplitEnabled) return;
         const pointerTarget = document.elementFromPoint(ev.clientX, ev.clientY);
@@ -14157,23 +14034,13 @@
       });
 
       el.mapSamples.addEventListener("drop", (ev) => {
-        const droppedFiles = getDroppedAudioFiles(ev.dataTransfer?.files || []);
-        const hasFilePayload = dataTransferHasFilePayload(ev.dataTransfer);
-        const filesHaveTokens = droppedFilesHaveMapTokens(droppedFiles);
         const draggedOrder = Number(ev.dataTransfer?.getData("application/x-sample-map-entry-order"));
         const hasEntryMove = Number.isFinite(draggedOrder);
-
-        if (droppedFiles.length > 0 && (filesHaveTokens || !state.mapMatrixSplitEnabled)) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          ingest(droppedFiles);
-          return;
-        }
 
         const pointerTarget = document.elementFromPoint(ev.clientX, ev.clientY);
         const dropTarget = getMatrixDropTarget(ev.target) || getMatrixDropTarget(pointerTarget);
         if (!dropTarget) {
-          if (hasFilePayload || hasEntryMove) {
+          if (hasEntryMove) {
             ev.preventDefault();
             ev.stopPropagation();
           }
@@ -14200,12 +14067,6 @@
           }
         }
 
-        if (droppedFiles.length > 0) {
-          const addResult = addDroppedFilesToMatrixLayer(droppedFiles, targetRoot, targetLayer);
-          if (addResult.added > 0) changed = true;
-          skippedDueToFull += addResult.skipped;
-        }
-
         if (changed) {
           mapMatrixDeleteSelection = null;
           state.packLoaded = false;
@@ -14227,23 +14088,6 @@
             "warn"
           );
         }
-      });
-
-      el.mapKeys.addEventListener("dragover", (ev) => {
-        const droppedFiles = getDroppedAudioFiles(ev.dataTransfer?.files || []);
-        const hasFilePayload = dataTransferHasFilePayload(ev.dataTransfer);
-        if (!droppedFiles.length && !hasFilePayload) return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (ev.dataTransfer) ev.dataTransfer.dropEffect = "copy";
-      });
-
-      el.mapKeys.addEventListener("drop", (ev) => {
-        const droppedFiles = getDroppedAudioFiles(ev.dataTransfer?.files || []);
-        if (!droppedFiles.length) return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        ingest(droppedFiles);
       });
 
       el.mapSamples.addEventListener("pointerdown", (ev) => {
