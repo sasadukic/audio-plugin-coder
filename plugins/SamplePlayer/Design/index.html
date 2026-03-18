@@ -7201,6 +7201,7 @@
 
     function setupStrum() {
       updateStrumUi();
+      emitStrumSettings();
 
       const closeStrumMenus = () => {
         const menus = [
@@ -7298,12 +7299,11 @@
       });
 
       if (el.strumStepGrid) {
-        const setVelocityFromPointer = (stepIndex, barIndex, clientY, velocityBtn) => {
+        const applyVelocityFromPointer = (stepIndex, barIndex, clientY, capturedRect) => {
           const activeStepCount = getStrumVisibleStepCount();
           const index = Math.max(0, Math.min(7, Number(stepIndex) || 0));
-          if (index >= activeStepCount) return;
-          const rect = velocityBtn.getBoundingClientRect();
-          const normalized = 1 - ((clientY - rect.top) / Math.max(1, rect.height));
+          if (index >= activeStepCount) return -1;
+          const normalized = 1 - ((clientY - capturedRect.top) / Math.max(1, capturedRect.height));
           const clamped = Math.max(0, Math.min(1, normalized));
           const velocity = Math.max(1, Math.min(127, Math.round(clamped * 127)));
           const subdivisionIndex = Math.max(0, Math.min(STRUM_STEP_MAX_SUBDIVISIONS - 1, Number(barIndex) || 0));
@@ -7315,9 +7315,21 @@
             ...normalizedStep,
             subVelocities: nextSubVelocities
           };
-          updateStrumUi();
-          emitStrumSettings();
-          scheduleSessionStateSave(280);
+          return velocity;
+        };
+
+        const updateBarFillVisual = (stepIndex, barIndex, velocity) => {
+          if (!el.strumStepGrid) return;
+          const cards = el.strumStepGrid.querySelectorAll(".strum-step-card");
+          const card = cards[stepIndex];
+          if (!card) return;
+          const bars = card.querySelectorAll(".strum-step-velocity-bar");
+          const bar = bars[barIndex];
+          if (!bar) return;
+          const fill = bar.querySelector(".strum-step-velocity-fill");
+          if (fill instanceof HTMLElement) {
+            fill.style.height = `${(velocity / 127) * 100}%`;
+          }
         };
 
         el.strumStepGrid.addEventListener("pointerdown", (ev) => {
@@ -7333,12 +7345,20 @@
           if (!Number.isFinite(stepIndex)) return;
           if (!Number.isFinite(barIndex)) return;
           ev.preventDefault();
-          setVelocityFromPointer(stepIndex, barIndex, ev.clientY, velocityBtn);
+          const capturedRect = velocityBtn.getBoundingClientRect();
+          const vel = applyVelocityFromPointer(stepIndex, barIndex, ev.clientY, capturedRect);
+          if (vel >= 0) updateBarFillVisual(stepIndex, barIndex, vel);
 
-          const onMove = (moveEv) => setVelocityFromPointer(stepIndex, barIndex, moveEv.clientY, velocityBtn);
+          const onMove = (moveEv) => {
+            const v = applyVelocityFromPointer(stepIndex, barIndex, moveEv.clientY, capturedRect);
+            if (v >= 0) updateBarFillVisual(stepIndex, barIndex, v);
+          };
           const onUp = () => {
             window.removeEventListener("pointermove", onMove);
             window.removeEventListener("pointerup", onUp);
+            updateStrumUi();
+            emitStrumSettings();
+            scheduleSessionStateSave(280);
           };
 
           window.addEventListener("pointermove", onMove);
