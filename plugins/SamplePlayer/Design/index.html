@@ -1460,6 +1460,15 @@
       grid-column: 1 / -1;
     }
 
+    #strumSection {
+      grid-column: 1 / -1;
+      overflow: visible;
+    }
+
+    #strumBody {
+      overflow: visible;
+    }
+
     .setup-map-wide {
       margin-left: 0;
       margin-right: 0;
@@ -7250,6 +7259,10 @@
           const isCollapsed = el.strumSection.classList.contains("collapsed");
           if (isCollapsed !== shouldBeCollapsed) {
             setStrumCollapsed(shouldBeCollapsed);
+            // Double-rAF: ensure layout settles before the host measures content height
+            window.requestAnimationFrame(() => {
+              window.requestAnimationFrame(() => scheduleHostResizeForActiveTab());
+            });
           } else {
             // keep aria-expanded in sync when no change required
             el.strumToggle.setAttribute("aria-expanded", String(!shouldBeCollapsed));
@@ -7289,6 +7302,15 @@
         buttons.forEach((btn) => {
           if (btn) btn.setAttribute("aria-expanded", "false");
         });
+        // Restore panel scrolling after dropdown closes
+        const setupPanel = el.panels?.setup;
+        if (setupPanel) setupPanel.style.removeProperty("overflow");
+      };
+
+      const openStrumMenuOverflow = () => {
+        // Temporarily disable panel clipping so absolutely-positioned dropdowns are visible
+        const setupPanel = el.panels?.setup;
+        if (setupPanel) setupPanel.style.overflow = "visible";
       };
 
       const setupStrumMenu = (btn, menu, itemSelector, onSelect) => {
@@ -7300,6 +7322,7 @@
           if (!open) {
             menu.classList.remove("hidden");
             btn.setAttribute("aria-expanded", "true");
+            openStrumMenuOverflow();
           }
         });
 
@@ -7464,6 +7487,7 @@
             if (!open) {
               menu.classList.remove("hidden");
               rateBtn.setAttribute("aria-expanded", "true");
+              openStrumMenuOverflow();
             }
             return;
           }
@@ -7501,6 +7525,7 @@
             if (!open) {
               menu.classList.remove("hidden");
               keyswitchBtn.setAttribute("aria-expanded", "true");
+              openStrumMenuOverflow();
             }
           }
         });
