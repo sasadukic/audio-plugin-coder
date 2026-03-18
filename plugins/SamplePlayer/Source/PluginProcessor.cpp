@@ -2792,6 +2792,51 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         roots.erase (std::unique (roots.begin(), roots.end()), roots.end());
 
         const auto* manualRangesObject = mapSet.manualRangesVar.getDynamicObject();
+        const auto tryReadManualRangeForRoot = [manualRangesObject] (int rootMidi,
+                                                                      int defaultLow,
+                                                                      int defaultHigh,
+                                                                      int& outLow,
+                                                                      int& outHigh) -> bool
+        {
+            if (manualRangesObject == nullptr)
+                return false;
+
+            const auto applyRangeObject = [defaultLow, defaultHigh, &outLow, &outHigh] (const juce::var& candidate) -> bool
+            {
+                const auto* rangeObject = candidate.getDynamicObject();
+                if (rangeObject == nullptr)
+                    return false;
+
+                outLow = juce::jlimit (0, 127, varToInt (rangeObject->getProperty ("low"), defaultLow));
+                outHigh = juce::jlimit (0, 127, varToInt (rangeObject->getProperty ("high"), defaultHigh));
+                return true;
+            };
+
+            if (applyRangeObject (manualRangesObject->getProperty (juce::String (rootMidi))))
+                return true;
+
+            const auto& properties = manualRangesObject->getProperties();
+            for (int i = 0; i < properties.size(); ++i)
+            {
+                const auto key = properties.getName (i).toString().trim();
+                int parsedMidi = -1;
+
+                if (! parseStrictInt (key, parsedMidi))
+                {
+                    if (! parseNoteToken (key, parsedMidi))
+                        continue;
+                }
+
+                if (juce::jlimit (0, 127, parsedMidi) != rootMidi)
+                    continue;
+
+                if (applyRangeObject (properties.getValueAt (i)))
+                    return true;
+            }
+
+            return false;
+        };
+
         for (size_t i = 0; i < roots.size(); ++i)
         {
             const int root = roots[i];
@@ -2801,14 +2846,12 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
             if (i == roots.size() - 1 && allowPitchUpAboveHighest)
                 high = 127;
 
-            if (manualRangesObject != nullptr)
+            int manualLow = low;
+            int manualHigh = high;
+            if (tryReadManualRangeForRoot (root, low, high, manualLow, manualHigh))
             {
-                const auto* rootRangeObject = manualRangesObject->getProperty (juce::String (root)).getDynamicObject();
-                if (rootRangeObject != nullptr)
-                {
-                    low = juce::jlimit (0, 127, varToInt (rootRangeObject->getProperty ("low"), low));
-                    high = juce::jlimit (0, 127, varToInt (rootRangeObject->getProperty ("high"), high));
-                }
+                low = manualLow;
+                high = manualHigh;
             }
 
             if (low > high)
@@ -4797,30 +4840,21 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
             }
         }
 
-        bool hasPlayableZoneInActiveSlot = false;
+        bool hasAnyZoneInActiveSlot = false;
         if (sampleSet != nullptr)
         {
             for (const auto& zone : sampleSet->zones)
             {
-                if (zone == nullptr)
-                    continue;
-
-                const auto& metadata = zone->metadata;
-                if (metadata.mapSetSlot != activeSlot)
-                    continue;
-
-                if (note >= metadata.lowNote && note <= metadata.highNote)
+                if (zone != nullptr && zone->metadata.mapSetSlot == activeSlot)
                 {
-                    hasPlayableZoneInActiveSlot = true;
+                    hasAnyZoneInActiveSlot = true;
                     break;
                 }
             }
         }
 
-        if (! hasPlayableZoneInActiveSlot)
+        if (! hasAnyZoneInActiveSlot)
         {
-            // Strict behavior: host MIDI should not press or trigger notes that
-            // are outside mapped zones (unless they are explicit keyswitch keys).
             setMidiHeldState (note, false);
             return;
         }
@@ -5256,6 +5290,57 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     if (candidatePool->empty())
         candidatePool = &noteOnlyMatches;
 
+    // Nearest-root fallback: when no zone explicitly covers the played note,
+    // find zones sharing the closest root and pitch-shift to it.  This ensures
+    // stretched key ranges always sound even when explicit low/high metadata
+    // is missing, stale, or computed differently than the UI display.
+    if (candidatePool->empty())
+    {
+        int nearestRoot = -1;
+        int nearestDistance = 999;
+
+        for (const auto& zone : sampleSet->zones)
+        {
+            if (zone == nullptr)
+                continue;
+
+            const auto& m = zone->metadata;
+            if (m.mapSetSlot != activeSlot)
+                continue;
+
+            const int dist = std::abs (m.rootNote - midiNoteNumber);
+            if (dist < nearestDistance)
+            {
+                nearestDistance = dist;
+                nearestRoot = m.rootNote;
+            }
+        }
+
+        if (nearestRoot >= 0)
+        {
+            for (const auto& zone : sampleSet->zones)
+            {
+                if (zone == nullptr)
+                    continue;
+
+                const auto& m = zone->metadata;
+                if (m.mapSetSlot != activeSlot)
+                    continue;
+
+                if (m.rootNote != nearestRoot)
+                    continue;
+
+                noteOnlyMatches.push_back (zone);
+                if (selectionVelocity >= m.lowVelocity && selectionVelocity <= m.highVelocity)
+                    noteAndVelocityMatches.push_back (zone);
+            }
+
+            candidatePool = &noteAndVelocityMatches;
+            if (candidatePool->empty())
+                candidatePool = &noteOnlyMatches;
+        }
+    }
+
     if (candidatePool->empty())
         return {};
 
@@ -5304,6 +5389,53 @@ bool SamplePlayerAudioProcessor::hasMultipleRoundRobinsForNote (int midiNoteNumb
             continue;
 
         if (clampedNote < m.lowNote || clampedNote > m.highNote)
+            continue;
+
+        rrNoteMatches.insert (m.roundRobinIndex);
+        if (clampedVelocity >= m.lowVelocity && clampedVelocity <= m.highVelocity)
+            rrMatches.insert (m.roundRobinIndex);
+    }
+
+    if (rrMatches.size() > 1)
+        return true;
+
+    if (! rrMatches.empty() || ! rrNoteMatches.empty())
+        return rrMatches.empty() && rrNoteMatches.size() > 1;
+
+    // Nearest-root fallback for stretched notes outside explicit ranges.
+    int nearestRoot = -1;
+    int nearestDistance = 999;
+
+    for (const auto& zone : sampleSet->zones)
+    {
+        if (zone == nullptr)
+            continue;
+
+        const auto& m = zone->metadata;
+        if (m.mapSetSlot != activeSlot)
+            continue;
+
+        const int dist = std::abs (m.rootNote - clampedNote);
+        if (dist < nearestDistance)
+        {
+            nearestDistance = dist;
+            nearestRoot = m.rootNote;
+        }
+    }
+
+    if (nearestRoot < 0)
+        return false;
+
+    for (const auto& zone : sampleSet->zones)
+    {
+        if (zone == nullptr)
+            continue;
+
+        const auto& m = zone->metadata;
+        if (m.mapSetSlot != activeSlot)
+            continue;
+
+        if (m.rootNote != nearestRoot)
             continue;
 
         rrNoteMatches.insert (m.roundRobinIndex);
