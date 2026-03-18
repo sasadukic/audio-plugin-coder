@@ -7241,6 +7241,24 @@
       }
 
       renderStrumStepGrid();
+
+      // Auto-collapse the Strum section when the sequencer is off.
+      try {
+        const stepCount = getStrumVisibleStepCount();
+        if (el.strumSection && el.strumToggle) {
+          const shouldBeCollapsed = stepCount <= 0;
+          const isCollapsed = el.strumSection.classList.contains("collapsed");
+          if (isCollapsed !== shouldBeCollapsed) {
+            setStrumCollapsed(shouldBeCollapsed);
+          } else {
+            // keep aria-expanded in sync when no change required
+            el.strumToggle.setAttribute("aria-expanded", String(!shouldBeCollapsed));
+          }
+        }
+      } catch (e) {
+        // fail silently; UI should not break
+      }
+
     }
 
     function setupStrum() {
