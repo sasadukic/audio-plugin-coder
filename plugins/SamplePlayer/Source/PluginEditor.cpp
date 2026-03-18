@@ -1400,8 +1400,15 @@ void SamplePlayerAudioProcessorEditor::handleExportElmultiEvent (const juce::var
         return;
     }
 
+    const auto manifestFilePath = obj->getProperty ("manifestFilePath").toString().trim();
     juce::File initialDir = juce::File::getSpecialLocation (juce::File::userDesktopDirectory);
-    if (searchPaths.size() > 0)
+    if (manifestFilePath.isNotEmpty())
+    {
+        juce::File manifestFile (manifestFilePath);
+        if (manifestFile.getParentDirectory().isDirectory())
+            initialDir = manifestFile.getParentDirectory();
+    }
+    else if (searchPaths.size() > 0)
     {
         juce::File candidate (searchPaths[0]);
         if (candidate.isDirectory())
