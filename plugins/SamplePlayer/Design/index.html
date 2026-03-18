@@ -5386,7 +5386,8 @@
           modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
           pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
           auto: buildAutoControlsSnapshot(),
-          sequencer: buildSequencerSnapshot()
+          sequencer: buildSequencerSnapshot(),
+          strum: buildStrumSnapshot()
         }
       };
     }
@@ -5433,7 +5434,8 @@
           modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
           pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
           auto: buildAutoControlsSnapshot(),
-          sequencer: buildSequencerSnapshot()
+          sequencer: buildSequencerSnapshot(),
+          strum: buildStrumSnapshot()
         }
       };
     }
@@ -5657,6 +5659,7 @@
         state.activeMapSetId = activeSet ? activeSet.id : (state.keyswitchSets[0]?.id || "base");
         applyAutoControlsSnapshot(ui.auto || {});
         applySequencerSnapshot(ui.sequencer || {}, false);
+        applyStrumSnapshot(ui.strum || {});
       } finally {
         state.sessionStateRestoreInProgress = false;
       }
@@ -5670,6 +5673,8 @@
       renderSetup();
       updatePlayerEmptyState();
       syncAllKnobValues();
+      updateStrumUi();
+      emitStrumSettings();
       scheduleHostResizeForActiveTab();
       state.sessionStateRestored = true;
       state.sessionStateRestoreCompletedAt = Date.now();
@@ -6704,6 +6709,44 @@
           keyswitchSetId: normalizeSequencerKeyswitchId(step?.keyswitchSetId)
         }))
       };
+    }
+
+    function buildStrumSnapshot() {
+      ensureStrumStepPattern();
+      return {
+        enabled: !!state.strumEnabled,
+        sequencerSteps: Math.max(0, Math.min(8, Math.round(Number(state.strumSequencerSteps) || 0))),
+        sequencerMode: Math.max(0, Math.min(2, Number(state.strumSequencerMode) || 0)),
+        doubling: !!state.strumDoubling,
+        rateIndex: Math.max(0, Math.min(3, Number(state.strumRateIndex) || 0)),
+        swingPercent: Math.max(0, Math.min(60, Number(state.strumSwingPercent) || 0)),
+        velocityHumanizePercent: Math.max(0, Math.min(20, Number(state.strumVelocityHumanizePercent) || 0)),
+        timingHumanizeMs: Math.max(0, Math.min(10, Number(state.strumTimingHumanizeMs) || 0)),
+        stepPattern: state.strumStepPattern.slice(0, 8).map((step) => {
+          const n = normalizeStrumStep(step);
+          return {
+            rateIndex: n.rateIndex,
+            keyswitchSetId: n.keyswitchSetId,
+            subVelocities: n.subVelocities.slice()
+          };
+        })
+      };
+    }
+
+    function applyStrumSnapshot(snapshot) {
+      const source = (snapshot && typeof snapshot === "object") ? snapshot : {};
+      state.strumEnabled = source.enabled !== undefined ? !!source.enabled : false;
+      state.strumSequencerSteps = Number.isFinite(source.sequencerSteps) ? Math.max(0, Math.min(8, Math.round(source.sequencerSteps))) : 0;
+      state.strumSequencerMode = Number.isFinite(source.sequencerMode) ? Math.max(0, Math.min(2, Math.round(source.sequencerMode))) : 0;
+      state.strumDoubling = !!source.doubling;
+      state.strumRateIndex = Number.isFinite(source.rateIndex) ? Math.max(0, Math.min(3, Math.round(source.rateIndex))) : 2;
+      state.strumSwingPercent = Number.isFinite(source.swingPercent) ? Math.max(0, Math.min(60, Math.round(source.swingPercent))) : 0;
+      state.strumVelocityHumanizePercent = Number.isFinite(source.velocityHumanizePercent) ? Math.max(0, Math.min(20, Math.round(source.velocityHumanizePercent))) : 0;
+      state.strumTimingHumanizeMs = Number.isFinite(source.timingHumanizeMs) ? Math.max(0, Math.min(10, Math.round(source.timingHumanizeMs))) : 0;
+      if (Array.isArray(source.stepPattern)) {
+        state.strumStepPattern = source.stepPattern.slice(0, 8).map(normalizeStrumStep);
+      }
+      ensureStrumStepPattern();
     }
 
     function updateSequencerModeButton() {
