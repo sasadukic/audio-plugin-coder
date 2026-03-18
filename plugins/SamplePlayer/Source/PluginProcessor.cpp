@@ -2209,7 +2209,7 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
             doubling = static_cast<bool> (doublingVar);
 
         uiRateIndex = juce::jlimit (0, 3, static_cast<int> (object->getProperty ("rateIndex")));
-        swingPercent = juce::jlimit (0, 60, static_cast<int> (object->getProperty ("swingPercent")));
+        swingPercent = juce::jlimit (0, 20, static_cast<int> (object->getProperty ("swingPercent")));
         velocityHumanizePercent = juce::jlimit (0, 20, static_cast<int> (object->getProperty ("velocityHumanizePercent")));
         timingHumanizeMs = juce::jlimit (0, 10, static_cast<int> (object->getProperty ("timingHumanizeMs")));
 
@@ -4899,7 +4899,20 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
         noteOnCount = juce::jmin (1024, noteOnCount + 1);
         setMidiHeldState (note, true);
 
-        startVoiceForNote (message.getChannel(), note, message.getFloatVelocity(), settings);
+        {
+            auto strumRT = std::atomic_load (&strumSequencerRuntime);
+            const bool doublingOn = strumRT != nullptr && strumRT->doubling;
+            const int vel127 = juce::jlimit (1, 127, static_cast<int> (std::round (message.getFloatVelocity() * 127.0f)));
+            if (doublingOn && hasMultipleRoundRobinsForNote (note, vel127))
+            {
+                startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, false, -1.0f, 0);
+                startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, true, 1.0f, 1);
+            }
+            else
+            {
+                startVoiceForNote (message.getChannel(), note, message.getFloatVelocity(), settings);
+            }
+        }
         return;
     }
 

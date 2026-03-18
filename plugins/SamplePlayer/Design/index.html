@@ -8674,7 +8674,7 @@
           const normalized = String(dataUrl || "").trim();
           if (!normalized.startsWith("data:")) return;
           entry.sampleDataUrl = normalized;
-          scheduleSessionStateSave(280);
+          scheduleSessionStateSave(900);
         })
         .catch(() => {});
     }
@@ -8714,11 +8714,9 @@
           return !manifestPath;
         })
         .slice(0, limit);
-      for (const entry of candidates) {
-        try {
-          await ensureEntryRuntimeSampleDataUrl(entry);
-        } catch {}
-      }
+      await Promise.all(candidates.map((entry) =>
+        ensureEntryRuntimeSampleDataUrl(entry).catch(() => {})
+      ));
     }
 
     async function ensureWallpaperDataUrlForAutoSampler() {
