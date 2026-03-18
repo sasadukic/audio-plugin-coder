@@ -6442,6 +6442,8 @@
             state.sessionStateRestoreAttempted = true;
           }
           debugLoadLog("restore timeout | no session payload after retries");
+          updateStrumUi();
+          emitStrumSettings();
           completeLoadingOverlay("Ready");
         }, 1200);
       };
@@ -7244,7 +7246,6 @@
 
     function setupStrum() {
       updateStrumUi();
-      emitStrumSettings();
 
       const closeStrumMenus = () => {
         const menus = [
