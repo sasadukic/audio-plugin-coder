@@ -9706,7 +9706,7 @@
         fileName: String(file?.name || "sample.wav"),
         manifestPath: sourcePath,
         order: getNextMapEntryOrder(),
-        sampleUrl: getNativeBackend() ? "" : URL.createObjectURL(file),
+        sampleUrl: sourcePath ? "" : URL.createObjectURL(file),
         sampleDataUrl: "",
         fineTuneCents: 0,
         sampleStartNorm: 0,
@@ -9862,7 +9862,7 @@
           rrColumns > 1 ? targetRr : null
         );
         owner.push(entry);
-        if (!entry.manifestPath && !getNativeBackend()) {
+        if (!entry.manifestPath) {
           cacheEntrySampleDataUrlFromFile(entry, file);
         }
         ensureEntryEditorState(entry);
@@ -14475,12 +14475,11 @@
 
       ensureSessionStateWritable("ingest-audio");
       state.packLoaded = false;
-      const nativeAvailable = !!getNativeBackend();
       const start = state.entries.length;
       files.forEach((file, idx) => {
         const parsed = parseFilename(file.name);
-        const sampleUrl = (parsed.valid && !nativeAvailable) ? URL.createObjectURL(file) : "";
         const sourcePath = (file && typeof file.path === "string") ? String(file.path).trim() : "";
+        const sampleUrl = (parsed.valid && !sourcePath) ? URL.createObjectURL(file) : "";
         const entry = {
           fileName: file.name,
           manifestPath: sourcePath,
@@ -14495,7 +14494,7 @@
           ...parsed
         };
         state.entries.push(entry);
-        if (parsed.valid && !sourcePath && !nativeAvailable) {
+        if (parsed.valid && !sourcePath) {
           cacheEntrySampleDataUrlFromFile(entry, file);
         }
       });
