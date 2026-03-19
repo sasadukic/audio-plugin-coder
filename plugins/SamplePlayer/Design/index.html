@@ -7065,10 +7065,10 @@
       requestInitialSessionState();
 
       window.addEventListener("pagehide", () => {
-        void flushSessionStateToNative(true);
+        void flushSessionStateToNative(true, { includeEmbeddedSampleData: true });
       });
       window.addEventListener("beforeunload", () => {
-        void flushSessionStateToNative(true);
+        void flushSessionStateToNative(true, { includeEmbeddedSampleData: true });
       });
     }
 
@@ -16152,9 +16152,6 @@
         state.lastFlushedJsonHash = "";
         if (isMonolith) {
           await flushSessionStateToNative(false, { includeEmbeddedSampleData: true });
-          getAllMapEntries().forEach((entry) => {
-            if (entry) entry.sampleDataUrl = "";
-          });
         } else {
           void flushSessionStateToNative(false);
         }

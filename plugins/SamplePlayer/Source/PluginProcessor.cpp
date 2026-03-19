@@ -2748,7 +2748,6 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                 variants.push_back ({ mapSet.slot, rootMidi, velocityLayer, rrIndex, fileName, sampleDataUrl, samplePath });
 
                 hashMix (hash, static_cast<juce::uint64> ((mapSet.slot << 12) ^ (rrIndex + 101)));
-                hashMix (hash, static_cast<juce::uint64> (sampleDataUrl.hashCode64()));
                 hashMix (hash, static_cast<juce::uint64> (samplePath.hashCode64()));
                 hashMix (hash, static_cast<juce::uint64> (fileName.hashCode64()));
                 ++fallbackRr;
