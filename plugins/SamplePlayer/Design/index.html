@@ -409,6 +409,34 @@
       cursor: default;
     }
 
+    .strum-step-gap-btn {
+      position: absolute;
+      left: calc(100% + 4px);
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid rgba(140, 146, 156, 0.25);
+      background: rgba(25, 28, 35, 0.95);
+      color: rgba(200, 204, 210, 0.8);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 5;
+      padding: 0;
+    }
+
+    .strum-step-gap-btn:hover {
+      border-color: rgba(170, 176, 186, 0.55);
+      background: rgba(55, 58, 66, 0.95);
+      color: rgba(230, 234, 240, 0.95);
+    }
+
     /* Player page strum step grid — uses wallpaper swatch colors */
     .player-strum-step-grid {
       position: absolute;
@@ -576,6 +604,19 @@
     .player-strum-step-grid .strum-step-card.is-inactive .strum-step-velocity-btn,
     .player-strum-step-grid .strum-step-card.is-inactive .strum-step-rate-btn {
       cursor: default;
+    }
+
+    .player-strum-step-grid .strum-step-gap-btn {
+      left: calc(100% + 3px);
+      border-color: rgba(var(--player-line-rgb, 140, 146, 156), 0.3);
+      background: rgba(var(--player-topbar-rgb, 25, 28, 35), 0.95);
+      color: #fff;
+    }
+
+    .player-strum-step-grid .strum-step-gap-btn:hover {
+      border-color: rgba(var(--player-bright-rgb, 218, 222, 229), 0.5);
+      background: rgba(var(--player-swatch-rgb, 55, 58, 66), 0.95);
+      color: #fff;
     }
 
     button:not(.player-key):hover,
@@ -7645,6 +7686,27 @@
           item.classList.toggle("active", itemKeyswitchId === String(step.keyswitchSetId || "").trim());
         });
 
+        if (stepIndex < 7) {
+          const thisIsActive = !isInactive;
+          const nextIsActive = (stepIndex + 1) < activeStepCount;
+          const gapBtn = document.createElement("button");
+          gapBtn.type = "button";
+          gapBtn.className = "strum-step-gap-btn";
+          gapBtn.dataset.gapAfterStep = String(stepIndex);
+          if (thisIsActive && nextIsActive) {
+            gapBtn.textContent = "\u2212";
+            gapBtn.dataset.gapAction = "remove";
+            gapBtn.title = `Remove step ${stepIndex + 2}`;
+          } else if (thisIsActive && !nextIsActive) {
+            gapBtn.textContent = "+";
+            gapBtn.dataset.gapAction = "add";
+            gapBtn.title = `Add step ${stepIndex + 2}`;
+          } else {
+            gapBtn.style.display = "none";
+          }
+          stepCard.appendChild(gapBtn);
+        }
+
         container.appendChild(stepCard);
       }
     }
@@ -8031,6 +8093,30 @@
           grid.addEventListener("pointerdown", (ev) => {
             const target = ev.target;
             if (!(target instanceof Element)) return;
+
+            const gapBtn = target.closest(".strum-step-gap-btn");
+            if (gapBtn instanceof HTMLButtonElement) {
+              ev.preventDefault();
+              ev.stopPropagation();
+              const action = gapBtn.dataset.gapAction;
+              const gapAfterStep = Number(gapBtn.dataset.gapAfterStep);
+              if (!Number.isFinite(gapAfterStep)) return;
+              ensureStrumStepPattern();
+              let newStepCount = getStrumVisibleStepCount();
+              if (action === "remove") {
+                newStepCount = gapAfterStep + 1;
+              } else if (action === "add") {
+                newStepCount = gapAfterStep + 2;
+              }
+              newStepCount = Math.max(1, Math.min(8, newStepCount));
+              state.strumSequencerSteps = newStepCount;
+              state.strumSequencerMode = newStepCount <= 0 ? 0 : (newStepCount <= 4 ? 1 : 2);
+              state.strumEnabled = newStepCount > 0;
+              updateStrumUi();
+              emitStrumSettings();
+              scheduleSessionStateSave(280);
+              return;
+            }
 
             const rateItem = target.closest(".strum-step-rate-item");
             if (rateItem instanceof HTMLButtonElement) {
