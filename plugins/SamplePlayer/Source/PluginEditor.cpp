@@ -618,7 +618,7 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
 
     loadInstrumentChooser = std::make_unique<juce::FileChooser> ("Open instrument JSON",
                                                                   initialDir,
-                                                                  "*.json;*.smpinst",
+                                                                  "*.json;*.smpinst;*.smpinstm",
                                                                   true);
 
     juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> safeThis (this);
@@ -993,7 +993,8 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
         }
 
         if (manifestFile.hasFileExtension (".json") == false
-            && manifestFile.hasFileExtension (".smpinst") == false)
+            && manifestFile.hasFileExtension (".smpinst") == false
+            && manifestFile.hasFileExtension (".smpinstm") == false)
         {
             manifestFile = manifestFile.withFileExtension (".json");
         }
@@ -1097,14 +1098,17 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
         if (const auto* manifestObject = parsed.getDynamicObject())
         {
             const auto instrumentName = juce::File::createLegalFileName (manifestObject->getProperty ("instrumentName").toString().trim());
+            const bool isMonolith = static_cast<bool> (manifestObject->getProperty ("monolith"));
             if (instrumentName.isNotEmpty())
-                defaultName = instrumentName + ".json";
+                defaultName = instrumentName + (isMonolith ? ".smpinstm" : ".json");
+            else if (isMonolith)
+                defaultName = "Instrument.smpinstm";
         }
     }
 
     saveInstrumentChooser = std::make_unique<juce::FileChooser> ("Save instrument JSON",
                                                                   initialDir.getChildFile (defaultName),
-                                                                  "*.json;*.smpinst",
+                                                                  "*.json;*.smpinst;*.smpinstm",
                                                                   true);
 
     juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> safeThis (this);

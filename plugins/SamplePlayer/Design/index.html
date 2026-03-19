@@ -4304,7 +4304,7 @@
     <input id="logoInput" class="hidden" type="file" accept="image/*">
     <input id="filesInput" class="hidden" type="file" multiple accept=".wav,.aif,.aiff,.flac,.ogg,.mp3,.WAV,.AIF,.AIFF,.FLAC,.OGG,.MP3">
     <input id="folderInput" class="hidden" type="file" webkitdirectory directory multiple>
-    <input id="packInput" class="hidden" type="file" accept=".smpinst,.json">
+    <input id="packInput" class="hidden" type="file" accept=".smpinst,.smpinstm,.json">
     <input id="keyswitchInput" class="hidden" type="file" accept=".keysw,.json" multiple>
 
     <section id="panel-player" class="panel active">
@@ -4510,6 +4510,11 @@
                                 <input class="auto-pack-check-input" type="checkbox" data-pack-ext="keyswitch">
                                 <span class="auto-pack-check-mark">✓</span>
                                 <span class="auto-pack-check-text">Keyswitch</span>
+                              </label>
+                              <label class="auto-pack-check">
+                                <input class="auto-pack-check-input" type="checkbox" data-pack-ext="monolith">
+                                <span class="auto-pack-check-mark">✓</span>
+                                <span class="auto-pack-check-text">Monolith</span>
                               </label>
 
                             </div>
@@ -10811,19 +10816,27 @@
 
     function applyPackFormatRules(shouldRender = true) {
       const keyswitchEnabled = isKeyswitchPackEnabled();
+      const monolithCheck = getPackCheckByExt("monolith");
+      const monolithEnabled = monolithCheck && monolithCheck.checked;
       const checks = el.autoPackChecks || [];
       checks.forEach((node) => {
         const ext = String(node.dataset.packExt || "").trim().toLowerCase();
         const isKeyswitch = ext === "keyswitch";
-        if (!isKeyswitch && keyswitchEnabled) {
+        const isMonolith = ext === "monolith";
+        if (keyswitchEnabled && !isKeyswitch) {
           node.checked = false;
+          node.disabled = true;
+        } else if (monolithEnabled && !isMonolith) {
+          node.checked = false;
+          node.disabled = true;
+        } else {
+          node.disabled = false;
         }
-        node.disabled = !isKeyswitch && keyswitchEnabled;
         const row = node.closest(".auto-pack-check");
         if (row) row.classList.toggle("disabled", node.disabled);
       });
 
-      if (!keyswitchEnabled) {
+      if (!keyswitchEnabled && !monolithEnabled) {
         const hasAnySelected = checks.some((node) => (
           !node.disabled && !!node.checked
         ));
@@ -10831,7 +10844,8 @@
           const native = getPackCheckByExt("smpinst");
           if (native) native.checked = true;
         }
-      } else {
+      }
+      if (keyswitchEnabled) {
         normalizeKeyswitchKeyInput(false);
       }
 
@@ -15650,6 +15664,108 @@
       }
     }
 
+    async function saveMonolithToDisk() {
+      const saveBtn = el.saveSmpinstBtn;
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.classList.add("is-saving");
+      }
+
+      try {
+        const manifest = buildManifestSkeleton("smpinst", {
+          preserveRuntimePaths: false,
+          sampleFolderName: "Audio",
+          graphicsFolderName: "Graphics"
+        });
+
+        manifest.formatVersion = 2;
+        manifest.monolith = true;
+
+        const allMappingBuckets = Array.isArray(manifest.mapping) ? manifest.mapping : [];
+        const keyswitchSets = Array.isArray(manifest.keyswitchSets) ? manifest.keyswitchSets : [];
+
+        const allEntries = [
+          ...state.entries.filter((entry) => entry && entry.valid),
+          ...(state.keyswitchSets || []).flatMap((set) => Array.isArray(set?.entries) ? set.entries : []).filter((entry) => entry && entry.valid)
+        ];
+
+        const entryByFileName = new Map();
+        allEntries.forEach((entry) => {
+          const key = String(entry.fileName || "").trim();
+          if (key) entryByFileName.set(key, entry);
+        });
+
+        let missingSampleCount = 0;
+
+        async function embedBucketsData(buckets) {
+          for (const bucket of buckets) {
+            if (!Array.isArray(bucket.rrVariants)) continue;
+            for (const variant of bucket.rrVariants) {
+              const fileName = String(variant.originalFilename || variant.path || "").trim();
+              const entry = entryByFileName.get(fileName);
+              if (!entry) { missingSampleCount += 1; continue; }
+              const dataUrl = await ensureSampleDataForSave(entry);
+              if (!dataUrl) { missingSampleCount += 1; continue; }
+              variant.sampleDataUrl = dataUrl;
+            }
+          }
+        }
+
+        setStatus(el.setupStatus, "Packing monolith — collecting samples...", "ok");
+        await embedBucketsData(allMappingBuckets);
+        for (const ksSet of keyswitchSets) {
+          if (Array.isArray(ksSet.mapping)) await embedBucketsData(ksSet.mapping);
+        }
+
+        if (missingSampleCount > 0) {
+          setStatus(el.setupStatus, `Monolith save failed: ${missingSampleCount} sample(s) could not be resolved.`, "bad");
+          return;
+        }
+
+        if (state.wallpaperName) {
+          await ensureWallpaperDataUrlForAutoSampler();
+          const wDataUrl = String(state.wallpaperDataUrl || "").trim();
+          if (wDataUrl && manifest.wallpaper) manifest.wallpaper.dataUrl = wDataUrl;
+        }
+        if (state.logoName) {
+          await ensureLogoDataUrlForAutoSampler();
+          const lDataUrl = String(state.logoDataUrl || "").trim();
+          if (lDataUrl && manifest.logo) manifest.logo.dataUrl = lDataUrl;
+        }
+
+        const monolithJson = JSON.stringify(manifest, null, 2);
+        const instrumentName = String(manifest.instrumentName || "Instrument").trim();
+        const defaultName = instrumentName.replace(/[^a-z0-9_\- ]+/gi, "_") + ".smpinstm";
+
+        const emitted = emitNativeEvent("save_instrument_bundle", {
+          manifestJson: monolithJson,
+          manifestPath: "",
+          askForPath: true,
+          assets: []
+        });
+
+        if (!emitted) {
+          const blob = new Blob([monolithJson], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = defaultName;
+          a.click();
+          URL.revokeObjectURL(url);
+          setStatus(el.setupStatus, `Downloaded monolith ${defaultName} (${allEntries.length} samples embedded).`, "ok");
+        } else {
+          setStatus(el.setupStatus, "Choose where to save monolith instrument...", "ok");
+        }
+      } catch {
+        setStatus(el.setupStatus, "Could not save monolith instrument.", "bad");
+      } finally {
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.classList.remove("is-saving");
+        }
+      }
+    }
+
     async function restoreGraphicFromManifest(kind, manifestBasePath, relativePath, fallbackFileName) {
       const absolutePath = resolveManifestAssetPath(manifestBasePath, relativePath);
       if (!absolutePath) return false;
@@ -15687,24 +15803,49 @@
       const wallpaper = (data?.wallpaper && typeof data.wallpaper === "object") ? data.wallpaper : null;
       const logo = (data?.logo && typeof data.logo === "object") ? data.logo : null;
 
-      if (wallpaper?.enabled && typeof wallpaper.path === "string") {
-        await restoreGraphicFromManifest(
-          "wallpaper",
-          manifestBasePath,
-          wallpaper.path,
-          stripFileExtension(String(wallpaper.path || "").split(/[\\/]/).pop() || "wallpaper") + ".png"
-        );
+      if (wallpaper?.enabled) {
+        const embeddedDataUrl = String(wallpaper.dataUrl || "").trim();
+        if (embeddedDataUrl.startsWith("data:")) {
+          const fileName = String(wallpaper.path || "wallpaper.png").split(/[\\/]/).pop() || "wallpaper.png";
+          try {
+            const file = await makeImageFileFromDataUrl(embeddedDataUrl, fileName, "");
+            if (file instanceof File) {
+              await setWallpaper(file);
+              state.wallpaperDataUrl = embeddedDataUrl;
+            }
+          } catch {}
+        } else if (typeof wallpaper.path === "string") {
+          await restoreGraphicFromManifest(
+            "wallpaper",
+            manifestBasePath,
+            wallpaper.path,
+            stripFileExtension(String(wallpaper.path || "").split(/[\\/]/).pop() || "wallpaper") + ".png"
+          );
+        }
       }
 
-      if (logo?.enabled && typeof logo.path === "string") {
-        const restoredLogo = await restoreGraphicFromManifest(
-          "logo",
-          manifestBasePath,
-          logo.path,
-          stripFileExtension(String(logo.path || "").split(/[\\/]/).pop() || "logo") + ".png"
-        );
-        if (restoredLogo) {
-          applyLogoPosition(normalizeLogoPosition(logo.position || state.logoPosition));
+      if (logo?.enabled) {
+        const embeddedDataUrl = String(logo.dataUrl || "").trim();
+        if (embeddedDataUrl.startsWith("data:")) {
+          const fileName = String(logo.path || "logo.png").split(/[\\/]/).pop() || "logo.png";
+          try {
+            const file = await makeImageFileFromDataUrl(embeddedDataUrl, fileName, "");
+            if (file instanceof File) {
+              setLogo(file);
+              state.logoDataUrl = embeddedDataUrl;
+              applyLogoPosition(normalizeLogoPosition(logo.position || state.logoPosition));
+            }
+          } catch {}
+        } else if (typeof logo.path === "string") {
+          const restoredLogo = await restoreGraphicFromManifest(
+            "logo",
+            manifestBasePath,
+            logo.path,
+            stripFileExtension(String(logo.path || "").split(/[\\/]/).pop() || "logo") + ".png"
+          );
+          if (restoredLogo) {
+            applyLogoPosition(normalizeLogoPosition(logo.position || state.logoPosition));
+          }
         }
       }
     }
@@ -15980,22 +16121,25 @@
       state.sessionPayloadLock = true;
       state.manualPackLoadInProgress = true;
       state.ignoreSessionPayloadUntil = Date.now() + 4500;
-      setLoadingOverlay(8, "Loading .smpinst...");
+      setLoadingOverlay(8, "Loading instrument...");
       let loadSucceeded = false;
       try {
         const normalizedText = String(rawText || "").replace(/^\uFEFF/, "");
         debugLoadLog(`loadPack file read | seq=${loadSeq} | chars=${normalizedText.length}`);
-        if (normalizedText.includes("\"sampleDataUrl\"")
-          || normalizedText.includes("\"dataUrl\"")) {
+        const hasEmbeddedData = normalizedText.includes("\"sampleDataUrl\"")
+          || normalizedText.includes("\"dataUrl\"");
+        const data = JSON.parse(normalizedText || "{}");
+        const isMonolith = !!data.monolith && Number(data.formatVersion) >= 2;
+        if (hasEmbeddedData && !isMonolith) {
           throw new Error("legacy-embedded-pack-unsupported");
         }
-        const data = JSON.parse(normalizedText || "{}");
-        setLoadingOverlay(36, "Loading instrument...");
+        setLoadingOverlay(36, isMonolith ? "Loading monolith..." : "Loading instrument...");
         await applyLoadedPackData(data, {
           sourceLabel,
           manifestFilePath,
           manifestBasePath,
-          silentStatus: false
+          silentStatus: false,
+          hydrateManifestSamples: !isMonolith
         });
         setLoadingOverlay(74, "Applying instrument...");
         if (!getNativeBackend()) await waitForNativeBackend(300);
@@ -16606,7 +16750,12 @@
       }
       if (el.saveSmpinstBtn) {
         el.saveSmpinstBtn.addEventListener("click", () => {
-          void saveInstrumentBundleToDisk();
+          const monolithCheck = getPackCheckByExt("monolith");
+          if (monolithCheck && monolithCheck.checked) {
+            void saveMonolithToDisk();
+          } else {
+            void saveInstrumentBundleToDisk();
+          }
         });
       }
       const triggerLoadInstrument = () => {
@@ -16926,11 +17075,15 @@
       (el.autoPackChecks || []).forEach((node) => {
         node.addEventListener("change", () => {
           const ext = String(node.dataset.packExt || "").trim().toLowerCase();
-          if (ext === "keyswitch" && node.checked) {
+          if ((ext === "keyswitch" || ext === "monolith") && node.checked) {
             (el.autoPackChecks || []).forEach((other) => {
               const otherExt = String(other.dataset.packExt || "").trim().toLowerCase();
-              if (otherExt !== "keyswitch") other.checked = false;
+              if (otherExt !== ext) other.checked = false;
             });
+          }
+          if (ext !== "keyswitch" && ext !== "monolith" && node.checked) {
+            const monolithCheck = getPackCheckByExt("monolith");
+            if (monolithCheck) monolithCheck.checked = false;
           }
           applyPackFormatRules(true);
           scheduleSessionStateSave(700);
