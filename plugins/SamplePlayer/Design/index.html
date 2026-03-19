@@ -411,6 +411,12 @@
 
     /* Player page strum step grid — uses wallpaper swatch colors */
     .player-strum-step-grid {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      top: 50%;
+      transform: translateY(calc(-50% - var(--player-kb-height, 87px) / 2));
+      z-index: 10;
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
       gap: 6px;
