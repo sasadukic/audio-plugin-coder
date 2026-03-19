@@ -5723,13 +5723,15 @@
       debugLoadLog(`session edit mode | promote to full | reason=${reason}`);
     }
 
-    async function buildSessionStateSnapshot() {
+    async function buildSessionStateSnapshot(options = {}) {
       ensurePackManifestBasePathHint();
-      if ((state.pendingCacheCount || 0) <= 0) {
-        await ensureRuntimeSampleDataForSession();
+      if (options.force) {
+        if ((state.pendingCacheCount || 0) <= 0) {
+          await ensureRuntimeSampleDataForSession();
+        }
+        await ensureWallpaperDataUrlForAutoSampler();
+        await ensureLogoDataUrlForAutoSampler();
       }
-      await ensureWallpaperDataUrlForAutoSampler();
-      await ensureLogoDataUrlForAutoSampler();
       const manifest = buildManifestSkeleton("smpinst", { preserveRuntimePaths: true });
       return {
         version: 1,
@@ -5847,26 +5849,63 @@
       try {
         const flushStart = performance.now();
         const snapshotStart = performance.now();
-        const snapshot = await buildSessionStateSnapshot();
+        const snapshot = await buildSessionStateSnapshot({ force });
         const snapshotMs = performance.now() - snapshotStart;
-        const jsonPayload = JSON.stringify(snapshot);
-        let jsonHash = 0;
-        for (let i = 0, len = jsonPayload.length; i < len; i++) {
-          jsonHash = ((jsonHash << 5) - jsonHash + jsonPayload.charCodeAt(i)) | 0;
-        }
-        const hashSig = `${jsonPayload.length}:${jsonHash}`;
+
+        // Build a lightweight signature from the snapshot BEFORE stringifying
+        // the full payload. This avoids the expensive JSON.stringify + hash on
+        // large payloads (wallpaper/logo data URLs can be several MB) unless
+        // something actually changed.
+        const uiSig = [
+          snapshot.ui?.setupOctaveStart,
+          snapshot.ui?.activeMapSetId,
+          snapshot.ui?.mapMatrix?.interval,
+          snapshot.ui?.mapMatrix?.velocityLayers,
+          snapshot.ui?.mapMatrix?.rrColumns,
+          snapshot.ui?.mapMatrix?.splitEnabled,
+          snapshot.ui?.baseLoopPlaybackEnabled,
+          snapshot.ui?.manifestFilePath,
+          snapshot.ui?.manifestBasePath,
+          snapshot.ui?.wallpaperPosition,
+          snapshot.ui?.wallpaperName,
+          snapshot.ui?.logoPosition,
+          snapshot.ui?.logoName,
+          snapshot.ui?.loopCrossfadeMs,
+          snapshot.ui?.allowPitchUpAboveHighest,
+          snapshot.ui?.autoRR,
+          snapshot.ui?.autoGainCrossfade,
+          snapshot.ui?.particlesEnabled,
+          snapshot.ui?.godRaysEnabled,
+          snapshot.ui?.edgeWaveBlurEnabled,
+          snapshot.manifest?.mapping?.length || 0,
+          snapshot.manifest?.keyswitchSets?.length || 0,
+          JSON.stringify(snapshot.ui?.strum || {}),
+          JSON.stringify(snapshot.ui?.sequencer || {}),
+          JSON.stringify(snapshot.ui?.manualRootRanges || {}),
+          JSON.stringify(snapshot.ui?.velocityCrossfadeByRoot || {}),
+          JSON.stringify(snapshot.ui?.keyswitchSets?.map(s => `${s.id}:${s.active}:${s.key}:${JSON.stringify(s.manualRanges||{})}`) || [])
+        ].join("|");
+
+        // Also include a signature of per-entry loop/tune state that changes on interaction
+        const entrySig = getAllMapEntries().filter(e => e?.valid).map(e =>
+          `${e.order}:${e.rootMidi}:${e.velocityLayer}:${(e.loopStartNorm||0).toFixed(4)}:${(e.loopEndNorm||1).toFixed(4)}:${(e.sampleStartNorm||0).toFixed(4)}:${e.loopEnabled?1:0}:${(e.fineTuneCents||0)}:${(e.editorGainDb||0).toFixed(1)}`
+        ).join(",");
+
+        const hashSig = `${uiSig}||${entrySig}`;
+
         if (hashSig === state.lastFlushedJsonHash && !force) {
           const totalMs = performance.now() - flushStart;
           debugLoadLog(`flush skipped | identical payload | totalMs=${totalMs.toFixed(1)}`);
         } else {
           state.lastFlushedJsonHash = hashSig;
+          const jsonPayload = JSON.stringify(snapshot);
           emitNativeEvent("session_state_set", { json: jsonPayload });
-        }
-        const totalMs = performance.now() - flushStart;
-        const debugCount = Number(state.sessionStateFlushDebugCount) || 0;
-        if (debugCount < 5 || snapshotMs > 400 || totalMs > 500) {
-          state.sessionStateFlushDebugCount = debugCount + 1;
-          debugLoadLog(`flush session state | mode=relative-json | snapshotMs=${snapshotMs.toFixed(1)} | totalMs=${totalMs.toFixed(1)} | jsonBytes=${jsonPayload.length}`);
+          const totalMs = performance.now() - flushStart;
+          const debugCount = Number(state.sessionStateFlushDebugCount) || 0;
+          if (debugCount < 5 || snapshotMs > 400 || totalMs > 500) {
+            state.sessionStateFlushDebugCount = debugCount + 1;
+            debugLoadLog(`flush session state | mode=relative-json | snapshotMs=${snapshotMs.toFixed(1)} | totalMs=${totalMs.toFixed(1)} | jsonBytes=${jsonPayload.length}`);
+          }
         }
       } catch {
         if (force) {
@@ -5887,7 +5926,7 @@
       if (!state.sessionStateRestoreAttempted) return;
       if (state.sessionStateLightweight) return;
       clearSessionStateSaveTimer();
-      const waitMs = Math.max(120, Math.round(Number(delayMs) || 900));
+      const waitMs = Math.max(600, Math.round(Number(delayMs) || 900));
       state.sessionStateSaveTimer = window.setTimeout(() => {
         state.sessionStateSaveTimer = 0;
         void flushSessionStateToNative(false);
