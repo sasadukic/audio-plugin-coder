@@ -797,8 +797,10 @@
       border-radius: 0;
       position: relative;
       overflow: hidden;
-      background: var(--player-wallpaper, var(--chrome-surface));
-      background-size: cover;
+      background-color: rgb(var(--player-topbar-rgb, 8, 11, 17));
+      background-image: var(--player-wallpaper);
+      background-size: contain;
+      background-repeat: no-repeat;
       background-position: var(--player-wallpaper-position, center);
     }
 
