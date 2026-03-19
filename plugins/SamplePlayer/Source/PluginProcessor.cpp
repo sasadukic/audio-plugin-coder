@@ -1001,7 +1001,7 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 const int note = juce::jlimit (0, 127, message.getNoteNumber());
                 const int keyswitchSlot = sampleSet->keyswitchSlotByMidi[static_cast<size_t> (note)];
                 prioritizeKeyswitch = keyswitchSlot >= 0
-                                   || (sampleSet->hasKeyswitchSets && note >= 12 && note <= 24);
+                                   || (sampleSet->hasKeyswitchSets && note <= 24);
             }
 
             if (prioritizeKeyswitch)
@@ -5076,7 +5076,7 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 return;
             }
 
-            if (sampleSet->hasKeyswitchSets && note >= 12 && note <= 24)
+            if (sampleSet->hasKeyswitchSets && note <= 24)
                 return;
         }
 

@@ -6445,6 +6445,7 @@
       const wavBlob = encodeAudioBufferToWavBlob(normalized);
       const nextUrl = URL.createObjectURL(wavBlob);
       entry.sampleUrl = nextUrl;
+      entry.sampleDataUrl = "";
       entry.autoCapturePending = false;
 
       if (prevUrl) {
@@ -14443,6 +14444,8 @@
           state.activeMapSetId = set.id;
           updateKeyswitchMapSelector();
           renderKeyboardMap(undefined, true);
+          renderStrumStepGrid();
+          renderSequencerArpControls();
 
           const duplicates = collectDuplicateKeyswitchKeys();
           if (duplicates.has(set.keyMidi)) {
