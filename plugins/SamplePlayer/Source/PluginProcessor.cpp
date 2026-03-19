@@ -1543,6 +1543,21 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
     const auto requestStartMs = juce::Time::getMillisecondCounterHiRes();
     juce::String normalizedJson = json;
 
+    int parsedPitchDownOctaves = 0;
+    if (normalizedJson.isNotEmpty())
+    {
+        const auto parsedForPitch = juce::JSON::parse (normalizedJson);
+        if (const auto* rootObject = parsedForPitch.getDynamicObject())
+        {
+            if (const auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
+            {
+                parsedPitchDownOctaves = juce::jlimit (0, 2,
+                    varToInt (uiObject->getProperty ("playerPitchDownOctaves"), 0));
+            }
+        }
+    }
+    playerPitchDownOctaves.store (parsedPitchDownOctaves, std::memory_order_relaxed);
+
     const int midiRequestedSlot = pendingActiveMapSetSlotFromMidi.exchange (-1, std::memory_order_relaxed);
     if (midiRequestedSlot >= 0 && normalizedJson.isNotEmpty())
     {
@@ -5289,8 +5304,10 @@ void SamplePlayerAudioProcessor::startVoiceForNoteInternal (int midiChannel,
     const auto semitoneOffset = static_cast<double> (midiNoteNumber - voice->zone->metadata.rootNote);
     const auto pitch = std::pow (2.0, semitoneOffset / 12.0);
     const auto sampleRateRatio = voice->zone->sourceSampleRate / juce::jmax (1.0, currentSampleRate);
+    const int pitchDownOctaves = juce::jlimit (0, 2, playerPitchDownOctaves.load (std::memory_order_relaxed));
+    const auto octaveDownRatio = std::pow (2.0, -static_cast<double> (pitchDownOctaves));
 
-    voice->pitchRatio = juce::jmax (0.0001, sampleRateRatio * pitch);
+    voice->pitchRatio = juce::jmax (0.0001, sampleRateRatio * pitch * octaveDownRatio);
 
     voice->sustainLevel = juce::jlimit (0.0f, 1.0f, settings.sustainLevel);
     voice->pan = juce::jlimit (-1.0f, 1.0f, pan);
