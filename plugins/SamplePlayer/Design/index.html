@@ -16126,13 +16126,8 @@
       try {
         const normalizedText = String(rawText || "").replace(/^\uFEFF/, "");
         debugLoadLog(`loadPack file read | seq=${loadSeq} | chars=${normalizedText.length}`);
-        const hasEmbeddedData = normalizedText.includes("\"sampleDataUrl\"")
-          || normalizedText.includes("\"dataUrl\"");
         const data = JSON.parse(normalizedText || "{}");
         const isMonolith = !!data.monolith && Number(data.formatVersion) >= 2;
-        if (hasEmbeddedData && !isMonolith) {
-          throw new Error("legacy-embedded-pack-unsupported");
-        }
         setLoadingOverlay(36, isMonolith ? "Loading monolith..." : "Loading instrument...");
         await applyLoadedPackData(data, {
           sourceLabel,
@@ -16159,9 +16154,7 @@
           ? String(error.message || "unknown")
           : "unknown";
         debugLoadLog(`loadPack failed | seq=${loadSeq} | reason=${reason}`);
-        if (reason.includes("legacy-embedded-pack-unsupported")) {
-          setStatus(el.setupStatus, "Legacy embedded packs are no longer supported. Save/load JSON relative-path .smpinst only.", "bad");
-        } else if (!manifestFilePath) {
+        if (!manifestFilePath) {
           setStatus(el.setupStatus, "Could not load file path. Use the native load button so samples resolve.", "bad");
         } else {
           setStatus(el.setupStatus, "Could not load selected .json/.smpinst file.", "bad");
