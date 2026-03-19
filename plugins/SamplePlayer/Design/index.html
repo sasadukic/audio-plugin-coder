@@ -4600,7 +4600,6 @@
                   <button id="newKsCreateBtn" class="new-ks-create-btn" type="button">Create</button>
                 </div>
                 <div class="keyswitch-map-main-controls">
-                  <label for="keyswitchMapSelect">Keyswitch Set</label>
                   <select id="keyswitchMapSelect" class="keyswitch-map-select" aria-label="Select keyswitch set"></select>
                   <div id="keyswitchMapKeyWrap" class="keyswitch-map-key-wrap hidden">
                     <label for="keyswitchMapKeyInput">Key</label>
@@ -5750,6 +5749,8 @@
       if (!state.sessionStateLightweight) return;
       state.sessionStateLightweight = false;
       state.sessionStateHydrationRequested = false;
+      state.sessionStateRestoreAttempted = true;
+      state.sessionStateRestored = true;
       debugLoadLog(`session edit mode | promote to full | reason=${reason}`);
     }
 
@@ -8582,6 +8583,14 @@
       }
 
       el.keyswitchMapSelect.innerHTML = "";
+      if (!available.length || (available.length === 1 && available[0].id === "base" && !available[0].entries.length)) {
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Keyswitch Set";
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        el.keyswitchMapSelect.appendChild(placeholder);
+      }
       available.forEach((item) => {
         const option = document.createElement("option");
         option.value = item.id;
