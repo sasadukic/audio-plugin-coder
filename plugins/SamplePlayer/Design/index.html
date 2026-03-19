@@ -4511,11 +4511,7 @@
                                 <span class="auto-pack-check-mark">✓</span>
                                 <span class="auto-pack-check-text">Keyswitch</span>
                               </label>
-                              <label class="auto-pack-check">
-                                <input class="auto-pack-check-input" type="checkbox" data-pack-ext="monolith">
-                                <span class="auto-pack-check-mark">✓</span>
-                                <span class="auto-pack-check-text">Monolith</span>
-                              </label>
+
 
                             </div>
                           </div>
@@ -10822,17 +10818,11 @@
 
     function applyPackFormatRules(shouldRender = true) {
       const keyswitchEnabled = isKeyswitchPackEnabled();
-      const monolithCheck = getPackCheckByExt("monolith");
-      const monolithEnabled = monolithCheck && monolithCheck.checked;
       const checks = el.autoPackChecks || [];
       checks.forEach((node) => {
         const ext = String(node.dataset.packExt || "").trim().toLowerCase();
         const isKeyswitch = ext === "keyswitch";
-        const isMonolith = ext === "monolith";
         if (keyswitchEnabled && !isKeyswitch) {
-          node.checked = false;
-          node.disabled = true;
-        } else if (monolithEnabled && !isMonolith) {
           node.checked = false;
           node.disabled = true;
         } else {
@@ -10842,7 +10832,7 @@
         if (row) row.classList.toggle("disabled", node.disabled);
       });
 
-      if (!keyswitchEnabled && !monolithEnabled) {
+      if (!keyswitchEnabled) {
         const hasAnySelected = checks.some((node) => (
           !node.disabled && !!node.checked
         ));
@@ -16758,12 +16748,7 @@
       }
       if (el.saveSmpinstBtn) {
         el.saveSmpinstBtn.addEventListener("click", () => {
-          const monolithCheck = getPackCheckByExt("monolith");
-          if (monolithCheck && monolithCheck.checked) {
-            void saveMonolithToDisk();
-          } else {
-            void saveInstrumentBundleToDisk();
-          }
+          void saveInstrumentBundleToDisk();
         });
       }
       const triggerLoadInstrument = () => {
@@ -17083,15 +17068,11 @@
       (el.autoPackChecks || []).forEach((node) => {
         node.addEventListener("change", () => {
           const ext = String(node.dataset.packExt || "").trim().toLowerCase();
-          if ((ext === "keyswitch" || ext === "monolith") && node.checked) {
+          if (ext === "keyswitch" && node.checked) {
             (el.autoPackChecks || []).forEach((other) => {
               const otherExt = String(other.dataset.packExt || "").trim().toLowerCase();
               if (otherExt !== ext) other.checked = false;
             });
-          }
-          if (ext !== "keyswitch" && ext !== "monolith" && node.checked) {
-            const monolithCheck = getPackCheckByExt("monolith");
-            if (monolithCheck) monolithCheck.checked = false;
           }
           applyPackFormatRules(true);
           scheduleSessionStateSave(700);
