@@ -353,7 +353,7 @@ private:
     juce::ValueTree buildZoneOverridesState() const;
     void applyZoneOverridesState (const juce::ValueTree& overridesTree);
     void restoreSampleFilesFromState (const juce::StringArray& pathList);
-    void syncSampleSetFromSessionStateJson (const juce::String& jsonPayload, int requestId = -1);
+    void syncSampleSetFromSessionStateJson (const juce::var& parsedRoot, juce::int64 payloadBytes, int requestId = -1);
     std::shared_ptr<const DecodedEmbeddedAudioCacheEntry> findDecodedEmbeddedAudioInCache (juce::uint64 key);
     void storeDecodedEmbeddedAudioInCache (juce::uint64 key, std::shared_ptr<DecodedEmbeddedAudioCacheEntry> entry);
     void trimDecodedEmbeddedAudioCache();

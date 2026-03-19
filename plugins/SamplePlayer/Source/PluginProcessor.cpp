@@ -1634,9 +1634,66 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
             latestJson = uiSessionStateJson;
         }
 
+        const auto jsonBytes = static_cast<juce::int64> (latestJson.getNumBytesAsUTF8());
+        const auto parseStartMs = juce::Time::getMillisecondCounterHiRes();
+        auto parsed = juce::JSON::parse (latestJson);
+        const auto parseMs = elapsedMsFrom (parseStartMs);
+
+        if (parsed.isVoid())
+        {
+            writeLoadDebugLog ("session sync job parse failed | requestId=" + juce::String (requestId)
+                               + " | bytes=" + juce::String (jsonBytes));
+            finishPresetLoadTrace ("syncSampleSetFromSessionStateJson", "invalid-json");
+            return;
+        }
+
+        writeLoadDebugLog ("session sync job parsed once | requestId=" + juce::String (requestId)
+                           + " | bytes=" + juce::String (jsonBytes)
+                           + " | parseMs=" + juce::String (parseMs, 2));
+
+        // --- sample sync first (read-only traversal of the parsed var) ---
+        writeLoadDebugLog ("session sync job start | requestId=" + juce::String (requestId)
+                           + " | bytes=" + juce::String (jsonBytes));
+        syncSampleSetFromSessionStateJson (parsed, jsonBytes, requestId);
+
+        // --- build lightweight cache (strips data URLs destructively from parsed var) ---
         const auto lightweightStartMs = juce::Time::getMillisecondCounterHiRes();
+
+        juce::String wallpaperDataUrl;
+        juce::String logoDataUrl;
+        if (const auto* rootObject = parsed.getDynamicObject())
+        {
+            if (const auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
+            {
+                wallpaperDataUrl = uiObject->getProperty ("wallpaperDataUrl").toString().trim();
+                logoDataUrl = uiObject->getProperty ("logoDataUrl").toString().trim();
+            }
+        }
+
         LightweightStripStats stripStats;
-        auto lightweightJson = makeLightweightSessionStateJson (latestJson, &stripStats);
+        stripLargePayloadFieldsRecursive (parsed, stripStats);
+
+        if (auto* rootObject = parsed.getDynamicObject())
+        {
+            if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
+            {
+                constexpr int maxGraphicDataUrlChars = 5 * 1024 * 1024;
+                const auto keepGraphicDataUrl = [] (const juce::String& value)
+                {
+                    return value.startsWithIgnoreCase ("data:image/")
+                        && value.length() > 32
+                        && value.length() <= maxGraphicDataUrlChars;
+                };
+
+                if (keepGraphicDataUrl (wallpaperDataUrl))
+                    uiObject->setProperty ("wallpaperDataUrl", wallpaperDataUrl);
+
+                if (keepGraphicDataUrl (logoDataUrl))
+                    uiObject->setProperty ("logoDataUrl", logoDataUrl);
+            }
+        }
+
+        auto lightweightJson = juce::JSON::toString (parsed, false);
         if (lightweightJson.isEmpty())
             lightweightJson = latestJson;
 
@@ -1652,9 +1709,6 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
                            + " | dataUrlsRemoved=" + juce::String (stripStats.dataUrlsRemoved)
                            + " | elapsedMs=" + juce::String (elapsedMsFrom (lightweightStartMs), 2));
 
-        writeLoadDebugLog ("session sync job start | requestId=" + juce::String (requestId)
-                           + " | bytes=" + juce::String (latestJson.getNumBytesAsUTF8()));
-        syncSampleSetFromSessionStateJson (latestJson, requestId);
         writeLoadDebugLog ("session sync job end | requestId=" + juce::String (requestId)
                            + " | elapsedMs=" + juce::String (elapsedMsFrom (syncJobStartMs), 2));
     });
@@ -2316,10 +2370,9 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
         resetVoicesRequested.store (true);
 }
 
-void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::String& jsonPayload, int requestId)
+void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::var& parsedRoot, juce::int64 payloadBytes, int requestId)
 {
     const auto syncStartMs = juce::Time::getMillisecondCounterHiRes();
-    const auto payloadBytes = jsonPayload.getNumBytesAsUTF8();
 
     const auto logExit = [requestId, syncStartMs] (const juce::String& reason)
     {
@@ -2340,15 +2393,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         return;
     }
 
-    if (jsonPayload.trim().isEmpty())
-    {
-        finishPresetLoadTrace ("syncSampleSetFromSessionStateJson", "empty-json");
-        logExit ("empty-json");
-        return;
-    }
-
-    const auto parseStartMs = juce::Time::getMillisecondCounterHiRes();
-    const auto parsed = juce::JSON::parse (jsonPayload);
+    const auto& parsed = parsedRoot;
     const auto* rootObject = parsed.getDynamicObject();
     if (rootObject == nullptr)
     {
@@ -2365,7 +2410,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         return;
     }
 
-    const auto parseMs = elapsedMsFrom (parseStartMs);
+    const double parseMs = 0.0;
 
     bool allowPitchUpAboveHighest = false;
     bool useModwheelForVelocityLayers = false;
