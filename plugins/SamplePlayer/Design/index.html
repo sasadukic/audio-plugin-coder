@@ -5737,7 +5737,10 @@
         await ensureWallpaperDataUrlForAutoSampler();
         await ensureLogoDataUrlForAutoSampler();
       }
-      const manifest = buildManifestSkeleton("smpinst", { preserveRuntimePaths: true });
+      const manifest = buildManifestSkeleton("smpinst", {
+        preserveRuntimePaths: true,
+        includeEmbeddedSampleData: !!options.includeEmbeddedSampleData
+      });
       return {
         version: 1,
         manifest,
@@ -5837,7 +5840,7 @@
       };
     }
 
-    async function flushSessionStateToNative(force = false) {
+    async function flushSessionStateToNative(force = false, flushOptions = {}) {
       clearSessionStateSaveTimer();
       if (state.sessionStateRestoreInProgress) return;
       if (!getNativeBackend()) return;
@@ -5924,7 +5927,10 @@
           debugLoadLog(`flush skipped | identical sig | ${(performance.now() - flushStart).toFixed(1)}ms`);
         } else {
           state.lastFlushedJsonHash = hashSig;
-          const snapshot = await buildSessionStateSnapshot({ force });
+          const snapshot = await buildSessionStateSnapshot({
+            force,
+            includeEmbeddedSampleData: !!flushOptions.includeEmbeddedSampleData
+          });
           const jsonPayload = JSON.stringify(snapshot);
           emitNativeEvent("session_state_set", { json: jsonPayload });
           const totalMs = performance.now() - flushStart;
@@ -15283,6 +15289,7 @@
 
     function buildManifestMapping(entries, options = {}) {
       const preserveRuntimePaths = !!options.preserveRuntimePaths;
+      const includeEmbeddedSampleData = !!options.includeEmbeddedSampleData;
       const sampleFolderName = String(options.sampleFolderName || "samples").trim() || "samples";
       const groups = new Map();
       (entries || []).filter((e) => e.valid).forEach((e) => {
@@ -15297,7 +15304,7 @@
         }
         const runtimePath = preserveRuntimePaths ? String(e.manifestPath || "").trim() : "";
         let runtimeSampleDataUrl = "";
-        if (preserveRuntimePaths) {
+        if (preserveRuntimePaths || includeEmbeddedSampleData) {
           runtimeSampleDataUrl = String(e.sampleDataUrl || "").trim();
           if (!runtimeSampleDataUrl.startsWith("data:")) {
             const fallbackSampleUrl = String(e.sampleUrl || "").trim();
@@ -15317,7 +15324,7 @@
         if (Number.isFinite(Number(e.rrIndex))) {
           rrVariant.rrIndex = Math.max(1, Math.round(Number(e.rrIndex)));
         }
-        if (runtimeSampleDataUrl.startsWith("data:")) {
+        if (runtimeSampleDataUrl.startsWith("data:") && (!runtimePath || includeEmbeddedSampleData)) {
           rrVariant.sampleDataUrl = runtimeSampleDataUrl;
         }
         groups.get(key).rrVariants.push(rrVariant);
@@ -15344,6 +15351,7 @@
 
     function buildManifestSkeleton(targetExt = "smpinst", options = {}) {
       const preserveRuntimePaths = !!options.preserveRuntimePaths;
+      const includeEmbeddedSampleData = !!options.includeEmbeddedSampleData;
       const sampleFolderName = String(options.sampleFolderName || "samples").trim() || "samples";
       const graphicsFolderName = String(options.graphicsFolderName || "").trim();
       const resolvedGraphicsFolder = graphicsFolderName || "Graphics";
@@ -15396,7 +15404,7 @@
           fitMode: "contain",
           position: normalizeLogoPosition(state.logoPosition)
         },
-        mapping: buildManifestMapping(state.entries, { preserveRuntimePaths, sampleFolderName })
+        mapping: buildManifestMapping(state.entries, { preserveRuntimePaths, includeEmbeddedSampleData, sampleFolderName })
       };
 
       if (normalizedExt === "keysw") {
@@ -15405,6 +15413,7 @@
         manifest.keyswitchKey = keyInfo.key;
         manifest.mapping = buildManifestMapping(state.entries, {
           preserveRuntimePaths,
+          includeEmbeddedSampleData,
           sampleFolderName: buildKeyswitchSampleFolder(sampleFolderName, manifest.instrumentName, keyInfo.key, "keyswitch")
         });
       } else {
@@ -15420,6 +15429,7 @@
               loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
               mapping: buildManifestMapping(Array.isArray(set?.entries) ? set.entries : [], {
                 preserveRuntimePaths,
+                includeEmbeddedSampleData,
                 sampleFolderName: setSampleFolder
               })
             };
@@ -16140,7 +16150,14 @@
         if (!getNativeBackend()) await waitForNativeBackend(300);
         setLoadingOverlay(96, "Finalizing...");
         state.lastFlushedJsonHash = "";
-        void flushSessionStateToNative(false);
+        if (isMonolith) {
+          await flushSessionStateToNative(false, { includeEmbeddedSampleData: true });
+          getAllMapEntries().forEach((entry) => {
+            if (entry) entry.sampleDataUrl = "";
+          });
+        } else {
+          void flushSessionStateToNative(false);
+        }
         state.sessionStateRestoreAttempted = true;
         state.sessionStateRestored = true;
         state.sessionStateRestoreCompletedAt = Date.now();
