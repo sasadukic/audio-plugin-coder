@@ -765,7 +765,8 @@
     }
 
     #playerStrumMainToggle,
-    #doublingToggle {
+    #doublingToggle,
+    #playerPitchDownToggle {
       width: 22px;
       height: 22px;
       border-radius: 50%;
@@ -785,6 +786,12 @@
     #playerStrumMainToggle svg,
     #doublingToggle svg { width: 12px; height: 12px; fill: currentColor; }
 
+    #playerPitchDownToggle {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
     #playerStrumMainToggle .eye-icon-off { display: block; }
     #playerStrumMainToggle .eye-icon-on  { display: none; }
 
@@ -795,7 +802,8 @@
     #doublingToggle .dbl-icon-on  { display: none; }
 
     #playerStrumMainToggle.active,
-    #doublingToggle.active {
+    #doublingToggle.active,
+    #playerPitchDownToggle.active {
       border-color: rgba(255, 216, 92, 0.72);
       color: #ffdf7e;
       background: rgba(28, 24, 13, 0.86);
@@ -2014,14 +2022,16 @@
     }
 
     .tabs.player-topbar-swatch #playerStrumMainToggle,
-    .tabs.player-topbar-swatch #doublingToggle {
+    .tabs.player-topbar-swatch #doublingToggle,
+    .tabs.player-topbar-swatch #playerPitchDownToggle {
       border-color: rgba(var(--player-bright-rgb), 0.72);
       color: rgba(var(--player-bright-rgb), 0.72);
       background: rgba(10, 14, 22, 0.65);
     }
 
     .tabs.player-topbar-swatch #playerStrumMainToggle.active,
-    .tabs.player-topbar-swatch #doublingToggle.active {
+    .tabs.player-topbar-swatch #doublingToggle.active,
+    .tabs.player-topbar-swatch #playerPitchDownToggle.active {
       border-color: rgba(var(--player-bright-rgb), 0.96);
       color: rgba(var(--player-bright-rgb), 0.96);
       background: rgba(10, 14, 22, 0.85);
@@ -4324,6 +4334,7 @@
           <svg class="dbl-icon-off" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/></svg>
           <svg class="dbl-icon-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 6.62c-1.44 0-2.8.56-3.77 1.53L12 10.66 10.48 12h.01L7.8 14.39c-.64.64-1.49.99-2.4.99-1.87 0-3.39-1.51-3.39-3.38S3.53 8.62 5.4 8.62c.91 0 1.76.35 2.44 1.03l1.13 1 1.51-1.34L9.22 8.2A5.37 5.37 0 0 0 5.4 6.62C2.42 6.62 0 9.04 0 12s2.42 5.38 5.4 5.38c1.44 0 2.8-.56 3.77-1.53l2.83-2.5.01.01L13.52 12h-.01l2.69-2.39c.64-.64 1.49-.99 2.4-.99 1.87 0 3.39 1.51 3.39 3.38s-1.52 3.38-3.39 3.38c-.9 0-1.76-.35-2.44-1.03l-1.14-1.01-1.51 1.34 1.27 1.12a5.386 5.386 0 0 0 3.82 1.57c2.98 0 5.4-2.41 5.4-5.38s-2.42-5.37-5.4-5.37z"/></svg>
         </button>
+        <button id="playerPitchDownToggle" type="button" aria-pressed="false" aria-label="Pitch down octaves" title="Pitch Down: 0">0</button>
         <div class="knob knob-mini tooltip-right" data-param="gain" data-min="-24" data-max="12" data-step="0.1" data-value="0" data-unit="dB" data-decimals="1">
           <div class="knob-face"><div class="knob-pointer"></div></div>
           <div class="knob-label">Output</div>
@@ -4980,6 +4991,7 @@
       strumSequencerMode: 0,
       strumSequencerSteps: 0,
       strumDoubling: false,
+      playerPitchDownOctaves: 0,
       strumShowOnMain: false,
       strumRateIndex: 2,
       strumSwingPercent: 0,
@@ -5143,6 +5155,7 @@
       strumShowOnMainBtn: document.getElementById("strumShowOnMainBtn"),
       playerStrumMainToggle: document.getElementById("playerStrumMainToggle"),
       doublingToggle: document.getElementById("doublingToggle"),
+      playerPitchDownToggle: document.getElementById("playerPitchDownToggle"),
       strumRateBtn: document.getElementById("strumRateBtn"),
       strumRateMenu: document.getElementById("strumRateMenu"),
       strumSwingBtn: document.getElementById("strumSwingBtn"),
@@ -5811,6 +5824,7 @@
           edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled,
           modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
           pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
+          playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
           auto: buildAutoControlsSnapshot(),
           sequencer: buildSequencerSnapshot(),
           strum: buildStrumSnapshot()
@@ -5858,6 +5872,7 @@
           edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled,
           modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
           pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
+          playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
           auto: buildAutoControlsSnapshot(),
           sequencer: buildSequencerSnapshot(),
           strum: buildStrumSnapshot()
@@ -5928,6 +5943,7 @@
           state.playerEdgeWaveBlurEnabled,
           state.modWheelValue,
           state.pitchBendValue,
+          state.playerPitchDownOctaves,
           baseEntries.length,
           ksSets.length,
           state.strumEnabled,
@@ -6127,6 +6143,7 @@
         state.playerEdgeWaveBlurEnabled = ui.edgeWaveBlurEnabled !== undefined ? !!ui.edgeWaveBlurEnabled : state.playerEdgeWaveBlurEnabled;
         state.modWheelValue = Math.max(0, Math.min(1, Number(ui.modWheelValue) || 0));
         state.pitchBendValue = Math.max(-1, Math.min(1, Number(ui.pitchBendValue) || 0));
+        state.playerPitchDownOctaves = Math.max(0, Math.min(2, Math.round(Number(ui.playerPitchDownOctaves) || 0)));
         state.baseLoopPlaybackEnabled = ui.baseLoopPlaybackEnabled !== false;
         state.packManifestFilePath = String(ui.manifestFilePath || "").trim();
         state.packManifestBasePath = String(ui.manifestBasePath || "").trim();
@@ -8056,6 +8073,29 @@
       syncPlayerStrumIdleState();
     }
 
+    function getPlayerPitchDownOctaves() {
+      return Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0)));
+    }
+
+    function getPlayerPreviewOutputMidi(inputMidi) {
+      const midi = Math.max(0, Math.min(127, Math.round(Number(inputMidi) || 0)));
+      if (getKeyswitchSetForMidi(midi)) return midi;
+      const downOctaves = getPlayerPitchDownOctaves();
+      if (downOctaves <= 0) return midi;
+      return Math.max(0, midi - (downOctaves * 12));
+    }
+
+    function syncPlayerPitchDownToggle() {
+      if (!el.playerPitchDownToggle) return;
+      const downOctaves = getPlayerPitchDownOctaves();
+      el.playerPitchDownToggle.textContent = downOctaves === 0 ? "0" : `-${downOctaves}`;
+      el.playerPitchDownToggle.classList.toggle("active", downOctaves > 0);
+      el.playerPitchDownToggle.setAttribute("aria-pressed", downOctaves > 0 ? "true" : "false");
+      el.playerPitchDownToggle.title = downOctaves === 0
+        ? "Pitch Down: 0"
+        : `Pitch Down: -${downOctaves} octave${downOctaves > 1 ? "s" : ""}`;
+    }
+
     function syncStrumDoublingBtn() {
       if (!el.strumDoublingBtn) return;
       const on = !!state.strumDoubling;
@@ -8068,6 +8108,8 @@
       updateStrumUi();
       syncPlayerStrumMainToggle();
       syncDoublingToggle();
+      syncPlayerPitchDownToggle();
+      syncPlayerPitchDownToggle();
 
       const positionStrumMenuAt = (btn, menu) => {
         if (!btn || !menu) return;
@@ -8195,6 +8237,15 @@
           syncDoublingToggle();
           syncStrumDoublingBtn();
           emitStrumSettings();
+          scheduleSessionStateSave(220);
+        });
+      }
+
+      if (el.playerPitchDownToggle) {
+        el.playerPitchDownToggle.addEventListener("click", () => {
+          const next = (getPlayerPitchDownOctaves() + 1) % 3;
+          state.playerPitchDownOctaves = next;
+          syncPlayerPitchDownToggle();
           scheduleSessionStateSave(220);
         });
       }
@@ -13273,6 +13324,7 @@
         let releaseTimer = 0;
         let lastPressTs = -1;
         let keyHeld = false;
+        let keyHeldOutputMidi = midi;
         let keyHeldVelocity = 100;
         keyNode.dataset.midi = String(midi);
         keyNode.setAttribute("aria-label", `${midiToNote(midi)} (${midi})`);
@@ -13296,6 +13348,7 @@
             triggered = false;
           }
           if (!triggered) return;
+          keyHeldOutputMidi = getPlayerPreviewOutputMidi(midi);
           keyHeld = true;
           // Force animation retrigger on rapid repeated presses.
           keyNode.classList.remove("is-down");
@@ -13316,9 +13369,9 @@
 
         const release = (ev) => {
           if (keyHeld) {
-            const sentNativeNoteOff = emitNativePreviewMidi(false, midi, keyHeldVelocity, 1);
+            const sentNativeNoteOff = emitNativePreviewMidi(false, keyHeldOutputMidi, keyHeldVelocity, 1);
             if (!sentNativeNoteOff) {
-              stopPreviewVoiceForKey(midi, getPlayerVoiceSettings().releaseSec, null, false);
+              stopPreviewVoiceForKey(keyHeldOutputMidi, getPlayerVoiceSettings().releaseSec, null, false);
             }
           }
           keyHeld = false;
@@ -14266,6 +14319,9 @@
     function triggerKeyboardMapKey(midi, pointerRatioY, options = null) {
       if (!Number.isFinite(midi)) return false;
       const hasExplicitSource = options && Array.isArray(options.entries);
+      const playedMidi = hasExplicitSource
+        ? Math.max(0, Math.min(127, Math.round(Number(midi) || 0)))
+        : getPlayerPreviewOutputMidi(midi);
       let sourceEntries = hasExplicitSource ? options.entries : null;
       let manualRanges = (options && typeof options.manualRanges === "object" && options.manualRanges !== null)
         ? options.manualRanges
@@ -14296,11 +14352,11 @@
         // audio goes through the plugin output bus (host metering works).
         if (getNativeBackend()) {
           const playbackSource = getPlayerPlaybackSource();
-          const donorRoot = selectDonorRootForPlayedNote(midi, playbackSource.entries, playbackSource.manualRanges);
+          const donorRoot = selectDonorRootForPlayedNote(playedMidi, playbackSource.entries, playbackSource.manualRanges);
           if (donorRoot === null) return switchedByKeyswitch;
           const ratio = Math.max(0, Math.min(1, pointerRatioY));
           const midiVelocity = Math.max(1, Math.min(127, Math.round((ratio * 126) + 1)));
-          return emitNativePreviewMidi(true, midi, midiVelocity, 1);
+          return emitNativePreviewMidi(true, playedMidi, midiVelocity, 1);
         }
 
         const playbackSource = getPlayerPlaybackSource();
@@ -14312,7 +14368,7 @@
       if (!manualRanges || typeof manualRanges !== "object") manualRanges = state.manualRootRanges;
       const ratio = Math.max(0, Math.min(1, pointerRatioY));
       const velocityNorm = ratio;
-      const donorRoot = selectDonorRootForPlayedNote(midi, sourceEntries, manualRanges);
+      const donorRoot = selectDonorRootForPlayedNote(playedMidi, sourceEntries, manualRanges);
       if (donorRoot === null) return switchedByKeyswitch;
       const useModwheelVelocity = isAutoModwheelVelocityControlActiveForRoot(donorRoot, sourceEntries);
       const loopedVelocityRoot = hasLoopedEntriesForRoot(donorRoot, sourceEntries);
@@ -14324,7 +14380,7 @@
       const playbackPlan = getVelocityCrossfadePlan(donorRoot, midiVelocity, sourceEntries);
       if (!playbackPlan.length) return switchedByKeyswitch;
 
-      const keyMidi = Math.round(midi);
+      const keyMidi = Math.round(playedMidi);
       const keySerial = (state.previewTriggerSerialByKey.get(keyMidi) ?? 0) + 1;
       state.previewTriggerSerialByKey.set(keyMidi, keySerial);
       stopPreviewVoiceForKey(keyMidi, SAME_KEY_RETRIGGER_FADE_SEC);
@@ -14338,7 +14394,7 @@
       playbackPlan.forEach((item) => {
         const gain = Math.max(0, Math.min(1, Number(item.gain) || 0));
         if (gain <= 0.0001) return;
-        const entry = pickSampleEntryForPlayback(midi, donorRoot, item.velocityLayer, sourceEntries);
+        const entry = pickSampleEntryForPlayback(playedMidi, donorRoot, item.velocityLayer, sourceEntries);
         if (!entry) return;
         flashPlayedMapEntry(entry);
         const delaySec = Math.max(0, Math.min(0.003, Number(item.startDelaySec) || 0));
@@ -14347,12 +14403,12 @@
           void ensureEntrySampleUrl(entry, 3200).then((url) => {
             if (!url) return;
             if ((state.previewTriggerSerialByKey.get(keyMidi) ?? 0) !== keySerial) return;
-            playMappedSampleEntry(entry, playbackVelocityNorm, midi, donorRoot, gain, keySerial, delaySec, holdLoopUntilRelease);
+            playMappedSampleEntry(entry, playbackVelocityNorm, playedMidi, donorRoot, gain, keySerial, delaySec, holdLoopUntilRelease);
           });
           startedCount += 1;
           return;
         }
-        playMappedSampleEntry(entry, playbackVelocityNorm, midi, donorRoot, gain, keySerial, delaySec, holdLoopUntilRelease);
+        playMappedSampleEntry(entry, playbackVelocityNorm, playedMidi, donorRoot, gain, keySerial, delaySec, holdLoopUntilRelease);
         startedCount += 1;
       });
 
