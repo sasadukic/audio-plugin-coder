@@ -15317,7 +15317,7 @@
         if (Number.isFinite(Number(e.rrIndex))) {
           rrVariant.rrIndex = Math.max(1, Math.round(Number(e.rrIndex)));
         }
-        if (runtimeSampleDataUrl.startsWith("data:") && !runtimePath) {
+        if (runtimeSampleDataUrl.startsWith("data:")) {
           rrVariant.sampleDataUrl = runtimeSampleDataUrl;
         }
         groups.get(key).rrVariants.push(rrVariant);
@@ -16139,7 +16139,8 @@
         setLoadingOverlay(74, "Applying instrument...");
         if (!getNativeBackend()) await waitForNativeBackend(300);
         setLoadingOverlay(96, "Finalizing...");
-        void flushSessionStateToNative(true);
+        state.lastFlushedJsonHash = "";
+        void flushSessionStateToNative(false);
         state.sessionStateRestoreAttempted = true;
         state.sessionStateRestored = true;
         state.sessionStateRestoreCompletedAt = Date.now();
