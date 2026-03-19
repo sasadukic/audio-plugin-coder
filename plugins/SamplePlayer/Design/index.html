@@ -7775,6 +7775,8 @@
       if (el.strumShowOnMainBtn) {
         el.strumShowOnMainBtn.setAttribute("aria-pressed", state.strumShowOnMain ? "true" : "false");
         el.strumShowOnMainBtn.classList.toggle("active", !!state.strumShowOnMain);
+        const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab || 'player';
+        el.strumShowOnMainBtn.style.display = activeTab === 'player' ? '' : 'none';
       }
 
       if (el.strumRateBtn) {
@@ -8551,6 +8553,11 @@
           }
           if (importedManifestBasePath && !getPackManifestBasePath()) {
             state.packManifestBasePath = importedManifestBasePath;
+            try {
+              window.localStorage.setItem("samplePlayer.packManifestBasePath", String(state.packManifestBasePath || ""));
+            } catch (e) {
+              // ignore storage failures
+            }
           }
 
           const rawKey = String(
@@ -15800,6 +15807,11 @@
       state.baseLoopPlaybackEnabled = data?.settings?.baseLoopPlaybackEnabled !== false;
       state.packManifestFilePath = manifestFilePath;
       state.packManifestBasePath = manifestBasePath;
+      try {
+        if (manifestBasePath) window.localStorage.setItem("samplePlayer.packManifestBasePath", String(manifestBasePath || ""));
+      } catch (e) {
+        // ignore storage failures
+      }
       state.nextVirtualOrder = -1;
       state.rrCursor = {};
       state.sessionStateLightweight = false;
@@ -16714,6 +16726,13 @@
       }
 
       state.autoPresets = loadAutoPresetsFromStorage();
+      // Restore remembered pack manifest base path (non-native fallback)
+      try {
+        const saved = window.localStorage.getItem("samplePlayer.packManifestBasePath");
+        if (saved && !getPackManifestBasePath()) state.packManifestBasePath = String(saved || "").trim();
+      } catch (e) {
+        // ignore storage failures
+      }
       renderAutoPresetList();
 
       const setAutoPresetCreateOpen = (open, initialName = "") => {
@@ -16923,9 +16942,26 @@
 
           if (resolvedAbsolute) {
             el.autoDestination.value = resolvedAbsolute;
+            // Remember this folder as the pack manifest base path for future loads
+            try {
+              state.packManifestBasePath = String(resolvedAbsolute || "").trim();
+              window.localStorage.setItem("samplePlayer.packManifestBasePath", state.packManifestBasePath);
+            } catch (e) {
+              // ignore storage failures
+            }
             renderAuto();
           } else {
             applyDestinationFolderName(folderName);
+            // If we could not resolve an absolute path, still try to persist the visible value
+            try {
+              const maybe = String(el.autoDestination?.value || "").trim();
+              if (maybe) {
+                state.packManifestBasePath = maybe;
+                window.localStorage.setItem("samplePlayer.packManifestBasePath", maybe);
+              }
+            } catch (e) {
+              // ignore storage failures
+            }
           }
           el.autoDestinationPicker.value = "";
         });
