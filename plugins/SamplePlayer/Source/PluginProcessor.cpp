@@ -1634,6 +1634,56 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
             latestJson = uiSessionStateJson;
         }
 
+        // Merge cached graphic data URLs when the incoming JSON is lightweight
+        // (no wallpaper/logo data URLs).  This ensures getStateInformation
+        // always has the complete session JSON for DAW project save.
+        {
+            auto parsed = juce::JSON::parse (latestJson);
+            if (auto* rootObject = parsed.getDynamicObject())
+            {
+                if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
+                {
+                    auto wpUrl = uiObject->getProperty ("wallpaperDataUrl").toString().trim();
+                    auto lgUrl = uiObject->getProperty ("logoDataUrl").toString().trim();
+                    bool merged = false;
+
+                    {
+                        const juce::ScopedLock lock (uiSessionStateLock);
+
+                        if (wpUrl.startsWithIgnoreCase ("data:"))
+                            cachedWallpaperDataUrl = wpUrl;
+                        else if (cachedWallpaperDataUrl.isNotEmpty()
+                                 && uiObject->hasProperty ("wallpaperName")
+                                 && uiObject->getProperty ("wallpaperName").toString().trim().isNotEmpty())
+                        {
+                            uiObject->setProperty ("wallpaperDataUrl", cachedWallpaperDataUrl);
+                            merged = true;
+                        }
+
+                        if (lgUrl.startsWithIgnoreCase ("data:"))
+                            cachedLogoDataUrl = lgUrl;
+                        else if (cachedLogoDataUrl.isNotEmpty()
+                                 && uiObject->hasProperty ("logoName")
+                                 && uiObject->getProperty ("logoName").toString().trim().isNotEmpty())
+                        {
+                            uiObject->setProperty ("logoDataUrl", cachedLogoDataUrl);
+                            merged = true;
+                        }
+                    }
+
+                    if (merged)
+                    {
+                        latestJson = juce::JSON::toString (parsed, false);
+                        {
+                            const juce::ScopedLock lock (uiSessionStateLock);
+                            if (requestId == sessionStateSyncRequestId.load (std::memory_order_relaxed))
+                                uiSessionStateJson = latestJson;
+                        }
+                    }
+                }
+            }
+        }
+
         const auto lightweightStartMs = juce::Time::getMillisecondCounterHiRes();
         LightweightStripStats stripStats;
         auto lightweightJson = makeLightweightSessionStateJson (latestJson, &stripStats);

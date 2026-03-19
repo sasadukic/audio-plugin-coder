@@ -435,6 +435,8 @@ private:
     mutable juce::CriticalSection uiSessionStateLock;
     juce::String uiSessionStateJson;
     juce::String uiSessionStateLightweightJson;
+    juce::String cachedWallpaperDataUrl;
+    juce::String cachedLogoDataUrl;
     juce::String pendingActiveMapSetId;
     mutable juce::CriticalSection sessionMapSyncLock;
     juce::String lastSessionMapSignature;

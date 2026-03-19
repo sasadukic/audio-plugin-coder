@@ -5776,11 +5776,11 @@
           wallpaperPosition: normalizeWallpaperPosition(state.wallpaperPosition),
           wallpaperName: state.wallpaperName ? String(state.wallpaperName || "").trim() : "",
           wallpaperSourcePath: state.wallpaperName ? String(state.wallpaperSourcePath || "").trim() : "",
-          wallpaperDataUrl: state.wallpaperName ? String(state.wallpaperDataUrl || "").trim() : "",
+          wallpaperDataUrl: (force || options.includeEmbeddedSampleData) && state.wallpaperName ? String(state.wallpaperDataUrl || "").trim() : "",
           logoPosition: normalizeLogoPosition(state.logoPosition),
           logoName: state.logoName ? String(state.logoName || "").trim() : "",
           logoSourcePath: state.logoName ? String(state.logoSourcePath || "").trim() : "",
-          logoDataUrl: state.logoName ? String(state.logoDataUrl || "").trim() : "",
+          logoDataUrl: (force || options.includeEmbeddedSampleData) && state.logoName ? String(state.logoDataUrl || "").trim() : "",
           particlesEnabled: !!state.playerParticlesEnabled,
           godRaysEnabled: !!state.playerGodRaysEnabled,
           edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled,
@@ -15304,7 +15304,7 @@
         }
         const runtimePath = preserveRuntimePaths ? String(e.manifestPath || "").trim() : "";
         let runtimeSampleDataUrl = "";
-        if (preserveRuntimePaths || includeEmbeddedSampleData) {
+        if (includeEmbeddedSampleData) {
           runtimeSampleDataUrl = String(e.sampleDataUrl || "").trim();
           if (!runtimeSampleDataUrl.startsWith("data:")) {
             const fallbackSampleUrl = String(e.sampleUrl || "").trim();
