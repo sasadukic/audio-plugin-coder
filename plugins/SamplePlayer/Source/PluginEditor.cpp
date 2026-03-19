@@ -673,6 +673,10 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
                     file.getFileName(),
                     text,
                     {});
+
+        if (file.hasFileExtension ("smpinstm"))
+            safeThis->audioProcessor.loadMonolithDirect (file.getFullPathName());
+
         safeThis->loadInstrumentChooser.reset();
     });
 }

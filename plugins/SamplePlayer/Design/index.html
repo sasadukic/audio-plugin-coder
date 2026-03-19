@@ -16151,7 +16151,7 @@
         setLoadingOverlay(96, "Finalizing...");
         state.lastFlushedJsonHash = "";
         if (isMonolith) {
-          await flushSessionStateToNative(false, { includeEmbeddedSampleData: true });
+          void flushSessionStateToNative(false);
         } else {
           void flushSessionStateToNative(false);
         }

@@ -164,6 +164,7 @@ public:
     bool setWallpaperFile (const juce::File& file);
     juce::File getWallpaperFile() const;
     void setUiSessionStateJson (const juce::String& json);
+    void loadMonolithDirect (const juce::String& filePath);
     void setActiveMapSetId (const juce::String& setId);
     juce::String getUiSessionStateJson (bool lightweightPreferred = false);
     juce::String getSampleDataUrlForMapEntry (int rootMidi,
@@ -439,6 +440,7 @@ private:
     mutable juce::CriticalSection sessionMapSyncLock;
     juce::String lastSessionMapSignature;
     std::atomic<int> sessionStateSyncRequestId { 0 };
+    std::atomic<bool> monolithDecodeInProgress { false };
     std::atomic<bool> modwheelVelocityLayerControlEnabled { false };
     std::atomic<float> modwheelVelocityLayerControlValue01 { 0.0f };
     std::atomic<bool> activeMapLoopPlaybackEnabled { true };
