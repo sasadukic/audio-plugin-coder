@@ -260,6 +260,8 @@ private:
 
         uint64_t age = 0;
         bool ignoreMonoNoteDedupe = false;
+
+        int delaySamplesRemaining = 0;
     };
 
     struct BlockSettings

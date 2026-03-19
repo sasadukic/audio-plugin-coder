@@ -5292,6 +5292,10 @@ void SamplePlayerAudioProcessor::startVoiceForNoteInternal (int midiChannel,
     voice->panGains = { leftGain, rightGain };
     voice->ignoreMonoNoteDedupe = suppressMonoCut;
 
+    // Haas effect: delay the left doubled voice by 10 ms for stereo width
+    if (pan < -0.5f)
+        voice->delaySamplesRemaining = msToSamples (currentSampleRate, 10.0f);
+
     voice->attackSamplesRemaining = msToSamples (currentSampleRate, settings.attackMs);
     if (voice->attackSamplesRemaining > 0)
     {
@@ -5805,6 +5809,13 @@ void SamplePlayerAudioProcessor::renderSingleVoice (VoiceState& voice,
     {
         if (! voice.active)
             break;
+
+        // Haas delay: output silence while counting down
+        if (voice.delaySamplesRemaining > 0)
+        {
+            --voice.delaySamplesRemaining;
+            continue;
+        }
 
         if (! loop.enabled && voice.position >= static_cast<double> (zoneLength - 1))
         {
