@@ -374,7 +374,8 @@
       overflow: visible;
     }
 
-    .strum-step-rate-btn {
+    .strum-step-rate-btn,
+    .strum-step-keyswitch-btn {
       width: 100%;
       min-width: 0;
       height: 24px;
@@ -405,7 +406,8 @@
     }
 
     .strum-step-card.is-inactive .strum-step-velocity-btn,
-    .strum-step-card.is-inactive .strum-step-rate-btn {
+    .strum-step-card.is-inactive .strum-step-rate-btn,
+    .strum-step-card.is-inactive .strum-step-keyswitch-btn {
       cursor: default;
     }
 
@@ -551,7 +553,8 @@
       z-index: 240;
     }
 
-    .player-strum-step-grid .strum-step-rate-btn {
+    .player-strum-step-grid .strum-step-rate-btn,
+    .player-strum-step-grid .strum-step-keyswitch-btn {
       width: 100%;
       min-width: 0;
       height: 24px;
@@ -568,7 +571,8 @@
       color: #fff;
     }
 
-    .player-strum-step-grid .strum-step-rate-btn:hover {
+    .player-strum-step-grid .strum-step-rate-btn:hover,
+    .player-strum-step-grid .strum-step-keyswitch-btn:hover {
       border-color: rgba(var(--player-bright-rgb, 218, 222, 229), 0.45);
       background: rgba(var(--player-topbar-rgb, 55, 58, 66), 0.9);
       color: #fff;
@@ -604,7 +608,8 @@
     }
 
     .player-strum-step-grid .strum-step-card.is-inactive .strum-step-velocity-btn,
-    .player-strum-step-grid .strum-step-card.is-inactive .strum-step-rate-btn {
+    .player-strum-step-grid .strum-step-card.is-inactive .strum-step-rate-btn,
+    .player-strum-step-grid .strum-step-card.is-inactive .strum-step-keyswitch-btn {
       cursor: default;
     }
 
@@ -7727,7 +7732,7 @@
       if (!id) return "Keyswitch";
       const set = getKeyswitchSetById(id);
       const label = String(set?.name || id).trim() || id;
-      return `Keyswitch ${label}`;
+      return label;
     }
 
     function ensureStrumStepPattern() {
