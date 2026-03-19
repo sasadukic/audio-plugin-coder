@@ -5848,63 +5848,85 @@
       state.sessionStateSaveInFlight = true;
       try {
         const flushStart = performance.now();
-        const snapshotStart = performance.now();
-        const snapshot = await buildSessionStateSnapshot({ force });
-        const snapshotMs = performance.now() - snapshotStart;
 
-        // Build a lightweight signature from the snapshot BEFORE stringifying
-        // the full payload. This avoids the expensive JSON.stringify + hash on
-        // large payloads (wallpaper/logo data URLs can be several MB) unless
-        // something actually changed.
-        const uiSig = [
-          snapshot.ui?.setupOctaveStart,
-          snapshot.ui?.activeMapSetId,
-          snapshot.ui?.mapMatrix?.interval,
-          snapshot.ui?.mapMatrix?.velocityLayers,
-          snapshot.ui?.mapMatrix?.rrColumns,
-          snapshot.ui?.mapMatrix?.splitEnabled,
-          snapshot.ui?.baseLoopPlaybackEnabled,
-          snapshot.ui?.manifestFilePath,
-          snapshot.ui?.manifestBasePath,
-          snapshot.ui?.wallpaperPosition,
-          snapshot.ui?.wallpaperName,
-          snapshot.ui?.logoPosition,
-          snapshot.ui?.logoName,
-          snapshot.ui?.loopCrossfadeMs,
-          snapshot.ui?.allowPitchUpAboveHighest,
-          snapshot.ui?.autoRR,
-          snapshot.ui?.autoGainCrossfade,
-          snapshot.ui?.particlesEnabled,
-          snapshot.ui?.godRaysEnabled,
-          snapshot.ui?.edgeWaveBlurEnabled,
-          snapshot.manifest?.mapping?.length || 0,
-          snapshot.manifest?.keyswitchSets?.length || 0,
-          JSON.stringify(snapshot.ui?.strum || {}),
-          JSON.stringify(snapshot.ui?.sequencer || {}),
-          JSON.stringify(snapshot.ui?.manualRootRanges || {}),
-          JSON.stringify(snapshot.ui?.velocityCrossfadeByRoot || {}),
-          JSON.stringify(snapshot.ui?.keyswitchSets?.map(s => `${s.id}:${s.active}:${s.key}:${JSON.stringify(s.manualRanges||{})}`) || [])
+        // Build a lightweight signature directly from state fields BEFORE
+        // building the full snapshot.  This avoids the expensive
+        // buildManifestSkeleton + buildManifestMapping + JSON.stringify
+        // on large payloads (wallpaper/logo data URLs can be several MB)
+        // when nothing actually changed.
+        const baseEntries = Array.isArray(state.entries) ? state.entries : [];
+        const ksSets = Array.isArray(state.keyswitchSets) ? state.keyswitchSets : [];
+        let entrySigParts = "";
+        for (let i = 0; i < baseEntries.length; i++) {
+          const e = baseEntries[i];
+          if (!e || !e.valid) continue;
+          entrySigParts += `${e.order}:${e.rootMidi}:${e.velocityLayer}:${(e.loopStartNorm||0).toFixed(4)}:${(e.loopEndNorm||1).toFixed(4)}:${(e.sampleStartNorm||0).toFixed(4)}:${e.loopEnabled?1:0}:${e.fineTuneCents||0}:${(e.editorGainDb||0).toFixed(1)},`;
+        }
+        for (let si = 0; si < ksSets.length; si++) {
+          const set = ksSets[si];
+          const setEntries = Array.isArray(set?.entries) ? set.entries : [];
+          for (let i = 0; i < setEntries.length; i++) {
+            const e = setEntries[i];
+            if (!e || !e.valid) continue;
+            entrySigParts += `${e.order}:${e.rootMidi}:${e.velocityLayer}:${(e.loopStartNorm||0).toFixed(4)}:${(e.loopEndNorm||1).toFixed(4)}:${(e.sampleStartNorm||0).toFixed(4)}:${e.loopEnabled?1:0}:${e.fineTuneCents||0}:${(e.editorGainDb||0).toFixed(1)},`;
+          }
+        }
+
+        const hashSig = [
+          state.setupOctaveStart,
+          state.activeMapSetId,
+          state.mapMatrixInterval,
+          state.mapMatrixVelocityLayers,
+          state.mapMatrixRrColumns,
+          state.mapMatrixSplitEnabled,
+          state.baseLoopPlaybackEnabled,
+          getPackManifestFilePath(),
+          getPackManifestBasePath(),
+          state.wallpaperPosition,
+          state.wallpaperName,
+          state.logoPosition,
+          state.logoName,
+          state.loopCrossfadeMs,
+          state.allowPitchUpAboveHighest,
+          state.autoRR,
+          state.autoGainCrossfade,
+          state.playerParticlesEnabled,
+          state.playerGodRaysEnabled,
+          state.playerEdgeWaveBlurEnabled,
+          state.modWheelValue,
+          state.pitchBendValue,
+          baseEntries.length,
+          ksSets.length,
+          state.strumEnabled,
+          state.strumSequencerSteps,
+          state.strumSequencerMode,
+          state.strumDoubling,
+          state.strumShowOnMain,
+          state.strumRateIndex,
+          state.strumSwingPercent,
+          state.strumVelocityHumanizePercent,
+          state.strumTimingHumanizeMs,
+          state.sequencerHostTriggerEnabled,
+          JSON.stringify(state.manualRootRanges || {}),
+          JSON.stringify(state.velocityCrossfadeByRoot || {}),
+          JSON.stringify(state.sequencerSteps),
+          JSON.stringify(state.strumStepPattern),
+          ksSets.map(s => `${s?.id}:${s?.key}:${s?.keyMidi}:${JSON.stringify(s?.manualRanges||{})}`).join(";"),
+          entrySigParts
         ].join("|");
 
-        // Also include a signature of per-entry loop/tune state that changes on interaction
-        const entrySig = getAllMapEntries().filter(e => e?.valid).map(e =>
-          `${e.order}:${e.rootMidi}:${e.velocityLayer}:${(e.loopStartNorm||0).toFixed(4)}:${(e.loopEndNorm||1).toFixed(4)}:${(e.sampleStartNorm||0).toFixed(4)}:${e.loopEnabled?1:0}:${(e.fineTuneCents||0)}:${(e.editorGainDb||0).toFixed(1)}`
-        ).join(",");
-
-        const hashSig = `${uiSig}||${entrySig}`;
-
         if (hashSig === state.lastFlushedJsonHash && !force) {
-          const totalMs = performance.now() - flushStart;
-          debugLoadLog(`flush skipped | identical payload | totalMs=${totalMs.toFixed(1)}`);
+          debugLoadLog(`flush skipped | identical sig | ${(performance.now() - flushStart).toFixed(1)}ms`);
         } else {
           state.lastFlushedJsonHash = hashSig;
+          const snapshot = await buildSessionStateSnapshot({ force });
           const jsonPayload = JSON.stringify(snapshot);
           emitNativeEvent("session_state_set", { json: jsonPayload });
           const totalMs = performance.now() - flushStart;
           const debugCount = Number(state.sessionStateFlushDebugCount) || 0;
-          if (debugCount < 5 || snapshotMs > 400 || totalMs > 500) {
+          if (debugCount < 5 || totalMs > 500) {
             state.sessionStateFlushDebugCount = debugCount + 1;
-            debugLoadLog(`flush session state | mode=relative-json | snapshotMs=${snapshotMs.toFixed(1)} | totalMs=${totalMs.toFixed(1)} | jsonBytes=${jsonPayload.length}`);
+            debugLoadLog(`flush session state | totalMs=${totalMs.toFixed(1)} | jsonBytes=${jsonPayload.length}`);
           }
         }
       } catch {
@@ -11210,13 +11232,15 @@
 
     function syncSelectedMapSampleBox() {
       const selected = state.selectedMapEntryOrder;
-      el.mapSamples.querySelectorAll(".map-rr-cell").forEach((cell) => {
-        const order = Number(cell.dataset.entryOrder);
-        cell.classList.toggle("selected", Number.isFinite(selected) && order === selected);
-      });
-      el.mapSamples.querySelectorAll(".map-sample-box").forEach((box) => {
-        const hasSelectedChild = !!box.querySelector(".map-rr-cell.selected");
-        box.classList.toggle("selected", hasSelectedChild);
+      // Remove old selection — only touches the few currently-selected elements
+      el.mapSamples.querySelectorAll(".map-rr-cell.selected").forEach(c => c.classList.remove("selected"));
+      el.mapSamples.querySelectorAll(".map-sample-box.selected").forEach(b => b.classList.remove("selected"));
+      if (!Number.isFinite(selected)) return;
+      // Add new selection — targeted data-attribute query
+      el.mapSamples.querySelectorAll(`.map-rr-cell[data-entry-order="${selected}"]`).forEach(cell => {
+        cell.classList.add("selected");
+        const box = cell.closest(".map-sample-box");
+        if (box) box.classList.add("selected");
       });
     }
 
@@ -13058,8 +13082,7 @@
       }
 
       if (el.mapEmpty) {
-        const hasAnyLoadedSamples = getAllMapEntries().some((entry) => !!(entry && entry.valid));
-        if (hasAnyLoadedSamples) {
+        if (visibleCount > 0 || valid.length > 0) {
           el.mapEmpty.classList.add("hidden");
         } else {
           el.mapEmpty.textContent = "Filename format: NOTE(required), V1..V5, RRn, L";
