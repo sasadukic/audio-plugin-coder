@@ -4601,10 +4601,6 @@
                 </div>
                 <div class="keyswitch-map-main-controls">
                   <select id="keyswitchMapSelect" class="keyswitch-map-select" aria-label="Select keyswitch set"></select>
-                  <div id="keyswitchMapKeyWrap" class="keyswitch-map-key-wrap hidden">
-                    <label for="keyswitchMapKeyInput">Key</label>
-                    <input id="keyswitchMapKeyInput" class="keyswitch-map-key" type="text" maxlength="3" inputmode="text" aria-label="Keyswitch key">
-                  </div>
                   <button id="keyswitchMapNormalizeBtn" class="keyswitch-map-normalize-btn hidden" type="button" title="Normalize all samples to peak level">Normalize</button>
                   <div id="keyswitchMapLoopWrap" class="keyswitch-map-loop-wrap hidden">
                     <button id="keyswitchMapLoopModeBtn" class="keyswitch-map-loop-btn" type="button" aria-pressed="true" title="Loop playback enabled">Loop</button>
@@ -5096,8 +5092,6 @@
       mapMatrixRrInput: document.getElementById("mapMatrixRrInput"),
       mapMatrixSplitBtn: document.getElementById("mapMatrixSplitBtn"),
       keyswitchMapSelect: document.getElementById("keyswitchMapSelect"),
-      keyswitchMapKeyWrap: document.getElementById("keyswitchMapKeyWrap"),
-      keyswitchMapKeyInput: document.getElementById("keyswitchMapKeyInput"),
       keyswitchMapNormalizeBtn: document.getElementById("keyswitchMapNormalizeBtn"),
       keyswitchMapLoopWrap: document.getElementById("keyswitchMapLoopWrap"),
       keyswitchMapLoopModeBtn: document.getElementById("keyswitchMapLoopModeBtn"),
@@ -8495,17 +8489,14 @@
     }
 
     function updateKeyswitchToolbarKeyEditor() {
-      if (!el.keyswitchMapKeyWrap || !el.keyswitchMapKeyInput || !el.keyswitchMapWarning) return;
+      if (!el.keyswitchMapWarning) return;
       const activeMapSet = getActiveMapSet();
       const activeKeyswitchSet = getKeyswitchSetById(state.activeMapSetId);
-      const showKeyEditor = !!activeKeyswitchSet;
       const showLoopEditor = !!activeMapSet;
-      el.keyswitchMapKeyWrap.classList.toggle("hidden", !showKeyEditor);
       if (el.keyswitchMapLoopWrap) el.keyswitchMapLoopWrap.classList.toggle("hidden", !showLoopEditor);
       if (el.keyswitchMapNormalizeBtn) el.keyswitchMapNormalizeBtn.classList.toggle("hidden", !showLoopEditor);
       syncLoopOneshotWithAutoLoopSamples({ shouldRender: false, persist: false });
-      if (!showKeyEditor) {
-        el.keyswitchMapKeyInput.value = "";
+      if (!activeKeyswitchSet) {
         const duplicates = getDuplicateKeyswitchNotes();
         if (duplicates.length > 0) {
           el.keyswitchMapWarning.classList.remove("hidden");
@@ -8517,8 +8508,6 @@
         return;
       }
 
-      const displayKey = activeKeyswitchSet.key || (Number.isFinite(activeKeyswitchSet.keyMidi) ? midiToNote(activeKeyswitchSet.keyMidi) : "");
-      el.keyswitchMapKeyInput.value = displayKey;
       const duplicates = collectDuplicateKeyswitchKeys();
       const activeMidi = Number.isFinite(activeKeyswitchSet.keyMidi) ? Math.round(activeKeyswitchSet.keyMidi) : null;
       if (activeMidi !== null && duplicates.has(activeMidi)) {
@@ -8528,34 +8517,6 @@
         el.keyswitchMapWarning.classList.add("hidden");
         el.keyswitchMapWarning.textContent = "";
       }
-    }
-
-    function applyActiveKeyswitchSetKeyInput(shouldRender = true) {
-      if (!el.keyswitchMapKeyInput) return false;
-      const set = getKeyswitchSetById(state.activeMapSetId);
-      if (!set) return false;
-      const parsed = noteToMidi(String(el.keyswitchMapKeyInput.value || "").trim().toUpperCase());
-      if (parsed === null) {
-        el.keyswitchMapKeyInput.value = set.key || midiToNote(Number(set.keyMidi) || 12);
-        setStatus(el.setupStatus, "Invalid keyswitch key. Use note format like C0.", "warn");
-        return false;
-      }
-      set.keyMidi = parsed;
-      set.key = midiToNote(parsed);
-      updateKeyswitchMapSelector();
-      renderSequencerArpControls();
-      const duplicates = getDuplicateKeyswitchNotes();
-      if (duplicates.length > 0) {
-        setStatus(el.setupStatus, `Duplicate keyswitch keys: ${duplicates.join(", ")}. Change key values.`, "warn");
-      } else {
-        setStatus(el.setupStatus, `Keyswitch key updated to ${set.key}.`, "ok");
-      }
-      if (shouldRender) {
-        renderKeyboardMap(undefined, true);
-        renderPlayerKeyboard();
-      }
-      scheduleSessionStateSave(500);
-      return true;
     }
 
     function applyActiveKeyswitchSetLoopToggle(shouldRender = true) {
@@ -14425,20 +14386,6 @@
         el.keyswitchMapSelect.addEventListener("change", () => {
           mapMatrixDeleteSelection = null;
           setActiveMapSet(el.keyswitchMapSelect.value, true);
-        });
-      }
-      if (el.keyswitchMapKeyInput) {
-        el.keyswitchMapKeyInput.addEventListener("change", () => {
-          applyActiveKeyswitchSetKeyInput(true);
-        });
-        el.keyswitchMapKeyInput.addEventListener("keydown", (ev) => {
-          if (ev.key === "Enter") {
-            ev.preventDefault();
-            applyActiveKeyswitchSetKeyInput(true);
-          }
-        });
-        el.keyswitchMapKeyInput.addEventListener("blur", () => {
-          applyActiveKeyswitchSetKeyInput(false);
         });
       }
       if (el.keyswitchMapLoopToggle) {
