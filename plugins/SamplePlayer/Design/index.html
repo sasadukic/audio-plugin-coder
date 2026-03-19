@@ -753,6 +753,7 @@
       margin: 0;
     }
 
+    #playerStrumMainToggle,
     #doublingToggle {
       width: 22px;
       height: 22px;
@@ -770,11 +771,19 @@
       transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
     }
 
+    #playerStrumMainToggle svg,
     #doublingToggle svg { width: 12px; height: 12px; fill: currentColor; }
+
+    #playerStrumMainToggle .eye-icon-off { display: block; }
+    #playerStrumMainToggle .eye-icon-on  { display: none; }
+
+    #playerStrumMainToggle.active .eye-icon-off { display: none; }
+    #playerStrumMainToggle.active .eye-icon-on  { display: block; }
 
     #doublingToggle .dbl-icon-off { display: block; }
     #doublingToggle .dbl-icon-on  { display: none; }
 
+    #playerStrumMainToggle.active,
     #doublingToggle.active {
       border-color: rgba(255, 216, 92, 0.72);
       color: #ffdf7e;
@@ -1993,12 +2002,14 @@
       color: rgba(var(--player-bright-rgb), 0.96);
     }
 
+    .tabs.player-topbar-swatch #playerStrumMainToggle,
     .tabs.player-topbar-swatch #doublingToggle {
       border-color: rgba(var(--player-bright-rgb), 0.72);
       color: rgba(var(--player-bright-rgb), 0.72);
       background: rgba(10, 14, 22, 0.65);
     }
 
+    .tabs.player-topbar-swatch #playerStrumMainToggle.active,
     .tabs.player-topbar-swatch #doublingToggle.active {
       border-color: rgba(var(--player-bright-rgb), 0.96);
       color: rgba(var(--player-bright-rgb), 0.96);
@@ -4267,6 +4278,10 @@
       </button>
       <div class="top-right-controls">
         <div id="playerAuthorDisplay" class="player-author-display" aria-live="polite"></div>
+        <button id="playerStrumMainToggle" type="button" aria-pressed="false" aria-label="Show strum on main" title="Show Strum On Main">
+          <svg class="eye-icon-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c-5.5 0-9.5 4.2-10.7 6 .8 1.2 2.8 3.6 5.9 5L4 19.2l1.4 1.4 16-16-1.4-1.4-2.2 2.2C16.1 5.1 14.1 5 12 5zm0 2c1.5 0 2.9.2 4.1.7l-2.2 2.2c-.6-.6-1.4-.9-2.2-.9a3.2 3.2 0 0 0-3.2 3.2c0 .8.3 1.6.9 2.2l-1.1 1.1c-2-1-3.5-2.8-4.4-4C5 10 8.1 7 12 7zm8.5 4c-.5.8-1.5 2-2.8 3l-1.5 1.5c1.9-1.2 3.3-2.8 4.2-4.1-.5-.7-1.1-1.4-1.8-2l-1.4 1.4c.6.5 1 .9 1.3 1.2z"/></svg>
+          <svg class="eye-icon-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c-5.5 0-9.5 4.2-10.7 6C2.5 12.8 6.5 17 12 17s9.5-4.2 10.7-6C21.5 9.2 17.5 5 12 5zm0 10a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-2.2a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6z"/></svg>
+        </button>
         <button id="doublingToggle" type="button" aria-pressed="false" aria-label="Doubling" title="Doubling">
           <svg class="dbl-icon-off" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/></svg>
           <svg class="dbl-icon-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 6.62c-1.44 0-2.8.56-3.77 1.53L12 10.66 10.48 12h.01L7.8 14.39c-.64.64-1.49.99-2.4.99-1.87 0-3.39-1.51-3.39-3.38S3.53 8.62 5.4 8.62c.91 0 1.76.35 2.44 1.03l1.13 1 1.51-1.34L9.22 8.2A5.37 5.37 0 0 0 5.4 6.62C2.42 6.62 0 9.04 0 12s2.42 5.38 5.4 5.38c1.44 0 2.8-.56 3.77-1.53l2.83-2.5.01.01L13.52 12h-.01l2.69-2.39c.64-.64 1.49-.99 2.4-.99 1.87 0 3.39 1.51 3.39 3.38s-1.52 3.38-3.39 3.38c-.9 0-1.76-.35-2.44-1.03l-1.14-1.01-1.51 1.34 1.27 1.12a5.386 5.386 0 0 0 3.82 1.57c2.98 0 5.4-2.41 5.4-5.38s-2.42-5.37-5.4-5.37z"/></svg>
@@ -5092,6 +5107,7 @@
       strumSequencerMenu: document.getElementById("strumSequencerMenu"),
       strumDoublingBtn: document.getElementById("strumDoublingBtn"),
       strumShowOnMainBtn: document.getElementById("strumShowOnMainBtn"),
+      playerStrumMainToggle: document.getElementById("playerStrumMainToggle"),
       doublingToggle: document.getElementById("doublingToggle"),
       strumRateBtn: document.getElementById("strumRateBtn"),
       strumRateMenu: document.getElementById("strumRateMenu"),
@@ -7829,8 +7845,18 @@
       } catch (e) {
         // fail silently; UI should not break
       }
+      syncPlayerStrumMainToggle();
       syncDoublingToggle();
 
+    }
+
+    function syncPlayerStrumMainToggle() {
+      if (!el.playerStrumMainToggle) return;
+      const on = !!state.strumShowOnMain && !!state.strumEnabled && getStrumVisibleStepCount() > 0;
+      el.playerStrumMainToggle.classList.toggle("active", on);
+      el.playerStrumMainToggle.setAttribute("aria-pressed", on ? "true" : "false");
+      el.playerStrumMainToggle.title = on ? "Hide Strum From Main" : "Show Strum On Main";
+      el.playerStrumMainToggle.setAttribute("aria-label", on ? "Hide strum from main" : "Show strum on main");
     }
 
     function syncDoublingToggle() {
@@ -7851,6 +7877,7 @@
 
     function setupStrum() {
       updateStrumUi();
+      syncPlayerStrumMainToggle();
       syncDoublingToggle();
 
       const positionStrumMenuAt = (btn, menu) => {
@@ -7980,6 +8007,28 @@
           syncStrumDoublingBtn();
           emitStrumSettings();
           scheduleSessionStateSave(220);
+        });
+      }
+
+      if (el.playerStrumMainToggle) {
+        el.playerStrumMainToggle.addEventListener("click", () => {
+          const isOn = !!state.strumShowOnMain && !!state.strumEnabled && getStrumVisibleStepCount() > 0;
+          if (isOn) {
+            state.strumShowOnMain = false;
+            state.strumEnabled = false;
+          } else {
+            state.strumEnabled = true;
+            state.strumSequencerSteps = 8;
+            state.strumSequencerMode = 2;
+            state.strumShowOnMain = true;
+          }
+          updateStrumUi();
+          syncPlayerStrumMainToggle();
+          emitStrumSettings();
+          scheduleSessionStateSave(220);
+          window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => requestHostResizeForActiveTab());
+          });
         });
       }
 
