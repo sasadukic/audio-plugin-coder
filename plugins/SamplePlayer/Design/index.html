@@ -9403,9 +9403,18 @@
           return !manifestPath;
         })
         .slice(0, limit);
-      await Promise.all(candidates.map((entry) =>
-        ensureEntryRuntimeSampleDataUrl(entry).catch(() => {})
-      ));
+      if (!candidates.length) return;
+      let cursor = 0;
+      const workers = Math.min(4, candidates.length);
+      const runWorker = async () => {
+        while (cursor < candidates.length) {
+          const entry = candidates[cursor];
+          cursor += 1;
+          if (!entry) continue;
+          try { await ensureEntryRuntimeSampleDataUrl(entry); } catch {}
+        }
+      };
+      await Promise.all(Array.from({ length: workers }, () => runWorker()));
     }
 
     async function ensureWallpaperDataUrlForAutoSampler() {
@@ -15927,9 +15936,9 @@
           silentStatus: false
         });
         setLoadingOverlay(74, "Applying instrument...");
-        await waitForNativeBackend(1200);
-        await flushSessionStateToNative(true);
+        if (!getNativeBackend()) await waitForNativeBackend(300);
         setLoadingOverlay(96, "Finalizing...");
+        void flushSessionStateToNative(true);
         state.sessionStateRestoreAttempted = true;
         state.sessionStateRestored = true;
         state.sessionStateRestoreCompletedAt = Date.now();
@@ -16212,6 +16221,8 @@
       updatePlayerAuthorDisplay(tab);
       updateSaveButtonVisibility(tab);
       if (el.doublingToggle) el.doublingToggle.style.display = tab === "player" ? "" : "none";
+      if (el.strumShowOnMainBtn) el.strumShowOnMainBtn.style.display = tab === "player" ? "" : "none";
+      if (el.playerStrumMainToggle) el.playerStrumMainToggle.style.display = tab === "player" ? "" : "none";
       refreshPlayerParticles();
       scheduleHostResizeForActiveTab();
     }
