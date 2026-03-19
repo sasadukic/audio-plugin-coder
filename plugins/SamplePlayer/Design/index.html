@@ -7823,7 +7823,7 @@
             </div>
           </div>
           <div class="strum-step-rate-wrap">
-            <button class="sample-loop-tool-btn strum-menu-btn strum-step-rate-btn strum-step-keyswitch-btn" type="button" data-step-index="${stepIndex}" aria-haspopup="true" aria-expanded="false" ${keyswitchDisabled ? "disabled" : ""}>${getStrumKeyswitchLabel(step.keyswitchSetId)}</button>
+            <button class="sample-loop-tool-btn strum-menu-btn strum-step-keyswitch-btn" type="button" data-step-index="${stepIndex}" aria-haspopup="true" aria-expanded="false" ${keyswitchDisabled ? "disabled" : ""}>${getStrumKeyswitchLabel(step.keyswitchSetId)}</button>
             <div class="strum-menu strum-step-keyswitch-menu hidden" role="menu" aria-label="Step ${stepIndex + 1} keyswitch">
               ${keyswitchItemsMarkup}
             </div>
@@ -14444,8 +14444,6 @@
           state.activeMapSetId = set.id;
           updateKeyswitchMapSelector();
           renderKeyboardMap(undefined, true);
-          renderStrumStepGrid();
-          renderSequencerArpControls();
 
           const duplicates = collectDuplicateKeyswitchKeys();
           if (duplicates.has(set.keyMidi)) {

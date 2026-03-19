@@ -4898,6 +4898,27 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
         const auto sampleSet = std::atomic_load (&currentSampleSet);
         const int activeSlot = juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
 
+        if (sampleSet != nullptr)
+        {
+            const int keyswitchSlot = sampleSet->keyswitchSlotByMidi[static_cast<size_t> (note)];
+            if (keyswitchSlot >= 0)
+            {
+                auto& noteOnCount = midiNoteOnCounts[static_cast<size_t> (note)];
+                noteOnCount = juce::jmin (1024, noteOnCount + 1);
+                setMidiHeldState (note, true);
+                activeMapSetSlot.store (keyswitchSlot, std::memory_order_relaxed);
+                pendingActiveMapSetSlotFromMidi.store (keyswitchSlot, std::memory_order_relaxed);
+                bool loopEnabled = true;
+                if (const auto loopIt = sampleSet->loopPlaybackBySlot.find (keyswitchSlot); loopIt != sampleSet->loopPlaybackBySlot.end())
+                    loopEnabled = loopIt->second;
+                activeMapLoopPlaybackEnabled.store (loopEnabled, std::memory_order_relaxed);
+                return;
+            }
+
+            if (sampleSet->hasKeyswitchSets && note <= 24)
+                return;
+        }
+
         {
             const auto processRuntime = [&] (const std::shared_ptr<StepSequencerRuntime>& runtime,
                                              bool isStrumRuntime) -> bool
@@ -5057,27 +5078,6 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 if (processRuntime (std::atomic_load (&stepSequencerRuntime), false))
                     return;
             }
-        }
-
-        if (sampleSet != nullptr)
-        {
-            const int keyswitchSlot = sampleSet->keyswitchSlotByMidi[static_cast<size_t> (note)];
-            if (keyswitchSlot >= 0)
-            {
-                auto& noteOnCount = midiNoteOnCounts[static_cast<size_t> (note)];
-                noteOnCount = juce::jmin (1024, noteOnCount + 1);
-                setMidiHeldState (note, true);
-                activeMapSetSlot.store (keyswitchSlot, std::memory_order_relaxed);
-                pendingActiveMapSetSlotFromMidi.store (keyswitchSlot, std::memory_order_relaxed);
-                bool loopEnabled = true;
-                if (const auto loopIt = sampleSet->loopPlaybackBySlot.find (keyswitchSlot); loopIt != sampleSet->loopPlaybackBySlot.end())
-                    loopEnabled = loopIt->second;
-                activeMapLoopPlaybackEnabled.store (loopEnabled, std::memory_order_relaxed);
-                return;
-            }
-
-            if (sampleSet->hasKeyswitchSets && note <= 24)
-                return;
         }
 
         bool hasAnyZoneInActiveSlot = false;
