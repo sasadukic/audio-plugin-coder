@@ -6857,7 +6857,8 @@
 
       ensureSessionStateWritable("native-audio-pick");
       state.packLoaded = false;
-      const start = state.entries.length;
+      const owner = getMutableActiveMapEntriesStore();
+      const start = owner.length;
       audioFiles.forEach((file, idx) => {
         const parsed = parseFilename(String(file.name || ""));
         const entry = {
@@ -6873,10 +6874,8 @@
           loopFadeInNorm: 0,
           ...parsed
         };
-        state.entries.push(entry);
+        owner.push(entry);
       });
-
-      state.activeMapSetId = "base";
       state.rrCursor = {};
       state.mapMatrixRrCursor = {};
       state.mapMatrixPaintActive = false;
