@@ -277,8 +277,8 @@
     .strum-step-grid {
       margin-top: 8px;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
-      gap: 8px;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 0;
     }
 
     .strum-step-grid.hidden {
@@ -409,32 +409,28 @@
       cursor: default;
     }
 
-    .strum-step-gap-btn {
-      position: absolute;
-      left: calc(100% + 4px);
-      top: 50%;
-      transform: translate(-50%, -50%);
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      border: 1px solid rgba(140, 146, 156, 0.25);
-      background: rgba(25, 28, 35, 0.95);
-      color: rgba(200, 204, 210, 0.8);
-      font-size: 12px;
-      font-weight: 700;
-      line-height: 1;
+    .strum-step-gap {
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      z-index: 5;
+      border: none;
+      border-radius: 3px;
+      background: transparent;
+      color: transparent;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1;
       padding: 0;
+      min-width: 0;
+      width: 100%;
+      height: 100%;
+      transition: color 0.12s, background 0.12s;
     }
 
-    .strum-step-gap-btn:hover {
-      border-color: rgba(170, 176, 186, 0.55);
-      background: rgba(55, 58, 66, 0.95);
-      color: rgba(230, 234, 240, 0.95);
+    .strum-step-gap:hover {
+      background: rgba(140, 146, 156, 0.12);
+      color: rgba(210, 214, 220, 0.9);
     }
 
     /* Player page strum step grid — uses wallpaper swatch colors */
@@ -445,8 +441,8 @@
       bottom: var(--player-kb-height, 87px);
       z-index: 10;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
-      gap: 6px;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 0;
       padding: 8px 10px;
     }
 
@@ -606,16 +602,8 @@
       cursor: default;
     }
 
-    .player-strum-step-grid .strum-step-gap-btn {
-      left: calc(100% + 3px);
-      border-color: rgba(var(--player-line-rgb, 140, 146, 156), 0.3);
-      background: rgba(var(--player-topbar-rgb, 25, 28, 35), 0.95);
-      color: #fff;
-    }
-
-    .player-strum-step-grid .strum-step-gap-btn:hover {
-      border-color: rgba(var(--player-bright-rgb, 218, 222, 229), 0.5);
-      background: rgba(var(--player-swatch-rgb, 55, 58, 66), 0.95);
+    .player-strum-step-grid .strum-step-gap:hover {
+      background: rgba(var(--player-line-rgb, 140, 146, 156), 0.15);
       color: #fff;
     }
 
@@ -7631,9 +7619,17 @@
       container.classList.toggle("hidden", activeStepCount === 0);
       if (activeStepCount === 0) return;
 
-      for (let stepIndex = 0; stepIndex < 8; stepIndex += 1) {
+      const hasAddGap = activeStepCount < 8;
+      const gapCount = (activeStepCount - 1) + (hasAddGap ? 1 : 0);
+      const colParts = [];
+      for (let i = 0; i < activeStepCount; i++) {
+        colParts.push("1fr");
+        if (i < activeStepCount - 1 || hasAddGap) colParts.push("6px");
+      }
+      container.style.gridTemplateColumns = colParts.join(" ");
+
+      for (let stepIndex = 0; stepIndex < activeStepCount; stepIndex += 1) {
         const step = normalizeStrumStep(state.strumStepPattern[stepIndex]);
-        const isInactive = stepIndex >= activeStepCount;
         const subdivisionCount = getStrumSubdivisionCount(step.rateIndex);
         const barsMarkup = subdivisionCount > 0
           ? Array.from({ length: subdivisionCount }, (_, barIndex) => {
@@ -7643,21 +7639,21 @@
           : '<span class="strum-step-rest-label">Rest</span>';
 
         const stepCard = document.createElement("div");
-        stepCard.className = `strum-step-card${isInactive ? " is-inactive" : ""}`;
-        stepCard.setAttribute("aria-disabled", isInactive ? "true" : "false");
-        const keyswitchDisabled = isInactive || !hasKeyswitchOptions;
+        stepCard.className = "strum-step-card";
+        stepCard.setAttribute("aria-disabled", "false");
+        const keyswitchDisabled = !hasKeyswitchOptions;
         const keyswitchItemsMarkup = keyswitchOptions.map((option) => (
           `<button class="strum-menu-item strum-step-keyswitch-item" type="button" data-step-index="${stepIndex}" data-step-keyswitch-id="${option.value}">${option.label}</button>`
         )).join("");
         stepCard.innerHTML = `
           <p class="strum-step-head">Step ${stepIndex + 1}</p>
-          <button class="strum-step-velocity-btn" type="button" data-step-index="${stepIndex}" aria-label="Set velocity for step ${stepIndex + 1}" ${isInactive ? "disabled" : ""}>
+          <button class="strum-step-velocity-btn" type="button" data-step-index="${stepIndex}" aria-label="Set velocity for step ${stepIndex + 1}">
             <span class="strum-step-velocity-track${subdivisionCount === 0 ? " is-rest" : ""}">
               ${barsMarkup}
             </span>
           </button>
           <div class="strum-step-rate-wrap">
-            <button class="sample-loop-tool-btn strum-menu-btn strum-step-rate-btn" type="button" data-step-index="${stepIndex}" aria-haspopup="true" aria-expanded="false" ${isInactive ? "disabled" : ""}>Rate ${STRUM_STEP_RATE_LABELS[step.rateIndex]}</button>
+            <button class="sample-loop-tool-btn strum-menu-btn strum-step-rate-btn" type="button" data-step-index="${stepIndex}" aria-haspopup="true" aria-expanded="false">Rate ${STRUM_STEP_RATE_LABELS[step.rateIndex]}</button>
             <div class="strum-menu strum-step-rate-menu hidden" role="menu" aria-label="Step ${stepIndex + 1} rate">
               <button class="strum-menu-item strum-step-rate-item" type="button" data-step-index="${stepIndex}" data-step-rate-index="0">1/4</button>
               <button class="strum-menu-item strum-step-rate-item" type="button" data-step-index="${stepIndex}" data-step-rate-index="1">1/8</button>
@@ -7686,28 +7682,28 @@
           item.classList.toggle("active", itemKeyswitchId === String(step.keyswitchSetId || "").trim());
         });
 
-        if (stepIndex < 7) {
-          const thisIsActive = !isInactive;
-          const nextIsActive = (stepIndex + 1) < activeStepCount;
-          const gapBtn = document.createElement("button");
-          gapBtn.type = "button";
-          gapBtn.className = "strum-step-gap-btn";
-          gapBtn.dataset.gapAfterStep = String(stepIndex);
-          if (thisIsActive && nextIsActive) {
-            gapBtn.textContent = "\u2212";
-            gapBtn.dataset.gapAction = "remove";
-            gapBtn.title = `Remove step ${stepIndex + 2}`;
-          } else if (thisIsActive && !nextIsActive) {
-            gapBtn.textContent = "+";
-            gapBtn.dataset.gapAction = "add";
-            gapBtn.title = `Add step ${stepIndex + 2}`;
-          } else {
-            gapBtn.style.display = "none";
-          }
-          stepCard.appendChild(gapBtn);
-        }
-
         container.appendChild(stepCard);
+
+        /* Gap between active steps = "−" (remove), gap after last active = "+" (add) */
+        if (stepIndex < activeStepCount - 1) {
+          const gap = document.createElement("button");
+          gap.type = "button";
+          gap.className = "strum-step-gap";
+          gap.dataset.gapAfterStep = String(stepIndex);
+          gap.dataset.gapAction = "remove";
+          gap.textContent = "\u2212";
+          gap.title = `Remove step ${stepIndex + 2}`;
+          container.appendChild(gap);
+        } else if (hasAddGap) {
+          const gap = document.createElement("button");
+          gap.type = "button";
+          gap.className = "strum-step-gap";
+          gap.dataset.gapAfterStep = String(stepIndex);
+          gap.dataset.gapAction = "add";
+          gap.textContent = "+";
+          gap.title = `Add step ${activeStepCount + 1}`;
+          container.appendChild(gap);
+        }
       }
     }
 
@@ -8094,7 +8090,7 @@
             const target = ev.target;
             if (!(target instanceof Element)) return;
 
-            const gapBtn = target.closest(".strum-step-gap-btn");
+            const gapBtn = target.closest(".strum-step-gap");
             if (gapBtn instanceof HTMLButtonElement) {
               ev.preventDefault();
               ev.stopPropagation();
