@@ -6500,7 +6500,7 @@
         if (normalizedCount > 0) {
           renderSetup();
           renderPlayerKeyboard();
-          scheduleSessionStateSave(350);
+          flushSessionStateToNative(true, { includeEmbeddedSampleData: true });
         }
 
         setStatus(el.setupStatus, `Normalized ${normalizedCount} of ${allEntries.length} samples.`, normalizedCount > 0 ? "ok" : "warn");

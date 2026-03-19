@@ -1000,7 +1000,8 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             {
                 const int note = juce::jlimit (0, 127, message.getNoteNumber());
                 const int keyswitchSlot = sampleSet->keyswitchSlotByMidi[static_cast<size_t> (note)];
-                prioritizeKeyswitch = keyswitchSlot >= 0;
+                prioritizeKeyswitch = keyswitchSlot >= 0
+                                   || (sampleSet->hasKeyswitchSets && note >= 12 && note <= 24);
             }
 
             if (prioritizeKeyswitch)
@@ -3118,7 +3119,10 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         newSampleSet->mapSetSlotById[mapSet.id.toStdString()] = mapSet.slot;
         newSampleSet->loopPlaybackBySlot[mapSet.slot] = mapSet.loopPlaybackEnabled;
         if (mapSet.keyswitchMidi >= 0 && mapSet.keyswitchMidi <= 127)
+        {
             newSampleSet->keyswitchSlotByMidi[static_cast<size_t> (mapSet.keyswitchMidi)] = mapSet.slot;
+            newSampleSet->hasKeyswitchSets = true;
+        }
     }
 
     const auto unpackedSampleDir = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
@@ -5071,6 +5075,9 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 activeMapLoopPlaybackEnabled.store (loopEnabled, std::memory_order_relaxed);
                 return;
             }
+
+            if (sampleSet->hasKeyswitchSets && note >= 12 && note <= 24)
+                return;
         }
 
         bool hasAnyZoneInActiveSlot = false;

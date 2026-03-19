@@ -207,6 +207,7 @@ private:
         std::unordered_map<std::string, int> mapSetSlotById;
         std::unordered_map<int, bool> loopPlaybackBySlot;
         std::array<int, 128> keyswitchSlotByMidi {};
+        bool hasKeyswitchSets = false;
     };
 
     struct DecodedEmbeddedAudioCacheEntry
