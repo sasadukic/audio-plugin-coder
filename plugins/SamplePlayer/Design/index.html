@@ -414,8 +414,7 @@
       position: absolute;
       left: 10px;
       right: 10px;
-      top: 50%;
-      transform: translateY(calc(-50% - var(--player-kb-height, 87px) / 2));
+      bottom: var(--player-kb-height, 87px);
       z-index: 10;
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
@@ -430,7 +429,7 @@
     .player-strum-step-grid .strum-step-card {
       border: 1px solid rgba(var(--player-line-rgb, 140, 146, 156), 0.35);
       border-radius: 6px;
-      background: rgba(var(--player-swatch-rgb, 9, 13, 20), 0.35);
+      background: rgba(var(--player-topbar-rgb, 9, 13, 20), 0.88);
       padding: 6px;
       display: grid;
       gap: 6px;
@@ -488,7 +487,7 @@
 
     .player-strum-step-grid .strum-step-velocity-bar {
       border-radius: 4px;
-      background: rgba(var(--player-swatch-rgb, 40, 45, 54), 0.5);
+      background: rgba(var(--player-topbar-rgb, 40, 45, 54), 0.85);
       display: flex;
       align-items: flex-end;
       flex: 1 1 0;
@@ -530,13 +529,13 @@
       justify-content: center;
       border: 1px solid rgba(var(--player-line-rgb, 140, 146, 156), 0.3);
       border-radius: 4px;
-      background: rgba(var(--player-swatch-rgb, 30, 33, 40), 0.5);
+      background: rgba(var(--player-topbar-rgb, 30, 33, 40), 0.85);
       color: rgba(var(--player-bright-rgb, 200, 200, 200), 0.85);
     }
 
     .player-strum-step-grid .strum-step-rate-btn:hover {
       border-color: rgba(var(--player-line-rgb, 140, 146, 156), 0.55);
-      background: rgba(var(--player-swatch-rgb, 55, 58, 66), 0.65);
+      background: rgba(var(--player-topbar-rgb, 55, 58, 66), 0.9);
     }
 
     .player-strum-step-grid .strum-step-keyswitch-btn:disabled {
