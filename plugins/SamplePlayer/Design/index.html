@@ -3133,14 +3133,41 @@
     }
 
     .keyswitch-map-key {
-      width: 52px;
-      min-width: 52px;
-      padding: 4px 6px;
+      width: 36px;
+      min-width: 36px;
+      padding: 4px 4px;
       text-align: center;
       text-transform: uppercase;
       border-radius: 6px;
       font-size: 11px;
       background: rgba(11, 16, 24, 0.82);
+    }
+
+    .keyswitch-map-normalize-btn {
+      border: 1px solid rgba(140, 146, 156, 0.3);
+      border-radius: 6px;
+      background: rgba(12, 17, 26, 0.84);
+      color: var(--text);
+      height: 22px;
+      min-width: 72px;
+      padding: 0 10px;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      line-height: 1;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .keyswitch-map-normalize-btn:hover {
+      border-color: rgba(140, 146, 156, 0.5);
+      background: rgba(20, 27, 40, 0.9);
+    }
+
+    .keyswitch-map-normalize-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
     }
 
     .keyswitch-map-warning {
@@ -4579,6 +4606,7 @@
                     <label for="keyswitchMapKeyInput">Key</label>
                     <input id="keyswitchMapKeyInput" class="keyswitch-map-key" type="text" maxlength="3" inputmode="text" aria-label="Keyswitch key">
                   </div>
+                  <button id="keyswitchMapNormalizeBtn" class="keyswitch-map-normalize-btn hidden" type="button" title="Normalize all samples to peak level">Normalize</button>
                   <div id="keyswitchMapLoopWrap" class="keyswitch-map-loop-wrap hidden">
                     <button id="keyswitchMapLoopModeBtn" class="keyswitch-map-loop-btn" type="button" aria-pressed="true" title="Loop playback enabled">Loop</button>
                     <input id="keyswitchMapLoopToggle" type="checkbox" checked>
@@ -5071,6 +5099,7 @@
       keyswitchMapSelect: document.getElementById("keyswitchMapSelect"),
       keyswitchMapKeyWrap: document.getElementById("keyswitchMapKeyWrap"),
       keyswitchMapKeyInput: document.getElementById("keyswitchMapKeyInput"),
+      keyswitchMapNormalizeBtn: document.getElementById("keyswitchMapNormalizeBtn"),
       keyswitchMapLoopWrap: document.getElementById("keyswitchMapLoopWrap"),
       keyswitchMapLoopModeBtn: document.getElementById("keyswitchMapLoopModeBtn"),
       keyswitchMapLoopToggle: document.getElementById("keyswitchMapLoopToggle"),
@@ -6434,6 +6463,49 @@
       });
 
       return true;
+    }
+
+    async function normalizeAllSamples() {
+      if (el.keyswitchMapNormalizeBtn) el.keyswitchMapNormalizeBtn.disabled = true;
+
+      try {
+        const allEntries = [];
+        const baseEntries = (Array.isArray(state.entries) ? state.entries : []).filter((e) => e && e.valid);
+        allEntries.push(...baseEntries);
+        (Array.isArray(state.keyswitchSets) ? state.keyswitchSets : []).forEach((set) => {
+          if (set && Array.isArray(set.entries)) {
+            allEntries.push(...set.entries.filter((e) => e && e.valid));
+          }
+        });
+
+        if (!allEntries.length) {
+          setStatus(el.setupStatus, "No samples to normalize.", "warn");
+          return;
+        }
+
+        const isNative = !!getNativeBackend();
+        let normalizedCount = 0;
+
+        for (const entry of allEntries) {
+          if (!entry.sampleUrl && isNative) {
+            const dataUrl = await requestSampleDataForEntrySave(entry, 4000).catch(() => "");
+            if (dataUrl) entry.sampleUrl = dataUrl;
+          }
+          if (!entry.sampleUrl) continue;
+          const ok = await normalizeEntryAudioPeak(entry).catch(() => false);
+          if (ok) normalizedCount += 1;
+        }
+
+        if (normalizedCount > 0) {
+          renderSetup();
+          renderPlayerKeyboard();
+          scheduleSessionStateSave(350);
+        }
+
+        setStatus(el.setupStatus, `Normalized ${normalizedCount} of ${allEntries.length} samples.`, normalizedCount > 0 ? "ok" : "warn");
+      } finally {
+        if (el.keyswitchMapNormalizeBtn) el.keyswitchMapNormalizeBtn.disabled = false;
+      }
     }
 
     async function trimEntryAudioAtLoopEnd(entry, sourceAudioBuffer = null) {
@@ -8429,6 +8501,7 @@
       const showLoopEditor = !!activeMapSet;
       el.keyswitchMapKeyWrap.classList.toggle("hidden", !showKeyEditor);
       if (el.keyswitchMapLoopWrap) el.keyswitchMapLoopWrap.classList.toggle("hidden", !showLoopEditor);
+      if (el.keyswitchMapNormalizeBtn) el.keyswitchMapNormalizeBtn.classList.toggle("hidden", !showLoopEditor);
       syncLoopOneshotWithAutoLoopSamples({ shouldRender: false, persist: false });
       if (!showKeyEditor) {
         el.keyswitchMapKeyInput.value = "";
@@ -14362,6 +14435,12 @@
       if (el.keyswitchMapLoopToggle) {
         el.keyswitchMapLoopToggle.addEventListener("change", () => {
           applyActiveKeyswitchSetLoopToggle(true);
+        });
+      }
+
+      if (el.keyswitchMapNormalizeBtn) {
+        el.keyswitchMapNormalizeBtn.addEventListener("click", () => {
+          void normalizeAllSamples();
         });
       }
 
