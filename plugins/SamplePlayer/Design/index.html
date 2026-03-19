@@ -6002,7 +6002,8 @@
           manifestBasePath: String(ui.manifestBasePath || "").trim(),
           silentStatus: true,
           hydrateManifestSamples: false,
-          sessionUiState: ui
+          sessionUiState: ui,
+          skipRender: true
         });
         debugLoadLog(`restore manifest applied | elapsedMs=${(performance.now() - applyStart).toFixed(1)} | entries=${state.entries.length} | keyswitchSets=${state.keyswitchSets.length}`);
         state.setupOctaveStart = Math.max(0, Math.min(120, Math.round(Number(ui.setupOctaveStart) || state.setupOctaveStart || 48)));
@@ -6072,6 +6073,8 @@
       updatePlayerEdgeWaveBlurState();
       refreshPlayerParticles();
       renderSetup();
+      renderAuto();
+      applyModwheelVelocityCrossfadeLink();
       updatePlayerEmptyState();
       syncAllKnobValues();
       updateStrumUi();
@@ -8553,11 +8556,6 @@
           }
           if (importedManifestBasePath && !getPackManifestBasePath()) {
             state.packManifestBasePath = importedManifestBasePath;
-            try {
-              window.localStorage.setItem("samplePlayer.packManifestBasePath", String(state.packManifestBasePath || ""));
-            } catch (e) {
-              // ignore storage failures
-            }
           }
 
           const rawKey = String(
@@ -14936,6 +14934,7 @@
           const gapPx = Number.parseFloat(mapKeysStyle.columnGap || mapKeysStyle.gap || "0") || 0;
           const semitoneStepPx = keyNode ? Math.max(1, keyNode.getBoundingClientRect().width + gapPx) : Math.max(1, el.mapKeys.getBoundingClientRect().width / 12);
 
+          let rangeDragRaf = 0;
           function move(moveEv) {
             const delta = Math.round((moveEv.clientX - startX) / semitoneStepPx);
             const nextValue = Math.max(minValue, Math.min(maxValue, startValue + delta));
@@ -14945,14 +14944,22 @@
             } else {
               setManualRangeForRoot(rootMidi, current.low, nextValue, roots, manualRanges);
             }
-            renderKeyboardMap(getActiveMapEntries(), true);
-            renderPlayerKeyboard();
+            if (!rangeDragRaf) {
+              rangeDragRaf = requestAnimationFrame(() => {
+                rangeDragRaf = 0;
+                renderKeyboardMap(getActiveMapEntries(), true);
+                renderPlayerKeyboard();
+              });
+            }
           }
 
           function up() {
             window.removeEventListener("pointermove", move);
             window.removeEventListener("pointerup", up);
             window.removeEventListener("pointercancel", up);
+            if (rangeDragRaf) { cancelAnimationFrame(rangeDragRaf); rangeDragRaf = 0; }
+            renderKeyboardMap(getActiveMapEntries(), true);
+            renderPlayerKeyboard();
           }
 
           window.addEventListener("pointermove", move);
@@ -15807,11 +15814,6 @@
       state.baseLoopPlaybackEnabled = data?.settings?.baseLoopPlaybackEnabled !== false;
       state.packManifestFilePath = manifestFilePath;
       state.packManifestBasePath = manifestBasePath;
-      try {
-        if (manifestBasePath) window.localStorage.setItem("samplePlayer.packManifestBasePath", String(manifestBasePath || ""));
-      } catch (e) {
-        // ignore storage failures
-      }
       state.nextVirtualOrder = -1;
       state.rrCursor = {};
       state.sessionStateLightweight = false;
@@ -15870,13 +15872,15 @@
         await restoreGraphicsFromManifest(data, manifestBasePath);
       }
 
-      renderSetup();
-      renderAuto();
-      applyModwheelVelocityCrossfadeLink();
-      updateEdgeWaveBlurToggle();
-      updatePlayerEdgeWaveBlurState();
-      updatePlayerEmptyState();
-      syncAllKnobValues();
+      if (!options?.skipRender) {
+        renderSetup();
+        renderAuto();
+        applyModwheelVelocityCrossfadeLink();
+        updateEdgeWaveBlurToggle();
+        updatePlayerEdgeWaveBlurState();
+        updatePlayerEmptyState();
+        syncAllKnobValues();
+      }
       if (hydrateManifestSamples) {
         void hydrateMissingManifestSampleUrls(120);
       }
@@ -16726,13 +16730,6 @@
       }
 
       state.autoPresets = loadAutoPresetsFromStorage();
-      // Restore remembered pack manifest base path (non-native fallback)
-      try {
-        const saved = window.localStorage.getItem("samplePlayer.packManifestBasePath");
-        if (saved && !getPackManifestBasePath()) state.packManifestBasePath = String(saved || "").trim();
-      } catch (e) {
-        // ignore storage failures
-      }
       renderAutoPresetList();
 
       const setAutoPresetCreateOpen = (open, initialName = "") => {
@@ -16942,26 +16939,9 @@
 
           if (resolvedAbsolute) {
             el.autoDestination.value = resolvedAbsolute;
-            // Remember this folder as the pack manifest base path for future loads
-            try {
-              state.packManifestBasePath = String(resolvedAbsolute || "").trim();
-              window.localStorage.setItem("samplePlayer.packManifestBasePath", state.packManifestBasePath);
-            } catch (e) {
-              // ignore storage failures
-            }
             renderAuto();
           } else {
             applyDestinationFolderName(folderName);
-            // If we could not resolve an absolute path, still try to persist the visible value
-            try {
-              const maybe = String(el.autoDestination?.value || "").trim();
-              if (maybe) {
-                state.packManifestBasePath = maybe;
-                window.localStorage.setItem("samplePlayer.packManifestBasePath", maybe);
-              }
-            } catch (e) {
-              // ignore storage failures
-            }
           }
           el.autoDestinationPicker.value = "";
         });
