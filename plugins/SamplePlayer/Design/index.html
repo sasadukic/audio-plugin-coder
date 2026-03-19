@@ -444,10 +444,16 @@
       grid-template-columns: repeat(8, 1fr);
       gap: 0;
       padding: 8px 10px;
+      opacity: 1;
+      transition: opacity 220ms ease;
     }
 
     .player-strum-step-grid.hidden {
       display: none;
+    }
+
+    .player-strum-step-grid.is-idle-dim {
+      opacity: 0.2;
     }
 
     .player-strum-step-grid .strum-step-card {
@@ -3549,10 +3555,6 @@
     .sample-loop-region {
       position: absolute;
       top: 0;
-
-    .player-strum-step-grid.is-idle-dim {
-      opacity: 0.2;
-    }
       bottom: 0;
       background: rgba(255, 216, 92, 0.1);
       border-left: 1px solid rgba(255, 216, 92, 0.55);
