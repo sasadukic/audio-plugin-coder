@@ -15786,6 +15786,7 @@
       updateTopBarTheme(tab);
       updatePlayerAuthorDisplay(tab);
       updateSaveButtonVisibility(tab);
+      if (el.doublingToggle) el.doublingToggle.style.display = tab === "player" ? "" : "none";
       refreshPlayerParticles();
       scheduleHostResizeForActiveTab();
     }
