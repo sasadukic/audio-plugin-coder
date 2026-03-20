@@ -19,6 +19,8 @@ constexpr float autoSamplerInterTakePauseMs = 1000.0f;
 constexpr auto kSampleFilePathsProperty = "sampleFilePaths";
 constexpr auto kWallpaperPathProperty = "wallpaperPath";
 constexpr auto kUiSessionStateProperty = "uiSessionStateJson";
+constexpr auto kModWheelParamId = "modWheel";
+constexpr auto kExpressionParamId = "expression";
 constexpr auto kZoneOverridesNode = "ZONE_OVERRIDES";
 constexpr auto kZoneNode = "ZONE";
 constexpr juce::uint32 kBinaryStateMagic = 0x53505342; // "SPSB"
@@ -615,6 +617,30 @@ juce::AudioProcessorValueTreeState::ParameterLayout SamplePlayerAudioProcessor::
             return juce::String (value, 2) + " oct";
         }));
 
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { kModWheelParamId, 1 },
+        "Mod Wheel",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f),
+        0.0f,
+        juce::String(),
+        juce::AudioProcessorParameter::genericParameter,
+        [] (float value, int)
+        {
+            return juce::String (value * 100.0f, 1) + " %";
+        }));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { kExpressionParamId, 1 },
+        "Expression",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f),
+        0.0f,
+        juce::String(),
+        juce::AudioProcessorParameter::genericParameter,
+        [] (float value, int)
+        {
+            return juce::String (value * 100.0f, 1) + " %";
+        }));
+
     return layout;
 }
 
@@ -719,6 +745,11 @@ bool SamplePlayerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layo
 void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
+
+    if (const auto* modParam = parameters.getRawParameterValue (kModWheelParamId))
+        modwheelVelocityLayerControlValue01.store (juce::jlimit (0.0f, 1.0f, modParam->load()), std::memory_order_relaxed);
+    if (const auto* expressionParam = parameters.getRawParameterValue (kExpressionParamId))
+        expressionControllerValue01.store (juce::jlimit (0.0f, 1.0f, expressionParam->load()), std::memory_order_relaxed);
 
     if (buffer.getNumSamples() <= 0)
     {
@@ -1575,6 +1606,10 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
     playerPitchDownOctaves.store (parsedPitchDownOctaves, std::memory_order_relaxed);
     modwheelVelocityLayerControlValue01.store (parsedModwheelValue01, std::memory_order_relaxed);
     expressionControllerValue01.store (parsedExpressionValue01, std::memory_order_relaxed);
+    if (auto* modParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kModWheelParamId)))
+        modParam->setValue (juce::jlimit (0.0f, 1.0f, parsedModwheelValue01));
+    if (auto* expressionParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kExpressionParamId)))
+        expressionParam->setValue (juce::jlimit (0.0f, 1.0f, parsedExpressionValue01));
 
     const int midiRequestedSlot = pendingActiveMapSetSlotFromMidi.exchange (-1, std::memory_order_relaxed);
     if (midiRequestedSlot >= 0 && normalizedJson.isNotEmpty())
@@ -2720,6 +2755,8 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
 
     modwheelVelocityLayerControlEnabled.store (useModwheelForVelocityLayers, std::memory_order_relaxed);
     modwheelVelocityLayerControlValue01.store (modwheelValue01, std::memory_order_relaxed);
+    if (auto* modParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kModWheelParamId)))
+        modParam->setValue (juce::jlimit (0.0f, 1.0f, modwheelValue01));
 
     struct MapSetDescriptor
     {
@@ -5282,16 +5319,26 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
     if (message.isController() && message.getControllerNumber() == 1)
     {
         const auto cc = juce::jlimit (0, 127, message.getControllerValue());
-        modwheelVelocityLayerControlValue01.store (static_cast<float> (cc) / 127.0f,
-                                                   std::memory_order_relaxed);
+        const float value01 = static_cast<float> (cc) / 127.0f;
+        modwheelVelocityLayerControlValue01.store (value01, std::memory_order_relaxed);
+        if (auto* modParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kModWheelParamId)))
+        {
+            if (std::abs (modParam->getValue() - value01) > 0.0005f)
+                modParam->setValueNotifyingHost (value01);
+        }
         return;
     }
 
     if (message.isController() && message.getControllerNumber() == 11)
     {
         const auto cc = juce::jlimit (0, 127, message.getControllerValue());
-        expressionControllerValue01.store (static_cast<float> (cc) / 127.0f,
-                                           std::memory_order_relaxed);
+        const float value01 = static_cast<float> (cc) / 127.0f;
+        expressionControllerValue01.store (value01, std::memory_order_relaxed);
+        if (auto* expressionParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kExpressionParamId)))
+        {
+            if (std::abs (expressionParam->getValue() - value01) > 0.0005f)
+                expressionParam->setValueNotifyingHost (value01);
+        }
         return;
     }
 }
