@@ -5485,6 +5485,18 @@
       });
     }
 
+    function emitNativePerformanceWheelSet(wheel, value, phase = "change") {
+      const id = String(wheel || "").trim().toLowerCase();
+      if (id !== "mod" && id !== "expression") return false;
+      const normalized = Math.max(0, Math.min(1, Number(value) || 0));
+      const stage = String(phase || "change").trim().toLowerCase();
+      return emitNativeEvent("performance_wheel_set", {
+        wheel: id,
+        value: normalized,
+        phase: (stage === "begin" || stage === "end") ? stage : "change"
+      });
+    }
+
     function debugLoadLog(message) {
       if (!UI_LOAD_DEBUG) return;
       const text = String(message || "").trim();
@@ -9350,9 +9362,11 @@
           if (mode === "expression") {
             state.expressionValue = value;
             emitNativePreviewCc(11, Math.round(value * 127));
+            emitNativePerformanceWheelSet("expression", value, "change");
           } else {
             state.modWheelValue = value;
             emitNativePreviewCc(1, Math.round(value * 127));
+            emitNativePerformanceWheelSet("mod", value, "change");
           }
           updatePerformanceWheelVisuals();
         }
@@ -9371,6 +9385,7 @@
           pointerId = ev.pointerId;
           lastY = ev.clientY;
           slot.classList.add("dragging");
+          emitNativePerformanceWheelSet(mode === "expression" ? "expression" : "mod", getValue(), "begin");
           if (slot.setPointerCapture) {
             try {
               slot.setPointerCapture(pointerId);
@@ -9396,6 +9411,7 @@
             } catch {}
           }
           pointerId = null;
+          emitNativePerformanceWheelSet(mode === "expression" ? "expression" : "mod", getValue(), "end");
           scheduleSessionStateSave(700);
         }
 

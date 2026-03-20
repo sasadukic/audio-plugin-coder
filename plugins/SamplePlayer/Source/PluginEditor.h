@@ -47,6 +47,8 @@ private:
     juce::uint64 lastPushedHeldMidiMaskHi = 0;
     float lastPushedModWheelValue = -1.0f;
     float lastPushedExpressionValue = -1.0f;
+    bool modWheelGestureActive = false;
+    bool expressionGestureActive = false;
     int lastPushedActiveMapSetSlot = -1;
     int lastPushedSequencerStep = -2;
     std::unique_ptr<juce::FileChooser> destinationFolderChooser;
@@ -73,6 +75,7 @@ private:
     void handleSampleDataGetEvent (const juce::var& eventPayload);
     void handleGraphicDataGetEvent (const juce::var& eventPayload);
     void handlePreviewMidiEvent (const juce::var& eventPayload);
+    void handlePerformanceWheelSetEvent (const juce::var& eventPayload);
     void handleSaveInstrumentBundleEvent (const juce::var& eventPayload);
     void handleDebugLogEvent (const juce::var& eventPayload);
     void handlePickAudioFilesEvent (const juce::var& eventPayload);

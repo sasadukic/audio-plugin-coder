@@ -162,6 +162,10 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
                      {
                          editor.handlePreviewMidiEvent (payload);
                      })
+                     .withEventListener ("performance_wheel_set", [&editor] (const juce::var& payload)
+                     {
+                         editor.handlePerformanceWheelSetEvent (payload);
+                     })
                      .withEventListener ("save_instrument_bundle", [&editor] (const juce::var& payload)
                      {
                          editor.handleSaveInstrumentBundleEvent (payload);
@@ -939,6 +943,53 @@ void SamplePlayerAudioProcessorEditor::handlePreviewMidiEvent (const juce::var& 
     const int midiChannel = static_cast<int> (std::round (double (object->getProperty ("channel"))));
 
     audioProcessor.queuePreviewMidiEvent (noteOn, midiNote, velocity127, midiChannel);
+}
+
+void SamplePlayerAudioProcessorEditor::handlePerformanceWheelSetEvent (const juce::var& eventPayload)
+{
+    const auto* object = eventPayload.getDynamicObject();
+    if (object == nullptr)
+        return;
+
+    const auto wheel = object->getProperty ("wheel").toString().trim().toLowerCase();
+    auto* parameter = dynamic_cast<juce::RangedAudioParameter*> (
+        audioProcessor.parameters.getParameter (wheel == "expression" ? "expression" : "modWheel"));
+    if (parameter == nullptr)
+        return;
+
+    const float value = juce::jlimit (0.0f, 1.0f, static_cast<float> (double (object->getProperty ("value"))));
+    const auto phase = object->getProperty ("phase").toString().trim().toLowerCase();
+    bool& gestureActive = (wheel == "expression") ? expressionGestureActive : modWheelGestureActive;
+
+    if (phase == "begin")
+    {
+        if (! gestureActive)
+        {
+            parameter->beginChangeGesture();
+            gestureActive = true;
+        }
+        parameter->setValueNotifyingHost (value);
+        return;
+    }
+
+    if (phase == "end")
+    {
+        parameter->setValueNotifyingHost (value);
+        if (gestureActive)
+        {
+            parameter->endChangeGesture();
+            gestureActive = false;
+        }
+        return;
+    }
+
+    if (! gestureActive)
+    {
+        parameter->beginChangeGesture();
+        gestureActive = true;
+    }
+
+    parameter->setValueNotifyingHost (value);
 }
 
 void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const juce::var& eventPayload)
