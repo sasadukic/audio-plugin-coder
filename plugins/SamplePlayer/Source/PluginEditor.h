@@ -45,6 +45,8 @@ private:
     juce::String lastPushedLightweightSessionJson;
     juce::uint64 lastPushedHeldMidiMaskLo = 0;
     juce::uint64 lastPushedHeldMidiMaskHi = 0;
+    float lastPushedModWheelValue = -1.0f;
+    float lastPushedExpressionValue = -1.0f;
     int lastPushedActiveMapSetSlot = -1;
     int lastPushedSequencerStep = -2;
     std::unique_ptr<juce::FileChooser> destinationFolderChooser;

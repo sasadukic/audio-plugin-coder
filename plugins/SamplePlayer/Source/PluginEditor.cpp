@@ -430,10 +430,13 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
     }
 
     const auto [heldMaskLo, heldMaskHi] = audioProcessor.getHeldMidiMaskForUi();
+    const auto [modWheelValue, expressionValue] = audioProcessor.getPerformanceWheelValuesForUi();
     const int activeMapSetSlot = audioProcessor.getActiveMapSetSlotForUi();
     const int sequencerStep = audioProcessor.getSequencerCurrentStepForUi();
     const bool midiActivityChanged = heldMaskLo != lastPushedHeldMidiMaskLo
                                   || heldMaskHi != lastPushedHeldMidiMaskHi
+                                  || std::abs (modWheelValue - lastPushedModWheelValue) > 0.0005f
+                                  || std::abs (expressionValue - lastPushedExpressionValue) > 0.0005f
                                   || activeMapSetSlot != lastPushedActiveMapSetSlot
                                   || sequencerStep != lastPushedSequencerStep;
 
@@ -441,6 +444,8 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
     {
         lastPushedHeldMidiMaskLo = heldMaskLo;
         lastPushedHeldMidiMaskHi = heldMaskHi;
+        lastPushedModWheelValue = modWheelValue;
+        lastPushedExpressionValue = expressionValue;
         lastPushedActiveMapSetSlot = activeMapSetSlot;
         lastPushedSequencerStep = sequencerStep;
 
@@ -463,6 +468,8 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
 
         auto payload = juce::DynamicObject::Ptr (new juce::DynamicObject());
         payload->setProperty ("notes", juce::var (notes));
+        payload->setProperty ("modWheelValue", modWheelValue);
+        payload->setProperty ("expressionValue", expressionValue);
         payload->setProperty ("activeSlot", activeMapSetSlot);
         payload->setProperty ("sequencerStep", sequencerStep);
         webView->emitEventIfBrowserIsVisible ("midi_activity", juce::var (payload.get()));
@@ -915,6 +922,16 @@ void SamplePlayerAudioProcessorEditor::handlePreviewMidiEvent (const juce::var& 
     const auto* object = eventPayload.getDynamicObject();
     if (object == nullptr)
         return;
+
+    const auto controllerNumberVar = object->getProperty ("controllerNumber");
+    if (! controllerNumberVar.isVoid())
+    {
+        const int controllerNumber = static_cast<int> (std::round (double (controllerNumberVar)));
+        const int controllerValue = static_cast<int> (std::round (double (object->getProperty ("controllerValue"))));
+        const int midiChannel = static_cast<int> (std::round (double (object->getProperty ("channel"))));
+        audioProcessor.queuePreviewControllerEvent (controllerNumber, controllerValue, midiChannel);
+        return;
+    }
 
     const bool noteOn = static_cast<bool> (object->getProperty ("noteOn"));
     const int midiNote = static_cast<int> (std::round (double (object->getProperty ("midiNote"))));

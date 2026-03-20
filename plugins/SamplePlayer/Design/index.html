@@ -4381,8 +4381,8 @@
         <div id="playerStrumStepGrid" class="player-strum-step-grid hidden" aria-label="Player strum sequencer"></div>
         <div class="player-keyboard-strip" aria-label="Player keyboard">
           <div class="player-wheel-bank" aria-label="Performance wheels">
-            <div class="player-wheel-block" data-wheel="pitch">
-              <div id="playerPitchWheelSlot" class="player-wheel-slot pitch" role="slider" aria-label="Pitch bend wheel" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0">
+            <div class="player-wheel-block" data-wheel="expression">
+              <div id="playerPitchWheelSlot" class="player-wheel-slot pitch" role="slider" aria-label="Expression wheel" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
                 <div class="player-wheel-core">
                   <div id="playerPitchWheelTape" class="player-wheel-tape"></div>
                   <div class="player-wheel-ridges"></div>
@@ -4966,6 +4966,7 @@
       previewHtmlAudioByKey: new Map(),
       previewTriggerSerialByKey: new Map(),
       modWheelValue: 0,
+      expressionValue: 0,
       pitchBendValue: 0,
       playerParticlesEnabled: true,
       playerGodRaysEnabled: true,
@@ -5473,6 +5474,17 @@
       });
     }
 
+    function emitNativePreviewCc(controllerNumber, controllerValue, channel = 1) {
+      const controller = Math.max(0, Math.min(127, Math.round(Number(controllerNumber) || 0)));
+      const value = Math.max(0, Math.min(127, Math.round(Number(controllerValue) || 0)));
+      const ch = Math.max(1, Math.min(16, Math.round(Number(channel) || 1)));
+      return emitNativeEvent("preview_midi", {
+        controllerNumber: controller,
+        controllerValue: value,
+        channel: ch
+      });
+    }
+
     function debugLoadLog(message) {
       if (!UI_LOAD_DEBUG) return;
       const text = String(message || "").trim();
@@ -5835,6 +5847,7 @@
           godRaysEnabled: !!state.playerGodRaysEnabled,
           edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled,
           modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
+          expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
           pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
           playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
           auto: buildAutoControlsSnapshot(),
@@ -5883,6 +5896,7 @@
           godRaysEnabled: !!state.playerGodRaysEnabled,
           edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled,
           modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
+          expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
           pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
           playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
           auto: buildAutoControlsSnapshot(),
@@ -5954,6 +5968,7 @@
           state.playerGodRaysEnabled,
           state.playerEdgeWaveBlurEnabled,
           state.modWheelValue,
+          state.expressionValue,
           state.pitchBendValue,
           state.playerPitchDownOctaves,
           baseEntries.length,
@@ -6154,6 +6169,7 @@
         state.playerGodRaysEnabled = ui.godRaysEnabled !== undefined ? !!ui.godRaysEnabled : state.playerGodRaysEnabled;
         state.playerEdgeWaveBlurEnabled = ui.edgeWaveBlurEnabled !== undefined ? !!ui.edgeWaveBlurEnabled : state.playerEdgeWaveBlurEnabled;
         state.modWheelValue = Math.max(0, Math.min(1, Number(ui.modWheelValue) || 0));
+        state.expressionValue = Math.max(0, Math.min(1, Number(ui.expressionValue) || 0));
         state.pitchBendValue = Math.max(-1, Math.min(1, Number(ui.pitchBendValue) || 0));
         state.playerPitchDownOctaves = Math.max(0, Math.min(2, Math.round(Number(ui.playerPitchDownOctaves) || 0)));
         state.baseLoopPlaybackEnabled = ui.baseLoopPlaybackEnabled !== false;
@@ -6911,6 +6927,23 @@
       const rawActiveSlot = payload?.activeSlot;
       const hasActiveSlot = Number.isFinite(Number(rawActiveSlot));
       const activeSlot = hasActiveSlot ? Math.max(0, Math.round(Number(rawActiveSlot))) : null;
+      const incomingMod = Number(payload?.modWheelValue);
+      const incomingExpression = Number(payload?.expressionValue);
+      let wheelsChanged = false;
+      if (Number.isFinite(incomingMod)) {
+        const mod = Math.max(0, Math.min(1, incomingMod));
+        if (Math.abs(mod - state.modWheelValue) > 0.0005) {
+          state.modWheelValue = mod;
+          wheelsChanged = true;
+        }
+      }
+      if (Number.isFinite(incomingExpression)) {
+        const expression = Math.max(0, Math.min(1, incomingExpression));
+        if (Math.abs(expression - state.expressionValue) > 0.0005) {
+          state.expressionValue = expression;
+          wheelsChanged = true;
+        }
+      }
       let shouldRenderKeyboard = false;
       if (activeSlot !== null && activeSlot !== state.hostMidiActiveSlot) {
         state.hostMidiActiveSlot = activeSlot;
@@ -6930,6 +6963,10 @@
 
       if (notesChanged) {
         applyHostHeldMidiNotesToPlayerKeys();
+      }
+
+      if (wheelsChanged) {
+        updatePerformanceWheelVisuals();
       }
 
       if (sequencerStepChanged) {
@@ -9276,18 +9313,17 @@
 
     function updatePerformanceWheelVisuals() {
       const mod = Math.max(0, Math.min(1, Number(state.modWheelValue) || 0));
-      const pitch = Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0));
+      const expression = Math.max(0, Math.min(1, Number(state.expressionValue) || 0));
       if (el.playerModWheelTape) {
         const y = (0.5 - mod) * 120;
         el.playerModWheelTape.style.transform = `translateY(${y}px)`;
       }
       if (el.playerPitchWheelTape) {
-        const normalized = (pitch + 1) * 0.5;
-        const y = (0.5 - normalized) * 120;
+        const y = (0.5 - expression) * 120;
         el.playerPitchWheelTape.style.transform = `translateY(${y}px)`;
       }
       if (el.playerModWheelSlot) el.playerModWheelSlot.setAttribute("aria-valuenow", mod.toFixed(3));
-      if (el.playerPitchWheelSlot) el.playerPitchWheelSlot.setAttribute("aria-valuenow", pitch.toFixed(3));
+      if (el.playerPitchWheelSlot) el.playerPitchWheelSlot.setAttribute("aria-valuenow", expression.toFixed(3));
     }
 
     function setupPerformanceWheels() {
@@ -9297,22 +9333,27 @@
         let pointerId = null;
         let lastY = 0;
         let returnAnim = 0;
-        const sensitivity = mode === "pitch" ? 0.012 : 0.008;
+        const sensitivity = 0.008;
 
         function clampValue(v) {
           const n = Number(v) || 0;
-          if (mode === "pitch") return Math.max(-1, Math.min(1, n));
+          if (mode === "expression") return Math.max(0, Math.min(1, n));
           return Math.max(0, Math.min(1, n));
         }
 
         function getValue() {
-          return mode === "pitch" ? state.pitchBendValue : state.modWheelValue;
+          return mode === "expression" ? state.expressionValue : state.modWheelValue;
         }
 
         function setValue(next) {
           const value = clampValue(next);
-          if (mode === "pitch") state.pitchBendValue = value;
-          else state.modWheelValue = value;
+          if (mode === "expression") {
+            state.expressionValue = value;
+            emitNativePreviewCc(11, Math.round(value * 127));
+          } else {
+            state.modWheelValue = value;
+            emitNativePreviewCc(1, Math.round(value * 127));
+          }
           updatePerformanceWheelVisuals();
         }
 
@@ -9320,22 +9361,6 @@
           if (!returnAnim) return;
           window.cancelAnimationFrame(returnAnim);
           returnAnim = 0;
-        }
-
-        function animatePitchReturn() {
-          stopReturnAnim();
-          const start = state.pitchBendValue;
-          const startTs = performance.now();
-          const durationMs = 160;
-          const step = (now) => {
-            const t = Math.max(0, Math.min(1, (now - startTs) / durationMs));
-            const eased = 1 - Math.pow(1 - t, 3);
-            state.pitchBendValue = start + ((0 - start) * eased);
-            updatePerformanceWheelVisuals();
-            if (t < 1) returnAnim = window.requestAnimationFrame(step);
-            else returnAnim = 0;
-          };
-          returnAnim = window.requestAnimationFrame(step);
         }
 
         slot.addEventListener("pointerdown", (ev) => {
@@ -9371,7 +9396,6 @@
             } catch {}
           }
           pointerId = null;
-          if (mode === "pitch") animatePitchReturn();
           scheduleSessionStateSave(700);
         }
 
@@ -9381,7 +9405,7 @@
       }
 
       bindWheel(el.playerModWheelSlot, "mod");
-      bindWheel(el.playerPitchWheelSlot, "pitch");
+      bindWheel(el.playerPitchWheelSlot, "expression");
       updatePerformanceWheelVisuals();
     }
 

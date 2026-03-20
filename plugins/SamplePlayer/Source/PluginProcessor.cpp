@@ -962,8 +962,16 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     for (const auto& event : previewMidiEvents)
     {
-        const int midiNote = juce::jlimit (0, 127, event.midiNote);
         const int midiChannel = juce::jlimit (1, 16, event.midiChannel);
+        if (event.isController)
+        {
+            const int controller = juce::jlimit (0, 127, event.controllerNumber);
+            const int value = juce::jlimit (0, 127, event.controllerValue);
+            handleMidiMessage (juce::MidiMessage::controllerEvent (midiChannel, controller, value), settings, true);
+            continue;
+        }
+
+        const int midiNote = juce::jlimit (0, 127, event.midiNote);
         const int velocity127 = juce::jlimit (1, 127, event.velocity127);
 
         if (event.noteOn)
@@ -1544,6 +1552,8 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
     juce::String normalizedJson = json;
 
     int parsedPitchDownOctaves = 0;
+    float parsedModwheelValue01 = modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed);
+    float parsedExpressionValue01 = expressionControllerValue01.load (std::memory_order_relaxed);
     if (normalizedJson.isNotEmpty())
     {
         const auto parsedForPitch = juce::JSON::parse (normalizedJson);
@@ -1553,10 +1563,18 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
             {
                 parsedPitchDownOctaves = juce::jlimit (0, 2,
                     varToInt (uiObject->getProperty ("playerPitchDownOctaves"), 0));
+                parsedModwheelValue01 = juce::jlimit (0.0f, 1.0f,
+                    static_cast<float> (varToDouble (uiObject->getProperty ("modWheelValue"),
+                                                     static_cast<double> (parsedModwheelValue01))));
+                parsedExpressionValue01 = juce::jlimit (0.0f, 1.0f,
+                    static_cast<float> (varToDouble (uiObject->getProperty ("expressionValue"),
+                                                     static_cast<double> (parsedExpressionValue01))));
             }
         }
     }
     playerPitchDownOctaves.store (parsedPitchDownOctaves, std::memory_order_relaxed);
+    modwheelVelocityLayerControlValue01.store (parsedModwheelValue01, std::memory_order_relaxed);
+    expressionControllerValue01.store (parsedExpressionValue01, std::memory_order_relaxed);
 
     const int midiRequestedSlot = pendingActiveMapSetSlotFromMidi.exchange (-1, std::memory_order_relaxed);
     if (midiRequestedSlot >= 0 && normalizedJson.isNotEmpty())
@@ -2314,9 +2332,32 @@ void SamplePlayerAudioProcessor::queuePreviewMidiEvent (bool noteOn,
                                                         int midiChannel)
 {
     PendingPreviewMidiEvent event;
+    event.isController = false;
     event.noteOn = noteOn;
     event.midiNote = juce::jlimit (0, 127, midiNote);
     event.velocity127 = juce::jlimit (1, 127, velocity127);
+    event.midiChannel = juce::jlimit (1, 16, midiChannel);
+
+    const juce::ScopedLock lock (pendingPreviewMidiLock);
+    pendingPreviewMidiEvents.push_back (event);
+
+    constexpr std::size_t maxPendingPreviewMidiEvents = 256;
+    if (pendingPreviewMidiEvents.size() > maxPendingPreviewMidiEvents)
+    {
+        const auto eraseCount = pendingPreviewMidiEvents.size() - maxPendingPreviewMidiEvents;
+        pendingPreviewMidiEvents.erase (pendingPreviewMidiEvents.begin(),
+                                        pendingPreviewMidiEvents.begin() + static_cast<std::ptrdiff_t> (eraseCount));
+    }
+}
+
+void SamplePlayerAudioProcessor::queuePreviewControllerEvent (int controllerNumber,
+                                                              int controllerValue,
+                                                              int midiChannel)
+{
+    PendingPreviewMidiEvent event;
+    event.isController = true;
+    event.controllerNumber = juce::jlimit (0, 127, controllerNumber);
+    event.controllerValue = juce::jlimit (0, 127, controllerValue);
     event.midiChannel = juce::jlimit (1, 16, midiChannel);
 
     const juce::ScopedLock lock (pendingPreviewMidiLock);
@@ -2336,6 +2377,14 @@ std::pair<juce::uint64, juce::uint64> SamplePlayerAudioProcessor::getHeldMidiMas
     return {
         midiHeldMaskLo.load (std::memory_order_relaxed),
         midiHeldMaskHi.load (std::memory_order_relaxed)
+    };
+}
+
+std::pair<float, float> SamplePlayerAudioProcessor::getPerformanceWheelValuesForUi() const noexcept
+{
+    return {
+        juce::jlimit (0.0f, 1.0f, modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed)),
+        juce::jlimit (0.0f, 1.0f, expressionControllerValue01.load (std::memory_order_relaxed))
     };
 }
 
@@ -5235,6 +5284,14 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
         const auto cc = juce::jlimit (0, 127, message.getControllerValue());
         modwheelVelocityLayerControlValue01.store (static_cast<float> (cc) / 127.0f,
                                                    std::memory_order_relaxed);
+        return;
+    }
+
+    if (message.isController() && message.getControllerNumber() == 11)
+    {
+        const auto cc = juce::jlimit (0, 127, message.getControllerValue());
+        expressionControllerValue01.store (static_cast<float> (cc) / 127.0f,
+                                           std::memory_order_relaxed);
         return;
     }
 }

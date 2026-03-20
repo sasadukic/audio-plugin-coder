@@ -174,7 +174,9 @@ public:
     juce::String getSampleDataUrlForAbsolutePath (const juce::String& absolutePath,
                                                   const juce::String& fileNameHint = {}) const;
     void queuePreviewMidiEvent (bool noteOn, int midiNote, int velocity127, int midiChannel = 1);
+    void queuePreviewControllerEvent (int controllerNumber, int controllerValue, int midiChannel = 1);
     std::pair<juce::uint64, juce::uint64> getHeldMidiMaskForUi() const noexcept;
+    std::pair<float, float> getPerformanceWheelValuesForUi() const noexcept;
     int getActiveMapSetSlotForUi() const noexcept;
     int getSequencerCurrentStepForUi() const noexcept;
     void setSequencerHostTriggerEnabled (bool enabled);
@@ -364,9 +366,12 @@ private:
 
     struct PendingPreviewMidiEvent
     {
+        bool isController = false;
         bool noteOn = true;
         int midiNote = 60;
         int velocity127 = 100;
+        int controllerNumber = 1;
+        int controllerValue = 0;
         int midiChannel = 1;
     };
 
@@ -446,6 +451,7 @@ private:
     std::atomic<bool> monolithDecodeInProgress { false };
     std::atomic<bool> modwheelVelocityLayerControlEnabled { false };
     std::atomic<float> modwheelVelocityLayerControlValue01 { 0.0f };
+    std::atomic<float> expressionControllerValue01 { 0.0f };
     std::atomic<int> playerPitchDownOctaves { 0 };
     std::atomic<bool> activeMapLoopPlaybackEnabled { true };
     mutable juce::CriticalSection decodedEmbeddedAudioCacheLock;
