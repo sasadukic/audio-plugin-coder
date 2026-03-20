@@ -1202,6 +1202,12 @@
       pointer-events: none;
       z-index: 3;
       background: linear-gradient(180deg, rgba(0, 0, 0, 0.46), rgba(0, 0, 0, 0));
+      opacity: 0;
+      transition: opacity 220ms ease;
+    }
+
+    .player-stage.has-wallpaper .player-keyboard-strip::before {
+      opacity: 1;
     }
 
     .player-wheel-bank {
