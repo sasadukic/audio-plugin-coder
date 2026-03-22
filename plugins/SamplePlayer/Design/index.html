@@ -6,25 +6,25 @@
   <title>Sample Player - Simple Knob UI</title>
   <style>
     :root {
-      --bg-a: #2b2d2f;
-      --bg-b: #1e2022;
-      --chrome-surface: linear-gradient(145deg, rgba(30, 32, 34, 0.96), rgba(24, 26, 28, 0.94));
-      --panel: rgba(34, 36, 38, 0.9);
-      --line: rgba(151, 156, 160, 0.3);
-      --text: #e5e7e8;
-      --text-dim: #a7adb1;
+      --bg-a: #2b2b2b;
+      --bg-b: #1e1e1e;
+      --chrome-surface: linear-gradient(145deg, rgba(30, 30, 30, 0.96), rgba(24, 24, 24, 0.94));
+      --panel: rgba(36, 36, 36, 0.9);
+      --line: rgba(150, 150, 150, 0.3);
+      --text: #e5e5e5;
+      --text-dim: #a8a8a8;
       --mint: #79a9a1;
-      --blue: #a9b4b8;
+      --blue: #b5b5b5;
       --warn: #d0a87a;
       --danger: #c7838b;
       --radius: 14px;
-      --player-swatch-rgb: 38, 40, 43;
-      --player-topbar-rgb: 38, 40, 43;
-      --player-line-rgb: 140, 146, 150;
-      --player-bright-rgb: 218, 222, 224;
-      --player-press-glow-rgb: 218, 222, 224;
-      --player-wheel-rgb: 236, 239, 241;
-      --player-wheel-rgb-dark: 214, 218, 220;
+      --player-swatch-rgb: 40, 40, 40;
+      --player-topbar-rgb: 40, 40, 40;
+      --player-line-rgb: 150, 150, 150;
+      --player-bright-rgb: 224, 224, 224;
+      --player-press-glow-rgb: 224, 224, 224;
+      --player-wheel-rgb: 236, 236, 236;
+      --player-wheel-rgb-dark: 216, 216, 216;
       --player-key-tint-alpha-top: 0;
       --player-key-tint-alpha-bottom: 0;
       --player-key-press-tint-alpha-top: 0;
@@ -48,7 +48,7 @@
       color: var(--text);
       background:
         radial-gradient(900px 560px at 8% 6%, rgba(255, 255, 255, 0.08), transparent 62%),
-        radial-gradient(880px 660px at 90% 86%, rgba(191, 197, 207, 0.08), transparent 62%),
+        radial-gradient(880px 660px at 90% 86%, rgba(196, 196, 196, 0.08), transparent 62%),
         linear-gradient(145deg, var(--bg-a), var(--bg-b));
       overflow: hidden;
     }
@@ -65,7 +65,7 @@
       min-height: 100%;
       display: flex;
       flex-direction: column;
-      border: 1px solid rgba(140, 146, 156, 0.2);
+      border: 1px solid rgba(150, 150, 150, 0.2);
       border-radius: 8px;
       background: var(--chrome-surface);
       box-shadow: 0 20px 52px rgba(0, 0, 0, 0.34);
@@ -102,14 +102,14 @@
 
     .loading-card {
       width: min(460px, calc(100% - 72px));
-      border: 1px solid rgba(140, 146, 156, 0.42);
+      border: 1px solid rgba(150, 150, 150, 0.42);
       border-radius: 10px;
       padding: 14px 14px 12px;
       background:
         linear-gradient(
           180deg,
-          rgba(38, 40, 46, 0.94),
-          rgba(26, 28, 34, 0.9)
+          rgba(40, 40, 40, 0.94),
+          rgba(28, 28, 28, 0.9)
         );
       box-shadow:
         0 14px 34px rgba(0, 0, 0, 0.42),
@@ -167,7 +167,7 @@
     .file-btn {
       border: 1px solid var(--line);
       border-radius: 10px;
-      background: rgba(38, 40, 46, 0.96);
+      background: rgba(40, 40, 40, 0.96);
       color: var(--text);
       font: inherit;
       font-size: 11px;
@@ -665,7 +665,7 @@
     .tab-btn {
       border: 1px solid rgba(140, 146, 156, 0.28);
       border-radius: 10px;
-      background: rgba(38, 40, 46, 0.96);
+      background: rgba(40, 40, 40, 0.96);
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.08em;
@@ -8932,9 +8932,9 @@
 
             if (weightSum <= 0 || !pixels.length) {
               resolve({
-                swatch: [38, 40, 46],
-                dark: [38, 40, 46],
-                light: [140, 146, 156]
+                swatch: [40, 40, 40],
+                dark: [40, 40, 40],
+                light: [150, 150, 150]
               });
             } else {
               const swatch = [
@@ -8975,9 +8975,9 @@
             }
           } catch {
             resolve({
-              swatch: [38, 40, 46],
-              dark: [38, 40, 46],
-              light: [140, 146, 156]
+              swatch: [40, 40, 40],
+              dark: [40, 40, 40],
+              light: [150, 150, 150]
             });
           } finally {
             URL.revokeObjectURL(objectUrl);
@@ -8986,9 +8986,9 @@
         img.onerror = () => {
           URL.revokeObjectURL(objectUrl);
           resolve({
-            swatch: [38, 40, 46],
-            dark: [38, 40, 46],
-            light: [140, 146, 156]
+            swatch: [40, 40, 40],
+            dark: [40, 40, 40],
+            light: [150, 150, 150]
           });
         };
         img.src = objectUrl;
@@ -9760,13 +9760,13 @@
       if (el.playerStage) el.playerStage.classList.remove("has-wallpaper");
       el.playerStage.style.removeProperty("--player-wallpaper");
       el.playerStage.style.removeProperty("--player-wallpaper-position");
-      document.documentElement.style.setProperty("--player-swatch-rgb", "38, 40, 46");
-      document.documentElement.style.setProperty("--player-topbar-rgb", "38, 40, 46");
-      document.documentElement.style.setProperty("--player-line-rgb", "140, 146, 156");
-      document.documentElement.style.setProperty("--player-bright-rgb", "218, 222, 229");
-      document.documentElement.style.setProperty("--player-press-glow-rgb", "218, 222, 229");
-      state.playerParticleRgb = [218, 222, 229];
-      state.playerParticleGlowRgb = [238, 242, 248];
+      document.documentElement.style.setProperty("--player-swatch-rgb", "40, 40, 40");
+      document.documentElement.style.setProperty("--player-topbar-rgb", "40, 40, 40");
+      document.documentElement.style.setProperty("--player-line-rgb", "150, 150, 150");
+      document.documentElement.style.setProperty("--player-bright-rgb", "224, 224, 224");
+      document.documentElement.style.setProperty("--player-press-glow-rgb", "224, 224, 224");
+      state.playerParticleRgb = [224, 224, 224];
+      state.playerParticleGlowRgb = [236, 236, 236];
       document.documentElement.style.setProperty("--player-key-tint-alpha-top", "0");
       document.documentElement.style.setProperty("--player-key-tint-alpha-bottom", "0");
       document.documentElement.style.setProperty("--player-key-press-tint-alpha-top", "0");
@@ -9793,11 +9793,11 @@
       if (state.wallpaperName) return;
       const hasSamples = state.entries.some((entry) => entryHasPlayableSource(entry));
       if (hasSamples) {
-        document.documentElement.style.setProperty("--player-wheel-rgb", "236, 239, 244");
-        document.documentElement.style.setProperty("--player-wheel-rgb-dark", "214, 218, 224");
+        document.documentElement.style.setProperty("--player-wheel-rgb", "236, 236, 236");
+        document.documentElement.style.setProperty("--player-wheel-rgb-dark", "216, 216, 216");
       } else {
-        document.documentElement.style.setProperty("--player-wheel-rgb", "69, 75, 84");
-        document.documentElement.style.setProperty("--player-wheel-rgb-dark", "44, 49, 56");
+        document.documentElement.style.setProperty("--player-wheel-rgb", "74, 74, 74");
+        document.documentElement.style.setProperty("--player-wheel-rgb-dark", "48, 48, 48");
       }
     }
 
