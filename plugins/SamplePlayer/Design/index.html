@@ -3223,11 +3223,36 @@
       align-items: center;
     }
 
+    .sample-nav-btn {
+      flex: 0 0 auto;
+      border: 1px solid rgba(140, 146, 156, 0.3);
+      border-radius: 4px;
+      background: rgba(12, 17, 26, 0.8);
+      color: var(--text);
+      height: 20px;
+      width: 20px;
+      padding: 0;
+      font-size: 11px;
+      line-height: 1;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .sample-nav-btn:hover {
+      background: rgba(140, 146, 156, 0.25);
+    }
+
+    .sample-nav-btn:active {
+      background: rgba(140, 146, 156, 0.4);
+    }
+
     .sample-editor-title {
       display: block;
       flex: 0 1 auto;
       min-width: 0;
-      max-width: 62%;
+      max-width: 52%;
       color: var(--text);
       font-family: "SFMono-Regular", Menlo, monospace;
       text-transform: none;
@@ -4676,7 +4701,9 @@
                     <button id="sampleEditorClose" class="sample-editor-close" type="button" aria-label="Close sample editor">x</button>
                   </div>
                   <div class="sample-waveform-info">
+                    <button id="sampleNavPrev" class="sample-nav-btn" type="button" aria-label="Previous sample">&lt;</button>
                     <div id="sampleEditorTitle" class="sample-editor-title"></div>
+                    <button id="sampleNavNext" class="sample-nav-btn" type="button" aria-label="Next sample">&gt;</button>
                     <div id="sampleEditorMeta" class="sample-editor-meta"></div>
                   </div>
                   <div id="sampleWaveformViewport" class="sample-waveform-viewport">
@@ -5130,6 +5157,8 @@
       sampleEditor: document.getElementById("sampleEditor"),
       sampleEditorTitle: document.getElementById("sampleEditorTitle"),
       sampleEditorMeta: document.getElementById("sampleEditorMeta"),
+      sampleNavPrev: document.getElementById("sampleNavPrev"),
+      sampleNavNext: document.getElementById("sampleNavNext"),
       sampleFineTuneKnob: document.getElementById("sampleFineTuneKnob"),
       sampleFineTunePointer: document.getElementById("sampleFineTunePointer"),
       sampleLoopXfadeKnob: document.getElementById("sampleLoopXfadeKnob"),
@@ -12854,6 +12883,17 @@
       renderKeyboardMap(getActiveMapEntries(), true);
     }
 
+    function navigateSampleEditor(direction) {
+      const entries = getActiveMapEntries().filter(e => e && e.valid);
+      if (!entries.length) return;
+      const currentOrder = state.selectedMapEntryOrder;
+      const idx = entries.findIndex(e => e.order === currentOrder);
+      if (idx < 0) return;
+      const nextIdx = idx + direction;
+      if (nextIdx < 0 || nextIdx >= entries.length) return;
+      openSampleEditor(entries[nextIdx]);
+    }
+
     async function openSampleEditor(entry) {
       if (!entry) return;
       ensureEntryEditorState(entry);
@@ -14658,6 +14698,8 @@
         shiftKeyboardMapRange(1, ev.shiftKey ? 12 : 1);
       });
       el.sampleEditorClose.addEventListener("click", closeSampleEditor);
+      el.sampleNavPrev.addEventListener("click", () => navigateSampleEditor(-1));
+      el.sampleNavNext.addEventListener("click", () => navigateSampleEditor(1));
       setupWaveformPan();
       el.sampleWaveformViewport.addEventListener("scroll", updateWaveformScrollControl);
       el.sampleFindLoopBtn.addEventListener("click", () => findLoopCandidatesForSelectedEntry());
