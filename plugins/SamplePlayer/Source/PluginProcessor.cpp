@@ -2818,9 +2818,6 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                 continue;
 
             const auto* mappingArray = keyswitchObject->getProperty ("mapping").getArray();
-            if (mappingArray == nullptr || mappingArray->isEmpty())
-                continue;
-
             MapSetDescriptor set;
             set.slot = i + 1;
             set.id = "keyswitch_" + juce::String (i + 1);

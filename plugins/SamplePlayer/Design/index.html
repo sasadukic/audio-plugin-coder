@@ -16263,8 +16263,7 @@
                 sampleFolderName: setSampleFolder
               })
             };
-          })
-          .filter((set) => Array.isArray(set.mapping) && set.mapping.length > 0);
+          });
       }
       return manifest;
     }
