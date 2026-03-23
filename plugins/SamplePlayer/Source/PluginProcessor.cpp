@@ -38,6 +38,62 @@ bool parseRoundRobinPlaybackModeIsRandom (const juce::var& value, bool fallback)
     return fallback;
 }
 
+// ---------------------------------------------------------------------------
+// Fast JSON scalar extraction helpers — avoid parsing multi-MB JSON on the
+// message thread just to read a handful of small scalar properties inside
+// the "ui" object.
+// ---------------------------------------------------------------------------
+
+double fastExtractJsonDouble (const juce::String& json, const juce::String& key, double fallback)
+{
+    // Looks for  "key":  <number>  within the JSON string.
+    const auto searchToken = "\"" + key + "\"";
+    int pos = json.indexOf (searchToken);
+    if (pos < 0)
+        return fallback;
+    pos += searchToken.length();
+    // Skip whitespace and colon
+    while (pos < json.length() && (json[pos] == ' ' || json[pos] == ':'))
+        ++pos;
+    if (pos >= json.length())
+        return fallback;
+    // Read the number literal
+    int end = pos;
+    while (end < json.length())
+    {
+        const auto ch = json[end];
+        if ((ch >= '0' && ch <= '9') || ch == '.' || ch == '-' || ch == '+' || ch == 'e' || ch == 'E')
+            ++end;
+        else
+            break;
+    }
+    if (end == pos)
+        return fallback;
+    return json.substring (pos, end).getDoubleValue();
+}
+
+juce::String fastExtractJsonString (const juce::String& json, const juce::String& key)
+{
+    const auto searchToken = "\"" + key + "\"";
+    int pos = json.indexOf (searchToken);
+    if (pos < 0)
+        return {};
+    pos += searchToken.length();
+    while (pos < json.length() && (json[pos] == ' ' || json[pos] == ':'))
+        ++pos;
+    if (pos >= json.length() || json[pos] != '"')
+        return {};
+    ++pos;
+    int end = pos;
+    while (end < json.length() && json[end] != '"')
+    {
+        if (json[end] == '\\')
+            ++end; // skip escaped char
+        ++end;
+    }
+    return json.substring (pos, end);
+}
+
 const juce::File& getLoadDebugLogFile()
 {
     static const juce::File file = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
@@ -1583,94 +1639,37 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
     const auto requestStartMs = juce::Time::getMillisecondCounterHiRes();
     juce::String normalizedJson = json;
 
-    int parsedPitchDownOctaves = 0;
-    float parsedModwheelValue01 = modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed);
-    float parsedExpressionValue01 = expressionControllerValue01.load (std::memory_order_relaxed);
-    bool parsedRoundRobinRandomMode = roundRobinRandomMode.load (std::memory_order_relaxed);
+    // --- Fast scalar extraction (no full JSON parse on the message thread) ---
     if (normalizedJson.isNotEmpty())
     {
-        const auto parsedForPitch = juce::JSON::parse (normalizedJson);
-        if (const auto* rootObject = parsedForPitch.getDynamicObject())
-        {
-            if (const auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
-            {
-                parsedPitchDownOctaves = juce::jlimit (0, 2,
-                    varToInt (uiObject->getProperty ("playerPitchDownOctaves"), 0));
-                parsedModwheelValue01 = juce::jlimit (0.0f, 1.0f,
-                    static_cast<float> (varToDouble (uiObject->getProperty ("modWheelValue"),
-                                                     static_cast<double> (parsedModwheelValue01))));
-                parsedExpressionValue01 = juce::jlimit (0.0f, 1.0f,
-                    static_cast<float> (varToDouble (uiObject->getProperty ("expressionValue"),
-                                                     static_cast<double> (parsedExpressionValue01))));
-                parsedRoundRobinRandomMode = parseRoundRobinPlaybackModeIsRandom (uiObject->getProperty ("roundRobinPlaybackMode"),
-                                                                                  parsedRoundRobinRandomMode);
-            }
-        }
-    }
-    playerPitchDownOctaves.store (parsedPitchDownOctaves, std::memory_order_relaxed);
-    modwheelVelocityLayerControlValue01.store (parsedModwheelValue01, std::memory_order_relaxed);
-    expressionControllerValue01.store (parsedExpressionValue01, std::memory_order_relaxed);
-    roundRobinRandomMode.store (parsedRoundRobinRandomMode, std::memory_order_relaxed);
-    if (auto* modParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kModWheelParamId)))
-        modParam->setValue (juce::jlimit (0.0f, 1.0f, parsedModwheelValue01));
-    if (auto* expressionParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kExpressionParamId)))
-        expressionParam->setValue (juce::jlimit (0.0f, 1.0f, parsedExpressionValue01));
+        playerPitchDownOctaves.store (
+            juce::jlimit (0, 2, static_cast<int> (fastExtractJsonDouble (normalizedJson, "playerPitchDownOctaves", 0.0))),
+            std::memory_order_relaxed);
 
+        const float modVal = juce::jlimit (0.0f, 1.0f,
+            static_cast<float> (fastExtractJsonDouble (normalizedJson, "modWheelValue",
+                static_cast<double> (modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed)))));
+        modwheelVelocityLayerControlValue01.store (modVal, std::memory_order_relaxed);
+        if (auto* modParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kModWheelParamId)))
+            modParam->setValue (modVal);
+
+        const float exprVal = juce::jlimit (0.0f, 1.0f,
+            static_cast<float> (fastExtractJsonDouble (normalizedJson, "expressionValue",
+                static_cast<double> (expressionControllerValue01.load (std::memory_order_relaxed)))));
+        expressionControllerValue01.store (exprVal, std::memory_order_relaxed);
+        if (auto* expressionParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kExpressionParamId)))
+            expressionParam->setValue (exprVal);
+
+        const auto rrMode = fastExtractJsonString (normalizedJson, "roundRobinPlaybackMode").trim().toLowerCase();
+        if (rrMode == "random")
+            roundRobinRandomMode.store (true, std::memory_order_relaxed);
+        else if (rrMode == "sequential")
+            roundRobinRandomMode.store (false, std::memory_order_relaxed);
+    }
+
+    // Defer any pending MIDI slot-patching to the thread pool job (avoid
+    // parsing huge JSON on the message thread).
     const int midiRequestedSlot = pendingActiveMapSetSlotFromMidi.exchange (-1, std::memory_order_relaxed);
-    if (midiRequestedSlot >= 0 && normalizedJson.isNotEmpty())
-    {
-        juce::String desiredSetId = midiRequestedSlot == 0 ? "base" : juce::String {};
-
-        if (midiRequestedSlot > 0)
-        {
-            if (const auto sampleSet = std::atomic_load (&currentSampleSet); sampleSet != nullptr)
-            {
-                for (const auto& entry : sampleSet->mapSetSlotById)
-                {
-                    if (entry.second == midiRequestedSlot)
-                    {
-                        desiredSetId = juce::String (entry.first);
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (desiredSetId.isNotEmpty())
-        {
-            const auto parsed = juce::JSON::parse (normalizedJson);
-            if (auto* rootObject = parsed.getDynamicObject())
-            {
-                if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
-                {
-                    const auto activeSetId = uiObject->getProperty ("activeMapSetId").toString().trim();
-                    if (activeSetId != desiredSetId)
-                    {
-                        uiObject->setProperty ("activeMapSetId", desiredSetId);
-
-                        if (auto* keyswitchSets = uiObject->getProperty ("keyswitchSets").getArray())
-                        {
-                            for (auto& setVar : *keyswitchSets)
-                            {
-                                auto* setObject = setVar.getDynamicObject();
-                                if (setObject == nullptr)
-                                    continue;
-
-                                const auto candidateId = setObject->getProperty ("id").toString().trim();
-                                setObject->setProperty ("active",
-                                                        candidateId.isNotEmpty() && candidateId == desiredSetId);
-                            }
-                        }
-
-                        normalizedJson = juce::JSON::toString (parsed, false);
-                        writeLoadDebugLog ("session json active map patched from midi | slot="
-                                           + juce::String (midiRequestedSlot)
-                                           + " | setId=" + desiredSetId);
-                    }
-                }
-            }
-        }
-    }
 
     const auto jsonBytes = normalizedJson.getNumBytesAsUTF8();
 
@@ -1707,7 +1706,7 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
                        + " | bytes=" + juce::String (jsonBytes)
                        + " | queuePrepMs=" + juce::String (elapsedMsFrom (requestStartMs), 2));
 
-    sessionStateSyncThreadPool.addJob ([this, requestId]()
+    sessionStateSyncThreadPool.addJob ([this, requestId, midiRequestedSlot]()
     {
         const auto syncJobStartMs = juce::Time::getMillisecondCounterHiRes();
         juce::String latestJson;
@@ -1732,6 +1731,63 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
         writeLoadDebugLog ("session sync job parsed once | requestId=" + juce::String (requestId)
                            + " | bytes=" + juce::String (jsonBytes)
                            + " | parseMs=" + juce::String (parseMs, 2));
+
+        // --- MIDI slot patching (deferred from message thread) ---
+        if (midiRequestedSlot >= 0)
+        {
+            juce::String desiredSetId = midiRequestedSlot == 0 ? "base" : juce::String {};
+            if (midiRequestedSlot > 0)
+            {
+                if (const auto sampleSet = std::atomic_load (&currentSampleSet); sampleSet != nullptr)
+                {
+                    for (const auto& entry : sampleSet->mapSetSlotById)
+                    {
+                        if (entry.second == midiRequestedSlot)
+                        {
+                            desiredSetId = juce::String (entry.first);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (desiredSetId.isNotEmpty())
+            {
+                if (auto* rootObject = parsed.getDynamicObject())
+                {
+                    if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
+                    {
+                        const auto activeSetId = uiObject->getProperty ("activeMapSetId").toString().trim();
+                        if (activeSetId != desiredSetId)
+                        {
+                            uiObject->setProperty ("activeMapSetId", desiredSetId);
+                            if (auto* keyswitchSets = uiObject->getProperty ("keyswitchSets").getArray())
+                            {
+                                for (auto& setVar : *keyswitchSets)
+                                {
+                                    auto* setObject = setVar.getDynamicObject();
+                                    if (setObject == nullptr)
+                                        continue;
+                                    const auto candidateId = setObject->getProperty ("id").toString().trim();
+                                    setObject->setProperty ("active",
+                                                            candidateId.isNotEmpty() && candidateId == desiredSetId);
+                                }
+                            }
+
+                            // Write patched JSON back so sample sync sees the updated active set
+                            latestJson = juce::JSON::toString (parsed, false);
+                            {
+                                const juce::ScopedLock lock (uiSessionStateLock);
+                                uiSessionStateJson = latestJson;
+                            }
+                            writeLoadDebugLog ("session json active map patched from midi | slot="
+                                               + juce::String (midiRequestedSlot)
+                                               + " | setId=" + desiredSetId);
+                        }
+                    }
+                }
+            }
+        }
 
         // --- sample sync first (read-only traversal of the parsed var) ---
         writeLoadDebugLog ("session sync job start | requestId=" + juce::String (requestId)
@@ -1929,8 +1985,49 @@ void SamplePlayerAudioProcessor::setActiveMapSetId (const juce::String& setId)
 
     if (switchedInRam)
     {
-        const juce::ScopedLock lock (uiSessionStateLock);
-        pendingActiveMapSetId = normalizedSetId;
+        // Patch the stored JSON and lightweight cache on a background thread
+        // to avoid parsing multi-MB JSON on the message thread.
+        const auto capturedSetId = normalizedSetId;
+        sessionStateSyncThreadPool.addJob ([this, capturedSetId]()
+        {
+            juce::String currentJson;
+            {
+                const juce::ScopedLock lock (uiSessionStateLock);
+                currentJson = uiSessionStateJson;
+            }
+            if (currentJson.isEmpty())
+                return;
+
+            const auto parsed = juce::JSON::parse (currentJson);
+            if (auto* rootObject = parsed.getDynamicObject())
+            {
+                if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
+                {
+                    uiObject->setProperty ("activeMapSetId", capturedSetId);
+                    if (auto* keyswitchSets = uiObject->getProperty ("keyswitchSets").getArray())
+                    {
+                        for (auto& setVar : *keyswitchSets)
+                        {
+                            if (auto* setObject = setVar.getDynamicObject())
+                            {
+                                const auto candidateId = setObject->getProperty ("id").toString().trim();
+                                setObject->setProperty ("active",
+                                                        candidateId.isNotEmpty() && candidateId == capturedSetId);
+                            }
+                        }
+                    }
+
+                    auto updatedJson = juce::JSON::toString (parsed);
+                    {
+                        const juce::ScopedLock lock (uiSessionStateLock);
+                        uiSessionStateJson = updatedJson;
+                        uiSessionStateLightweightJson = makeLightweightSessionStateJson (updatedJson, nullptr);
+                        uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
+                    }
+                    writeLoadDebugLog ("active map persisted (bg) | setId=" + capturedSetId);
+                }
+            }
+        });
         writeLoadDebugLog ("active map switch requested | setId=" + normalizedSetId + " | mode=ram-fast");
         return;
     }
@@ -2021,38 +2118,6 @@ void SamplePlayerAudioProcessor::setActiveMapSetId (const juce::String& setId)
 juce::String SamplePlayerAudioProcessor::getUiSessionStateJson (bool lightweightPreferred)
 {
     const juce::ScopedLock lock (uiSessionStateLock);
-
-    if (pendingActiveMapSetId.isNotEmpty() && uiSessionStateJson.isNotEmpty())
-    {
-        const auto parsed = juce::JSON::parse (uiSessionStateJson);
-        if (auto* rootObject = parsed.getDynamicObject())
-        {
-            if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
-            {
-                const auto desiredSetId = pendingActiveMapSetId.trim();
-                uiObject->setProperty ("activeMapSetId", desiredSetId);
-
-                if (auto* keyswitchSets = uiObject->getProperty ("keyswitchSets").getArray())
-                {
-                    for (auto& setVar : *keyswitchSets)
-                    {
-                        if (auto* setObject = setVar.getDynamicObject())
-                        {
-                            const auto candidateId = setObject->getProperty ("id").toString().trim();
-                            setObject->setProperty ("active", candidateId.isNotEmpty() && candidateId == desiredSetId);
-                        }
-                    }
-                }
-
-                uiSessionStateJson = juce::JSON::toString (parsed);
-                uiSessionStateLightweightJson = makeLightweightSessionStateJson (uiSessionStateJson, nullptr);
-                uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
-                writeLoadDebugLog ("active map persisted to session json | setId=" + desiredSetId);
-            }
-        }
-
-        pendingActiveMapSetId.clear();
-    }
 
     if (! lightweightPreferred)
         return uiSessionStateJson;
