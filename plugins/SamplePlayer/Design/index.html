@@ -10129,6 +10129,7 @@
       state.wallpaperPosition = normalized;
       const wallpaperImage = el.playerWallpaperImage;
       if (!wallpaperImage) return;
+      const topTrimPx = 44;
 
       const [vertical = "middle", horizontal = "center"] = normalized.split("-");
       wallpaperImage.style.removeProperty("left");
@@ -10148,7 +10149,7 @@
       }
 
       if (vertical === "top") {
-        wallpaperImage.style.top = "0";
+        wallpaperImage.style.top = `${-topTrimPx}px`;
       } else if (vertical === "bottom") {
         wallpaperImage.style.bottom = "0";
       } else {
