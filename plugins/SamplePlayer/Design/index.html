@@ -3084,6 +3084,12 @@
       margin-right: 0;
     }
 
+    .keyswitch-import-toggle {
+      white-space: nowrap;
+      font-size: 11px;
+      padding: 0;
+    }
+
     .keyswitch-map-matrix-controls {
       display: inline-flex;
       align-items: center;
@@ -4796,6 +4802,10 @@
                   <button id="addFolderBtn" class="sample-loop-tool-btn" type="button">Add Folder</button>
                   <button id="newKeyswitchBtn" class="sample-loop-tool-btn" type="button">New Keyswitch</button>
                   <button id="importKeyswitchesBtn" class="sample-loop-tool-btn" type="button">Import Keyswitches</button>
+                  <label class="checkbox keyswitch-import-toggle" title="Imported one-note keyswitches play at their original pitch on every key">
+                    <input id="keyswitchSingleNoteFixedPitchToggle" type="checkbox">
+                    <span>1-note fixed pitch</span>
+                  </label>
                   <button id="clearInstrumentBtn" class="sample-loop-tool-btn" type="button">Clear</button>
                 </div>
                 <div id="newKeyswitchPopover" class="new-ks-popover">
@@ -5187,6 +5197,7 @@
       playerParticlesDpr: 1,
       autoPresets: [],
       keyswitchSets: [],
+      keyswitchImportSingleNoteFixedPitchEnabled: false,
       activeMapSetId: "base",
       baseLoopPlaybackEnabled: true,
       roundRobinPlaybackMode: "sequential",
@@ -5345,6 +5356,7 @@
       keyswitchMapRrModeBtn: document.getElementById("keyswitchMapRrModeBtn"),
       keyswitchMapLoopToggle: document.getElementById("keyswitchMapLoopToggle"),
       keyswitchMapWarning: document.getElementById("keyswitchMapWarning"),
+      keyswitchSingleNoteFixedPitchToggle: document.getElementById("keyswitchSingleNoteFixedPitchToggle"),
       sampleEditor: document.getElementById("sampleEditor"),
       sampleEditorTitle: document.getElementById("sampleEditorTitle"),
       sampleEditorMeta: document.getElementById("sampleEditorMeta"),
@@ -6066,10 +6078,12 @@
             key: String(set?.key || ""),
             keyMidi: Number.isFinite(set?.keyMidi) ? Math.round(set.keyMidi) : null,
             loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
+            singleNoteFixedPitchEnabled: set?.singleNoteFixedPitchEnabled === true,
             index,
             active: String(state.activeMapSetId || "") === String(set?.id || ""),
             manualRanges: cloneManualRangesObject(set?.manualRanges)
           })),
+          keyswitchImportSingleNoteFixedPitchEnabled: !!state.keyswitchImportSingleNoteFixedPitchEnabled,
           velocityCrossfadeByRoot: { ...(state.velocityCrossfadeByRoot || {}) },
           loopCrossfadeMs: clampLoopCrossfadeMs(state.loopCrossfadeMs),
           allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
@@ -6125,6 +6139,7 @@
           manifestBasePath: getPackManifestBasePath(),
           manualRootRanges: cloneManualRangesObject(state.manualRootRanges),
           keyswitchSets: [],
+          keyswitchImportSingleNoteFixedPitchEnabled: !!state.keyswitchImportSingleNoteFixedPitchEnabled,
           velocityCrossfadeByRoot: { ...(state.velocityCrossfadeByRoot || {}) },
           loopCrossfadeMs: clampLoopCrossfadeMs(state.loopCrossfadeMs),
           allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
@@ -6417,6 +6432,7 @@
         state.allowPitchUpAboveHighest = ui.allowPitchUpAboveHighest !== undefined ? !!ui.allowPitchUpAboveHighest : state.allowPitchUpAboveHighest;
         state.roundRobinPlaybackMode = normalizeRoundRobinPlaybackMode(ui.roundRobinPlaybackMode ?? state.roundRobinPlaybackMode);
         state.openStringMidis = normalizeOpenStringMidis(ui.openStringMidis ?? state.openStringMidis);
+        state.keyswitchImportSingleNoteFixedPitchEnabled = ui.keyswitchImportSingleNoteFixedPitchEnabled === true;
         state.autoRR = ui.autoRR !== undefined ? !!ui.autoRR : state.autoRR;
         state.autoGainCrossfade = ui.autoGainCrossfade !== undefined ? !!ui.autoGainCrossfade : state.autoGainCrossfade;
         state.playerParticlesEnabled = ui.particlesEnabled !== undefined ? !!ui.particlesEnabled : state.playerParticlesEnabled;
@@ -6447,6 +6463,7 @@
           if (!matched) return;
           matched.manualRanges = cloneManualRangesObject(snapshotSet.manualRanges);
           matched.loopPlaybackEnabled = snapshotSet?.loopPlaybackEnabled !== false;
+          matched.singleNoteFixedPitchEnabled = snapshotSet?.singleNoteFixedPitchEnabled === true;
         });
 
         const activeSetSnapshot = restoredSetStates.find((item) => !!item?.active);
@@ -7561,7 +7578,8 @@
           id: "base",
           label: "Main",
           entries: baseEntries,
-          manualRanges: state.manualRootRanges
+          manualRanges: state.manualRootRanges,
+          singleNoteFixedPitchEnabled: false
         });
       }
 
@@ -7571,7 +7589,8 @@
           id: set.id,
           label: `${set.name}${keyLabel}`,
           entries: Array.isArray(set.entries) ? set.entries.filter((entry) => entry.valid) : [],
-          manualRanges: set.manualRanges || {}
+          manualRanges: set.manualRanges || {},
+          singleNoteFixedPitchEnabled: set?.singleNoteFixedPitchEnabled === true
         });
       });
       if (!sets.length) {
@@ -7579,7 +7598,8 @@
           id: "base",
           label: "Main",
           entries: baseEntries,
-          manualRanges: state.manualRootRanges
+          manualRanges: state.manualRootRanges,
+          singleNoteFixedPitchEnabled: false
         });
       }
       return sets;
@@ -9080,6 +9100,7 @@
             key: normalizedKey.key,
             keyMidi: normalizedKey.keyMidi,
             loopPlaybackEnabled: data?.loopPlaybackEnabled !== false,
+            singleNoteFixedPitchEnabled: data?.singleNoteFixedPitchEnabled === true || !!state.keyswitchImportSingleNoteFixedPitchEnabled,
             sourceFile: file.name,
             sourcePath: sourceFilePath,
             manifestBasePath: importedManifestBasePath,
@@ -13810,7 +13831,7 @@
       const playbackSource = getPlayerPlaybackSource();
       const { roots, rangesByRoot } = getResolvedRootRanges(playbackSource.entries, playbackSource.manualRanges);
       const activeMapSet = getActiveMapSet();
-      const singleRootDrumMidi = activeMapSet && activeMapSet.id !== "base"
+      const singleRootDrumMidi = isSingleNoteFixedPitchEnabledForSet(activeMapSet)
         ? getSinglePlayableRootMidi(playbackSource.entries)
         : null;
       const keyswitchSets = getPlayerKeyswitchDisplaySets();
@@ -14089,6 +14110,12 @@
     function getSinglePlayableRootMidi(entries = state.entries) {
       const roots = getMappedSampleRoots(entries);
       return roots.length === 1 ? roots[0] : null;
+    }
+
+    function isSingleNoteFixedPitchEnabledForSet(mapSet) {
+      return !!mapSet
+        && mapSet.id !== "base"
+        && mapSet.singleNoteFixedPitchEnabled === true;
     }
 
     function selectPlaybackRootForPlayedNote(
@@ -14643,6 +14670,7 @@
       velocityNorm,
       playedMidi,
       donorRoot,
+      fixedRootPlayback = false,
       layerMixGain = 1,
       externalKeySerial = null,
       layerStartDelaySec = 0,
@@ -14664,6 +14692,7 @@
             velocityNorm,
             playedMidi,
             donorRoot,
+            fixedRootPlayback,
             layerMixGain,
             retrySerial,
             layerStartDelaySec,
@@ -14696,7 +14725,7 @@
       }
 
       const velocityGain = Math.max(0.05, Math.min(1, 0.2 + (velocityNorm * 0.8)));
-      const semitoneRatio = Math.pow(2, (playedMidi - donorRoot) / 12);
+      const semitoneRatio = fixedRootPlayback ? 1 : Math.pow(2, (playedMidi - donorRoot) / 12);
       const fineTuneRatio = Math.pow(2, clampFineTune(entry.fineTuneCents ?? 0) / 1200);
       const sampleGainScale = dbToGain(entry.editorGainDb ?? 0);
       const playbackRate = Math.max(0.125, Math.min(8, semitoneRatio * fineTuneRatio));
@@ -14932,8 +14961,7 @@
       if (!hasExplicitSource) {
         const playbackSource = getPlayerPlaybackSource();
         const activeMapSet = getActiveMapSet();
-        const allowSingleRootDrumFallback = !!activeMapSet
-          && activeMapSet.id !== "base"
+        const allowSingleRootDrumFallback = isSingleNoteFixedPitchEnabledForSet(activeMapSet)
           && Number.isFinite(getSinglePlayableRootMidi(playbackSource.entries));
         const keyswitchSet = getKeyswitchSetForMidi(midi);
         if (keyswitchSet) {
@@ -14988,6 +15016,9 @@
         { allowSingleRootDrumFallback: explicitSingleRootDrumFallback }
       );
       if (donorRoot === null) return switchedByKeyswitch;
+      const fixedRootPlayback = (!hasExplicitSource)
+        ? (isSingleNoteFixedPitchEnabledForSet(getActiveMapSet()) && Number.isFinite(getSinglePlayableRootMidi(sourceEntries)))
+        : !!(options && options.fixedRootPlayback);
       const useModwheelVelocity = isAutoModwheelVelocityControlActiveForRoot(donorRoot, sourceEntries);
       const loopedVelocityRoot = hasLoopedEntriesForRoot(donorRoot, sourceEntries);
       const lockVelocityToModwheelMode = useModwheelVelocity && loopedVelocityRoot;
@@ -15021,12 +15052,12 @@
           void ensureEntrySampleUrl(entry, 3200).then((url) => {
             if (!url) return;
             if ((state.previewTriggerSerialByKey.get(keyMidi) ?? 0) !== keySerial) return;
-            playMappedSampleEntry(entry, playbackVelocityNorm, playedMidi, donorRoot, gain, keySerial, delaySec, holdLoopUntilRelease);
+            playMappedSampleEntry(entry, playbackVelocityNorm, playedMidi, donorRoot, fixedRootPlayback, gain, keySerial, delaySec, holdLoopUntilRelease);
           });
           startedCount += 1;
           return;
         }
-        playMappedSampleEntry(entry, playbackVelocityNorm, playedMidi, donorRoot, gain, keySerial, delaySec, holdLoopUntilRelease);
+        playMappedSampleEntry(entry, playbackVelocityNorm, playedMidi, donorRoot, fixedRootPlayback, gain, keySerial, delaySec, holdLoopUntilRelease);
         startedCount += 1;
       });
 
@@ -15112,6 +15143,7 @@
             key: normalized.key,
             keyMidi: normalized.keyMidi,
             loopPlaybackEnabled: true,
+            singleNoteFixedPitchEnabled: false,
             sourceFile: "",
             sourcePath: "",
             manifestBasePath: "",
@@ -15936,6 +15968,9 @@
         applyMapMatrixIntervalRanges(getActiveMapEntries());
       }
       updateKeyswitchMapSelector();
+      if (el.keyswitchSingleNoteFixedPitchToggle) {
+        el.keyswitchSingleNoteFixedPitchToggle.checked = !!state.keyswitchImportSingleNoteFixedPitchEnabled;
+      }
       renderSequencerArpControls();
       renderKeyboardMap(getActiveMapEntries(), true);
       syncVelocityCrossfadeControl();
@@ -16221,6 +16256,7 @@
               name: setName,
               keyswitchKey: setKey,
               loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
+              singleNoteFixedPitchEnabled: set?.singleNoteFixedPitchEnabled === true,
               mapping: buildManifestMapping(Array.isArray(set?.entries) ? set.entries : [], {
                 preserveRuntimePaths,
                 includeEmbeddedSampleData,
@@ -16726,19 +16762,34 @@
         await restoreFromUiDataUrl("wallpaper", ui.wallpaperDataUrl, ui.wallpaperName, ui.wallpaperSourcePath)
         || await restoreFromAbsolutePath("wallpaper", ui.wallpaperSourcePath)
       );
+      if (restoredWallpaper) {
+        applyWallpaperPosition(normalizeWallpaperPosition(
+          ui.wallpaperPosition || wallpaperManifest?.position || state.wallpaperPosition
+        ));
+      }
       if (!restoredWallpaper && wallpaperManifest?.enabled && typeof wallpaperManifest.path === "string") {
-        await restoreGraphicFromManifest(
+        const fallbackWallpaper = await restoreGraphicFromManifest(
           "wallpaper",
           manifestBasePath,
           wallpaperManifest.path,
           stripFileExtension(String(wallpaperManifest.path || "").split(/[\\/]/).pop() || "wallpaper") + ".png"
         );
+        if (fallbackWallpaper) {
+          applyWallpaperPosition(normalizeWallpaperPosition(
+            ui.wallpaperPosition || wallpaperManifest.position || state.wallpaperPosition
+          ));
+        }
       }
 
       const restoredLogo = (
         await restoreFromUiDataUrl("logo", ui.logoDataUrl, ui.logoName, ui.logoSourcePath)
         || await restoreFromAbsolutePath("logo", ui.logoSourcePath)
       );
+      if (restoredLogo) {
+        applyLogoPosition(normalizeLogoPosition(
+          ui.logoPosition || logoManifest?.position || state.logoPosition
+        ));
+      }
       if (!restoredLogo && logoManifest?.enabled && typeof logoManifest.path === "string") {
         const fallbackLogo = await restoreGraphicFromManifest(
           "logo",
@@ -16817,6 +16868,7 @@
           key: keyInfo.key,
           keyMidi: keyInfo.keyMidi,
           loopPlaybackEnabled: sessionLoopPlayback === null ? (rawSet?.loopPlaybackEnabled !== false) : sessionLoopPlayback,
+          singleNoteFixedPitchEnabled: sessionUiSet?.singleNoteFixedPitchEnabled === true || rawSet?.singleNoteFixedPitchEnabled === true,
           sourceFile: sourceLabel,
           entries: setEntries,
           manualRanges: cloneManualRangesObject(sessionUiSet?.manualRanges)
@@ -17722,6 +17774,13 @@
         el.folderInput.click();
       });
       el.clearInstrumentBtn.addEventListener("click", clearInstrument);
+      if (el.keyswitchSingleNoteFixedPitchToggle) {
+        el.keyswitchSingleNoteFixedPitchToggle.checked = !!state.keyswitchImportSingleNoteFixedPitchEnabled;
+        el.keyswitchSingleNoteFixedPitchToggle.addEventListener("change", () => {
+          state.keyswitchImportSingleNoteFixedPitchEnabled = !!el.keyswitchSingleNoteFixedPitchToggle.checked;
+          scheduleSessionStateSave(250);
+        });
+      }
       if (el.importKeyswitchesBtn && el.keyswitchInput) {
         el.importKeyswitchesBtn.addEventListener("click", () => el.keyswitchInput.click());
       }

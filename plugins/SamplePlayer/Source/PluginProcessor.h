@@ -208,6 +208,8 @@ private:
         juce::String summary;
         std::unordered_map<std::string, int> mapSetSlotById;
         std::unordered_map<int, bool> loopPlaybackBySlot;
+        std::unordered_map<int, bool> fixedPitchBySlot;
+        std::unordered_map<int, bool> singleRootBySlot;
         std::array<int, 128> keyswitchSlotByMidi {};
         bool hasKeyswitchSets = false;
     };

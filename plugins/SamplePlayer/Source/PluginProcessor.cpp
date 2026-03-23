@@ -2666,6 +2666,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         juce::String id;
         int keyMidi = -1;
         bool loopPlaybackEnabled = true;
+        bool singleNoteFixedPitchEnabled = false;
         juce::var manualRangesVar;
     };
 
@@ -2749,6 +2750,9 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                 const auto loopPlaybackEnabledVar = setObject->getProperty ("loopPlaybackEnabled");
                 if (! loopPlaybackEnabledVar.isVoid())
                     state.loopPlaybackEnabled = static_cast<bool> (loopPlaybackEnabledVar);
+                const auto fixedPitchVar = setObject->getProperty ("singleNoteFixedPitchEnabled");
+                if (! fixedPitchVar.isVoid())
+                    state.singleNoteFixedPitchEnabled = static_cast<bool> (fixedPitchVar);
 
                 const auto keyMidiVar = setObject->getProperty ("keyMidi");
                 if (! keyMidiVar.isVoid())
@@ -2786,6 +2790,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         int slot = 0;
         int keyswitchMidi = -1;
         bool loopPlaybackEnabled = true;
+        bool singleNoteFixedPitchEnabled = false;
         juce::var manualRangesVar;
         const juce::Array<juce::var>* mappingArray = nullptr;
     };
@@ -2831,7 +2836,15 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                     set.id = uiState.id;
                 set.keyswitchMidi = uiState.keyMidi;
                 set.loopPlaybackEnabled = uiState.loopPlaybackEnabled;
+                set.singleNoteFixedPitchEnabled = uiState.singleNoteFixedPitchEnabled;
                 set.manualRangesVar = uiState.manualRangesVar;
+            }
+
+            if (! set.singleNoteFixedPitchEnabled)
+            {
+                const auto fixedPitchVar = keyswitchObject->getProperty ("singleNoteFixedPitchEnabled");
+                if (! fixedPitchVar.isVoid())
+                    set.singleNoteFixedPitchEnabled = static_cast<bool> (fixedPitchVar);
             }
 
             if (set.keyswitchMidi < 0)
@@ -3242,6 +3255,18 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     {
         newSampleSet->mapSetSlotById[mapSet.id.toStdString()] = mapSet.slot;
         newSampleSet->loopPlaybackBySlot[mapSet.slot] = mapSet.loopPlaybackEnabled;
+        newSampleSet->fixedPitchBySlot[mapSet.slot] = mapSet.singleNoteFixedPitchEnabled;
+        const auto rootsIt = rootsBySlot.find (mapSet.slot);
+        bool isSingleRoot = false;
+        if (rootsIt != rootsBySlot.end() && ! rootsIt->second.empty())
+        {
+            const int firstRoot = rootsIt->second.front();
+            isSingleRoot = std::all_of (rootsIt->second.begin(), rootsIt->second.end(), [firstRoot] (int root)
+            {
+                return root == firstRoot;
+            });
+        }
+        newSampleSet->singleRootBySlot[mapSet.slot] = isSingleRoot;
         if (mapSet.keyswitchMidi >= 0 && mapSet.keyswitchMidi <= 127)
         {
             newSampleSet->keyswitchSlotByMidi[static_cast<size_t> (mapSet.keyswitchMidi)] = mapSet.slot;
@@ -5025,7 +5050,9 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
         const auto sampleSet = std::atomic_load (&currentSampleSet);
         const int activeSlot = juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
         const bool activeSlotIsSingleRootDrum = sampleSet != nullptr
-            && isSingleRootDrumSlot (*sampleSet, activeSlot);
+            && isSingleRootDrumSlot (*sampleSet, activeSlot)
+            && (sampleSet->fixedPitchBySlot.count (activeSlot) > 0)
+            && sampleSet->fixedPitchBySlot.at (activeSlot);
 
         if (sampleSet != nullptr)
         {
@@ -5447,7 +5474,15 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     voice->velocityGain = ignoreMidiVelocity ? 1.0f : (velocity127 * velocityScale);
     voice->age = ++voiceAgeCounter;
 
-    const auto semitoneOffset = static_cast<double> (midiNoteNumber - voice->zone->metadata.rootNote);
+    const auto sampleSet = std::atomic_load (&currentSampleSet);
+    const int zoneSlot = voice->zone->metadata.mapSetSlot;
+    const bool fixedPitchPlayback = sampleSet != nullptr
+        && isSingleRootDrumSlot (*sampleSet, zoneSlot)
+        && (sampleSet->fixedPitchBySlot.count (zoneSlot) > 0)
+        && sampleSet->fixedPitchBySlot.at (zoneSlot);
+    const auto semitoneOffset = fixedPitchPlayback
+        ? 0.0
+        : static_cast<double> (midiNoteNumber - voice->zone->metadata.rootNote);
     const auto pitch = std::pow (2.0, semitoneOffset / 12.0);
     const auto sampleRateRatio = voice->zone->sourceSampleRate / juce::jmax (1.0, currentSampleRate);
     const int pitchDownOctaves = juce::jlimit (0, 2, playerPitchDownOctaves.load (std::memory_order_relaxed));
@@ -5565,6 +5600,9 @@ void SamplePlayerAudioProcessor::setMidiHeldState (int midiNote, bool held) noex
 
 bool SamplePlayerAudioProcessor::isSingleRootDrumSlot (const SampleSet& sampleSet, int mapSetSlot) const
 {
+    if (const auto it = sampleSet.singleRootBySlot.find (mapSetSlot); it != sampleSet.singleRootBySlot.end())
+        return it->second;
+
     int detectedRoot = -1;
 
     for (const auto& zone : sampleSet.zones)
@@ -5741,11 +5779,15 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     if (candidatePool->empty())
         candidatePool = &noteOnlyMatches;
 
+    const bool allowSingleRootNearestFallback = activeSlot == 0
+        || ! isSingleRootDrumSlot (*sampleSet, activeSlot)
+        || ((sampleSet->fixedPitchBySlot.count (activeSlot) > 0) && sampleSet->fixedPitchBySlot.at (activeSlot));
+
     // Nearest-root fallback: when no zone explicitly covers the played note,
     // find zones sharing the closest root and pitch-shift to it.  This ensures
     // stretched key ranges always sound even when explicit low/high metadata
     // is missing, stale, or computed differently than the UI display.
-    if (candidatePool->empty())
+    if (candidatePool->empty() && allowSingleRootNearestFallback)
     {
         int nearestRoot = -1;
         int nearestDistance = 999;
@@ -5921,6 +5963,13 @@ bool SamplePlayerAudioProcessor::hasMultipleRoundRobinsForNote (int midiNoteNumb
 
     if (! rrMatches.empty() || ! rrNoteMatches.empty())
         return rrMatches.empty() && rrNoteMatches.size() > 1;
+
+    const bool allowSingleRootNearestFallback = activeSlot == 0
+        || ! isSingleRootDrumSlot (*sampleSet, activeSlot)
+        || ((sampleSet->fixedPitchBySlot.count (activeSlot) > 0) && sampleSet->fixedPitchBySlot.at (activeSlot));
+
+    if (! allowSingleRootNearestFallback)
+        return false;
 
     // Nearest-root fallback for stretched notes outside explicit ranges.
     int nearestRoot = -1;
