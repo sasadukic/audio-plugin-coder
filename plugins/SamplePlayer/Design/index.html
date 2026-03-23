@@ -3549,9 +3549,7 @@
     }
 
     .logo-position-menu {
-      position: absolute;
-      left: 0;
-      top: calc(100% + 6px);
+      position: fixed;
       z-index: 2000;
       display: grid;
       grid-template-columns: repeat(3, 24px);
@@ -10105,11 +10103,59 @@
       el.importPackControls.classList.toggle("logo-menu-open", hasOpenMenu);
     }
 
+    function clearGraphicsMenuPosition(menu) {
+      if (!menu) return;
+      menu.style.top = "";
+      menu.style.left = "";
+      menu.style.right = "";
+      menu.style.bottom = "";
+      menu.style.minWidth = "";
+    }
+
+    function positionGraphicsMenuAt(button, menu) {
+      if (!button || !menu) return;
+      const buttonRect = button.getBoundingClientRect();
+      const menuGap = 6;
+      const viewportPadding = 4;
+      clearGraphicsMenuPosition(menu);
+      menu.style.minWidth = `${Math.max(96, Math.round(buttonRect.width))}px`;
+      menu.classList.remove("hidden");
+
+      const menuRect = menu.getBoundingClientRect();
+      let top = buttonRect.bottom + menuGap;
+      let left = buttonRect.left;
+
+      if (top + menuRect.height > window.innerHeight - viewportPadding) {
+        top = Math.max(viewportPadding, buttonRect.top - menuGap - menuRect.height);
+      }
+
+      if (left + menuRect.width > window.innerWidth - viewportPadding) {
+        left = Math.max(viewportPadding, window.innerWidth - menuRect.width - viewportPadding);
+      }
+
+      menu.style.top = `${Math.round(top)}px`;
+      menu.style.left = `${Math.round(left)}px`;
+    }
+
+    function refreshOpenGraphicsMenuPositions() {
+      if (state.wallpaperMenuOpen) {
+        positionGraphicsMenuAt(el.wallpaperToggle, el.wallpaperPositionMenu);
+      }
+      if (state.logoMenuOpen) {
+        positionGraphicsMenuAt(el.logoToggle, el.logoPositionMenu);
+      }
+    }
+
     function setWallpaperMenuOpen(open) {
       if (!el.wallpaperPositionMenu) return;
       const next = !!open && !!state.wallpaperName;
       state.wallpaperMenuOpen = next;
       el.wallpaperPositionMenu.classList.toggle("hidden", !next);
+      if (next) {
+        positionGraphicsMenuAt(el.wallpaperToggle, el.wallpaperPositionMenu);
+      } else {
+        clearGraphicsMenuPosition(el.wallpaperPositionMenu);
+      }
       syncGraphicsMenuOverflowState();
       if (el.wallpaperToggle) el.wallpaperToggle.setAttribute("aria-expanded", String(next));
     }
@@ -10167,6 +10213,11 @@
       const next = !!open && !!state.logoName;
       state.logoMenuOpen = next;
       el.logoPositionMenu.classList.toggle("hidden", !next);
+      if (next) {
+        positionGraphicsMenuAt(el.logoToggle, el.logoPositionMenu);
+      } else {
+        clearGraphicsMenuPosition(el.logoPositionMenu);
+      }
       syncGraphicsMenuOverflowState();
       if (el.logoToggle) el.logoToggle.setAttribute("aria-expanded", String(next));
     }
@@ -17339,6 +17390,14 @@
         setWallpaperMenuOpen(false);
         setLogoMenuOpen(false);
       });
+
+      window.addEventListener("resize", () => {
+        refreshOpenGraphicsMenuPositions();
+      });
+
+      window.addEventListener("scroll", () => {
+        refreshOpenGraphicsMenuPositions();
+      }, true);
 
       ["dragenter", "dragover"].forEach((eventName) => {
         el.playerStage.addEventListener(eventName, (ev) => {
