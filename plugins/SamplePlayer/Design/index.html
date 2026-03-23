@@ -16211,7 +16211,8 @@
           enabled: !!state.wallpaperName,
           path: wallpaperPath,
           fitMode: "fill",
-          brightness: 1.0
+          brightness: 1.0,
+          position: normalizeWallpaperPosition(state.wallpaperPosition)
         },
         logo: {
           enabled: !!state.logoName,
@@ -16637,15 +16638,19 @@
             if (file instanceof File) {
               await setWallpaper(file);
               state.wallpaperDataUrl = embeddedDataUrl;
+              applyWallpaperPosition(normalizeWallpaperPosition(wallpaper.position || state.wallpaperPosition));
             }
           } catch {}
         } else if (typeof wallpaper.path === "string") {
-          await restoreGraphicFromManifest(
+          const restoredWallpaper = await restoreGraphicFromManifest(
             "wallpaper",
             manifestBasePath,
             wallpaper.path,
             stripFileExtension(String(wallpaper.path || "").split(/[\\/]/).pop() || "wallpaper") + ".png"
           );
+          if (restoredWallpaper) {
+            applyWallpaperPosition(normalizeWallpaperPosition(wallpaper.position || state.wallpaperPosition));
+          }
         }
       }
 
