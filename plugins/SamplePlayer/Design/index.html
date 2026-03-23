@@ -17227,7 +17227,10 @@
     function setupWallpaper() {
       el.wallpaperInput.addEventListener("change", async (ev) => {
         const [file] = Array.from(ev.target.files || []);
-        if (file) await setWallpaper(file);
+        if (file) {
+          state.ignoreSessionPayloadUntil = Date.now() + 5000;
+          await setWallpaper(file);
+        }
         ev.target.value = "";
       });
 
@@ -17346,7 +17349,10 @@
       el.playerStage.addEventListener("drop", (ev) => {
         ev.preventDefault();
         const image = Array.from(ev.dataTransfer.files || []).find((f) => f.type.startsWith("image/"));
-        if (image) setWallpaper(image);
+        if (image) {
+          state.ignoreSessionPayloadUntil = Date.now() + 5000;
+          setWallpaper(image);
+        }
       });
 
       updateParticlesToggle();
