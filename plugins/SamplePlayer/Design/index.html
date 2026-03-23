@@ -650,11 +650,6 @@
         );
     }
 
-    .tabs.instrument-locked,
-    .tabs.player-topbar-swatch.instrument-locked {
-      background: transparent;
-    }
-
     .tabs.player-topbar-swatch .tab-btn[data-tab="player"] {
       color: rgba(var(--player-line-rgb), 0.96);
     }
@@ -17241,10 +17236,6 @@
       if (!hasPassword) state.instrumentLocked = false;
       const locked = hasPassword && !!state.instrumentLocked;
 
-      if (el.tabsBar) {
-        el.tabsBar.classList.toggle("instrument-locked", locked);
-      }
-
       if (el.playerTabBtn) {
         el.playerTabBtn.classList.toggle("hidden", locked);
       }
@@ -17260,8 +17251,8 @@
       }
       if (el.tabsBar) {
         const tabsTitle = !hasPassword
-          ? "Option-click empty top bar area to lock"
-          : (locked ? "Option-click empty top bar area to unlock" : "Option-click empty top bar area to lock");
+          ? "Click empty top bar area to lock"
+          : (locked ? "Click empty top bar area to unlock" : "Click empty top bar area to lock");
         el.tabsBar.title = tabsTitle;
       }
       updateSaveButtonVisibility();
