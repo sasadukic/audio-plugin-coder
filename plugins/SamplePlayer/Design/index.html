@@ -2899,6 +2899,70 @@
       padding: 10px;
     }
 
+    .lock-modal-window {
+      width: min(420px, 100%);
+    }
+
+    .lock-modal-copy {
+      margin: 0 0 12px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--text-dim);
+    }
+
+    .lock-modal-field {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+    }
+
+    .lock-modal-input {
+      width: 100%;
+      min-width: 0;
+      height: 34px;
+      border: 1px solid rgba(140, 146, 156, 0.32);
+      border-radius: 8px;
+      background: rgba(8, 12, 18, 0.92);
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+      padding: 0 10px;
+      outline: none;
+    }
+
+    .lock-modal-input:focus {
+      border-color: rgba(255, 216, 92, 0.6);
+      box-shadow: 0 0 0 1px rgba(255, 216, 92, 0.24);
+    }
+
+    .lock-modal-status {
+      min-height: 18px;
+      margin-top: 10px;
+      font-size: 11px;
+      line-height: 1.35;
+      color: var(--text-dim);
+    }
+
+    .lock-modal-status.error {
+      color: #ff9c9c;
+    }
+
+    .lock-modal-status.ok {
+      color: #b9efad;
+    }
+
+    .lock-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
     .render {
       border: 0;
       border-radius: 0;
@@ -5018,6 +5082,27 @@
     </div>
   </div>
 
+  <div id="instrumentLockModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="instrumentLockModalTitle">
+    <div class="modal-window lock-modal-window">
+      <div class="modal-head">
+        <h2 id="instrumentLockModalTitle" class="modal-title">Lock Instrument</h2>
+        <button id="closeInstrumentLockBtn" class="modal-close" type="button" aria-label="Close instrument lock dialog">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="instrumentLockModalCopy" class="lock-modal-copy">Set a password to hide Setup / Mapping until you unlock it.</p>
+        <label class="lock-modal-field" for="instrumentLockPasswordInput">
+          Password
+          <input id="instrumentLockPasswordInput" class="lock-modal-input" type="password" autocomplete="off" spellcheck="false" />
+        </label>
+        <div id="instrumentLockModalStatus" class="lock-modal-status hidden" aria-live="polite"></div>
+        <div class="lock-modal-actions">
+          <button id="instrumentLockCancelBtn" type="button">Cancel</button>
+          <button id="instrumentLockConfirmBtn" class="sample-loop-tool-btn" type="button">Lock Instrument</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const NOTE_TO_SEMITONE = {
       C: 0, "C#": 1, Db: 1, D: 2, "D#": 3, Eb: 3, E: 4,
@@ -5130,6 +5215,9 @@
       strumSequencerSteps: 0,
       strumDoubling: false,
       playerPitchDownOctaves: 0,
+      instrumentLockPasswordHash: "",
+      instrumentLocked: false,
+      instrumentLockModalMode: "",
       strumShowOnMain: false,
       strumRateIndex: 2,
       strumSwingPercent: 0,
@@ -5198,6 +5286,8 @@
       loadingOverlay: document.getElementById("loadingOverlay"),
       loadingLabel: document.getElementById("loadingLabel"),
       tabsBar: document.querySelector(".tabs"),
+      playerTabBtn: document.querySelector('.tab-btn[data-tab="player"]'),
+      setupTabBtn: document.querySelector('.tab-btn[data-tab="setup"]'),
       playerControls: document.querySelector(".player-controls"),
       playerAuthorDisplay: document.getElementById("playerAuthorDisplay"),
       playerParticles: document.getElementById("playerParticles"),
@@ -5332,6 +5422,14 @@
       openSummaryBtn: document.getElementById("openSummaryBtn"),
       closeSummaryBtn: document.getElementById("closeSummaryBtn"),
       summaryModal: document.getElementById("summaryModal"),
+      instrumentLockModal: document.getElementById("instrumentLockModal"),
+      instrumentLockModalTitle: document.getElementById("instrumentLockModalTitle"),
+      instrumentLockModalCopy: document.getElementById("instrumentLockModalCopy"),
+      instrumentLockModalStatus: document.getElementById("instrumentLockModalStatus"),
+      instrumentLockPasswordInput: document.getElementById("instrumentLockPasswordInput"),
+      instrumentLockConfirmBtn: document.getElementById("instrumentLockConfirmBtn"),
+      instrumentLockCancelBtn: document.getElementById("instrumentLockCancelBtn"),
+      closeInstrumentLockBtn: document.getElementById("closeInstrumentLockBtn"),
       filesInput: document.getElementById("filesInput"),
       folderInput: document.getElementById("folderInput"),
       packInput: document.getElementById("packInput"),
@@ -5994,6 +6092,10 @@
           expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
           pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
           playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
+          instrumentLock: {
+            passwordHash: String(state.instrumentLockPasswordHash || "").trim(),
+            locked: !!state.instrumentLockPasswordHash && !!state.instrumentLocked
+          },
           auto: buildAutoControlsSnapshot(),
           sequencer: buildSequencerSnapshot(),
           strum: buildStrumSnapshot()
@@ -6045,6 +6147,10 @@
           expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
           pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
           playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
+          instrumentLock: {
+            passwordHash: String(state.instrumentLockPasswordHash || "").trim(),
+            locked: !!state.instrumentLockPasswordHash && !!state.instrumentLocked
+          },
           auto: buildAutoControlsSnapshot(),
           sequencer: buildSequencerSnapshot(),
           strum: buildStrumSnapshot()
@@ -6320,6 +6426,9 @@
         state.expressionValue = Math.max(0, Math.min(1, Number(ui.expressionValue) || 0));
         state.pitchBendValue = Math.max(-1, Math.min(1, Number(ui.pitchBendValue) || 0));
         state.playerPitchDownOctaves = Math.max(0, Math.min(2, Math.round(Number(ui.playerPitchDownOctaves) || 0)));
+        const lockState = getInstrumentLockStateFromUi(ui);
+        state.instrumentLockPasswordHash = lockState.passwordHash;
+        state.instrumentLocked = lockState.locked;
         state.baseLoopPlaybackEnabled = ui.baseLoopPlaybackEnabled !== false;
         state.packManifestFilePath = String(ui.manifestFilePath || "").trim();
         state.packManifestBasePath = String(ui.manifestBasePath || "").trim();
@@ -6368,6 +6477,7 @@
       updatePlayerEmptyState();
       syncAllKnobValues();
       updateStrumUi();
+      updateInstrumentLockUi();
       emitStrumSettings();
       scheduleHostResizeForActiveTab();
       state.sessionStateRestored = true;
@@ -16700,6 +16810,9 @@
       state.manualRootRanges = {};
       state.activeMapSetId = importedKeyswitchSets.length > 0 ? importedKeyswitchSets[0].id : "base";
       state.baseLoopPlaybackEnabled = data?.settings?.baseLoopPlaybackEnabled !== false;
+      const lockState = getInstrumentLockStateFromUi(sessionUiState);
+      state.instrumentLockPasswordHash = lockState.passwordHash;
+      state.instrumentLocked = lockState.locked;
       state.packManifestFilePath = manifestFilePath;
       state.packManifestBasePath = manifestBasePath;
       state.nextVirtualOrder = -1;
@@ -16770,6 +16883,7 @@
         updatePlayerEmptyState();
         syncAllKnobValues();
       }
+      updateInstrumentLockUi();
       if (hydrateManifestSamples) {
         void hydrateMissingManifestSampleUrls(120);
       }
@@ -17081,15 +17195,141 @@
       el.playerAuthorDisplay.classList.toggle("visible", show);
     }
 
+    function getInstrumentLockStateFromUi(uiState) {
+      const ui = (uiState && typeof uiState === "object") ? uiState : {};
+      const raw = (ui.instrumentLock && typeof ui.instrumentLock === "object")
+        ? ui.instrumentLock
+        : ui;
+      const passwordHash = String(raw.passwordHash || raw.instrumentLockPasswordHash || "").trim();
+      const locked = !!passwordHash && !!raw.locked;
+      return { passwordHash, locked };
+    }
+
+    async function hashInstrumentLockPassword(password) {
+      const raw = String(password || "");
+      if (window.crypto?.subtle && typeof TextEncoder !== "undefined") {
+        const data = new TextEncoder().encode(raw);
+        const digest = await window.crypto.subtle.digest("SHA-256", data);
+        return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+      }
+
+      let hash = 2166136261;
+      for (let index = 0; index < raw.length; index += 1) {
+        hash ^= raw.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+      }
+      return `fallback_${(hash >>> 0).toString(16).padStart(8, "0")}`;
+    }
+
+    function setInstrumentLockModalStatus(message = "", tone = "") {
+      if (!el.instrumentLockModalStatus) return;
+      const text = String(message || "").trim();
+      const visible = text.length > 0;
+      el.instrumentLockModalStatus.textContent = text;
+      el.instrumentLockModalStatus.classList.toggle("hidden", !visible);
+      el.instrumentLockModalStatus.classList.toggle("error", visible && tone === "error");
+      el.instrumentLockModalStatus.classList.toggle("ok", visible && tone === "ok");
+    }
+
+    function updateInstrumentLockUi() {
+      const hasPassword = !!String(state.instrumentLockPasswordHash || "").trim();
+      if (!hasPassword) state.instrumentLocked = false;
+      const locked = hasPassword && !!state.instrumentLocked;
+
+      if (el.setupTabBtn) {
+        el.setupTabBtn.classList.toggle("hidden", locked);
+      }
+      if (locked && document.querySelector(".tab-btn.active")?.dataset.tab === "setup") {
+        activateTab("player");
+        return;
+      }
+      if (el.playerTabBtn) {
+        const playerTitle = !hasPassword
+          ? "Player (Alt-click to lock)"
+          : (locked ? "Player (Alt-click to unlock)" : "Player (Alt-click to lock)");
+        el.playerTabBtn.title = playerTitle;
+      }
+      updateSaveButtonVisibility();
+    }
+
+    function closeInstrumentLockModal() {
+      if (!el.instrumentLockModal) return;
+      el.instrumentLockModal.classList.add("hidden");
+      state.instrumentLockModalMode = "";
+      setInstrumentLockModalStatus("");
+      if (el.instrumentLockPasswordInput) el.instrumentLockPasswordInput.value = "";
+    }
+
+    function openInstrumentLockModal(mode) {
+      if (!el.instrumentLockModal || !el.instrumentLockModalTitle || !el.instrumentLockModalCopy || !el.instrumentLockConfirmBtn) return;
+      const nextMode = mode === "unlock" ? "unlock" : "set";
+      state.instrumentLockModalMode = nextMode;
+      el.instrumentLockModalTitle.textContent = nextMode === "unlock" ? "Unlock Instrument" : "Lock Instrument";
+      el.instrumentLockModalCopy.textContent = nextMode === "unlock"
+        ? "Enter the password to show Setup / Mapping again."
+        : "Set a password to hide Setup / Mapping until the correct password is entered.";
+      el.instrumentLockConfirmBtn.textContent = nextMode === "unlock" ? "Unlock Instrument" : "Lock Instrument";
+      if (el.instrumentLockPasswordInput) el.instrumentLockPasswordInput.value = "";
+      setInstrumentLockModalStatus("");
+      el.instrumentLockModal.classList.remove("hidden");
+      window.requestAnimationFrame(() => {
+        el.instrumentLockPasswordInput?.focus();
+        el.instrumentLockPasswordInput?.select();
+      });
+    }
+
+    function lockInstrumentNow() {
+      if (!state.instrumentLockPasswordHash) return;
+      state.instrumentLocked = true;
+      activateTab("player");
+      updateInstrumentLockUi();
+      scheduleSessionStateSave(180);
+    }
+
+    async function submitInstrumentLockModal() {
+      const mode = state.instrumentLockModalMode === "unlock" ? "unlock" : "set";
+      const rawPassword = String(el.instrumentLockPasswordInput?.value || "");
+      if (!rawPassword.trim()) {
+        setInstrumentLockModalStatus("Enter a password first.", "error");
+        el.instrumentLockPasswordInput?.focus();
+        return;
+      }
+
+      if (mode === "set") {
+        state.instrumentLockPasswordHash = await hashInstrumentLockPassword(rawPassword);
+        state.instrumentLocked = true;
+        closeInstrumentLockModal();
+        activateTab("player");
+        updateInstrumentLockUi();
+        scheduleSessionStateSave(180);
+        return;
+      }
+
+      const hashed = await hashInstrumentLockPassword(rawPassword);
+      if (hashed !== state.instrumentLockPasswordHash) {
+        setInstrumentLockModalStatus("Incorrect password.", "error");
+        el.instrumentLockPasswordInput?.focus();
+        el.instrumentLockPasswordInput?.select();
+        return;
+      }
+
+      state.instrumentLocked = false;
+      closeInstrumentLockModal();
+      updateInstrumentLockUi();
+      scheduleSessionStateSave(180);
+    }
+
     function updateSaveButtonVisibility(activeTab = null) {
       if (!el.saveSmpinstBtn) return;
+      const locked = !!state.instrumentLockPasswordHash && !!state.instrumentLocked;
       const tab = activeTab
         || document.querySelector(".tab-btn.active")?.dataset.tab
         || "player";
-      el.saveSmpinstBtn.classList.toggle("hidden", tab !== "setup");
+      el.saveSmpinstBtn.classList.toggle("hidden", locked || tab !== "setup");
     }
 
     function activateTab(tab) {
+      if (state.instrumentLocked && tab === "setup") tab = "player";
       el.tabs.forEach((btn) => {
         const target = btn.dataset.tab;
         if (!target) return;
@@ -17111,9 +17351,23 @@
 
     function setupTabs() {
       el.tabs.forEach((btn) => {
-        btn.addEventListener("click", () => {
+        btn.addEventListener("click", (ev) => {
           const tab = btn.dataset.tab;
           if (!tab) return;
+          if (tab === "player" && ev.altKey) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (!state.instrumentLockPasswordHash) {
+              openInstrumentLockModal("set");
+              return;
+            }
+            if (state.instrumentLocked) {
+              openInstrumentLockModal("unlock");
+              return;
+            }
+            lockInstrumentNow();
+            return;
+          }
           activateTab(tab);
         });
       });
@@ -17519,6 +17773,34 @@
       window.addEventListener("keydown", (ev) => {
         if (ev.key === "Escape" && !el.summaryModal.classList.contains("hidden")) {
           closeSummaryModal();
+        }
+      });
+    }
+
+    function setupInstrumentLockModal() {
+      if (!el.instrumentLockModal || !el.instrumentLockConfirmBtn || !el.instrumentLockCancelBtn || !el.closeInstrumentLockBtn) return;
+      el.instrumentLockConfirmBtn.addEventListener("click", () => {
+        void submitInstrumentLockModal();
+      });
+      el.instrumentLockCancelBtn.addEventListener("click", closeInstrumentLockModal);
+      el.closeInstrumentLockBtn.addEventListener("click", closeInstrumentLockModal);
+      el.instrumentLockModal.addEventListener("click", (ev) => {
+        if (ev.target === el.instrumentLockModal) closeInstrumentLockModal();
+      });
+      el.instrumentLockPasswordInput?.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          void submitInstrumentLockModal();
+          return;
+        }
+        if (ev.key === "Escape") {
+          ev.preventDefault();
+          closeInstrumentLockModal();
+        }
+      });
+      window.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape" && !el.instrumentLockModal.classList.contains("hidden")) {
+          closeInstrumentLockModal();
         }
       });
     }
@@ -18035,12 +18317,14 @@
       setupSequencerArp();
       setupImport();
       setupSummaryModal();
+      setupInstrumentLockModal();
       setupAuto();
       syncAllKnobValues();
       clearWallpaper();
       updateWallpaperToggle();
       clearLogo();
       updateLogoToggle();
+      updateInstrumentLockUi();
       renderSetup();
       updatePlayerEmptyState();
       renderAuto();
