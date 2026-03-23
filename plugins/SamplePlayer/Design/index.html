@@ -16033,71 +16033,49 @@
       scheduleSessionStateSave(350);
     }
 
-    function clearInstrument() {
-      const preservedMapMatrix = {
-        interval: clampMapMatrixInterval(state.mapMatrixInterval),
-        velocityLayers: clampMapMatrixVelocityLayers(state.mapMatrixVelocityLayers),
-        rrColumns: clampMapMatrixRrColumns(state.mapMatrixRrColumns),
-        splitEnabled: !!state.mapMatrixSplitEnabled
-      };
-
-      stopAutoSamplingCountdown(false);
-      state.sequencerCurrentStep = -1;
-      state.sequencerHostTriggerEnabled = false;
-      state.sequencerSteps = Array.from({ length: SEQUENCER_STEP_COUNT }, () => ({
-        noteMidi: 60,
-        velocity: 100,
-        keyswitchSetId: ""
-      }));
-      if (state.nativeAutoSamplerAvailable && state.nativeAutoSamplerActive) {
-        emitNativeEvent("autosampler_control", { action: "stop" });
-      }
-      state.nativeAutoSamplerActive = false;
-      state.nativeAutoSamplerExpected = 0;
-      state.nativeAutoSamplerCaptured = 0;
-      state.nativeAutoSamplerTakeCount = 0;
-      state.deferredAutoLoopOrders = [];
-      state.nativeAutoSamplerLoopPostConfig = null;
-      state.nativeAutoSamplerInputDetected = false;
-      state.nativeAutoSamplerMessage = "";
-      updateStartSamplingButtonLabel();
-      stopAllPreviewVoices();
-      state.entrySampleHydrationPromises.clear();
-      state.entries.forEach((entry) => {
-        if (entry.sampleUrl) URL.revokeObjectURL(entry.sampleUrl);
+    function revokeMapEntrySampleUrls(entries) {
+      (entries || []).forEach((entry) => {
+        if (entry?.sampleUrl) URL.revokeObjectURL(entry.sampleUrl);
       });
-      state.entries = [];
-      state.manualRootRanges = {};
-      state.keyswitchSets = [];
-      state.openStringMidis = [];
-      state.activeMapSetId = "base";
-      state.baseLoopPlaybackEnabled = true;
-      state.mapMatrixAssignMode = false;
-      state.mapMatrixRrCursor = {};
-      state.mapMatrixPaintActive = false;
-      state.mapMatrixLastPaintCellKey = "";
-      state.mapMatrixInterval = preservedMapMatrix.interval;
-      state.mapMatrixVelocityLayers = preservedMapMatrix.velocityLayers;
-      state.mapMatrixRrColumns = preservedMapMatrix.rrColumns;
-      state.mapMatrixSplitEnabled = preservedMapMatrix.splitEnabled;
-      state.mapMatrixAutoFillRr = true;
-      state.packManifestFilePath = "";
-      state.packManifestBasePath = "";
-      state.nextVirtualOrder = -1;
+    }
+
+    function clearInstrument() {
+      const activeSetId = String(state.activeMapSetId || "base");
+      const activeKeyswitchSet = activeSetId !== "base" ? getKeyswitchSetById(activeSetId) : null;
+      const targetLabel = activeKeyswitchSet
+        ? `keyswitch \"${String(activeKeyswitchSet.name || activeSetId).trim() || activeSetId}\"`
+        : "main mapping";
+
+      ensureSessionStateWritable("clear-map-set");
+      stopAllPreviewVoices();
+      closeSampleEditor();
+
+      if (activeKeyswitchSet) {
+        revokeMapEntrySampleUrls(activeKeyswitchSet.entries);
+        activeKeyswitchSet.entries = [];
+        activeKeyswitchSet.manualRanges = {};
+      } else {
+        revokeMapEntrySampleUrls(state.entries);
+        state.entries = [];
+        state.manualRootRanges = {};
+      }
+
       state.packLoaded = false;
       state.lastFlushedJsonHash = "";
       state.rrCursor = {};
+      state.mapMatrixRrCursor = {};
+      state.mapMatrixPaintActive = false;
+      state.mapMatrixLastPaintCellKey = "";
       state.waveformCache.clear();
       state.pendingSampleDataRequests.clear();
-      state.pendingGraphicDataRequests.clear();
-      state.pendingManifestPickRequests.clear();
       state.entrySampleHydrationPromises.clear();
       state.velocityCrossfadeByRoot = {};
       state.velocityCrossfadePercent = 0;
-      closeSampleEditor();
+
       renderSetup();
       updatePlayerEmptyState();
       syncAllKnobValues();
+      setStatus(el.setupStatus, `Cleared ${targetLabel}.`, "ok");
       scheduleSessionStateSave(250);
     }
 
