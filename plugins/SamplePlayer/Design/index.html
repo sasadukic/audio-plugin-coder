@@ -15941,10 +15941,10 @@
         instrumentName: (el.autoInstrument.value || "Instrument").trim(),
         author: (el.autoAuthor?.value || "").trim(),
         createdUtc: new Date().toISOString(),
+        openStringMidis: normalizeOpenStringMidis(state.openStringMidis),
         settings: {
           gapFillMode: "nextHigherOnly",
           allowPitchUpAboveHighest: state.allowPitchUpAboveHighest,
-          openStringMidis: normalizeOpenStringMidis(state.openStringMidis),
           autoRR: state.autoRR,
           velocityCrossfadePercent: state.velocityCrossfadePercent,
           loopCrossfadeMs: state.loopCrossfadeMs,
@@ -16618,7 +16618,7 @@
         el.autoInstrument.value = data.instrumentName.trim();
       }
       const loadedSettings = (data?.settings && typeof data.settings === "object") ? data.settings : null;
-      state.openStringMidis = normalizeOpenStringMidis(loadedSettings?.openStringMidis);
+      state.openStringMidis = normalizeOpenStringMidis(data?.openStringMidis ?? loadedSettings?.openStringMidis);
       if (el.autoLoop && loadedSettings && Object.prototype.hasOwnProperty.call(loadedSettings, "autoLoopSamples")) {
         el.autoLoop.checked = !!loadedSettings.autoLoopSamples;
       }
