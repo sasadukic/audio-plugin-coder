@@ -6241,7 +6241,7 @@
       if (state.sessionStateLightweight) return;
       markSessionStateDirty();
       clearSessionStateSaveTimer();
-      const waitMs = Math.max(600, Math.round(Number(delayMs) || 900));
+      const waitMs = Math.max(120, Math.round(Number(delayMs) || 900));
       state.sessionStateSaveTimer = window.setTimeout(() => {
         state.sessionStateSaveTimer = 0;
         void flushSessionStateToNative(false);
@@ -6398,10 +6398,10 @@
         updatePerformanceWheelVisuals();
 
         if (state.wallpaperName) {
-          applyWallpaperPosition(ui.wallpaperPosition || state.wallpaperPosition);
+          applyWallpaperPosition(ui.wallpaperPosition || state.wallpaperPosition, { persist: false });
         }
         if (state.logoName) {
-          applyLogoPosition(ui.logoPosition || state.logoPosition);
+          applyLogoPosition(ui.logoPosition || state.logoPosition, { persist: false });
         }
 
         const restoredSetStates = Array.isArray(ui.keyswitchSets) ? ui.keyswitchSets : [];
@@ -9962,7 +9962,7 @@
         .slice(0, limit);
       if (!candidates.length) return;
       let cursor = 0;
-      const workers = Math.min(4, candidates.length);
+      const workers = Math.min(8, candidates.length);
       const runWorker = async () => {
         while (cursor < candidates.length) {
           const entry = candidates[cursor];
@@ -10008,8 +10008,9 @@
       }
     }
 
-    async function setWallpaper(file) {
+    async function setWallpaper(file, options = {}) {
       if (!isLikelyImageFile(file)) return;
+      const persist = options?.persist !== false;
       if (state.wallpaperObjectUrl) URL.revokeObjectURL(state.wallpaperObjectUrl);
       const wallpaperImage = el.playerWallpaperImage;
       const url = URL.createObjectURL(file);
@@ -10032,44 +10033,51 @@
         wallpaperImage.src = url;
         wallpaperImage.classList.remove("hidden");
       }
-      applyWallpaperPosition(state.wallpaperPosition);
-      refreshPlayerParticles();
-      const { swatch, dark, light } = await extractSwatchFromImageFile(file);
-      const [swatchR, swatchG, swatchB] = swatch;
-      const [darkR, darkG, darkB] = dark;
-      const [lightR, lightG, lightB] = light;
-      const wheelRgb = deriveWheelColorFromSwatch(swatch, dark, light);
-      const wheelDarkRgb = mixRgb(wheelRgb, [90, 96, 108], 0.18);
-      const glowBaseR = Math.round((swatchR * 0.72) + (lightR * 0.28));
-      const glowBaseG = Math.round((swatchG * 0.72) + (lightG * 0.28));
-      const glowBaseB = Math.round((swatchB * 0.72) + (lightB * 0.28));
-      const glowR = Math.round(glowBaseR + ((255 - glowBaseR) * 0.2));
-      const glowG = Math.round(glowBaseG + ((255 - glowBaseG) * 0.2));
-      const glowB = Math.round(glowBaseB + ((255 - glowBaseB) * 0.2));
-      state.playerWallpaperSwatchRgb = [swatchR, swatchG, swatchB];
-      document.documentElement.style.setProperty("--player-swatch-rgb", `${swatchR}, ${swatchG}, ${swatchB}`);
-      document.documentElement.style.setProperty("--player-topbar-rgb", `${darkR}, ${darkG}, ${darkB}`);
-      document.documentElement.style.setProperty("--player-line-rgb", `${lightR}, ${lightG}, ${lightB}`);
-      document.documentElement.style.setProperty("--player-bright-rgb", `${lightR}, ${lightG}, ${lightB}`);
-      document.documentElement.style.setProperty("--player-press-glow-rgb", `${glowR}, ${glowG}, ${glowB}`);
-      document.documentElement.style.setProperty("--player-wheel-rgb", `${wheelRgb[0]}, ${wheelRgb[1]}, ${wheelRgb[2]}`);
-      document.documentElement.style.setProperty("--player-wheel-rgb-dark", `${wheelDarkRgb[0]}, ${wheelDarkRgb[1]}, ${wheelDarkRgb[2]}`);
-      state.playerParticleRgb = [lightR, lightG, lightB];
-      state.playerParticleGlowRgb = mixRgb([lightR, lightG, lightB], [255, 255, 255], 0.32);
-      document.documentElement.style.setProperty("--player-key-tint-alpha-top", "0.33");
-      document.documentElement.style.setProperty("--player-key-tint-alpha-bottom", "0.45");
-      document.documentElement.style.setProperty("--player-key-press-tint-alpha-top", "0.46");
-      document.documentElement.style.setProperty("--player-key-press-tint-alpha-bottom", "0.6");
-      document.documentElement.style.setProperty("--player-key-press-black-alpha-top", "0.38");
-      document.documentElement.style.setProperty("--player-key-press-black-alpha-bottom", "0.5");
-      applyPlayerOpenStringAccentFromSwatch([swatchR, swatchG, swatchB]);
+      applyWallpaperPosition(state.wallpaperPosition, { persist: false });
       setWallpaperMenuOpen(false);
       updateWallpaperToggle();
       updateTopBarTheme();
       updateLoadingOverlayTheme();
       updatePlayerEdgeWaveBlurState();
       refreshPlayerParticles();
-      scheduleSessionStateSave(350);
+      void extractSwatchFromImageFile(file)
+        .then(({ swatch, dark, light }) => {
+          if (state.wallpaperObjectUrl !== url) return;
+          const [swatchR, swatchG, swatchB] = swatch;
+          const [darkR, darkG, darkB] = dark;
+          const [lightR, lightG, lightB] = light;
+          const wheelRgb = deriveWheelColorFromSwatch(swatch, dark, light);
+          const wheelDarkRgb = mixRgb(wheelRgb, [90, 96, 108], 0.18);
+          const glowBaseR = Math.round((swatchR * 0.72) + (lightR * 0.28));
+          const glowBaseG = Math.round((swatchG * 0.72) + (lightG * 0.28));
+          const glowBaseB = Math.round((swatchB * 0.72) + (lightB * 0.28));
+          const glowR = Math.round(glowBaseR + ((255 - glowBaseR) * 0.2));
+          const glowG = Math.round(glowBaseG + ((255 - glowBaseG) * 0.2));
+          const glowB = Math.round(glowBaseB + ((255 - glowBaseB) * 0.2));
+          state.playerWallpaperSwatchRgb = [swatchR, swatchG, swatchB];
+          document.documentElement.style.setProperty("--player-swatch-rgb", `${swatchR}, ${swatchG}, ${swatchB}`);
+          document.documentElement.style.setProperty("--player-topbar-rgb", `${darkR}, ${darkG}, ${darkB}`);
+          document.documentElement.style.setProperty("--player-line-rgb", `${lightR}, ${lightG}, ${lightB}`);
+          document.documentElement.style.setProperty("--player-bright-rgb", `${lightR}, ${lightG}, ${lightB}`);
+          document.documentElement.style.setProperty("--player-press-glow-rgb", `${glowR}, ${glowG}, ${glowB}`);
+          document.documentElement.style.setProperty("--player-wheel-rgb", `${wheelRgb[0]}, ${wheelRgb[1]}, ${wheelRgb[2]}`);
+          document.documentElement.style.setProperty("--player-wheel-rgb-dark", `${wheelDarkRgb[0]}, ${wheelDarkRgb[1]}, ${wheelDarkRgb[2]}`);
+          state.playerParticleRgb = [lightR, lightG, lightB];
+          state.playerParticleGlowRgb = mixRgb([lightR, lightG, lightB], [255, 255, 255], 0.32);
+          document.documentElement.style.setProperty("--player-key-tint-alpha-top", "0.33");
+          document.documentElement.style.setProperty("--player-key-tint-alpha-bottom", "0.45");
+          document.documentElement.style.setProperty("--player-key-press-tint-alpha-top", "0.46");
+          document.documentElement.style.setProperty("--player-key-press-tint-alpha-bottom", "0.6");
+          document.documentElement.style.setProperty("--player-key-press-black-alpha-top", "0.38");
+          document.documentElement.style.setProperty("--player-key-press-black-alpha-bottom", "0.5");
+          applyPlayerOpenStringAccentFromSwatch([swatchR, swatchG, swatchB]);
+          updateTopBarTheme();
+          updateLoadingOverlayTheme();
+          updatePlayerEdgeWaveBlurState();
+          refreshPlayerParticles();
+        })
+        .catch(() => {});
+      if (persist) scheduleSessionStateSave(350);
     }
 
     function clearWallpaper() {
@@ -10248,11 +10256,16 @@
       });
     }
 
-    function applyWallpaperPosition(position) {
+    function applyWallpaperPosition(position, options = {}) {
       const normalized = normalizeWallpaperPosition(position);
+      const persist = options?.persist !== false;
       state.wallpaperPosition = normalized;
+      updateWallpaperPositionMenu();
       const wallpaperImage = el.playerWallpaperImage;
-      if (!wallpaperImage) return;
+      if (!wallpaperImage) {
+        if (persist) scheduleSessionStateSave(350);
+        return;
+      }
       const topTrimPx = 44;
 
       const [vertical = "middle", horizontal = "center"] = normalized.split("-");
@@ -10282,8 +10295,7 @@
       }
 
       wallpaperImage.style.transform = transforms.length ? transforms.join(" ") : "none";
-      updateWallpaperPositionMenu();
-      scheduleSessionStateSave(350);
+      if (persist) scheduleSessionStateSave(350);
     }
 
     function setLogoMenuOpen(open) {
@@ -10310,10 +10322,15 @@
       });
     }
 
-    function applyLogoPosition(position) {
+    function applyLogoPosition(position, options = {}) {
       const normalized = normalizeLogoPosition(position);
+      const persist = options?.persist !== false;
       state.logoPosition = normalized;
-      if (!el.playerLogoWrap) return;
+      updateLogoPositionMenu();
+      if (!el.playerLogoWrap) {
+        if (persist) scheduleSessionStateSave(350);
+        return;
+      }
 
       const col = normalized.endsWith("-left")
         ? "left"
@@ -10334,12 +10351,12 @@
       el.playerLogoWrap.style.setProperty("--player-logo-left", left);
       el.playerLogoWrap.style.setProperty("--player-logo-right", right);
       el.playerLogoWrap.style.setProperty("--player-logo-transform", transform);
-      updateLogoPositionMenu();
-      scheduleSessionStateSave(350);
+      if (persist) scheduleSessionStateSave(350);
     }
 
-    function setLogo(file) {
+    function setLogo(file, options = {}) {
       if (!isLikelyImageFile(file)) return;
+      const persist = options?.persist !== false;
       if (state.logoObjectUrl) URL.revokeObjectURL(state.logoObjectUrl);
       const url = URL.createObjectURL(file);
       state.logoObjectUrl = url;
@@ -10363,10 +10380,10 @@
       if (el.playerLogoWrap) {
         el.playerLogoWrap.classList.remove("hidden");
       }
-      applyLogoPosition(state.logoPosition);
+      applyLogoPosition(state.logoPosition, { persist: false });
       setLogoMenuOpen(false);
       updateLogoToggle();
-      scheduleSessionStateSave(350);
+      if (persist) scheduleSessionStateSave(350);
     }
 
     function clearLogo() {
@@ -16570,11 +16587,11 @@
       if (!(nextFile instanceof File)) return false;
 
       if (kind === "wallpaper") {
-        await setWallpaper(nextFile);
+        await setWallpaper(nextFile, { persist: false });
         state.wallpaperSourcePath = absolutePath;
         state.wallpaperDataUrl = String(payload.dataUrl || "");
       } else if (kind === "logo") {
-        setLogo(nextFile);
+        setLogo(nextFile, { persist: false });
         state.logoSourcePath = absolutePath;
         state.logoDataUrl = String(payload.dataUrl || "");
       }
@@ -16596,9 +16613,9 @@
           try {
             const file = await makeImageFileFromDataUrl(embeddedDataUrl, fileName, "");
             if (file instanceof File) {
-              await setWallpaper(file);
+              await setWallpaper(file, { persist: false });
               state.wallpaperDataUrl = embeddedDataUrl;
-              applyWallpaperPosition(normalizeWallpaperPosition(wallpaper.position || state.wallpaperPosition));
+              applyWallpaperPosition(normalizeWallpaperPosition(wallpaper.position || state.wallpaperPosition), { persist: false });
             }
           } catch {}
         } else if (typeof wallpaper.path === "string") {
@@ -16609,7 +16626,7 @@
             stripFileExtension(String(wallpaper.path || "").split(/[\\/]/).pop() || "wallpaper") + ".png"
           );
           if (restoredWallpaper) {
-            applyWallpaperPosition(normalizeWallpaperPosition(wallpaper.position || state.wallpaperPosition));
+            applyWallpaperPosition(normalizeWallpaperPosition(wallpaper.position || state.wallpaperPosition), { persist: false });
           }
         }
       }
@@ -16621,9 +16638,9 @@
           try {
             const file = await makeImageFileFromDataUrl(embeddedDataUrl, fileName, "");
             if (file instanceof File) {
-              setLogo(file);
+              setLogo(file, { persist: false });
               state.logoDataUrl = embeddedDataUrl;
-              applyLogoPosition(normalizeLogoPosition(logo.position || state.logoPosition));
+              applyLogoPosition(normalizeLogoPosition(logo.position || state.logoPosition), { persist: false });
             }
           } catch {}
         } else if (typeof logo.path === "string") {
@@ -16634,7 +16651,7 @@
             stripFileExtension(String(logo.path || "").split(/[\\/]/).pop() || "logo") + ".png"
           );
           if (restoredLogo) {
-            applyLogoPosition(normalizeLogoPosition(logo.position || state.logoPosition));
+            applyLogoPosition(normalizeLogoPosition(logo.position || state.logoPosition), { persist: false });
           }
         }
       }
@@ -16666,11 +16683,11 @@
         if (!(nextFile instanceof File)) return false;
 
         if (kind === "wallpaper") {
-          await setWallpaper(nextFile);
+          await setWallpaper(nextFile, { persist: false });
           state.wallpaperDataUrl = dataUrl;
           state.wallpaperSourcePath = sourcePath;
         } else {
-          setLogo(nextFile);
+          setLogo(nextFile, { persist: false });
           state.logoDataUrl = dataUrl;
           state.logoSourcePath = sourcePath;
         }
@@ -16693,11 +16710,11 @@
         if (!(nextFile instanceof File)) return false;
 
         if (kind === "wallpaper") {
-          await setWallpaper(nextFile);
+          await setWallpaper(nextFile, { persist: false });
           state.wallpaperDataUrl = String(payload.dataUrl || "");
           state.wallpaperSourcePath = sourcePath;
         } else {
-          setLogo(nextFile);
+          setLogo(nextFile, { persist: false });
           state.logoDataUrl = String(payload.dataUrl || "");
           state.logoSourcePath = sourcePath;
         }
@@ -16711,7 +16728,7 @@
       if (restoredWallpaper) {
         applyWallpaperPosition(normalizeWallpaperPosition(
           ui.wallpaperPosition || wallpaperManifest?.position || state.wallpaperPosition
-        ));
+        ), { persist: false });
       }
       if (!restoredWallpaper && wallpaperManifest?.enabled && typeof wallpaperManifest.path === "string") {
         const fallbackWallpaper = await restoreGraphicFromManifest(
@@ -16723,7 +16740,7 @@
         if (fallbackWallpaper) {
           applyWallpaperPosition(normalizeWallpaperPosition(
             ui.wallpaperPosition || wallpaperManifest.position || state.wallpaperPosition
-          ));
+          ), { persist: false });
         }
       }
 
@@ -16734,7 +16751,7 @@
       if (restoredLogo) {
         applyLogoPosition(normalizeLogoPosition(
           ui.logoPosition || logoManifest?.position || state.logoPosition
-        ));
+        ), { persist: false });
       }
       if (!restoredLogo && logoManifest?.enabled && typeof logoManifest.path === "string") {
         const fallbackLogo = await restoreGraphicFromManifest(
@@ -16744,7 +16761,7 @@
           stripFileExtension(String(logoManifest.path || "").split(/[\\/]/).pop() || "logo") + ".png"
         );
         if (fallbackLogo) {
-          applyLogoPosition(normalizeLogoPosition(logoManifest.position || state.logoPosition));
+          applyLogoPosition(normalizeLogoPosition(logoManifest.position || state.logoPosition), { persist: false });
         }
       }
     }
