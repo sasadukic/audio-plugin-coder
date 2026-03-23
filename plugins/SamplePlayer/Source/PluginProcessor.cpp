@@ -414,21 +414,6 @@ juce::String makeLightweightSessionStateJson (const juce::String& fullJson,
     if (parsed.isVoid())
         return fullJson;
 
-    juce::String wallpaperDataUrl;
-    juce::String wallpaperSourcePath;
-    juce::String logoDataUrl;
-    juce::String logoSourcePath;
-    if (const auto* rootObject = parsed.getDynamicObject())
-    {
-        if (const auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
-        {
-            wallpaperDataUrl = uiObject->getProperty ("wallpaperDataUrl").toString().trim();
-            wallpaperSourcePath = uiObject->getProperty ("wallpaperSourcePath").toString().trim();
-            logoDataUrl = uiObject->getProperty ("logoDataUrl").toString().trim();
-            logoSourcePath = uiObject->getProperty ("logoSourcePath").toString().trim();
-        }
-    }
-
     LightweightStripStats stats;
     stripLargePayloadFieldsRecursive (parsed, stats);
 
@@ -440,21 +425,12 @@ juce::String makeLightweightSessionStateJson (const juce::String& fullJson,
             manifestObj->removeProperty ("variants");
         }
 
+        // Wallpaper/logo data URLs are never included in the lightweight
+        // payload — they are only persisted via the explicit save button.
         if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
         {
-            constexpr int maxGraphicDataUrlChars = 5 * 1024 * 1024;
-            const auto keepGraphicDataUrl = [] (const juce::String& value)
-            {
-                return value.startsWithIgnoreCase ("data:image/")
-                    && value.length() > 32
-                    && value.length() <= maxGraphicDataUrlChars;
-            };
-
-            if (wallpaperSourcePath.isEmpty() && keepGraphicDataUrl (wallpaperDataUrl))
-                uiObject->setProperty ("wallpaperDataUrl", wallpaperDataUrl);
-
-            if (logoSourcePath.isEmpty() && keepGraphicDataUrl (logoDataUrl))
-                uiObject->setProperty ("logoDataUrl", logoDataUrl);
+            uiObject->removeProperty ("wallpaperDataUrl");
+            uiObject->removeProperty ("logoDataUrl");
         }
     }
 
@@ -1765,17 +1741,6 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
         // --- build lightweight cache (strips data URLs destructively from parsed var) ---
         const auto lightweightStartMs = juce::Time::getMillisecondCounterHiRes();
 
-        juce::String wallpaperDataUrl;
-        juce::String logoDataUrl;
-        if (const auto* rootObject = parsed.getDynamicObject())
-        {
-            if (const auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
-            {
-                wallpaperDataUrl = uiObject->getProperty ("wallpaperDataUrl").toString().trim();
-                logoDataUrl = uiObject->getProperty ("logoDataUrl").toString().trim();
-            }
-        }
-
         LightweightStripStats stripStats;
         stripLargePayloadFieldsRecursive (parsed, stripStats);
 
@@ -1790,25 +1755,13 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
                 manifestObj->removeProperty ("entries");
                 manifestObj->removeProperty ("variants");
             }
-        }
 
-        if (auto* rootObject = parsed.getDynamicObject())
-        {
+            // Wallpaper/logo data URLs are never included in the lightweight
+            // payload — they are only persisted via the explicit save button.
             if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
             {
-                constexpr int maxGraphicDataUrlChars = 5 * 1024 * 1024;
-                const auto keepGraphicDataUrl = [] (const juce::String& value)
-                {
-                    return value.startsWithIgnoreCase ("data:image/")
-                        && value.length() > 32
-                        && value.length() <= maxGraphicDataUrlChars;
-                };
-
-                if (keepGraphicDataUrl (wallpaperDataUrl))
-                    uiObject->setProperty ("wallpaperDataUrl", wallpaperDataUrl);
-
-                if (keepGraphicDataUrl (logoDataUrl))
-                    uiObject->setProperty ("logoDataUrl", logoDataUrl);
+                uiObject->removeProperty ("wallpaperDataUrl");
+                uiObject->removeProperty ("logoDataUrl");
             }
         }
 
