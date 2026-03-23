@@ -2554,6 +2554,8 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
         }
     }
 
+    strumDoublingEnabled.store (doubling, std::memory_order_relaxed);
+
     const int activeStepCount = juce::jmax (1, parsedStepCount);
     auto runtime = std::make_shared<StepSequencerRuntime>();
     runtime->enabled = enabled;
@@ -5266,8 +5268,8 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
 
         {
             auto strumRT = std::atomic_load (&strumSequencerRuntime);
-            const bool doublingOn = strumRT != nullptr && strumRT->doubling;
-            const int vel127 = juce::jlimit (1, 127, static_cast<int> (std::round (message.getFloatVelocity() * 127.0f)));
+            const bool doublingOn = strumDoublingEnabled.load (std::memory_order_relaxed)
+                || (strumRT != nullptr && strumRT->doubling);
             if (doublingOn)
             {
                 const auto leftZone = startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, false, -1.0f, 0);

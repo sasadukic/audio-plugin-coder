@@ -461,6 +461,7 @@ private:
     std::atomic<float> modwheelVelocityLayerControlValue01 { 0.0f };
     std::atomic<float> expressionControllerValue01 { 0.0f };
     std::atomic<int> playerPitchDownOctaves { 0 };
+    std::atomic<bool> strumDoublingEnabled { false };
     std::atomic<bool> activeMapLoopPlaybackEnabled { true };
     mutable juce::CriticalSection decodedEmbeddedAudioCacheLock;
     std::unordered_map<juce::uint64, std::shared_ptr<DecodedEmbeddedAudioCacheEntry>> decodedEmbeddedAudioCache;
