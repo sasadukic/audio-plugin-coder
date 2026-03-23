@@ -13618,12 +13618,56 @@
 
       function bindPlayerKeyEvents(keyNode, midi) {
         let releaseTimer = 0;
+        let longPressTimer = 0;
+        let longPressTriggered = false;
         let lastPressTs = -1;
         let keyHeld = false;
         let keyHeldVelocity = 100;
         keyNode.dataset.midi = String(midi);
         keyNode.setAttribute("aria-label", `${midiToNote(midi)} (${midi})`);
         if (keyNode.disabled) return;
+
+        function clearLongPressTimer() {
+          if (!longPressTimer) return;
+          window.clearTimeout(longPressTimer);
+          longPressTimer = 0;
+        }
+
+        function toggleOpenStringFromGesture() {
+          const enabled = toggleOpenStringMidi(midi);
+          renderPlayerKeyboard();
+          setStatus(el.setupStatus,
+            `${enabled ? "Marked" : "Unmarked"} ${midiToNote(midi)} as open string.`,
+            "ok");
+          scheduleSessionStateSave(250);
+        }
+
+        function releaseHeldNoteIfNeeded() {
+          if (!keyHeld) return;
+          const sentNativeNoteOff = emitNativePreviewMidi(false, midi, keyHeldVelocity, 1);
+          if (!sentNativeNoteOff) {
+            stopPreviewVoiceForKey(midi, getPlayerVoiceSettings().releaseSec, null, false);
+          }
+          keyHeld = false;
+        }
+
+        function openPlayerKeyMenuFromHold(clientX, clientY) {
+          clearLongPressTimer();
+          longPressTriggered = true;
+          releaseHeldNoteIfNeeded();
+          if (!keyNode.classList.contains("keyswitch-latched")) {
+            keyNode.classList.remove("is-down");
+          }
+          showKeyContextMenu(clientX, clientY, midi, "player");
+        }
+
+        function scheduleLongPressMenu(clientX, clientY) {
+          clearLongPressTimer();
+          longPressTriggered = false;
+          longPressTimer = window.setTimeout(() => {
+            openPlayerKeyMenuFromHold(clientX, clientY);
+          }, 420);
+        }
 
         function triggerPressFromClientY(clientY, eventTimeStamp = null) {
           const stamp = Number.isFinite(eventTimeStamp) ? Number(eventTimeStamp) : performance.now();
@@ -13652,8 +13696,14 @@
 
         keyNode.addEventListener("pointerdown", (ev) => {
           if (typeof ev.button === "number" && ev.button > 0) return;
+          if (ev.altKey) {
+            ev.preventDefault();
+            toggleOpenStringFromGesture();
+            return;
+          }
           ev.preventDefault();
           triggerPressFromClientY(ev.clientY, ev.timeStamp);
+          scheduleLongPressMenu(ev.clientX, ev.clientY);
           if (keyNode.setPointerCapture) {
             try {
               keyNode.setPointerCapture(ev.pointerId);
@@ -13662,13 +13712,8 @@
         });
 
         const release = (ev) => {
-          if (keyHeld) {
-            const sentNativeNoteOff = emitNativePreviewMidi(false, midi, keyHeldVelocity, 1);
-            if (!sentNativeNoteOff) {
-              stopPreviewVoiceForKey(midi, getPlayerVoiceSettings().releaseSec, null, false);
-            }
-          }
-          keyHeld = false;
+          clearLongPressTimer();
+          releaseHeldNoteIfNeeded();
           if (releaseTimer) window.clearTimeout(releaseTimer);
           releaseTimer = window.setTimeout(() => {
             if (!keyNode.classList.contains("keyswitch-latched")) {
@@ -13676,6 +13721,7 @@
             }
             releaseTimer = 0;
           }, 240);
+          longPressTriggered = false;
           if (ev && keyNode.releasePointerCapture && keyNode.hasPointerCapture && keyNode.hasPointerCapture(ev.pointerId)) {
             try {
               keyNode.releasePointerCapture(ev.pointerId);
@@ -13692,6 +13738,10 @@
 
         keyNode.addEventListener("mousedown", (ev) => {
           if (typeof ev.button === "number" && ev.button > 0) return;
+          if (ev.altKey) {
+            ev.preventDefault();
+            return;
+          }
           ev.preventDefault();
           triggerPressFromClientY(ev.clientY, ev.timeStamp);
         });
@@ -13702,6 +13752,7 @@
           if (!touch) return;
           ev.preventDefault();
           triggerPressFromClientY(touch.clientY, ev.timeStamp);
+          scheduleLongPressMenu(touch.clientX, touch.clientY);
         }, { passive: false });
         keyNode.addEventListener("touchend", release);
         keyNode.addEventListener("touchcancel", release);
