@@ -15095,6 +15095,9 @@
       updateSampleGainLine(null);
 
       el.mapKeys.addEventListener("pointerdown", (ev) => {
+        const isSecondaryGesture = (typeof ev.button === "number" && ev.button === 2)
+          || (!!ev.ctrlKey && (typeof ev.button !== "number" || ev.button === 0));
+        if (isSecondaryGesture) return;
         const keyNode = ev.target.closest(".map-key");
         if (!keyNode || keyNode.classList.contains("disabled")) return;
         const midi = Number(keyNode.dataset.midi);
@@ -15112,6 +15115,30 @@
       /* ---- right-click context menu on keyboard map keys ---- */
       const hideKeyContextMenu = () => {
         el.mapKeyContextMenu.classList.remove("visible");
+      };
+
+      const isSecondaryMenuGesture = (ev) => {
+        if (!ev) return false;
+        if (typeof ev.button === "number" && ev.button === 2) return true;
+        if (!!ev.ctrlKey && (typeof ev.button !== "number" || ev.button === 0)) return true;
+        return false;
+      };
+
+      const showKeyContextMenu = (clientX, clientY, midi, scope, layer = null) => {
+        if (!Number.isFinite(Number(midi))) return;
+        state.keyContextMenuTargetMidi = Math.round(Number(midi));
+        state.keyContextMenuTargetLayer = Number.isFinite(Number(layer)) ? Math.round(Number(layer)) : null;
+        state.keyContextMenuScope = String(scope || "").trim();
+        buildKeyContextMenuItems();
+        const menu = el.mapKeyContextMenu;
+        menu.style.left = `${clientX}px`;
+        menu.style.top = `${clientY}px`;
+        menu.classList.add("visible");
+        requestAnimationFrame(() => {
+          const rect = menu.getBoundingClientRect();
+          if (rect.right > window.innerWidth) menu.style.left = `${window.innerWidth - rect.width - 4}px`;
+          if (rect.bottom > window.innerHeight) menu.style.top = `${window.innerHeight - rect.height - 4}px`;
+        });
       };
 
       const buildKeyContextMenuItems = () => {
@@ -15154,19 +15181,18 @@
         if (!Number.isFinite(midi)) return;
         ev.preventDefault();
         ev.stopPropagation();
-        state.keyContextMenuTargetMidi = midi;
-        state.keyContextMenuTargetLayer = null;
-        state.keyContextMenuScope = "map";
-        buildKeyContextMenuItems();
-        const menu = el.mapKeyContextMenu;
-        menu.style.left = ev.clientX + "px";
-        menu.style.top = ev.clientY + "px";
-        menu.classList.add("visible");
-        requestAnimationFrame(() => {
-          const rect = menu.getBoundingClientRect();
-          if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 4) + "px";
-          if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 4) + "px";
-        });
+        showKeyContextMenu(ev.clientX, ev.clientY, midi, "map");
+      });
+
+      el.mapKeys.addEventListener("mousedown", (ev) => {
+        if (!isSecondaryMenuGesture(ev)) return;
+        const keyNode = ev.target.closest(".map-key");
+        if (!keyNode || keyNode.classList.contains("disabled")) return;
+        const midi = Number(keyNode.dataset.midi);
+        if (!Number.isFinite(midi)) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        showKeyContextMenu(ev.clientX, ev.clientY, midi, "map");
       });
 
       el.playerKeyboard.addEventListener("contextmenu", (ev) => {
@@ -15177,19 +15203,19 @@
         if (!Number.isFinite(midi)) return;
         ev.preventDefault();
         ev.stopPropagation();
-        state.keyContextMenuTargetMidi = midi;
-        state.keyContextMenuTargetLayer = null;
-        state.keyContextMenuScope = "player";
-        buildKeyContextMenuItems();
-        const menu = el.mapKeyContextMenu;
-        menu.style.left = ev.clientX + "px";
-        menu.style.top = ev.clientY + "px";
-        menu.classList.add("visible");
-        requestAnimationFrame(() => {
-          const rect = menu.getBoundingClientRect();
-          if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 4) + "px";
-          if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 4) + "px";
-        });
+        showKeyContextMenu(ev.clientX, ev.clientY, midi, "player");
+      });
+
+      el.playerKeyboard.addEventListener("mousedown", (ev) => {
+        if (!isSecondaryMenuGesture(ev)) return;
+        const keyNode = ev.target.closest(".player-key");
+        if (!keyNode) return;
+        if (keyNode.classList.contains("no-sample") || keyNode.classList.contains("is-keyswitch")) return;
+        const midi = Number(keyNode.dataset.midi);
+        if (!Number.isFinite(midi)) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        showKeyContextMenu(ev.clientX, ev.clientY, midi, "player");
       });
 
       el.mapKeyContextMenu.addEventListener("click", (ev) => {
