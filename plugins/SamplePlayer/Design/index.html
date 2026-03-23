@@ -17225,9 +17225,10 @@
     }
 
     function setupWallpaper() {
-      el.wallpaperInput.addEventListener("change", (ev) => {
+      el.wallpaperInput.addEventListener("change", async (ev) => {
         const [file] = Array.from(ev.target.files || []);
-        if (file) setWallpaper(file);
+        if (file) await setWallpaper(file);
+        ev.target.value = "";
       });
 
       el.logoInput.addEventListener("change", (ev) => {
@@ -17237,6 +17238,7 @@
 
       el.wallpaperToggle.addEventListener("click", () => {
         if (!state.wallpaperName) {
+          el.wallpaperInput.value = "";
           el.wallpaperInput.click();
           return;
         }
