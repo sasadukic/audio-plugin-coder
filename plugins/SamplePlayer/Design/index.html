@@ -4296,9 +4296,26 @@
       white-space: nowrap;
     }
 
+    .map-key-context-menu-item.checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-right: 18px;
+    }
+
+    .map-key-context-menu-checkbox {
+      margin: 0;
+      pointer-events: none;
+      accent-color: rgb(var(--player-open-string-border-rgb));
+    }
+
     .map-key-context-menu-item:hover {
       background: rgba(80, 140, 255, 0.25);
       color: #fff;
+    }
+
+    .map-key.open-string {
+      box-shadow: inset 0 0 0 2px rgba(var(--player-open-string-border-rgb), 0.86);
     }
 
     .hidden {
@@ -5912,9 +5929,56 @@
       return {
         version: 1,
         manifest,
-        ui: buildManifestUiStateSnapshot({
-          includeEmbeddedGraphics: !!(options.force || options.includeEmbeddedSampleData)
-        })
+        ui: {
+          setupOctaveStart: Math.max(0, Math.min(120, Math.round(Number(state.setupOctaveStart) || 48))),
+          activeMapSetId: String(state.activeMapSetId || "base"),
+          mapMatrix: {
+            interval: clampMapMatrixInterval(state.mapMatrixInterval),
+            velocityLayers: clampMapMatrixVelocityLayers(state.mapMatrixVelocityLayers),
+            rrColumns: clampMapMatrixRrColumns(state.mapMatrixRrColumns),
+            splitEnabled: !!state.mapMatrixSplitEnabled,
+            autoFillRr: state.mapMatrixAutoFillRr !== false
+          },
+          baseLoopPlaybackEnabled: state.baseLoopPlaybackEnabled !== false,
+          manifestFilePath: getPackManifestFilePath(),
+          manifestBasePath: getPackManifestBasePath(),
+          manualRootRanges: cloneManualRangesObject(state.manualRootRanges),
+          keyswitchSets: (state.keyswitchSets || []).map((set, index) => ({
+            id: String(set?.id || ""),
+            name: String(set?.name || ""),
+            key: String(set?.key || ""),
+            keyMidi: Number.isFinite(set?.keyMidi) ? Math.round(set.keyMidi) : null,
+            loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
+            index,
+            active: String(state.activeMapSetId || "") === String(set?.id || ""),
+            manualRanges: cloneManualRangesObject(set?.manualRanges)
+          })),
+          velocityCrossfadeByRoot: { ...(state.velocityCrossfadeByRoot || {}) },
+          loopCrossfadeMs: clampLoopCrossfadeMs(state.loopCrossfadeMs),
+          allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
+          roundRobinPlaybackMode: normalizeRoundRobinPlaybackMode(state.roundRobinPlaybackMode),
+          openStringMidis: normalizeOpenStringMidis(state.openStringMidis),
+          autoRR: !!state.autoRR,
+          autoGainCrossfade: !!state.autoGainCrossfade,
+          wallpaperPosition: normalizeWallpaperPosition(state.wallpaperPosition),
+          wallpaperName: state.wallpaperName ? String(state.wallpaperName || "").trim() : "",
+          wallpaperSourcePath: state.wallpaperName ? String(state.wallpaperSourcePath || "").trim() : "",
+          wallpaperDataUrl: (options.force || options.includeEmbeddedSampleData) && state.wallpaperName ? String(state.wallpaperDataUrl || "").trim() : "",
+          logoPosition: normalizeLogoPosition(state.logoPosition),
+          logoName: state.logoName ? String(state.logoName || "").trim() : "",
+          logoSourcePath: state.logoName ? String(state.logoSourcePath || "").trim() : "",
+          logoDataUrl: (options.force || options.includeEmbeddedSampleData) && state.logoName ? String(state.logoDataUrl || "").trim() : "",
+          particlesEnabled: !!state.playerParticlesEnabled,
+          godRaysEnabled: !!state.playerGodRaysEnabled,
+          edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled,
+          modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
+          expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
+          pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
+          playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
+          auto: buildAutoControlsSnapshot(),
+          sequencer: buildSequencerSnapshot(),
+          strum: buildStrumSnapshot()
+        }
       };
     }
 
@@ -5926,8 +5990,45 @@
         version: 1,
         manifest: safeManifest,
         ui: {
-          ...buildManifestUiStateSnapshot({ includeEmbeddedGraphics: true }),
+          setupOctaveStart: Math.max(0, Math.min(120, Math.round(Number(state.setupOctaveStart) || 48))),
+          activeMapSetId: String(state.activeMapSetId || "base"),
+          mapMatrix: {
+            interval: clampMapMatrixInterval(state.mapMatrixInterval),
+            velocityLayers: clampMapMatrixVelocityLayers(state.mapMatrixVelocityLayers),
+            rrColumns: clampMapMatrixRrColumns(state.mapMatrixRrColumns),
+            splitEnabled: !!state.mapMatrixSplitEnabled,
+            autoFillRr: state.mapMatrixAutoFillRr !== false
+          },
+          baseLoopPlaybackEnabled: state.baseLoopPlaybackEnabled !== false,
+          manifestFilePath: getPackManifestFilePath(),
+          manifestBasePath: getPackManifestBasePath(),
+          manualRootRanges: cloneManualRangesObject(state.manualRootRanges),
           keyswitchSets: [],
+          velocityCrossfadeByRoot: { ...(state.velocityCrossfadeByRoot || {}) },
+          loopCrossfadeMs: clampLoopCrossfadeMs(state.loopCrossfadeMs),
+          allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
+          roundRobinPlaybackMode: normalizeRoundRobinPlaybackMode(state.roundRobinPlaybackMode),
+          openStringMidis: normalizeOpenStringMidis(state.openStringMidis),
+          autoRR: !!state.autoRR,
+          autoGainCrossfade: !!state.autoGainCrossfade,
+          wallpaperPosition: normalizeWallpaperPosition(state.wallpaperPosition),
+          wallpaperName: state.wallpaperName ? String(state.wallpaperName || "").trim() : "",
+          wallpaperSourcePath: state.wallpaperName ? String(state.wallpaperSourcePath || "").trim() : "",
+          wallpaperDataUrl: state.wallpaperName ? String(state.wallpaperDataUrl || "").trim() : "",
+          logoPosition: normalizeLogoPosition(state.logoPosition),
+          logoName: state.logoName ? String(state.logoName || "").trim() : "",
+          logoSourcePath: state.logoName ? String(state.logoSourcePath || "").trim() : "",
+          logoDataUrl: state.logoName ? String(state.logoDataUrl || "").trim() : "",
+          particlesEnabled: !!state.playerParticlesEnabled,
+          godRaysEnabled: !!state.playerGodRaysEnabled,
+          edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled,
+          modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
+          expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
+          pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
+          playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
+          auto: buildAutoControlsSnapshot(),
+          sequencer: buildSequencerSnapshot(),
+          strum: buildStrumSnapshot()
         }
       };
     }
@@ -13393,6 +13494,10 @@
         } else {
           key.dataset.midi = String(midi);
           key.textContent = midiToNote(midi);
+          if (isOpenStringMidi(midi)) {
+            key.classList.add("open-string");
+            key.title = `${midiToNote(midi)} | Open string`;
+          }
         }
         el.mapKeys.appendChild(key);
       }
@@ -15117,16 +15222,36 @@
         const menu = el.mapKeyContextMenu;
         menu.textContent = "";
         const scope = String(state.keyContextMenuScope || "").trim();
-        if (scope === "player") {
-          const midi = Math.round(Number(state.keyContextMenuTargetMidi));
+        const midi = Math.round(Number(state.keyContextMenuTargetMidi));
+
+        const appendOpenStringItem = () => {
           if (!Number.isFinite(midi)) return;
-          const item = document.createElement("div");
-          item.className = "map-key-context-menu-item";
+          const item = document.createElement("label");
+          item.className = "map-key-context-menu-item checkbox-item";
           item.dataset.action = "toggle-open-string";
-          item.textContent = isOpenStringMidi(midi) ? "Unmark open string" : "Mark as open string";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.className = "map-key-context-menu-checkbox";
+          checkbox.checked = isOpenStringMidi(midi);
+          checkbox.tabIndex = -1;
+          checkbox.setAttribute("aria-hidden", "true");
+
+          const label = document.createElement("span");
+          label.textContent = "Open string";
+
+          item.appendChild(checkbox);
+          item.appendChild(label);
           menu.appendChild(item);
+        };
+
+        if (scope === "player") {
+          appendOpenStringItem();
           return;
         }
+
+        appendOpenStringItem();
+
         if (state.mapMatrixSplitEnabled && state.mapMatrixVelocityLayers > 1) {
           const layers = clampMapMatrixVelocityLayers(state.mapMatrixVelocityLayers);
           for (let v = 1; v <= layers; v++) {
@@ -15197,8 +15322,12 @@
         if (item.dataset.action === "toggle-open-string") {
           const midi = Math.round(Number(state.keyContextMenuTargetMidi));
           if (!Number.isFinite(midi)) return;
+          const scope = String(state.keyContextMenuScope || "").trim();
           const enabled = toggleOpenStringMidi(midi);
           state.keyContextMenuScope = "";
+          if (scope === "map") {
+            renderKeyboardMap(undefined, true);
+          }
           renderPlayerKeyboard();
           setStatus(el.setupStatus,
             `${enabled ? "Marked" : "Unmarked"} ${midiToNote(midi)} as open string.`,
@@ -15786,63 +15915,9 @@
       return `${base}/${token}`;
     }
 
-    function buildManifestUiStateSnapshot(options = {}) {
-      return {
-        setupOctaveStart: Math.max(0, Math.min(120, Math.round(Number(state.setupOctaveStart) || 48))),
-        activeMapSetId: String(state.activeMapSetId || "base"),
-        mapMatrix: {
-          interval: clampMapMatrixInterval(state.mapMatrixInterval),
-          velocityLayers: clampMapMatrixVelocityLayers(state.mapMatrixVelocityLayers),
-          rrColumns: clampMapMatrixRrColumns(state.mapMatrixRrColumns),
-          splitEnabled: !!state.mapMatrixSplitEnabled,
-          autoFillRr: state.mapMatrixAutoFillRr !== false
-        },
-        baseLoopPlaybackEnabled: state.baseLoopPlaybackEnabled !== false,
-        manifestFilePath: getPackManifestFilePath(),
-        manifestBasePath: getPackManifestBasePath(),
-        manualRootRanges: cloneManualRangesObject(state.manualRootRanges),
-        keyswitchSets: (state.keyswitchSets || []).map((set, index) => ({
-          id: String(set?.id || ""),
-          name: String(set?.name || ""),
-          key: String(set?.key || ""),
-          keyMidi: Number.isFinite(set?.keyMidi) ? Math.round(set.keyMidi) : null,
-          loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
-          index,
-          active: String(state.activeMapSetId || "") === String(set?.id || ""),
-          manualRanges: cloneManualRangesObject(set?.manualRanges)
-        })),
-        velocityCrossfadeByRoot: { ...(state.velocityCrossfadeByRoot || {}) },
-        loopCrossfadeMs: clampLoopCrossfadeMs(state.loopCrossfadeMs),
-        allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
-        roundRobinPlaybackMode: normalizeRoundRobinPlaybackMode(state.roundRobinPlaybackMode),
-        openStringMidis: normalizeOpenStringMidis(state.openStringMidis),
-        autoRR: !!state.autoRR,
-        autoGainCrossfade: !!state.autoGainCrossfade,
-        wallpaperPosition: normalizeWallpaperPosition(state.wallpaperPosition),
-        wallpaperName: state.wallpaperName ? String(state.wallpaperName || "").trim() : "",
-        wallpaperSourcePath: state.wallpaperName ? String(state.wallpaperSourcePath || "").trim() : "",
-        wallpaperDataUrl: options.includeEmbeddedGraphics && state.wallpaperName ? String(state.wallpaperDataUrl || "").trim() : "",
-        logoPosition: normalizeLogoPosition(state.logoPosition),
-        logoName: state.logoName ? String(state.logoName || "").trim() : "",
-        logoSourcePath: state.logoName ? String(state.logoSourcePath || "").trim() : "",
-        logoDataUrl: options.includeEmbeddedGraphics && state.logoName ? String(state.logoDataUrl || "").trim() : "",
-        particlesEnabled: !!state.playerParticlesEnabled,
-        godRaysEnabled: !!state.playerGodRaysEnabled,
-        edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled,
-        modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
-        expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
-        pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
-        playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
-        auto: buildAutoControlsSnapshot(),
-        sequencer: buildSequencerSnapshot(),
-        strum: buildStrumSnapshot()
-      };
-    }
-
     function buildManifestSkeleton(targetExt = "smpinst", options = {}) {
       const preserveRuntimePaths = !!options.preserveRuntimePaths;
       const includeEmbeddedSampleData = !!options.includeEmbeddedSampleData;
-      const includeUiState = !!options.includeUiState;
       const sampleFolderName = String(options.sampleFolderName || "samples").trim() || "samples";
       const graphicsFolderName = String(options.graphicsFolderName || "").trim();
       const resolvedGraphicsFolder = graphicsFolderName || "Graphics";
@@ -15898,12 +15973,6 @@
         mapping: buildManifestMapping(state.entries, { preserveRuntimePaths, includeEmbeddedSampleData, sampleFolderName })
       };
 
-      if (includeUiState) {
-        manifest.ui = buildManifestUiStateSnapshot({
-          includeEmbeddedGraphics: !preserveRuntimePaths
-        });
-      }
-
       if (normalizedExt === "keysw") {
         const keyInfo = normalizeKeyswitchKey(el.autoAuthor?.value || "", 12);
         manifest.packType = "keyswitch";
@@ -15953,10 +16022,7 @@
       }
       try {
         // Strict relative-path JSON manifests only (no embedded data URLs).
-        const manifest = buildManifestSkeleton(ext, {
-          preserveRuntimePaths: false,
-          includeUiState: true
-        });
+        const manifest = buildManifestSkeleton(ext, { preserveRuntimePaths: false });
         const defaultBase = (manifest.instrumentName || "instrument").replace(/[^a-z0-9_-]+/gi, "_");
         let base = defaultBase || "instrument";
         if (ext === "keysw") {
@@ -16018,8 +16084,7 @@
         const manifest = buildManifestSkeleton("smpinst", {
           preserveRuntimePaths: false,
           sampleFolderName: "Audio",
-          graphicsFolderName: "Graphics",
-          includeUiState: true
+          graphicsFolderName: "Graphics"
         });
 
         const allEntries = [
@@ -16186,8 +16251,7 @@
         const manifest = buildManifestSkeleton("smpinst", {
           preserveRuntimePaths: false,
           sampleFolderName: "Audio",
-          graphicsFolderName: "Graphics",
-          includeUiState: true
+          graphicsFolderName: "Graphics"
         });
 
         manifest.formatVersion = 2;
@@ -16466,7 +16530,7 @@
         ? options.sessionUiState
         : ((options?.sessionUiGraphics && typeof options.sessionUiGraphics === "object")
           ? options.sessionUiGraphics
-          : ((data?.ui && typeof data.ui === "object") ? data.ui : null));
+          : null);
       const sessionUiKeyswitchSets = Array.isArray(sessionUiState?.keyswitchSets)
         ? sessionUiState.keyswitchSets
         : null;
