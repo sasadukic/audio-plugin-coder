@@ -859,7 +859,7 @@
       overflow: hidden;
       background-color: rgb(var(--player-topbar-rgb, 8, 11, 17));
       background-image: var(--player-wallpaper);
-      background-size: contain;
+      background-size: auto;
       background-repeat: no-repeat;
       background-position: var(--player-wallpaper-position, center);
     }
@@ -5034,8 +5034,6 @@
       wallpaperDataUrl: "",
       wallpaperPosition: "middle-center",
       wallpaperMenuOpen: false,
-      wallpaperNaturalWidth: 0,
-      wallpaperNaturalHeight: 0,
       logoUrl: "",
       logoName: "",
       logoObjectUrl: "",
@@ -9493,28 +9491,6 @@
       return IMAGE_EXT_REGEX.test(String(file.name || ""));
     }
 
-    function readImageDimensionsFromUrl(url) {
-      return new Promise((resolve, reject) => {
-        const src = String(url || "").trim();
-        if (!src) {
-          reject(new Error("invalid-image-url"));
-          return;
-        }
-        const image = new Image();
-        image.onload = () => {
-          const width = Math.max(0, Math.round(Number(image.naturalWidth) || 0));
-          const height = Math.max(0, Math.round(Number(image.naturalHeight) || 0));
-          if (width <= 0 || height <= 0) {
-            reject(new Error("invalid-image-size"));
-            return;
-          }
-          resolve({ width, height });
-        };
-        image.onerror = () => reject(new Error("image-load-failed"));
-        image.src = src;
-      });
-    }
-
     let playerControlsHideTimer = 0;
     let playerControlsHovering = false;
     let playerControlsDragging = 0;
@@ -9957,18 +9933,6 @@
       // Show wallpaper/effects immediately; swatch refinement is applied after extract.
       el.playerStage.style.setProperty("--player-wallpaper", `url('${url}')`);
       applyWallpaperPosition(state.wallpaperPosition);
-      readImageDimensionsFromUrl(url)
-        .then(({ width, height }) => {
-          if (state.wallpaperObjectUrl !== url) return;
-          state.wallpaperNaturalWidth = width;
-          state.wallpaperNaturalHeight = height;
-          applyWallpaperPosition(state.wallpaperPosition);
-        })
-        .catch(() => {
-          if (state.wallpaperObjectUrl !== url) return;
-          state.wallpaperNaturalWidth = 0;
-          state.wallpaperNaturalHeight = 0;
-        });
       refreshPlayerParticles();
       const { swatch, dark, light } = await extractSwatchFromImageFile(file);
       const [swatchR, swatchG, swatchB] = swatch;
@@ -10015,8 +9979,6 @@
       state.wallpaperName = "";
       state.wallpaperSourcePath = "";
       state.wallpaperDataUrl = "";
-      state.wallpaperNaturalWidth = 0;
-      state.wallpaperNaturalHeight = 0;
       state.playerWallpaperSwatchRgb = [40, 40, 40];
       if (el.playerStage) el.playerStage.classList.remove("has-wallpaper");
       el.playerStage.style.removeProperty("--player-wallpaper");
@@ -10148,26 +10110,7 @@
       };
 
       const cssPos = map[normalized] || "center center";
-      const naturalWidth = Math.max(0, Math.round(Number(state.wallpaperNaturalWidth) || 0));
-      const naturalHeight = Math.max(0, Math.round(Number(state.wallpaperNaturalHeight) || 0));
-      let resolvedCssPos = cssPos;
-
-      if (naturalWidth > 0 && naturalHeight > 0) {
-        const rect = el.playerStage.getBoundingClientRect();
-        const stageWidth = Math.max(0, rect.width);
-        const stageHeight = Math.max(0, rect.height);
-        if (stageWidth > 0 && stageHeight > 0) {
-          const scale = Math.min(stageWidth / naturalWidth, stageHeight / naturalHeight);
-          const scaledHeight = naturalHeight * scale;
-          const isShrunk = scale < 0.999;
-          const hasVerticalGap = scaledHeight < (stageHeight - 1);
-          if (isShrunk && hasVerticalGap) {
-            const xPos = cssPos.split(" ")[0] || "center";
-            resolvedCssPos = `${xPos} top`;
-          }
-        }
-      }
-      el.playerStage.style.setProperty("--player-wallpaper-position", resolvedCssPos);
+      el.playerStage.style.setProperty("--player-wallpaper-position", cssPos);
       updateWallpaperPositionMenu();
       scheduleSessionStateSave(350);
     }
@@ -17235,16 +17178,6 @@
     }
 
     function setupWallpaper() {
-      let wallpaperResizeRaf = 0;
-      window.addEventListener("resize", () => {
-        if (wallpaperResizeRaf) return;
-        wallpaperResizeRaf = window.requestAnimationFrame(() => {
-          wallpaperResizeRaf = 0;
-          if (!state.wallpaperName) return;
-          applyWallpaperPosition(state.wallpaperPosition);
-        });
-      });
-
       el.wallpaperInput.addEventListener("change", (ev) => {
         const [file] = Array.from(ev.target.files || []);
         if (file) setWallpaper(file);
