@@ -862,13 +862,20 @@
 
     .player-wallpaper-layer {
       position: absolute;
-      inset: -1px 0 var(--player-kb-height) 0;
+      inset: 0 0 var(--player-kb-height) 0;
       z-index: 0;
       pointer-events: none;
-      background-image: var(--player-wallpaper);
-      background-size: auto;
-      background-repeat: no-repeat;
-      background-position: var(--player-wallpaper-position, center);
+      overflow: hidden;
+    }
+
+    .player-wallpaper-image {
+      position: absolute;
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: none;
+      max-height: none;
+      pointer-events: none;
     }
 
     .player-logo-zone {
@@ -4472,7 +4479,9 @@
 
     <section id="panel-player" class="panel active">
       <div id="playerStage" class="player-stage">
-        <div id="playerWallpaperLayer" class="player-wallpaper-layer" aria-hidden="true"></div>
+        <div id="playerWallpaperLayer" class="player-wallpaper-layer" aria-hidden="true">
+          <img id="playerWallpaperImage" class="player-wallpaper-image hidden" alt="" aria-hidden="true">
+        </div>
         <div class="player-logo-zone" aria-hidden="true">
           <div id="playerLogoWrap" class="player-logo hidden" aria-hidden="true">
             <img id="playerLogo" class="player-logo-img" alt="">
@@ -5210,6 +5219,7 @@
       logoRemoveBtn: document.getElementById("logoRemoveBtn"),
       playerStage: document.getElementById("playerStage"),
       playerWallpaperLayer: document.getElementById("playerWallpaperLayer"),
+      playerWallpaperImage: document.getElementById("playerWallpaperImage"),
       playerLogoWrap: document.getElementById("playerLogoWrap"),
       playerLogo: document.getElementById("playerLogo"),
       playerEmptyState: document.getElementById("playerEmptyState"),
@@ -9923,7 +9933,7 @@
     async function setWallpaper(file) {
       if (!isLikelyImageFile(file)) return;
       if (state.wallpaperObjectUrl) URL.revokeObjectURL(state.wallpaperObjectUrl);
-      const wallpaperTarget = el.playerWallpaperLayer || el.playerStage;
+      const wallpaperImage = el.playerWallpaperImage;
       const url = URL.createObjectURL(file);
       state.wallpaperObjectUrl = url;
       state.wallpaperUrl = url;
@@ -9940,8 +9950,10 @@
           state.wallpaperDataUrl = "";
         });
       if (el.playerStage) el.playerStage.classList.add("has-wallpaper");
-      // Show wallpaper/effects immediately; swatch refinement is applied after extract.
-      wallpaperTarget?.style.setProperty("--player-wallpaper", `url('${url}')`);
+      if (wallpaperImage) {
+        wallpaperImage.src = url;
+        wallpaperImage.classList.remove("hidden");
+      }
       applyWallpaperPosition(state.wallpaperPosition);
       refreshPlayerParticles();
       const { swatch, dark, light } = await extractSwatchFromImageFile(file);
@@ -9984,7 +9996,7 @@
 
     function clearWallpaper() {
       if (state.wallpaperObjectUrl) URL.revokeObjectURL(state.wallpaperObjectUrl);
-      const wallpaperTarget = el.playerWallpaperLayer || el.playerStage;
+      const wallpaperImage = el.playerWallpaperImage;
       state.wallpaperObjectUrl = "";
       state.wallpaperUrl = "";
       state.wallpaperName = "";
@@ -9992,8 +10004,15 @@
       state.wallpaperDataUrl = "";
       state.playerWallpaperSwatchRgb = [40, 40, 40];
       if (el.playerStage) el.playerStage.classList.remove("has-wallpaper");
-      wallpaperTarget?.style.removeProperty("--player-wallpaper");
-      wallpaperTarget?.style.removeProperty("--player-wallpaper-position");
+      if (wallpaperImage) {
+        wallpaperImage.removeAttribute("src");
+        wallpaperImage.classList.add("hidden");
+        wallpaperImage.style.removeProperty("left");
+        wallpaperImage.style.removeProperty("right");
+        wallpaperImage.style.removeProperty("top");
+        wallpaperImage.style.removeProperty("bottom");
+        wallpaperImage.style.removeProperty("transform");
+      }
       document.documentElement.style.setProperty("--player-swatch-rgb", "40, 40, 40");
       document.documentElement.style.setProperty("--player-topbar-rgb", "40, 40, 40");
       document.documentElement.style.setProperty("--player-line-rgb", "150, 150, 150");
@@ -10106,23 +10125,36 @@
     function applyWallpaperPosition(position) {
       const normalized = normalizeWallpaperPosition(position);
       state.wallpaperPosition = normalized;
-      const wallpaperTarget = el.playerWallpaperLayer || el.playerStage;
-      if (!wallpaperTarget) return;
+      const wallpaperImage = el.playerWallpaperImage;
+      if (!wallpaperImage) return;
 
-      const map = {
-        "top-left": "left top",
-        "top-center": "center top",
-        "top-right": "right top",
-        "middle-left": "left center",
-        "middle-center": "center center",
-        "middle-right": "right center",
-        "bottom-left": "left bottom",
-        "bottom-center": "center bottom",
-        "bottom-right": "right bottom"
-      };
+      const [vertical = "middle", horizontal = "center"] = normalized.split("-");
+      wallpaperImage.style.removeProperty("left");
+      wallpaperImage.style.removeProperty("right");
+      wallpaperImage.style.removeProperty("top");
+      wallpaperImage.style.removeProperty("bottom");
 
-      const cssPos = map[normalized] || "center center";
-      wallpaperTarget.style.setProperty("--player-wallpaper-position", cssPos);
+      const transforms = [];
+
+      if (horizontal === "left") {
+        wallpaperImage.style.left = "0";
+      } else if (horizontal === "right") {
+        wallpaperImage.style.right = "0";
+      } else {
+        wallpaperImage.style.left = "50%";
+        transforms.push("translateX(-50%)");
+      }
+
+      if (vertical === "top") {
+        wallpaperImage.style.top = "0";
+      } else if (vertical === "bottom") {
+        wallpaperImage.style.bottom = "0";
+      } else {
+        wallpaperImage.style.top = "50%";
+        transforms.push("translateY(-50%)");
+      }
+
+      wallpaperImage.style.transform = transforms.length ? transforms.join(" ") : "none";
       updateWallpaperPositionMenu();
       scheduleSessionStateSave(350);
     }
