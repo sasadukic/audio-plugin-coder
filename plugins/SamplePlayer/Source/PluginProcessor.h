@@ -458,6 +458,8 @@ private:
     mutable juce::CriticalSection sessionMapSyncLock;
     juce::String lastSessionMapSignature;
     std::atomic<int> sessionStateSyncRequestId { 0 };
+    std::atomic<bool> sessionSyncJobActive { false };
+    std::atomic<bool> sessionSyncResyncNeeded { false };
     std::atomic<bool> monolithDecodeInProgress { false };
     std::atomic<bool> modwheelVelocityLayerControlEnabled { false };
     std::atomic<float> modwheelVelocityLayerControlValue01 { 0.0f };

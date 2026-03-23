@@ -6450,10 +6450,10 @@
       state.sessionStateLightweight = isLightweightPayload;
       if (!isLightweightPayload) {
         state.sessionStateHydrationRequested = false;
-        if (state.sessionStateSaveQueued) {
-          state.sessionStateSaveQueued = false;
-          scheduleSessionStateSave(240);
-        }
+        // Don't flush state back to C++ right after restoring — the data just
+        // came from the native side and hasn't changed.  Flushing here would
+        // cancel or restart the ongoing sample decode job for no reason.
+        state.sessionStateSaveQueued = false;
       }
       debugLoadLog(`restore mode | lightweight=${isLightweightPayload ? "yes" : "no"}`);
       debugLoadLog(`restore done | totalMs=${(performance.now() - restoreStart).toFixed(1)}`);
@@ -16908,9 +16908,9 @@
       }
 
       if (sessionUiState) {
-        await restoreGraphicsFromSessionUi(sessionUiState, data, manifestBasePath);
+        void restoreGraphicsFromSessionUi(sessionUiState, data, manifestBasePath);
       } else {
-        await restoreGraphicsFromManifest(data, manifestBasePath);
+        void restoreGraphicsFromManifest(data, manifestBasePath);
       }
 
       if (!options?.skipRender) {

@@ -1700,6 +1700,17 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
         return;
     }
 
+    // If a sync job is already running, don't cancel it — just mark that a
+    // resync is needed.  The running job will pick this up when it finishes
+    // and start a new cycle.  This prevents repeated restarts of the sample
+    // decode loop (which can take seconds for large instruments).
+    if (sessionSyncJobActive.load (std::memory_order_acquire))
+    {
+        sessionSyncResyncNeeded.store (true, std::memory_order_release);
+        writeLoadDebugLog ("setUiSessionStateJson deferred | sync job active | bytes=" + juce::String (jsonBytes));
+        return;
+    }
+
     const int requestId = sessionStateSyncRequestId.fetch_add (1, std::memory_order_relaxed) + 1;
     sessionStateSyncThreadPool.removeAllJobs (false, 1);
     writeLoadDebugLog ("setUiSessionStateJson queued | requestId=" + juce::String (requestId)
@@ -1708,6 +1719,8 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
 
     sessionStateSyncThreadPool.addJob ([this, requestId, midiRequestedSlot]()
     {
+        sessionSyncJobActive.store (true, std::memory_order_release);
+        sessionSyncResyncNeeded.store (false, std::memory_order_release);
         const auto syncJobStartMs = juce::Time::getMillisecondCounterHiRes();
         juce::String latestJson;
         {
@@ -1842,6 +1855,73 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
 
         writeLoadDebugLog ("session sync job end | requestId=" + juce::String (requestId)
                            + " | elapsedMs=" + juce::String (elapsedMsFrom (syncJobStartMs), 2));
+
+        sessionSyncJobActive.store (false, std::memory_order_release);
+
+        // If a new setUiSessionStateJson arrived while we were running, kick
+        // off another sync cycle with the updated JSON.
+        if (sessionSyncResyncNeeded.exchange (false, std::memory_order_acq_rel))
+        {
+            writeLoadDebugLog ("session sync job re-queue | deferred update arrived during sync");
+            const int resyncId = sessionStateSyncRequestId.fetch_add (1, std::memory_order_relaxed) + 1;
+            sessionStateSyncThreadPool.addJob ([this, resyncId]()
+            {
+                sessionSyncJobActive.store (true, std::memory_order_release);
+                sessionSyncResyncNeeded.store (false, std::memory_order_release);
+                const auto resyncStartMs = juce::Time::getMillisecondCounterHiRes();
+
+                juce::String resyncJson;
+                {
+                    const juce::ScopedLock lock (uiSessionStateLock);
+                    resyncJson = uiSessionStateJson;
+                }
+
+                const auto resyncBytes = static_cast<juce::int64> (resyncJson.getNumBytesAsUTF8());
+                auto resyncParsed = juce::JSON::parse (resyncJson);
+                if (resyncParsed.isVoid())
+                {
+                    sessionSyncJobActive.store (false, std::memory_order_release);
+                    return;
+                }
+
+                syncSampleSetFromSessionStateJson (resyncParsed, resyncBytes, resyncId);
+
+                LightweightStripStats resyncStripStats;
+                stripLargePayloadFieldsRecursive (resyncParsed, resyncStripStats);
+                if (auto* rootObj = resyncParsed.getDynamicObject())
+                {
+                    if (auto* manifestObj = rootObj->getProperty ("manifest").getDynamicObject())
+                    {
+                        manifestObj->removeProperty ("entries");
+                        manifestObj->removeProperty ("variants");
+                    }
+                    if (auto* uiObj = rootObj->getProperty ("ui").getDynamicObject())
+                    {
+                        uiObj->removeProperty ("wallpaperDataUrl");
+                        uiObj->removeProperty ("logoDataUrl");
+                    }
+                }
+                auto resyncLightweight = juce::JSON::toString (resyncParsed, false);
+                if (resyncLightweight.isEmpty())
+                    resyncLightweight = resyncJson;
+
+                {
+                    const juce::ScopedLock lock (uiSessionStateLock);
+                    if (resyncId == sessionStateSyncRequestId.load (std::memory_order_relaxed))
+                    {
+                        uiSessionStateLightweightJson = resyncLightweight;
+                        uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
+                    }
+                }
+
+                writeLoadDebugLog ("session resync job end | requestId=" + juce::String (resyncId)
+                                   + " | elapsedMs=" + juce::String (elapsedMsFrom (resyncStartMs), 2));
+                sessionSyncJobActive.store (false, std::memory_order_release);
+
+                if (sessionSyncResyncNeeded.exchange (false, std::memory_order_acq_rel))
+                    writeLoadDebugLog ("session resync | additional deferred update pending (will pick up on next flush)");
+            });
+        }
     });
 }
 
@@ -2125,7 +2205,11 @@ juce::String SamplePlayerAudioProcessor::getUiSessionStateJson (bool lightweight
     if (uiSessionStateLightweightJson.isNotEmpty())
         return uiSessionStateLightweightJson;
 
-    return uiSessionStateJson;
+    // Don't fall back to the full JSON — it may contain 100+ MB of embedded
+    // sample data URLs that would block both the C++ message thread and the
+    // WebView JS thread.  Return empty and let the timer push the lightweight
+    // cache once the background thread pool job has built it.
+    return {};
 }
 
 juce::String SamplePlayerAudioProcessor::getSampleDataUrlForMapEntry (int rootMidi,
