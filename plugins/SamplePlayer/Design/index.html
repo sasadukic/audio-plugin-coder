@@ -858,6 +858,13 @@
       position: relative;
       overflow: hidden;
       background-color: rgb(var(--player-topbar-rgb, 8, 11, 17));
+    }
+
+    .player-wallpaper-layer {
+      position: absolute;
+      inset: 0 0 var(--player-kb-height) 0;
+      z-index: 0;
+      pointer-events: none;
       background-image: var(--player-wallpaper);
       background-size: auto;
       background-repeat: no-repeat;
@@ -4465,6 +4472,7 @@
 
     <section id="panel-player" class="panel active">
       <div id="playerStage" class="player-stage">
+        <div id="playerWallpaperLayer" class="player-wallpaper-layer" aria-hidden="true"></div>
         <div class="player-logo-zone" aria-hidden="true">
           <div id="playerLogoWrap" class="player-logo hidden" aria-hidden="true">
             <img id="playerLogo" class="player-logo-img" alt="">
@@ -5201,6 +5209,7 @@
       logoPositionButtons: Array.from(document.querySelectorAll("#logoPositionMenu .logo-pos-btn")),
       logoRemoveBtn: document.getElementById("logoRemoveBtn"),
       playerStage: document.getElementById("playerStage"),
+      playerWallpaperLayer: document.getElementById("playerWallpaperLayer"),
       playerLogoWrap: document.getElementById("playerLogoWrap"),
       playerLogo: document.getElementById("playerLogo"),
       playerEmptyState: document.getElementById("playerEmptyState"),
@@ -9914,6 +9923,7 @@
     async function setWallpaper(file) {
       if (!isLikelyImageFile(file)) return;
       if (state.wallpaperObjectUrl) URL.revokeObjectURL(state.wallpaperObjectUrl);
+      const wallpaperTarget = el.playerWallpaperLayer || el.playerStage;
       const url = URL.createObjectURL(file);
       state.wallpaperObjectUrl = url;
       state.wallpaperUrl = url;
@@ -9931,7 +9941,7 @@
         });
       if (el.playerStage) el.playerStage.classList.add("has-wallpaper");
       // Show wallpaper/effects immediately; swatch refinement is applied after extract.
-      el.playerStage.style.setProperty("--player-wallpaper", `url('${url}')`);
+      wallpaperTarget?.style.setProperty("--player-wallpaper", `url('${url}')`);
       applyWallpaperPosition(state.wallpaperPosition);
       refreshPlayerParticles();
       const { swatch, dark, light } = await extractSwatchFromImageFile(file);
@@ -9974,6 +9984,7 @@
 
     function clearWallpaper() {
       if (state.wallpaperObjectUrl) URL.revokeObjectURL(state.wallpaperObjectUrl);
+      const wallpaperTarget = el.playerWallpaperLayer || el.playerStage;
       state.wallpaperObjectUrl = "";
       state.wallpaperUrl = "";
       state.wallpaperName = "";
@@ -9981,8 +9992,8 @@
       state.wallpaperDataUrl = "";
       state.playerWallpaperSwatchRgb = [40, 40, 40];
       if (el.playerStage) el.playerStage.classList.remove("has-wallpaper");
-      el.playerStage.style.removeProperty("--player-wallpaper");
-      el.playerStage.style.removeProperty("--player-wallpaper-position");
+      wallpaperTarget?.style.removeProperty("--player-wallpaper");
+      wallpaperTarget?.style.removeProperty("--player-wallpaper-position");
       document.documentElement.style.setProperty("--player-swatch-rgb", "40, 40, 40");
       document.documentElement.style.setProperty("--player-topbar-rgb", "40, 40, 40");
       document.documentElement.style.setProperty("--player-line-rgb", "150, 150, 150");
@@ -10095,7 +10106,8 @@
     function applyWallpaperPosition(position) {
       const normalized = normalizeWallpaperPosition(position);
       state.wallpaperPosition = normalized;
-      if (!el.playerStage) return;
+      const wallpaperTarget = el.playerWallpaperLayer || el.playerStage;
+      if (!wallpaperTarget) return;
 
       const map = {
         "top-left": "left top",
@@ -10110,7 +10122,7 @@
       };
 
       const cssPos = map[normalized] || "center center";
-      el.playerStage.style.setProperty("--player-wallpaper-position", cssPos);
+      wallpaperTarget.style.setProperty("--player-wallpaper-position", cssPos);
       updateWallpaperPositionMenu();
       scheduleSessionStateSave(350);
     }
