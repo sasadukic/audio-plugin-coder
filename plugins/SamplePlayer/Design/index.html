@@ -3159,6 +3159,12 @@
       background: rgba(9, 13, 20, 0.84);
     }
 
+    .keyswitch-map-loop-btn.random {
+      color: rgba(224, 224, 224, 0.96);
+      border-color: rgba(180, 180, 180, 0.34);
+      background: rgba(52, 52, 52, 0.9);
+    }
+
     .keyswitch-map-key {
       width: 36px;
       min-width: 36px;
@@ -4659,6 +4665,7 @@
                     <button id="keyswitchMapLoopModeBtn" class="keyswitch-map-loop-btn" type="button" aria-pressed="true" title="Loop playback enabled">Loop</button>
                     <input id="keyswitchMapLoopToggle" type="checkbox" checked>
                   </div>
+                  <button id="keyswitchMapRrModeBtn" class="keyswitch-map-loop-btn" type="button" aria-pressed="false" title="Round robin playback in sequential order">Sequential</button>
                   <span id="keyswitchMapWarning" class="keyswitch-map-warning hidden" aria-live="polite"></span>
                 </div>
               </div>
@@ -5009,6 +5016,7 @@
       keyswitchSets: [],
       activeMapSetId: "base",
       baseLoopPlaybackEnabled: true,
+      roundRobinPlaybackMode: "sequential",
       mapMatrixVelocityLayers: 3,
       mapMatrixRrColumns: 1,
       mapMatrixInterval: 1,
@@ -5152,6 +5160,7 @@
       keyswitchMapNormalizeBtn: document.getElementById("keyswitchMapNormalizeBtn"),
       keyswitchMapLoopWrap: document.getElementById("keyswitchMapLoopWrap"),
       keyswitchMapLoopModeBtn: document.getElementById("keyswitchMapLoopModeBtn"),
+      keyswitchMapRrModeBtn: document.getElementById("keyswitchMapRrModeBtn"),
       keyswitchMapLoopToggle: document.getElementById("keyswitchMapLoopToggle"),
       keyswitchMapWarning: document.getElementById("keyswitchMapWarning"),
       sampleEditor: document.getElementById("sampleEditor"),
@@ -5874,6 +5883,7 @@
           velocityCrossfadeByRoot: { ...(state.velocityCrossfadeByRoot || {}) },
           loopCrossfadeMs: clampLoopCrossfadeMs(state.loopCrossfadeMs),
           allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
+          roundRobinPlaybackMode: normalizeRoundRobinPlaybackMode(state.roundRobinPlaybackMode),
           autoRR: !!state.autoRR,
           autoGainCrossfade: !!state.autoGainCrossfade,
           wallpaperPosition: normalizeWallpaperPosition(state.wallpaperPosition),
@@ -5923,6 +5933,7 @@
           velocityCrossfadeByRoot: { ...(state.velocityCrossfadeByRoot || {}) },
           loopCrossfadeMs: clampLoopCrossfadeMs(state.loopCrossfadeMs),
           allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
+          roundRobinPlaybackMode: normalizeRoundRobinPlaybackMode(state.roundRobinPlaybackMode),
           autoRR: !!state.autoRR,
           autoGainCrossfade: !!state.autoGainCrossfade,
           wallpaperPosition: normalizeWallpaperPosition(state.wallpaperPosition),
@@ -6204,6 +6215,7 @@
           : {};
         state.loopCrossfadeMs = clampLoopCrossfadeMs(ui.loopCrossfadeMs ?? state.loopCrossfadeMs);
         state.allowPitchUpAboveHighest = ui.allowPitchUpAboveHighest !== undefined ? !!ui.allowPitchUpAboveHighest : state.allowPitchUpAboveHighest;
+        state.roundRobinPlaybackMode = normalizeRoundRobinPlaybackMode(ui.roundRobinPlaybackMode ?? state.roundRobinPlaybackMode);
         state.autoRR = ui.autoRR !== undefined ? !!ui.autoRR : state.autoRR;
         state.autoGainCrossfade = ui.autoGainCrossfade !== undefined ? !!ui.autoGainCrossfade : state.autoGainCrossfade;
         state.playerParticlesEnabled = ui.particlesEnabled !== undefined ? !!ui.particlesEnabled : state.playerParticlesEnabled;
@@ -7525,6 +7537,10 @@
       };
     }
 
+    function normalizeRoundRobinPlaybackMode(value) {
+      return String(value || "").trim().toLowerCase() === "random" ? "random" : "sequential";
+    }
+
     function applyStrumSnapshot(snapshot) {
       const source = (snapshot && typeof snapshot === "object") ? snapshot : {};
       state.strumSequencerSteps = Number.isFinite(source.sequencerSteps) ? Math.max(0, Math.min(8, Math.round(source.sequencerSteps))) : 0;
@@ -8599,6 +8615,17 @@
         : "One-shot playback enabled";
     }
 
+    function updateRoundRobinModeButton() {
+      if (!el.keyswitchMapRrModeBtn) return;
+      const isRandom = normalizeRoundRobinPlaybackMode(state.roundRobinPlaybackMode) === "random";
+      el.keyswitchMapRrModeBtn.textContent = isRandom ? "Random" : "Sequential";
+      el.keyswitchMapRrModeBtn.setAttribute("aria-pressed", isRandom ? "true" : "false");
+      el.keyswitchMapRrModeBtn.classList.toggle("random", isRandom);
+      el.keyswitchMapRrModeBtn.title = isRandom
+        ? "Round robin playback in random order without repeating the last two samples"
+        : "Round robin playback in sequential order";
+    }
+
     function syncLoopOneshotWithAutoLoopSamples(options = {}) {
       const shouldRender = !!options.shouldRender;
       const shouldPersist = !!options.persist;
@@ -8633,8 +8660,10 @@
       const activeKeyswitchSet = getKeyswitchSetById(state.activeMapSetId);
       const showLoopEditor = !!activeMapSet;
       if (el.keyswitchMapLoopWrap) el.keyswitchMapLoopWrap.classList.toggle("hidden", !showLoopEditor);
+      if (el.keyswitchMapRrModeBtn) el.keyswitchMapRrModeBtn.classList.toggle("hidden", !showLoopEditor);
       if (el.keyswitchMapNormalizeBtn) el.keyswitchMapNormalizeBtn.classList.toggle("hidden", !showLoopEditor);
       syncLoopOneshotWithAutoLoopSamples({ shouldRender: false, persist: false });
+      updateRoundRobinModeButton();
       if (!activeKeyswitchSet) {
         const duplicates = getDuplicateKeyswitchNotes();
         if (duplicates.length > 0) {
@@ -14625,6 +14654,15 @@
         el.keyswitchMapLoopModeBtn.addEventListener("click", () => {
           el.keyswitchMapLoopToggle.checked = !el.keyswitchMapLoopToggle.checked;
           applyActiveKeyswitchSetLoopToggle(true);
+        });
+      }
+      if (el.keyswitchMapRrModeBtn) {
+        el.keyswitchMapRrModeBtn.addEventListener("click", () => {
+          state.roundRobinPlaybackMode = normalizeRoundRobinPlaybackMode(state.roundRobinPlaybackMode) === "random"
+            ? "sequential"
+            : "random";
+          updateRoundRobinModeButton();
+          scheduleSessionStateSave(250);
         });
       }
       if (el.mapMatrixIntervalInput) {

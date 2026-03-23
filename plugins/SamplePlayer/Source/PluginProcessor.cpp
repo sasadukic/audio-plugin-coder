@@ -28,6 +28,16 @@ constexpr int kBinaryStateVersion = 1;
 constexpr bool kEnableLoadDebugLogging = true;
 constexpr std::int64_t kLoadDebugMaxFileBytes = 4 * 1024 * 1024;
 
+bool parseRoundRobinPlaybackModeIsRandom (const juce::var& value, bool fallback)
+{
+    const auto text = value.toString().trim().toLowerCase();
+    if (text == "random")
+        return true;
+    if (text == "sequential")
+        return false;
+    return fallback;
+}
+
 const juce::File& getLoadDebugLogFile()
 {
     static const juce::File file = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
@@ -702,6 +712,8 @@ void SamplePlayerAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
 
     stopAllVoices();
     roundRobinCounters.clear();
+    roundRobinRecentChoiceIds.clear();
+    roundRobinRandomState = juce::uint32 (juce::Time::getMillisecondCounter());
 
     const juce::ScopedLock lock (autoSamplerLock);
     activeAutoCaptures.clear();
@@ -761,6 +773,7 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     {
         stopAllVoices();
         roundRobinCounters.clear();
+        roundRobinRecentChoiceIds.clear();
     }
 
     juce::MidiBuffer incomingMidi;
@@ -885,8 +898,8 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                         const bool canDouble = runtime->doubling && hasMultipleRoundRobinsForNote (note, velocity127);
                         if (canDouble)
                         {
-                            startVoiceForNoteInternal (channel, note, velocity01, settings, false, -1.0f, 0);
-                            startVoiceForNoteInternal (channel, note, velocity01, settings, true, 1.0f, 1);
+                            const auto leftZone = startVoiceForNoteInternal (channel, note, velocity01, settings, false, -1.0f, 0);
+                            startVoiceForNoteInternal (channel, note, velocity01, settings, true, 1.0f, 1, leftZone.get());
                         }
                         else
                         {
@@ -1426,6 +1439,8 @@ void SamplePlayerAudioProcessor::clearSampleSet()
     std::atomic_store (&stepSequencerRuntime, std::make_shared<StepSequencerRuntime>());
     activeMapSetSlot.store (0, std::memory_order_relaxed);
     activeMapLoopPlaybackEnabled.store (true, std::memory_order_relaxed);
+    roundRobinCounters.clear();
+    roundRobinRecentChoiceIds.clear();
     sequencerCurrentStepForUi.store (-1, std::memory_order_relaxed);
     resetVoicesRequested.store (true);
 }
@@ -1585,6 +1600,7 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
     int parsedPitchDownOctaves = 0;
     float parsedModwheelValue01 = modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed);
     float parsedExpressionValue01 = expressionControllerValue01.load (std::memory_order_relaxed);
+    bool parsedRoundRobinRandomMode = roundRobinRandomMode.load (std::memory_order_relaxed);
     if (normalizedJson.isNotEmpty())
     {
         const auto parsedForPitch = juce::JSON::parse (normalizedJson);
@@ -1600,12 +1616,15 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
                 parsedExpressionValue01 = juce::jlimit (0.0f, 1.0f,
                     static_cast<float> (varToDouble (uiObject->getProperty ("expressionValue"),
                                                      static_cast<double> (parsedExpressionValue01))));
+                parsedRoundRobinRandomMode = parseRoundRobinPlaybackModeIsRandom (uiObject->getProperty ("roundRobinPlaybackMode"),
+                                                                                  parsedRoundRobinRandomMode);
             }
         }
     }
     playerPitchDownOctaves.store (parsedPitchDownOctaves, std::memory_order_relaxed);
     modwheelVelocityLayerControlValue01.store (parsedModwheelValue01, std::memory_order_relaxed);
     expressionControllerValue01.store (parsedExpressionValue01, std::memory_order_relaxed);
+    roundRobinRandomMode.store (parsedRoundRobinRandomMode, std::memory_order_relaxed);
     if (auto* modParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kModWheelParamId)))
         modParam->setValue (juce::jlimit (0.0f, 1.0f, parsedModwheelValue01));
     if (auto* expressionParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kExpressionParamId)))
@@ -2633,6 +2652,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     bool allowPitchUpAboveHighest = false;
     bool useModwheelForVelocityLayers = false;
     bool baseLoopPlaybackEnabled = true;
+    bool parsedRoundRobinRandomMode = roundRobinRandomMode.load (std::memory_order_relaxed);
     juce::String manifestBasePath;
     juce::String autoDestinationPath;
     juce::String activeMapSetId = "base";
@@ -2707,6 +2727,8 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         const auto baseLoopPlaybackEnabledVar = uiObject->getProperty ("baseLoopPlaybackEnabled");
         if (! baseLoopPlaybackEnabledVar.isVoid())
             baseLoopPlaybackEnabled = static_cast<bool> (baseLoopPlaybackEnabledVar);
+        parsedRoundRobinRandomMode = parseRoundRobinPlaybackModeIsRandom (uiObject->getProperty ("roundRobinPlaybackMode"),
+                                                                          parsedRoundRobinRandomMode);
         manifestBasePath = resolveAutoSamplerDestinationPath (uiObject->getProperty ("manifestBasePath").toString());
         baseManualRangesVar = uiObject->getProperty ("manualRootRanges");
         activeMapSetId = uiObject->getProperty ("activeMapSetId").toString().trim();
@@ -2927,6 +2949,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
 
     activeMapSetSlot.store (activeSetSlot, std::memory_order_relaxed);
     activeMapLoopPlaybackEnabled.store (activeSetLoopPlaybackEnabled, std::memory_order_relaxed);
+    roundRobinRandomMode.store (parsedRoundRobinRandomMode, std::memory_order_relaxed);
 
     struct EmbeddedVariantDescriptor
     {
@@ -3730,8 +3753,11 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     newSampleSet->summary = buildSampleSummary (newSampleSet->zones);
     activeMapSetSlot.store (activeSetSlot, std::memory_order_relaxed);
     activeMapLoopPlaybackEnabled.store (activeSetLoopPlaybackEnabled, std::memory_order_relaxed);
+    roundRobinRandomMode.store (parsedRoundRobinRandomMode, std::memory_order_relaxed);
     std::atomic_store (&currentSampleSet, std::shared_ptr<const SampleSet> (newSampleSet));
     std::atomic_store (&stepSequencerRuntime, buildSequencerRuntime());
+    roundRobinCounters.clear();
+    roundRobinRecentChoiceIds.clear();
     sequencerCurrentStepForUi.store (-1, std::memory_order_relaxed);
     resetVoicesRequested.store (true);
     markPresetLoadPlayable ("session-sync", static_cast<int> (newSampleSet->zones.size()));
@@ -5145,20 +5171,21 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 const bool canDouble = runtime->doubling && hasMultipleRoundRobinsForNote (playedNote, velocity127);
                 if (canDouble)
                 {
-                    startVoiceForNoteInternal (message.getChannel(),
-                                               playedNote,
-                                               velocity01,
-                                               settings,
-                                               false,
-                                               -1.0f,
-                                               0);
+                    const auto leftZone = startVoiceForNoteInternal (message.getChannel(),
+                                                                     playedNote,
+                                                                     velocity01,
+                                                                     settings,
+                                                                     false,
+                                                                     -1.0f,
+                                                                     0);
                     startVoiceForNoteInternal (message.getChannel(),
                                                playedNote,
                                                velocity01,
                                                settings,
                                                true,
                                                1.0f,
-                                               1);
+                                               1,
+                                               leftZone.get());
                 }
                 else
                 {
@@ -5210,8 +5237,8 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
             const int vel127 = juce::jlimit (1, 127, static_cast<int> (std::round (message.getFloatVelocity() * 127.0f)));
             if (doublingOn && hasMultipleRoundRobinsForNote (note, vel127))
             {
-                startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, false, -1.0f, 0);
-                startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, true, 1.0f, 1);
+                const auto leftZone = startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, false, -1.0f, 0);
+                startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, true, 1.0f, 1, leftZone.get());
             }
             else
             {
@@ -5351,20 +5378,21 @@ void SamplePlayerAudioProcessor::startVoiceForNote (int midiChannel,
     startVoiceForNoteInternal (midiChannel, midiNoteNumber, velocity, settings, false, 0.0f, 0);
 }
 
-void SamplePlayerAudioProcessor::startVoiceForNoteInternal (int midiChannel,
-                                                            int midiNoteNumber,
-                                                            float velocity,
-                                                            const BlockSettings& settings,
-                                                            bool suppressMonoCut,
-                                                            float pan,
-                                                            int rrOffset)
+std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioProcessor::startVoiceForNoteInternal (int midiChannel,
+                                                                                                                      int midiNoteNumber,
+                                                                                                                      float velocity,
+                                                                                                                      const BlockSettings& settings,
+                                                                                                                      bool suppressMonoCut,
+                                                                                                                      float pan,
+                                                                                                                      int rrOffset,
+                                                                                                                      const SampleZone* excludedZone)
 {
     const int velocity127 = juce::jlimit (1, 127, static_cast<int> (std::round (velocity * 127.0f)));
     bool usedModwheelLayerSelection = false;
-    auto zone = pickZoneForNote (midiNoteNumber, velocity127, &usedModwheelLayerSelection, rrOffset);
+    auto zone = pickZoneForNote (midiNoteNumber, velocity127, &usedModwheelLayerSelection, rrOffset, excludedZone);
 
     if (zone == nullptr)
-        return;
+        return {};
 
     if (! suppressMonoCut)
     {
@@ -5392,14 +5420,15 @@ void SamplePlayerAudioProcessor::startVoiceForNoteInternal (int midiChannel,
     }
 
     if (voice == nullptr)
-        return;
+        return {};
 
     *voice = VoiceState {};
+    auto selectedZone = zone;
 
     voice->active = true;
     voice->midiNote = midiNoteNumber;
     voice->midiChannel = midiChannel;
-    voice->zone = std::move (zone);
+    voice->zone = selectedZone;
     voice->position = 0.0;
     const bool ignoreMidiVelocity = usedModwheelLayerSelection && settings.loopEnabled;
     voice->velocityGain = ignoreMidiVelocity ? 1.0f : (velocity127 * velocityScale);
@@ -5447,6 +5476,8 @@ void SamplePlayerAudioProcessor::startVoiceForNoteInternal (int midiChannel,
 
     for (auto& filterState : voice->filterStates)
         filterState.reset();
+
+    return selectedZone;
 }
 
 void SamplePlayerAudioProcessor::releaseVoicesForNote (int midiChannel,
@@ -5602,7 +5633,8 @@ void SamplePlayerAudioProcessor::startStealTailFromVoice (const VoiceState& sour
 std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioProcessor::pickZoneForNote (int midiNoteNumber,
                                                                                                               int velocity127,
                                                                                                               bool* usedModwheelLayerSelection,
-                                                                                                              int rrOffset)
+                                                                                                              int rrOffset,
+                                                                                                              const SampleZone* excludedZone)
 {
     if (usedModwheelLayerSelection != nullptr)
         *usedModwheelLayerSelection = false;
@@ -5738,11 +5770,80 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     const int rrKey = (activeSlot << 8) | juce::jlimit (0, 127, midiNoteNumber);
     auto& rrCounter = roundRobinCounters[rrKey];
     const auto poolSize = static_cast<int> (candidatePool->size());
-    const int wrappedIndex = poolSize > 0
+    const auto zoneChoiceId = [] (const SampleZone& zone) -> juce::uint64
+    {
+        juce::uint64 hash = static_cast<juce::uint64> (zone.sourceFile.getFullPathName().hashCode64());
+        hash ^= static_cast<juce::uint64> ((zone.metadata.roundRobinIndex + 1) * 131);
+        hash ^= (static_cast<juce::uint64> (zone.metadata.lowVelocity + 1) << 24);
+        hash ^= (static_cast<juce::uint64> (zone.metadata.highVelocity + 1) << 40);
+        return hash;
+    };
+
+    const juce::uint64 excludedChoiceId = excludedZone != nullptr ? zoneChoiceId (*excludedZone) : 0;
+
+    if (roundRobinRandomMode.load (std::memory_order_relaxed) && poolSize > 0)
+    {
+        auto& recentChoices = roundRobinRecentChoiceIds[rrKey];
+        std::vector<int> eligibleIndices;
+        eligibleIndices.reserve (static_cast<size_t> (poolSize));
+
+        const auto collectEligible = [&] (bool excludeRecent)
+        {
+            eligibleIndices.clear();
+            for (int index = 0; index < poolSize; ++index)
+            {
+                const auto& candidate = candidatePool->at (static_cast<size_t> (index));
+                if (candidate == nullptr)
+                    continue;
+
+                const auto choiceId = zoneChoiceId (*candidate);
+                if (excludedChoiceId != 0 && choiceId == excludedChoiceId)
+                    continue;
+                if (excludeRecent && (choiceId == recentChoices[0] || choiceId == recentChoices[1]))
+                    continue;
+                eligibleIndices.push_back (index);
+            }
+        };
+
+        collectEligible (true);
+        if (eligibleIndices.empty())
+            collectEligible (false);
+        if (eligibleIndices.empty())
+        {
+            for (int index = 0; index < poolSize; ++index)
+                eligibleIndices.push_back (index);
+        }
+
+        roundRobinRandomState = (roundRobinRandomState * 1664525u) + 1013904223u;
+        const auto sample = (roundRobinRandomState >> 8) & 0x00ffffffu;
+        const auto chosenOffset = static_cast<size_t> (sample % static_cast<juce::uint32> (eligibleIndices.size()));
+        const int chosenIndex = eligibleIndices[chosenOffset];
+        const auto& chosenZone = candidatePool->at (static_cast<size_t> (chosenIndex));
+        const auto chosenChoiceId = zoneChoiceId (*chosenZone);
+        recentChoices[1] = recentChoices[0];
+        recentChoices[0] = chosenChoiceId;
+        return chosenZone;
+    }
+
+    int wrappedIndex = poolSize > 0
         ? ((rrCounter + juce::jmax (0, rrOffset)) % poolSize)
         : 0;
-    rrCounter = (rrCounter + 1) % 8192;
 
+    if (excludedChoiceId != 0 && poolSize > 1)
+    {
+        for (int attempt = 0; attempt < poolSize; ++attempt)
+        {
+            const int candidateIndex = (wrappedIndex + attempt) % poolSize;
+            const auto& candidate = candidatePool->at (static_cast<size_t> (candidateIndex));
+            if (candidate != nullptr && zoneChoiceId (*candidate) != excludedChoiceId)
+            {
+                wrappedIndex = candidateIndex;
+                break;
+            }
+        }
+    }
+
+    rrCounter = (rrCounter + 1) % 8192;
     return candidatePool->at (static_cast<size_t> (wrappedIndex));
 }
 

@@ -313,13 +313,14 @@ private:
 
     void handleMidiMessage (const juce::MidiMessage& message, const BlockSettings& settings, bool previewMessage = false);
     void startVoiceForNote (int midiChannel, int midiNoteNumber, float velocity, const BlockSettings& settings);
-    void startVoiceForNoteInternal (int midiChannel,
-                                    int midiNoteNumber,
-                                    float velocity,
-                                    const BlockSettings& settings,
-                                    bool suppressMonoCut,
-                                    float pan,
-                                    int rrOffset);
+    std::shared_ptr<const SampleZone> startVoiceForNoteInternal (int midiChannel,
+                                                                 int midiNoteNumber,
+                                                                 float velocity,
+                                                                 const BlockSettings& settings,
+                                                                 bool suppressMonoCut,
+                                                                 float pan,
+                                                                 int rrOffset,
+                                                                 const SampleZone* excludedZone = nullptr);
     void releaseVoicesForNote (int midiChannel, int midiNoteNumber, bool allowTailOff, const BlockSettings& settings);
     void enforceSingleVoicePerMidiNote();
     void stopAllVoices();
@@ -333,7 +334,8 @@ private:
     std::shared_ptr<const SampleZone> pickZoneForNote (int midiNoteNumber,
                                                        int velocity127,
                                                        bool* usedModwheelLayerSelection = nullptr,
-                                                       int rrOffset = 0);
+                                                       int rrOffset = 0,
+                                                       const SampleZone* excludedZone = nullptr);
     bool hasMultipleRoundRobinsForNote (int midiNoteNumber, int velocity127) const;
 
     BlockSettings getBlockSettingsSnapshot() const;
@@ -427,7 +429,10 @@ private:
     std::array<int, 128> midiNoteOnCounts {};
     std::atomic<juce::uint64> midiHeldMaskLo { 0 };
     std::atomic<juce::uint64> midiHeldMaskHi { 0 };
+    std::atomic<bool> roundRobinRandomMode { false };
     std::unordered_map<int, int> roundRobinCounters;
+    std::unordered_map<int, std::array<juce::uint64, 2>> roundRobinRecentChoiceIds;
+    juce::uint32 roundRobinRandomState = 0x12345678u;
     mutable juce::CriticalSection pendingPreviewMidiLock;
     std::vector<PendingPreviewMidiEvent> pendingPreviewMidiEvents;
 
