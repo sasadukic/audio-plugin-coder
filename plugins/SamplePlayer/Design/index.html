@@ -10080,7 +10080,8 @@
       if (persist) scheduleSessionStateSave(350);
     }
 
-    function clearWallpaper() {
+    function clearWallpaper(options = {}) {
+      const persist = options?.persist !== false;
       if (state.wallpaperObjectUrl) URL.revokeObjectURL(state.wallpaperObjectUrl);
       const wallpaperImage = el.playerWallpaperImage;
       state.wallpaperObjectUrl = "";
@@ -10121,7 +10122,7 @@
       updateLoadingOverlayTheme();
       updatePlayerEdgeWaveBlurState();
       refreshPlayerParticles();
-      scheduleSessionStateSave(350);
+      if (persist) scheduleSessionStateSave(350);
     }
 
     function entryHasPlayableSource(entry) {
@@ -10386,7 +10387,8 @@
       if (persist) scheduleSessionStateSave(350);
     }
 
-    function clearLogo() {
+    function clearLogo(options = {}) {
+      const persist = options?.persist !== false;
       if (state.logoObjectUrl) URL.revokeObjectURL(state.logoObjectUrl);
       state.logoObjectUrl = "";
       state.logoUrl = "";
@@ -10404,7 +10406,7 @@
       setLogoMenuOpen(false);
       updateLogoToggle();
       updateLogoPositionMenu();
-      scheduleSessionStateSave(350);
+      if (persist) scheduleSessionStateSave(350);
     }
 
     function updateLogoToggle() {
@@ -16600,8 +16602,8 @@
     }
 
     async function restoreGraphicsFromManifest(data, manifestBasePath) {
-      clearWallpaper();
-      clearLogo();
+      clearWallpaper({ persist: false });
+      clearLogo({ persist: false });
 
       const wallpaper = (data?.wallpaper && typeof data.wallpaper === "object") ? data.wallpaper : null;
       const logo = (data?.logo && typeof data.logo === "object") ? data.logo : null;
@@ -16658,8 +16660,8 @@
     }
 
     async function restoreGraphicsFromSessionUi(uiState, manifestData, manifestBasePath) {
-      clearWallpaper();
-      clearLogo();
+      clearWallpaper({ persist: false });
+      clearLogo({ persist: false });
 
       const ui = (uiState && typeof uiState === "object") ? uiState : {};
       const wallpaperManifest = (manifestData?.wallpaper && typeof manifestData.wallpaper === "object")

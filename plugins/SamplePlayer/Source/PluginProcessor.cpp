@@ -415,13 +415,17 @@ juce::String makeLightweightSessionStateJson (const juce::String& fullJson,
         return fullJson;
 
     juce::String wallpaperDataUrl;
+    juce::String wallpaperSourcePath;
     juce::String logoDataUrl;
+    juce::String logoSourcePath;
     if (const auto* rootObject = parsed.getDynamicObject())
     {
         if (const auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
         {
             wallpaperDataUrl = uiObject->getProperty ("wallpaperDataUrl").toString().trim();
+            wallpaperSourcePath = uiObject->getProperty ("wallpaperSourcePath").toString().trim();
             logoDataUrl = uiObject->getProperty ("logoDataUrl").toString().trim();
+            logoSourcePath = uiObject->getProperty ("logoSourcePath").toString().trim();
         }
     }
 
@@ -440,10 +444,10 @@ juce::String makeLightweightSessionStateJson (const juce::String& fullJson,
                     && value.length() <= maxGraphicDataUrlChars;
             };
 
-            if (keepGraphicDataUrl (wallpaperDataUrl))
+            if (wallpaperSourcePath.isEmpty() && keepGraphicDataUrl (wallpaperDataUrl))
                 uiObject->setProperty ("wallpaperDataUrl", wallpaperDataUrl);
 
-            if (keepGraphicDataUrl (logoDataUrl))
+            if (logoSourcePath.isEmpty() && keepGraphicDataUrl (logoDataUrl))
                 uiObject->setProperty ("logoDataUrl", logoDataUrl);
         }
     }
