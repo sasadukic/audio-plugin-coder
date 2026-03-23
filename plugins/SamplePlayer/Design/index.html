@@ -15822,6 +15822,7 @@
       state.entries = [];
       state.manualRootRanges = {};
       state.keyswitchSets = [];
+      state.openStringMidis = [];
       state.activeMapSetId = "base";
       state.baseLoopPlaybackEnabled = true;
       state.mapMatrixAssignMode = false;
@@ -15943,6 +15944,7 @@
         settings: {
           gapFillMode: "nextHigherOnly",
           allowPitchUpAboveHighest: state.allowPitchUpAboveHighest,
+          openStringMidis: normalizeOpenStringMidis(state.openStringMidis),
           autoRR: state.autoRR,
           velocityCrossfadePercent: state.velocityCrossfadePercent,
           loopCrossfadeMs: state.loopCrossfadeMs,
@@ -16616,6 +16618,7 @@
         el.autoInstrument.value = data.instrumentName.trim();
       }
       const loadedSettings = (data?.settings && typeof data.settings === "object") ? data.settings : null;
+      state.openStringMidis = normalizeOpenStringMidis(loadedSettings?.openStringMidis);
       if (el.autoLoop && loadedSettings && Object.prototype.hasOwnProperty.call(loadedSettings, "autoLoopSamples")) {
         el.autoLoop.checked = !!loadedSettings.autoLoopSamples;
       }
