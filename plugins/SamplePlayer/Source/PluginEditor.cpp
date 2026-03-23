@@ -85,7 +85,7 @@ SamplePlayerAudioProcessorEditor::SamplePlayerAudioProcessorEditor (SamplePlayer
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
     setSize (defaultEditorWidth, defaultPlayerHeight);
-    startTimerHz (20);
+    startTimerHz (10);
 }
 
 SamplePlayerAudioProcessorEditor::~SamplePlayerAudioProcessorEditor()
@@ -335,18 +335,23 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
     if (! webView)
         return;
 
-    const auto lightweightSessionJson = audioProcessor.getUiSessionStateJson (true);
-    if (lightweightSessionJson.isNotEmpty()
-        && lightweightSessionJson != lastPushedLightweightSessionJson)
+    const int currentLightweightVersion = audioProcessor.getUiSessionStateLightweightVersion();
+    if (currentLightweightVersion != lastPushedLightweightVersion)
     {
-        lastPushedLightweightSessionJson = lightweightSessionJson;
-        auto payloadObject = juce::DynamicObject::Ptr (new juce::DynamicObject());
-        payloadObject->setProperty ("json", lightweightSessionJson);
-        payloadObject->setProperty ("lightweight", true);
-        payloadObject->setProperty ("full", false);
-        webView->emitEventIfBrowserIsVisible ("session_state_payload", juce::var (payloadObject.get()));
-        appendUiDebugLog ("session_state_push auto | bytesOut="
-                          + juce::String (lightweightSessionJson.getNumBytesAsUTF8()));
+        const auto lightweightSessionJson = audioProcessor.getUiSessionStateJson (true);
+        lastPushedLightweightVersion = currentLightweightVersion;
+        if (lightweightSessionJson.isNotEmpty()
+            && lightweightSessionJson != lastPushedLightweightSessionJson)
+        {
+            lastPushedLightweightSessionJson = lightweightSessionJson;
+            auto payloadObject = juce::DynamicObject::Ptr (new juce::DynamicObject());
+            payloadObject->setProperty ("json", lightweightSessionJson);
+            payloadObject->setProperty ("lightweight", true);
+            payloadObject->setProperty ("full", false);
+            webView->emitEventIfBrowserIsVisible ("session_state_payload", juce::var (payloadObject.get()));
+            appendUiDebugLog ("session_state_push auto | bytesOut="
+                              + juce::String (lightweightSessionJson.getNumBytesAsUTF8()));
+        }
     }
 
     const auto emitTakeEvent = [this] (const juce::String& fileName,

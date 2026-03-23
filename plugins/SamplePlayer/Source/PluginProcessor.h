@@ -167,6 +167,7 @@ public:
     void loadMonolithDirect (const juce::String& filePath);
     void setActiveMapSetId (const juce::String& setId);
     juce::String getUiSessionStateJson (bool lightweightPreferred = false);
+    int getUiSessionStateLightweightVersion() const noexcept { return uiSessionStateLightweightVersion.load (std::memory_order_relaxed); }
     juce::String getSampleDataUrlForMapEntry (int rootMidi,
                                               int velocityLayer,
                                               int rrIndex,
@@ -452,6 +453,7 @@ private:
     mutable juce::CriticalSection uiSessionStateLock;
     juce::String uiSessionStateJson;
     juce::String uiSessionStateLightweightJson;
+    std::atomic<int> uiSessionStateLightweightVersion { 0 };
     juce::String pendingActiveMapSetId;
     mutable juce::CriticalSection sessionMapSyncLock;
     juce::String lastSessionMapSignature;

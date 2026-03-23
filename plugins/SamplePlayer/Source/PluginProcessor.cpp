@@ -434,6 +434,12 @@ juce::String makeLightweightSessionStateJson (const juce::String& fullJson,
 
     if (auto* rootObject = parsed.getDynamicObject())
     {
+        if (auto* manifestObj = rootObject->getProperty ("manifest").getDynamicObject())
+        {
+            manifestObj->removeProperty ("entries");
+            manifestObj->removeProperty ("variants");
+        }
+
         if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
         {
             constexpr int maxGraphicDataUrlChars = 5 * 1024 * 1024;
@@ -1707,7 +1713,8 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
             return;
         }
         uiSessionStateJson = normalizedJson;
-        uiSessionStateLightweightJson.clear();
+        // Keep the old lightweight cache during rebuild so the timer doesn't
+        // fall back to the full JSON (which may contain multi-MB data URLs).
         pendingActiveMapSetId.clear();
     }
 
@@ -1772,6 +1779,19 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
         LightweightStripStats stripStats;
         stripLargePayloadFieldsRecursive (parsed, stripStats);
 
+        // Strip the manifest entries array from the lightweight payload — it
+        // contains all sample zone definitions which don't change during
+        // playback and dominate the payload size.  The UI only applies the
+        // manifest on the initial (full) restore, so this is safe.
+        if (auto* rootObject = parsed.getDynamicObject())
+        {
+            if (auto* manifestObj = rootObject->getProperty ("manifest").getDynamicObject())
+            {
+                manifestObj->removeProperty ("entries");
+                manifestObj->removeProperty ("variants");
+            }
+        }
+
         if (auto* rootObject = parsed.getDynamicObject())
         {
             if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
@@ -1799,7 +1819,10 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
         {
             const juce::ScopedLock lock (uiSessionStateLock);
             if (requestId == sessionStateSyncRequestId.load (std::memory_order_relaxed))
+            {
                 uiSessionStateLightweightJson = lightweightJson;
+                uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
+            }
         }
 
         writeLoadDebugLog ("session lightweight cache ready | requestId=" + juce::String (requestId)
@@ -2070,6 +2093,7 @@ juce::String SamplePlayerAudioProcessor::getUiSessionStateJson (bool lightweight
 
                 uiSessionStateJson = juce::JSON::toString (parsed);
                 uiSessionStateLightweightJson = makeLightweightSessionStateJson (uiSessionStateJson, nullptr);
+                uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
                 writeLoadDebugLog ("active map persisted to session json | setId=" + desiredSetId);
             }
         }
