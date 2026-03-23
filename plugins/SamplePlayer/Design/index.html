@@ -17236,6 +17236,9 @@
       if (!hasPassword) state.instrumentLocked = false;
       const locked = hasPassword && !!state.instrumentLocked;
 
+      if (el.playerTabBtn) {
+        el.playerTabBtn.classList.toggle("hidden", locked);
+      }
       if (el.setupTabBtn) {
         el.setupTabBtn.classList.toggle("hidden", locked);
       }
@@ -17243,11 +17246,14 @@
         activateTab("player");
         return;
       }
-      if (el.playerTabBtn) {
-        const playerTitle = !hasPassword
-          ? "Player (Alt-click to lock)"
-          : (locked ? "Player (Alt-click to unlock)" : "Player (Alt-click to lock)");
-        el.playerTabBtn.title = playerTitle;
+      if (el.playerTabBtn && !locked) {
+        el.playerTabBtn.title = "Player";
+      }
+      if (el.tabsBar) {
+        const tabsTitle = !hasPassword
+          ? "Click empty top bar area to lock"
+          : (locked ? "Click empty top bar area to unlock" : "Click empty top bar area to lock");
+        el.tabsBar.title = tabsTitle;
       }
       updateSaveButtonVisibility();
     }
@@ -17351,25 +17357,27 @@
 
     function setupTabs() {
       el.tabs.forEach((btn) => {
-        btn.addEventListener("click", (ev) => {
+        btn.addEventListener("click", () => {
           const tab = btn.dataset.tab;
           if (!tab) return;
-          if (tab === "player" && ev.altKey) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            if (!state.instrumentLockPasswordHash) {
-              openInstrumentLockModal("set");
-              return;
-            }
-            if (state.instrumentLocked) {
-              openInstrumentLockModal("unlock");
-              return;
-            }
-            lockInstrumentNow();
-            return;
-          }
           activateTab(tab);
         });
+      });
+
+      el.tabsBar?.addEventListener("click", (ev) => {
+        const target = ev.target;
+        if (!(target instanceof Element)) return;
+        if (target.closest("button, input, select, textarea, a, label")) return;
+
+        if (!state.instrumentLockPasswordHash) {
+          openInstrumentLockModal("set");
+          return;
+        }
+        if (state.instrumentLocked) {
+          openInstrumentLockModal("unlock");
+          return;
+        }
+        lockInstrumentNow();
       });
     }
 
