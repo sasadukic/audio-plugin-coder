@@ -5024,6 +5024,8 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
         const int note = juce::jlimit (0, 127, message.getNoteNumber());
         const auto sampleSet = std::atomic_load (&currentSampleSet);
         const int activeSlot = juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
+        const bool activeSlotIsSingleRootDrum = sampleSet != nullptr
+            && isSingleRootDrumSlot (*sampleSet, activeSlot);
 
         if (sampleSet != nullptr)
         {
@@ -5031,18 +5033,21 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
             if (keyswitchSlot >= 0)
             {
                 auto& noteOnCount = midiNoteOnCounts[static_cast<size_t> (note)];
-                noteOnCount = juce::jmin (1024, noteOnCount + 1);
-                setMidiHeldState (note, true);
                 activeMapSetSlot.store (keyswitchSlot, std::memory_order_relaxed);
                 pendingActiveMapSetSlotFromMidi.store (keyswitchSlot, std::memory_order_relaxed);
                 bool loopEnabled = true;
                 if (const auto loopIt = sampleSet->loopPlaybackBySlot.find (keyswitchSlot); loopIt != sampleSet->loopPlaybackBySlot.end())
                     loopEnabled = loopIt->second;
                 activeMapLoopPlaybackEnabled.store (loopEnabled, std::memory_order_relaxed);
-                return;
+                if (!(activeSlotIsSingleRootDrum && keyswitchSlot == activeSlot))
+                {
+                    noteOnCount = juce::jmin (1024, noteOnCount + 1);
+                    setMidiHeldState (note, true);
+                    return;
+                }
             }
 
-            if (sampleSet->hasKeyswitchSets && note <= 24)
+            if (sampleSet->hasKeyswitchSets && note <= 24 && ! activeSlotIsSingleRootDrum)
                 return;
         }
 
@@ -5291,11 +5296,19 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
             const int keyswitchSlot = sampleSet->keyswitchSlotByMidi[static_cast<size_t> (note)];
             if (keyswitchSlot >= 0)
             {
-                auto& noteOnCount = midiNoteOnCounts[static_cast<size_t> (note)];
-                if (noteOnCount > 0)
-                    --noteOnCount;
-                setMidiHeldState (note, noteOnCount > 0);
-                return;
+                const bool noteHasActiveVoice = std::any_of (voices.begin(), voices.end(), [note] (const auto& voice)
+                {
+                    return voice.active && voice.midiNote == note;
+                });
+
+                if (! noteHasActiveVoice)
+                {
+                    auto& noteOnCount = midiNoteOnCounts[static_cast<size_t> (note)];
+                    if (noteOnCount > 0)
+                        --noteOnCount;
+                    setMidiHeldState (note, noteOnCount > 0);
+                    return;
+                }
             }
         }
 
@@ -5548,6 +5561,32 @@ void SamplePlayerAudioProcessor::setMidiHeldState (int midiNote, bool held) noex
         if (mask.compare_exchange_weak (current, desired, std::memory_order_relaxed, std::memory_order_relaxed))
             break;
     }
+}
+
+bool SamplePlayerAudioProcessor::isSingleRootDrumSlot (const SampleSet& sampleSet, int mapSetSlot) const
+{
+    int detectedRoot = -1;
+
+    for (const auto& zone : sampleSet.zones)
+    {
+        if (zone == nullptr)
+            continue;
+
+        const auto& metadata = zone->metadata;
+        if (metadata.mapSetSlot != mapSetSlot)
+            continue;
+
+        if (detectedRoot < 0)
+        {
+            detectedRoot = metadata.rootNote;
+            continue;
+        }
+
+        if (metadata.rootNote != detectedRoot)
+            return false;
+    }
+
+    return detectedRoot >= 0;
 }
 
 void SamplePlayerAudioProcessor::stopAllVoices()

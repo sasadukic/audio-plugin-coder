@@ -13809,6 +13809,10 @@
 
       const playbackSource = getPlayerPlaybackSource();
       const { roots, rangesByRoot } = getResolvedRootRanges(playbackSource.entries, playbackSource.manualRanges);
+      const activeMapSet = getActiveMapSet();
+      const singleRootDrumMidi = activeMapSet && activeMapSet.id !== "base"
+        ? getSinglePlayableRootMidi(playbackSource.entries)
+        : null;
       const keyswitchSets = getPlayerKeyswitchDisplaySets();
       const keyswitchSetsByMidi = new Map();
       keyswitchSets.forEach((set) => {
@@ -14009,7 +14013,7 @@
           key.appendChild(label);
         }
 
-        const hasMappedSample = playableMidis.has(midi);
+        const hasMappedSample = playableMidis.has(midi) || singleRootDrumMidi !== null;
         const isKeyswitch = keyswitchSetsByMidi.has(midi);
         const isInteractive = hasMappedSample || isKeyswitch;
         if (isInteractive) {
@@ -14042,7 +14046,7 @@
         const offset = blackOffsets[semitone] ?? 0.8;
         key.style.left = `${(whiteIndex + offset) * whiteKeyWidth}px`;
         key.style.width = `${whiteKeyWidth * 0.68}px`;
-        const hasMappedSample = playableMidis.has(midi);
+        const hasMappedSample = playableMidis.has(midi) || singleRootDrumMidi !== null;
         const isKeyswitch = keyswitchSetsByMidi.has(midi);
         const isInteractive = hasMappedSample || isKeyswitch;
         if (isInteractive) {
@@ -14080,6 +14084,23 @@
         if (playedMidi >= range.low && playedMidi <= range.high) return root;
       }
       return null;
+    }
+
+    function getSinglePlayableRootMidi(entries = state.entries) {
+      const roots = getMappedSampleRoots(entries);
+      return roots.length === 1 ? roots[0] : null;
+    }
+
+    function selectPlaybackRootForPlayedNote(
+      playedMidi,
+      entries = state.entries,
+      manualRanges = state.manualRootRanges,
+      options = null
+    ) {
+      const donorRoot = selectDonorRootForPlayedNote(playedMidi, entries, manualRanges);
+      if (donorRoot !== null) return donorRoot;
+      if (!options || !options.allowSingleRootDrumFallback) return null;
+      return getSinglePlayableRootMidi(entries);
     }
 
     function getVelocityLayersForRoot(donorRoot, entries = state.entries) {
@@ -14905,40 +14926,53 @@
       let manualRanges = (options && typeof options.manualRanges === "object" && options.manualRanges !== null)
         ? options.manualRanges
         : null;
+      const explicitSingleRootDrumFallback = !!(options && options.allowSingleRootDrumFallback);
       let switchedByKeyswitch = false;
 
       if (!hasExplicitSource) {
+        const playbackSource = getPlayerPlaybackSource();
+        const activeMapSet = getActiveMapSet();
+        const allowSingleRootDrumFallback = !!activeMapSet
+          && activeMapSet.id !== "base"
+          && Number.isFinite(getSinglePlayableRootMidi(playbackSource.entries));
         const keyswitchSet = getKeyswitchSetForMidi(midi);
         if (keyswitchSet) {
-          const activeTab = document.querySelector(".tab-btn.active")?.dataset.tab || "player";
-          const isPlayerTab = activeTab === "player";
-          setActiveMapSet(keyswitchSet.id, !isPlayerTab);
-          if (getNativeBackend()) {
-            // Send a real keyswitch note-on through the DSP path so articulation
-            // switching is sample-accurate and does not depend on UI event timing.
-            emitNativePreviewMidi(true, midi, 100, 1);
+          const isActiveSingleRootDrumTrigger = allowSingleRootDrumFallback
+            && String(keyswitchSet.id || "") === String(activeMapSet?.id || "");
+          if (!isActiveSingleRootDrumTrigger) {
+            const activeTab = document.querySelector(".tab-btn.active")?.dataset.tab || "player";
+            const isPlayerTab = activeTab === "player";
+            setActiveMapSet(keyswitchSet.id, !isPlayerTab);
+            if (getNativeBackend()) {
+              // Send a real keyswitch note-on through the DSP path so articulation
+              // switching is sample-accurate and does not depend on UI event timing.
+              emitNativePreviewMidi(true, midi, 100, 1);
+            }
+            if (isPlayerTab) {
+              renderPlayerKeyboard();
+            }
+            switchedByKeyswitch = true;
+            // Avoid synchronous native session flush here; it causes noticeable stalls
+            // when rapidly switching articulations from the player keyboard.
+            return true;
           }
-          if (isPlayerTab) {
-            renderPlayerKeyboard();
-          }
-          switchedByKeyswitch = true;
-          // Avoid synchronous native session flush here; it causes noticeable stalls
-          // when rapidly switching articulations from the player keyboard.
-          return true;
         }
 
         // In the native plugin, route preview keys through the DSP engine so
         // audio goes through the plugin output bus (host metering works).
         if (getNativeBackend()) {
-          const playbackSource = getPlayerPlaybackSource();
-          const donorRoot = selectDonorRootForPlayedNote(playedMidi, playbackSource.entries, playbackSource.manualRanges);
+          const donorRoot = selectPlaybackRootForPlayedNote(
+            playedMidi,
+            playbackSource.entries,
+            playbackSource.manualRanges,
+            { allowSingleRootDrumFallback }
+          );
           if (donorRoot === null) return switchedByKeyswitch;
           const ratio = Math.max(0, Math.min(1, pointerRatioY));
           const midiVelocity = Math.max(1, Math.min(127, Math.round((ratio * 126) + 1)));
           return emitNativePreviewMidi(true, playedMidi, midiVelocity, 1);
         }
 
-        const playbackSource = getPlayerPlaybackSource();
         sourceEntries = playbackSource.entries;
         manualRanges = playbackSource.manualRanges;
       }
@@ -14947,7 +14981,12 @@
       if (!manualRanges || typeof manualRanges !== "object") manualRanges = state.manualRootRanges;
       const ratio = Math.max(0, Math.min(1, pointerRatioY));
       const velocityNorm = ratio;
-      const donorRoot = selectDonorRootForPlayedNote(playedMidi, sourceEntries, manualRanges);
+      const donorRoot = selectPlaybackRootForPlayedNote(
+        playedMidi,
+        sourceEntries,
+        manualRanges,
+        { allowSingleRootDrumFallback: explicitSingleRootDrumFallback }
+      );
       if (donorRoot === null) return switchedByKeyswitch;
       const useModwheelVelocity = isAutoModwheelVelocityControlActiveForRoot(donorRoot, sourceEntries);
       const loopedVelocityRoot = hasLoopedEntriesForRoot(donorRoot, sourceEntries);

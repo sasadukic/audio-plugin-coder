@@ -330,6 +330,7 @@ private:
     VoiceState* stealOldestVoice();
     void startStealTailFromVoice (const VoiceState& sourceVoice);
     void setMidiHeldState (int midiNote, bool held) noexcept;
+    bool isSingleRootDrumSlot (const SampleSet& sampleSet, int mapSetSlot) const;
 
     std::shared_ptr<const SampleZone> pickZoneForNote (int midiNoteNumber,
                                                        int velocity127,
