@@ -1519,7 +1519,10 @@
       color: rgba(228, 238, 252, 0.7);
     }
 
-    .player-key-white.open-string {
+    .player-key-white.open-string,
+    .player-key-white.open-string.has-sample,
+    .player-key-white.c-note.open-string,
+    .player-key-white.c-note.open-string.has-sample {
       border-right-color: rgba(var(--player-open-string-border-rgb), 0.78);
       border-top-color: rgba(var(--player-open-string-border-rgb), 0.96);
       background:
@@ -1559,7 +1562,9 @@
         0 0 14px rgba(var(--player-open-string-rgb), 0.24);
     }
 
-    .player-key.open-string .player-key-label {
+    .player-key.open-string .player-key-label,
+    .player-key-white.c-note.open-string .player-key-label,
+    .player-key-white.c-note.open-string.has-sample .player-key-label {
       color: rgba(var(--player-open-string-text-rgb), 0.94);
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.26);
     }
