@@ -16849,7 +16849,7 @@
       const manifestFilePath = String(options?.manifestFilePath || "").trim();
       const manifestBasePath = String(options?.manifestBasePath || "").trim();
       const silentStatus = !!options?.silentStatus;
-      const hydrateManifestSamples = options?.hydrateManifestSamples !== false;
+      const hydrateManifestSamples = options?.hydrateManifestSamples === true;
       const sessionUiState = (options?.sessionUiState && typeof options.sessionUiState === "object")
         ? options.sessionUiState
         : ((options?.sessionUiGraphics && typeof options.sessionUiGraphics === "object")
@@ -17040,7 +17040,7 @@
           manifestFilePath,
           manifestBasePath,
           silentStatus: false,
-          hydrateManifestSamples: !isMonolith
+          hydrateManifestSamples: false
         });
         setLoadingOverlay(74, "Applying instrument...");
         if (!getNativeBackend()) await waitForNativeBackend(300);
