@@ -4804,7 +4804,7 @@
                   <button id="importKeyswitchesBtn" class="sample-loop-tool-btn" type="button">Import Keyswitches</button>
                   <label class="checkbox keyswitch-import-toggle" title="Imported one-note keyswitches play at their original pitch on every key">
                     <input id="keyswitchSingleNoteFixedPitchToggle" type="checkbox">
-                    <span>1-note fixed pitch</span>
+                    <span>Fixed Pitch</span>
                   </label>
                   <button id="clearInstrumentBtn" class="sample-loop-tool-btn" type="button">Clear</button>
                 </div>
@@ -5973,6 +5973,15 @@
       return /^[A-Za-z]:\//.test(normalized) || normalized.startsWith("/");
     }
 
+    // Stable timestamp for session state saves — avoids producing a different
+    // JSON string on every flush, which would defeat the C++ no-op check and
+    // trigger an expensive thread-pool parse+sync cycle every time.
+    let _stableCreatedUtc = "";
+    function getStableCreatedUtc() {
+      if (!_stableCreatedUtc) _stableCreatedUtc = new Date().toISOString();
+      return _stableCreatedUtc;
+    }
+
     function ensurePackManifestBasePathHint() {
       if (getPackManifestBasePath()) return;
       const hasRelativeManifestPaths = getAllMapEntries().some((entry) => {
@@ -6241,7 +6250,7 @@
       if (state.sessionStateLightweight) return;
       markSessionStateDirty();
       clearSessionStateSaveTimer();
-      const waitMs = Math.max(400, Math.round(Number(delayMs) || 900));
+      const waitMs = Math.max(1500, Math.round(Number(delayMs) || 1500));
       state.sessionStateSaveTimer = window.setTimeout(() => {
         state.sessionStateSaveTimer = 0;
         void flushSessionStateToNative(false);
@@ -16166,7 +16175,7 @@
         formatVersion: 1,
         instrumentName: (el.autoInstrument.value || "Instrument").trim(),
         author: (el.autoAuthor?.value || "").trim(),
-        createdUtc: new Date().toISOString(),
+        createdUtc: getStableCreatedUtc(),
         openStringMidis: normalizeOpenStringMidis(state.openStringMidis),
         settings: {
           gapFillMode: "nextHigherOnly",
