@@ -1032,8 +1032,8 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 stepSettings.loopEnabled = loopEnabled;
             }
 
-            const bool canDouble = stepRT->ratchetDoubling
-                                 && hasMultipleRoundRobinsForNote (playedNote, velocity127);
+            const bool canDouble = sequencerDoublingEnabled.load (std::memory_order_relaxed)
+                && hasMultipleRoundRobinsForNote (playedNote, velocity127);
             if (canDouble)
             {
                 const auto leftZone = startVoiceForNoteInternal (channel,
@@ -2673,6 +2673,8 @@ void SamplePlayerAudioProcessor::setSequencerHostTriggerEnabled (bool enabled)
         updatedRuntime->followsInputNote = currentRuntime->followsInputNote;
     }
 
+    updatedRuntime->doubling = sequencerDoublingEnabled.load (std::memory_order_relaxed) || updatedRuntime->doubling;
+
     updatedRuntime->enabled = enabled;
     updatedRuntime->currentStep = -1;
     updatedRuntime->triggerToPlayedNote.fill (-1);
@@ -2826,8 +2828,21 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
 
 void SamplePlayerAudioProcessor::applySequencerSettingsFromUi (const juce::var& payload)
 {
-    bool doubling = false;
+    bool doubling = sequencerDoublingEnabled.load (std::memory_order_relaxed);
     int uiRateIndex = 2;
+    std::array<StepSequencerRuntime::Step, 16> sequencerSteps {};
+
+    for (auto& step : sequencerSteps)
+    {
+        step.noteMidi = 60;
+        step.velocity127 = 100;
+        step.keyswitchSlot = -1;
+        step.rateIndex = 2;
+        step.subVelocities = { 100, 100, 100, 100, 100, 100, 100, 100 };
+    }
+
+    if (auto currentRuntime = std::atomic_load (&stepSequencerRuntime); currentRuntime != nullptr)
+        sequencerSteps = currentRuntime->steps;
 
     if (const auto* object = payload.getDynamicObject())
     {
@@ -2836,14 +2851,45 @@ void SamplePlayerAudioProcessor::applySequencerSettingsFromUi (const juce::var& 
             doubling = static_cast<bool> (doublingVar);
 
         uiRateIndex = juce::jlimit (0, 3, static_cast<int> (object->getProperty ("rateIndex")));
+
+        if (const auto* stepPattern = object->getProperty ("stepPattern").getArray())
+        {
+            const auto sampleSet = std::atomic_load (&currentSampleSet);
+            const int stepCount = juce::jmin (static_cast<int> (sequencerSteps.size()), stepPattern->size());
+
+            for (int i = 0; i < stepCount; ++i)
+            {
+                const auto* stepObj = (*stepPattern)[i].getDynamicObject();
+                if (stepObj == nullptr)
+                    continue;
+
+                auto& step = sequencerSteps[static_cast<size_t> (i)];
+                step.noteMidi = juce::jlimit (0, 127, static_cast<int> (stepObj->getProperty ("noteMidi")));
+                step.velocity127 = juce::jlimit (1, 127, static_cast<int> (stepObj->getProperty ("velocity")));
+                step.rateIndex = juce::jlimit (0, 4, static_cast<int> (stepObj->getProperty ("rateIndex")));
+                step.keyswitchSlot = -1;
+
+                const auto keyswitchId = stepObj->getProperty ("keyswitchSetId").toString().trim();
+                if (sampleSet != nullptr && keyswitchId.isNotEmpty())
+                {
+                    if (const auto it = sampleSet->mapSetSlotById.find (keyswitchId.toStdString());
+                        it != sampleSet->mapSetSlotById.end())
+                    {
+                        step.keyswitchSlot = it->second;
+                    }
+                }
+            }
+        }
     }
+
+    sequencerDoublingEnabled.store (doubling, std::memory_order_relaxed);
 
     auto updatedRuntime = std::make_shared<StepSequencerRuntime>();
     if (auto currentRuntime = std::atomic_load (&stepSequencerRuntime); currentRuntime != nullptr)
     {
         updatedRuntime->enabled           = currentRuntime->enabled;
         updatedRuntime->followsInputNote  = currentRuntime->followsInputNote;
-        updatedRuntime->steps             = currentRuntime->steps;
+        updatedRuntime->steps             = sequencerSteps;
 
         // Carry over live trigger / ratchet state
         updatedRuntime->triggerDepthByMidi   = currentRuntime->triggerDepthByMidi;
@@ -2864,6 +2910,10 @@ void SamplePlayerAudioProcessor::applySequencerSettingsFromUi (const juce::var& 
         updatedRuntime->ratchetKeyswitchSlot = currentRuntime->ratchetKeyswitchSlot;
         updatedRuntime->ratchetSubsRemaining = currentRuntime->ratchetSubsRemaining;
         updatedRuntime->ratchetDoubling      = currentRuntime->ratchetDoubling;
+    }
+    else
+    {
+        updatedRuntime->steps = sequencerSteps;
     }
 
     updatedRuntime->doubling  = doubling;
@@ -3051,6 +3101,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
 
     modwheelVelocityLayerControlEnabled.store (useModwheelForVelocityLayers, std::memory_order_relaxed);
     modwheelVelocityLayerControlValue01.store (modwheelValue01, std::memory_order_relaxed);
+    sequencerDoublingEnabled.store (sequencerDoubling, std::memory_order_relaxed);
     if (auto* modParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kModWheelParamId)))
         modParam->setValue (juce::jlimit (0.0f, 1.0f, modwheelValue01));
 
@@ -5594,7 +5645,7 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                         runtime->ratchetChannel       = message.getChannel();
                         runtime->ratchetPlaybackSlot  = stepPlaybackSlot;
                         runtime->ratchetKeyswitchSlot = step.keyswitchSlot;
-                        runtime->ratchetDoubling      = runtime->doubling;
+                        runtime->ratchetDoubling      = sequencerDoublingEnabled.load (std::memory_order_relaxed);
                         runtime->ratchetSubsRemaining = subdivisions - 1;
                     }
 
@@ -5605,7 +5656,8 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 }
 
                 const float velocity01 = static_cast<float> (velocity127) / 127.0f;
-                const bool canDouble = runtime->doubling && hasMultipleRoundRobinsForNote (playedNote, velocity127);
+                const bool canDouble = sequencerDoublingEnabled.load (std::memory_order_relaxed)
+                    && hasMultipleRoundRobinsForNote (playedNote, velocity127);
                 if (canDouble)
                 {
                     const auto leftZone = startVoiceForNoteInternal (message.getChannel(),
