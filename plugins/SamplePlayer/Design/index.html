@@ -4836,6 +4836,15 @@
                 <button id="strumDoublingBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Doubling Off</button>
                 <button id="strumShowOnMainBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Show on Main</button>
                 <div class="strum-menu-wrap">
+                  <button id="strumRateBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Rate 1/16</button>
+                  <div id="strumRateMenu" class="strum-menu hidden" role="menu" aria-label="Strum rate">
+                    <button class="strum-menu-item" type="button" data-rate-index="0">1/4</button>
+                    <button class="strum-menu-item" type="button" data-rate-index="1">1/8</button>
+                    <button class="strum-menu-item" type="button" data-rate-index="2">1/16</button>
+                    <button class="strum-menu-item" type="button" data-rate-index="3">1/32</button>
+                  </div>
+                </div>
+                <div class="strum-menu-wrap">
                   <button id="strumSwingBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Swing 0%</button>
                   <div id="strumSwingMenu" class="strum-menu hidden" role="menu" aria-label="Strum swing">
                     <button class="strum-menu-item" type="button" data-swing-value="0">0%</button>
@@ -9750,7 +9759,8 @@
       scheduleSessionStateSave(350);
     }
 
-    function clearWallpaper() {
+    function clearWallpaper(options = {}) {
+      const persist = options?.persist !== false;
       if (state.wallpaperObjectUrl) URL.revokeObjectURL(state.wallpaperObjectUrl);
       state.wallpaperObjectUrl = "";
       state.wallpaperUrl = "";
@@ -9781,7 +9791,7 @@
       updateLoadingOverlayTheme();
       updatePlayerEdgeWaveBlurState();
       refreshPlayerParticles();
-      scheduleSessionStateSave(350);
+      if (persist) scheduleSessionStateSave(350);
     }
 
     function entryHasPlayableSource(entry) {
@@ -9969,7 +9979,8 @@
       scheduleSessionStateSave(350);
     }
 
-    function clearLogo() {
+    function clearLogo(options = {}) {
+      const persist = options?.persist !== false;
       if (state.logoObjectUrl) URL.revokeObjectURL(state.logoObjectUrl);
       state.logoObjectUrl = "";
       state.logoUrl = "";
@@ -9987,7 +9998,7 @@
       setLogoMenuOpen(false);
       updateLogoToggle();
       updateLogoPositionMenu();
-      scheduleSessionStateSave(350);
+      if (persist) scheduleSessionStateSave(350);
     }
 
     function updateLogoToggle() {
@@ -15975,8 +15986,8 @@
     }
 
     async function restoreGraphicsFromManifest(data, manifestBasePath) {
-      clearWallpaper();
-      clearLogo();
+      clearWallpaper({ persist: false });
+      clearLogo({ persist: false });
 
       const wallpaper = (data?.wallpaper && typeof data.wallpaper === "object") ? data.wallpaper : null;
       const logo = (data?.logo && typeof data.logo === "object") ? data.logo : null;
@@ -15990,15 +16001,19 @@
             if (file instanceof File) {
               await setWallpaper(file);
               state.wallpaperDataUrl = embeddedDataUrl;
+              applyWallpaperPosition(normalizeWallpaperPosition(wallpaper.position || state.wallpaperPosition));
             }
           } catch {}
         } else if (typeof wallpaper.path === "string") {
-          await restoreGraphicFromManifest(
+          const restoredWallpaper = await restoreGraphicFromManifest(
             "wallpaper",
             manifestBasePath,
             wallpaper.path,
             stripFileExtension(String(wallpaper.path || "").split(/[\\/]/).pop() || "wallpaper") + ".png"
           );
+          if (restoredWallpaper) {
+            applyWallpaperPosition(normalizeWallpaperPosition(wallpaper.position || state.wallpaperPosition));
+          }
         }
       }
 
@@ -16029,8 +16044,8 @@
     }
 
     async function restoreGraphicsFromSessionUi(uiState, manifestData, manifestBasePath) {
-      clearWallpaper();
-      clearLogo();
+      clearWallpaper({ persist: false });
+      clearLogo({ persist: false });
 
       const ui = (uiState && typeof uiState === "object") ? uiState : {};
       const wallpaperManifest = (manifestData?.wallpaper && typeof manifestData.wallpaper === "object")
@@ -16096,19 +16111,34 @@
         await restoreFromUiDataUrl("wallpaper", ui.wallpaperDataUrl, ui.wallpaperName, ui.wallpaperSourcePath)
         || await restoreFromAbsolutePath("wallpaper", ui.wallpaperSourcePath)
       );
+      if (restoredWallpaper) {
+        applyWallpaperPosition(normalizeWallpaperPosition(
+          ui.wallpaperPosition || wallpaperManifest?.position || state.wallpaperPosition
+        ));
+      }
       if (!restoredWallpaper && wallpaperManifest?.enabled && typeof wallpaperManifest.path === "string") {
-        await restoreGraphicFromManifest(
+        const fallbackWallpaper = await restoreGraphicFromManifest(
           "wallpaper",
           manifestBasePath,
           wallpaperManifest.path,
           stripFileExtension(String(wallpaperManifest.path || "").split(/[\\/]/).pop() || "wallpaper") + ".png"
         );
+        if (fallbackWallpaper) {
+          applyWallpaperPosition(normalizeWallpaperPosition(
+            ui.wallpaperPosition || wallpaperManifest.position || state.wallpaperPosition
+          ));
+        }
       }
 
       const restoredLogo = (
         await restoreFromUiDataUrl("logo", ui.logoDataUrl, ui.logoName, ui.logoSourcePath)
         || await restoreFromAbsolutePath("logo", ui.logoSourcePath)
       );
+      if (restoredLogo) {
+        applyLogoPosition(normalizeLogoPosition(
+          ui.logoPosition || logoManifest?.position || state.logoPosition
+        ));
+      }
       if (!restoredLogo && logoManifest?.enabled && typeof logoManifest.path === "string") {
         const fallbackLogo = await restoreGraphicFromManifest(
           "logo",
