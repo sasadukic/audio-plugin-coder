@@ -3622,129 +3622,261 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         return {};
     };
 
-    for (const auto& descriptor : variants)
+    // ---- Phase 1: resolve paths and check caches (sequential) ----
+    struct VariantWorkItem
+    {
+        size_t variantIndex = 0;
+        bool fromEmbeddedData = false;
+        juce::String sampleDataUrl;
+        juce::File resolvedSourceFile;
+        juce::uint64 cacheKey = 0;
+        std::shared_ptr<const DecodedEmbeddedAudioCacheEntry> cachedAudio;
+        bool needsDecode = false; // true = needs I/O in phase 2
+        bool failed = false;
+    };
+
+    std::vector<VariantWorkItem> workItems;
+    workItems.reserve (variants.size());
+
+    for (size_t vi = 0; vi < variants.size(); ++vi)
     {
         if (isStaleRequest())
         {
-            logExit ("stale-mid-decode");
+            logExit ("stale-mid-resolve");
             return;
         }
 
-        bool fromEmbeddedData = descriptor.sampleDataUrl.isNotEmpty();
-        juce::File resolvedSourceFile;
-        std::shared_ptr<const DecodedEmbeddedAudioCacheEntry> cachedAudio;
-        juce::uint64 cacheKey = 0;
+        const auto& descriptor = variants[vi];
+        VariantWorkItem item;
+        item.variantIndex = vi;
+        item.fromEmbeddedData = descriptor.sampleDataUrl.isNotEmpty();
 
-        if (fromEmbeddedData)
+        if (item.fromEmbeddedData)
         {
-            cacheKey = static_cast<juce::uint64> (descriptor.sampleDataUrl.hashCode64());
-            cachedAudio = findDecodedEmbeddedAudioInCache (cacheKey);
+            item.sampleDataUrl = descriptor.sampleDataUrl;
+            item.cacheKey = static_cast<juce::uint64> (descriptor.sampleDataUrl.hashCode64());
+            item.cachedAudio = findDecodedEmbeddedAudioInCache (item.cacheKey);
 
-            if (cachedAudio == nullptr)
+            if (item.cachedAudio != nullptr)
             {
-                ++cacheMisses;
-                juce::MemoryBlock audioData;
-                if (! decodeDataUrlAudioToMemory (descriptor.sampleDataUrl, audioData) || audioData.getSize() == 0)
-                {
-                    ++decodeFailures;
-                    continue;
-                }
-
-                auto input = std::make_unique<juce::MemoryInputStream> (audioData.getData(), audioData.getSize(), false);
-                auto reader = std::unique_ptr<juce::AudioFormatReader> (asyncFormatManager.createReaderFor (std::move (input)));
-
-                if (reader == nullptr || reader->lengthInSamples < 2)
-                {
-                    ++decodeFailures;
-                    continue;
-                }
-
-                const int channels = static_cast<int> (juce::jlimit<juce::uint32> (1U, 2U, reader->numChannels));
-                const auto totalSamples64 = juce::jmin<juce::int64> (reader->lengthInSamples,
-                                                                     static_cast<juce::int64> (std::numeric_limits<int>::max()));
-                const int totalSamples = static_cast<int> (totalSamples64);
-
-                if (totalSamples < 2)
-                {
-                    ++decodeFailures;
-                    continue;
-                }
-
-                auto decodedEntry = std::make_shared<DecodedEmbeddedAudioCacheEntry>();
-                decodedEntry->sampleRate = reader->sampleRate > 0.0 ? reader->sampleRate : 44100.0;
-                decodedEntry->audio.setSize (channels, totalSamples);
-                reader->read (&decodedEntry->audio, 0, totalSamples, 0, true, true);
-                decodedEntry->bytes = static_cast<std::size_t> (channels)
-                                    * static_cast<std::size_t> (totalSamples)
-                                    * sizeof (float);
-
-                storeDecodedEmbeddedAudioInCache (cacheKey, decodedEntry);
-                cachedAudio = decodedEntry;
-                ++decodedOnMiss;
-                decodedBytesOnMiss += decodedEntry->bytes;
+                ++cacheHits;
+                item.needsDecode = false;
             }
             else
             {
-                ++cacheHits;
+                item.needsDecode = true;
             }
         }
         else
         {
-            resolvedSourceFile = resolveSourceFileFromVariantPath (descriptor.samplePath);
-            if (! resolvedSourceFile.existsAsFile())
+            item.resolvedSourceFile = resolveSourceFileFromVariantPath (descriptor.samplePath);
+            if (! item.resolvedSourceFile.existsAsFile())
             {
                 if (unresolvedVariantPaths.size() < 8)
                     unresolvedVariantPaths.add (descriptor.samplePath);
                 ++decodeFailures;
-                continue;
-            }
-
-            const auto fileCacheKey = static_cast<juce::uint64> (
-                resolvedSourceFile.getFullPathName().hashCode64()
-                ^ (static_cast<juce::int64> (resolvedSourceFile.getSize()) * 0x9E3779B97F4A7C15ULL)
-                ^ (resolvedSourceFile.getLastModificationTime().toMilliseconds() * 0x517CC1B727220A95ULL));
-
-            cachedAudio = findDecodedEmbeddedAudioInCache (fileCacheKey);
-            if (cachedAudio != nullptr)
-            {
-                ++cacheHits;
+                item.failed = true;
             }
             else
             {
-                auto reader = std::unique_ptr<juce::AudioFormatReader> (asyncFormatManager.createReaderFor (resolvedSourceFile));
-                if (reader == nullptr || reader->lengthInSamples < 2)
+                item.cacheKey = static_cast<juce::uint64> (
+                    item.resolvedSourceFile.getFullPathName().hashCode64()
+                    ^ (static_cast<juce::int64> (item.resolvedSourceFile.getSize()) * 0x9E3779B97F4A7C15ULL)
+                    ^ (item.resolvedSourceFile.getLastModificationTime().toMilliseconds() * 0x517CC1B727220A95ULL));
+
+                item.cachedAudio = findDecodedEmbeddedAudioInCache (item.cacheKey);
+                if (item.cachedAudio != nullptr)
                 {
-                    ++decodeFailures;
-                    continue;
+                    ++cacheHits;
+                    item.needsDecode = false;
                 }
-
-                const int channels = static_cast<int> (juce::jlimit<juce::uint32> (1U, 2U, reader->numChannels));
-                const auto totalSamples64 = juce::jmin<juce::int64> (reader->lengthInSamples,
-                                                                     static_cast<juce::int64> (std::numeric_limits<int>::max()));
-                const int totalSamples = static_cast<int> (totalSamples64);
-
-                if (totalSamples < 2)
+                else
                 {
-                    ++decodeFailures;
-                    continue;
+                    item.needsDecode = true;
                 }
-
-                auto decodedEntry = std::make_shared<DecodedEmbeddedAudioCacheEntry>();
-                decodedEntry->sampleRate = reader->sampleRate > 0.0 ? reader->sampleRate : 44100.0;
-                decodedEntry->audio.setSize (channels, totalSamples);
-                reader->read (&decodedEntry->audio, 0, totalSamples, 0, true, true);
-                decodedEntry->bytes = static_cast<std::size_t> (channels)
-                                    * static_cast<std::size_t> (totalSamples)
-                                    * sizeof (float);
-
-                storeDecodedEmbeddedAudioInCache (fileCacheKey, decodedEntry);
-                cachedAudio = decodedEntry;
-                ++filePathLoads;
             }
         }
 
-        if (cachedAudio == nullptr || cachedAudio->audio.getNumSamples() < 2 || cachedAudio->audio.getNumChannels() <= 0)
+        workItems.push_back (std::move (item));
+    }
+
+    // ---- Phase 2: decode/read audio data in parallel ----
+    size_t itemsNeedingDecode = 0;
+    for (const auto& w : workItems)
+        if (w.needsDecode && ! w.failed) ++itemsNeedingDecode;
+
+    const unsigned int hwThreads2 = std::thread::hardware_concurrency();
+    const unsigned int numDecodeThreads = juce::jlimit (1u, 8u, hwThreads2 > 0 ? hwThreads2 : 4u);
+    const bool useParallelDecode = itemsNeedingDecode > 4 && numDecodeThreads > 1;
+
+    std::atomic<int> parallelCacheMisses { 0 };
+    std::atomic<int> parallelDecodeFailures { 0 };
+    std::atomic<int> parallelDecodedOnMiss { 0 };
+    std::atomic<size_t> parallelDecodedBytesOnMiss { 0 };
+    std::atomic<int> parallelFilePathLoads { 0 };
+
+    const auto decodeOneItem = [&parallelCacheMisses, &parallelDecodeFailures,
+                                &parallelDecodedOnMiss, &parallelDecodedBytesOnMiss,
+                                &parallelFilePathLoads]
+                               (VariantWorkItem& item)
+    {
+        if (item.failed || ! item.needsDecode)
+            return;
+
+        thread_local juce::AudioFormatManager threadFm;
+        thread_local bool threadFmReady = false;
+        if (! threadFmReady)
+        {
+            threadFm.registerBasicFormats();
+            threadFmReady = true;
+        }
+
+        if (item.fromEmbeddedData)
+        {
+            parallelCacheMisses.fetch_add (1, std::memory_order_relaxed);
+            juce::MemoryBlock audioData;
+            if (! decodeDataUrlAudioToMemory (item.sampleDataUrl, audioData) || audioData.getSize() == 0)
+            {
+                parallelDecodeFailures.fetch_add (1, std::memory_order_relaxed);
+                item.failed = true;
+                return;
+            }
+
+            auto input = std::make_unique<juce::MemoryInputStream> (audioData.getData(), audioData.getSize(), false);
+            auto reader = std::unique_ptr<juce::AudioFormatReader> (threadFm.createReaderFor (std::move (input)));
+
+            if (reader == nullptr || reader->lengthInSamples < 2)
+            {
+                parallelDecodeFailures.fetch_add (1, std::memory_order_relaxed);
+                item.failed = true;
+                return;
+            }
+
+            const int channels = static_cast<int> (juce::jlimit<juce::uint32> (1U, 2U, reader->numChannels));
+            const auto totalSamples64 = juce::jmin<juce::int64> (reader->lengthInSamples,
+                                                                 static_cast<juce::int64> (std::numeric_limits<int>::max()));
+            const int totalSamples = static_cast<int> (totalSamples64);
+
+            if (totalSamples < 2)
+            {
+                parallelDecodeFailures.fetch_add (1, std::memory_order_relaxed);
+                item.failed = true;
+                return;
+            }
+
+            auto decodedEntry = std::make_shared<DecodedEmbeddedAudioCacheEntry>();
+            decodedEntry->sampleRate = reader->sampleRate > 0.0 ? reader->sampleRate : 44100.0;
+            decodedEntry->audio.setSize (channels, totalSamples);
+            reader->read (&decodedEntry->audio, 0, totalSamples, 0, true, true);
+            decodedEntry->bytes = static_cast<std::size_t> (channels)
+                                * static_cast<std::size_t> (totalSamples)
+                                * sizeof (float);
+
+            item.cachedAudio = decodedEntry;
+            parallelDecodedOnMiss.fetch_add (1, std::memory_order_relaxed);
+            parallelDecodedBytesOnMiss.fetch_add (decodedEntry->bytes, std::memory_order_relaxed);
+        }
+        else
+        {
+            auto reader = std::unique_ptr<juce::AudioFormatReader> (threadFm.createReaderFor (item.resolvedSourceFile));
+            if (reader == nullptr || reader->lengthInSamples < 2)
+            {
+                parallelDecodeFailures.fetch_add (1, std::memory_order_relaxed);
+                item.failed = true;
+                return;
+            }
+
+            const int channels = static_cast<int> (juce::jlimit<juce::uint32> (1U, 2U, reader->numChannels));
+            const auto totalSamples64 = juce::jmin<juce::int64> (reader->lengthInSamples,
+                                                                 static_cast<juce::int64> (std::numeric_limits<int>::max()));
+            const int totalSamples = static_cast<int> (totalSamples64);
+
+            if (totalSamples < 2)
+            {
+                parallelDecodeFailures.fetch_add (1, std::memory_order_relaxed);
+                item.failed = true;
+                return;
+            }
+
+            auto decodedEntry = std::make_shared<DecodedEmbeddedAudioCacheEntry>();
+            decodedEntry->sampleRate = reader->sampleRate > 0.0 ? reader->sampleRate : 44100.0;
+            decodedEntry->audio.setSize (channels, totalSamples);
+            reader->read (&decodedEntry->audio, 0, totalSamples, 0, true, true);
+            decodedEntry->bytes = static_cast<std::size_t> (channels)
+                                * static_cast<std::size_t> (totalSamples)
+                                * sizeof (float);
+
+            item.cachedAudio = decodedEntry;
+            parallelFilePathLoads.fetch_add (1, std::memory_order_relaxed);
+        }
+    };
+
+    if (useParallelDecode)
+    {
+        std::atomic<size_t> nextWorkIdx { 0 };
+        std::vector<std::thread> decodeWorkers;
+        decodeWorkers.reserve (numDecodeThreads);
+
+        for (unsigned int t = 0; t < numDecodeThreads; ++t)
+        {
+            decodeWorkers.emplace_back ([&]()
+            {
+                while (true)
+                {
+                    const size_t idx = nextWorkIdx.fetch_add (1, std::memory_order_relaxed);
+                    if (idx >= workItems.size())
+                        break;
+                    auto& item = workItems[idx];
+                    if (item.needsDecode && ! item.failed)
+                        decodeOneItem (item);
+                }
+            });
+        }
+
+        for (auto& w : decodeWorkers)
+            w.join();
+    }
+    else
+    {
+        for (auto& item : workItems)
+        {
+            if (isStaleRequest())
+            {
+                logExit ("stale-mid-decode");
+                return;
+            }
+            if (item.needsDecode && ! item.failed)
+                decodeOneItem (item);
+        }
+    }
+
+    // Flush decoded entries to the cache (sequential — cache uses a lock).
+    for (auto& item : workItems)
+    {
+        if (item.failed || item.cachedAudio == nullptr)
             continue;
+        if (item.needsDecode)
+            storeDecodedEmbeddedAudioInCache (item.cacheKey, std::const_pointer_cast<DecodedEmbeddedAudioCacheEntry> (item.cachedAudio));
+    }
+
+    cacheMisses += parallelCacheMisses.load (std::memory_order_relaxed);
+    decodeFailures += parallelDecodeFailures.load (std::memory_order_relaxed);
+    decodedOnMiss += parallelDecodedOnMiss.load (std::memory_order_relaxed);
+    decodedBytesOnMiss += parallelDecodedBytesOnMiss.load (std::memory_order_relaxed);
+    filePathLoads += parallelFilePathLoads.load (std::memory_order_relaxed);
+
+    // ---- Phase 3: assemble zones (sequential) ----
+    for (size_t wi = 0; wi < workItems.size(); ++wi)
+    {
+        const auto& item = workItems[wi];
+        if (item.failed || item.cachedAudio == nullptr
+            || item.cachedAudio->audio.getNumSamples() < 2
+            || item.cachedAudio->audio.getNumChannels() <= 0)
+            continue;
+
+        const auto& descriptor = variants[item.variantIndex];
+        const auto& cachedAudio = item.cachedAudio;
+        const auto cacheKey = item.cacheKey;
 
         const auto zone = std::make_shared<SampleZone>();
 
@@ -3755,9 +3887,9 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         juce::File sourceFile = juce::File::getSpecialLocation (juce::File::tempDirectory)
                                     .getChildFile (safeFileName);
 
-        if (! fromEmbeddedData && resolvedSourceFile.existsAsFile())
+        if (! item.fromEmbeddedData && item.resolvedSourceFile.existsAsFile())
         {
-            sourceFile = resolvedSourceFile;
+            sourceFile = item.resolvedSourceFile;
             newSampleSet->sourcePaths.addIfNotAlreadyThere (sourceFile.getFullPathName());
         }
         else if (unpackDirReady)
