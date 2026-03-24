@@ -1878,7 +1878,8 @@
 
     .sequencer-step-note,
     .sequencer-step-velocity,
-    .sequencer-step-keyswitch {
+    .sequencer-step-keyswitch,
+    .sequencer-step-rate {
       width: 100%;
       min-width: 0;
       height: 20px;
@@ -1898,6 +1899,16 @@
 
     .sequencer-step-keyswitch {
       font-size: 10px;
+    }
+
+    .sequencer-step-rate {
+      cursor: pointer;
+      text-align: center;
+      font-family: inherit;
+    }
+    .sequencer-step-rate:hover {
+      border-color: rgba(140, 146, 156, 0.5);
+      background: rgba(20, 26, 38, 0.9);
     }
 
     .knob {
@@ -7733,19 +7744,14 @@
         rateField.className = "sequencer-step-field";
         const rateLabel = document.createElement("label");
         rateLabel.textContent = "R";
-        const rateSelect = document.createElement("select");
-        rateSelect.className = "sequencer-step-rate";
-        rateSelect.dataset.stepIndex = String(index);
-        rateSelect.dataset.field = "rate";
-        SEQ_RATE_LABELS.forEach((label, rateIdx) => {
-          const option = document.createElement("option");
-          option.value = String(rateIdx);
-          option.textContent = label;
-          option.selected = rateIdx === normalizedStep.rateIndex;
-          rateSelect.appendChild(option);
-        });
+        const rateBtn = document.createElement("button");
+        rateBtn.className = "sequencer-step-rate";
+        rateBtn.type = "button";
+        rateBtn.dataset.stepIndex = String(index);
+        rateBtn.dataset.field = "rate";
+        rateBtn.textContent = SEQ_RATE_LABELS[normalizedStep.rateIndex] || "1/16";
         rateField.appendChild(rateLabel);
-        rateField.appendChild(rateSelect);
+        rateField.appendChild(rateBtn);
         stepNode.appendChild(rateField);
 
         el.sequencerGrid.appendChild(stepNode);
@@ -7792,13 +7798,27 @@
           } else if (field === "keyswitch" && target instanceof HTMLSelectElement) {
             step.keyswitchSetId = normalizeSequencerKeyswitchId(target.value);
             target.value = step.keyswitchSetId;
-          } else if (field === "rate" && target instanceof HTMLSelectElement) {
-            step.rateIndex = Math.max(0, Math.min(4, Math.round(Number(target.value) || 2)));
-            target.value = String(step.rateIndex);
           } else {
             return;
           }
 
+          state.sequencerSteps[stepIndex] = step;
+          if (el.sequencerArpStatus) setStatus(el.sequencerArpStatus, "");
+          scheduleSessionStateSave(320);
+        });
+
+        el.sequencerGrid.addEventListener("click", (ev) => {
+          const target = ev.target;
+          if (!(target instanceof HTMLButtonElement)) return;
+          if (!target.classList.contains("sequencer-step-rate")) return;
+          const stepIndex = Math.round(Number(target.dataset.stepIndex));
+          if (!Number.isFinite(stepIndex) || stepIndex < 0 || stepIndex >= SEQUENCER_STEP_COUNT) return;
+          ensureSequencerState();
+          ensureSessionStateWritable("sequencer-step-rate-cycle");
+          const SEQ_RATE_LABELS = ["1/4", "1/8", "1/16", "1/32", "Rest"];
+          const step = normalizeSequencerStep(state.sequencerSteps[stepIndex]);
+          step.rateIndex = (step.rateIndex + 1) % SEQ_RATE_LABELS.length;
+          target.textContent = SEQ_RATE_LABELS[step.rateIndex] || "1/16";
           state.sequencerSteps[stepIndex] = step;
           if (el.sequencerArpStatus) setStatus(el.sequencerArpStatus, "");
           scheduleSessionStateSave(320);
@@ -7836,6 +7856,7 @@
           ensureSessionStateWritable("sequencer-doubling-toggle");
           state.sequencerDoubling = !state.sequencerDoubling;
           updateSequencerDoublingButton();
+          emitSequencerSettings();
           scheduleSessionStateSave(220);
         });
       }
@@ -7857,6 +7878,7 @@
           updateSequencerRateButton();
           el.sequencerRateMenu.classList.add("hidden");
           el.sequencerRateBtn.setAttribute("aria-expanded", "false");
+          emitSequencerSettings();
           scheduleSessionStateSave(220);
         });
       }
@@ -7880,6 +7902,14 @@
         stepPattern: getVisibleStrumStepPattern()
       };
       emitNativeEvent("strum_settings_set", payload);
+    }
+
+    function emitSequencerSettings() {
+      ensureSequencerState();
+      emitNativeEvent("sequencer_settings_set", {
+        doubling: !!state.sequencerDoubling,
+        rateIndex: Math.max(0, Math.min(3, Math.round(Number(state.sequencerRateIndex) || 2)))
+      });
     }
 
     function getStrumVisibleStepCount() {

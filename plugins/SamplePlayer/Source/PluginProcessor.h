@@ -186,6 +186,7 @@ public:
     int getSequencerCurrentStepForUi() const noexcept;
     void setSequencerHostTriggerEnabled (bool enabled);
     void applyStrumSettingsFromUi (const juce::var& payload);
+    void applySequencerSettingsFromUi (const juce::var& payload);
 
     static juce::String getZoneNamingHint();
 
@@ -408,6 +409,15 @@ private:
         int currentSubdivision = 0;
         juce::uint32 randomState = 0x12345678u;
         std::array<Step, 16> steps {};
+
+        // Ratchet state — used by processBlock tick handler for step sequencer
+        int ratchetNote = -1;
+        int ratchetVelocity127 = 100;
+        int ratchetChannel = 1;
+        int ratchetPlaybackSlot = 0;
+        int ratchetKeyswitchSlot = -1;
+        int ratchetSubsRemaining = 0;
+        bool ratchetDoubling = false;
         std::array<int, 128> triggerToPlayedNote {};
         std::array<int, 128> triggerDepthByMidi {};
         std::array<int, 128> triggerChannelByMidi {};

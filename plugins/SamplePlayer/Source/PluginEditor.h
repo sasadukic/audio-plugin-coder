@@ -107,6 +107,7 @@ private:
     void handleSessionStateSetEvent (const juce::var& eventPayload);
     void handleActiveMapSetEvent (const juce::var& eventPayload);
     void handleSequencerHostTriggerSetEvent (const juce::var& eventPayload);
+    void handleSequencerSettingsSetEvent (const juce::var& eventPayload);
     void handleStrumSettingsSetEvent (const juce::var& eventPayload);
     void handleSessionStateGetEvent (const juce::var& eventPayload);
     void handleSampleDataGetEvent (const juce::var& eventPayload);

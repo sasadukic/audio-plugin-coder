@@ -142,6 +142,10 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
                      {
                          editor.handleSequencerHostTriggerSetEvent (payload);
                      })
+                     .withEventListener ("sequencer_settings_set", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleSequencerSettingsSetEvent (payload);
+                     })
                      .withEventListener ("strum_settings_set", [&editor] (const juce::var& payload)
                      {
                          editor.handleStrumSettingsSetEvent (payload);
@@ -869,6 +873,11 @@ void SamplePlayerAudioProcessorEditor::handleSequencerHostTriggerSetEvent (const
     }
 
     audioProcessor.setSequencerHostTriggerEnabled (enabled);
+}
+
+void SamplePlayerAudioProcessorEditor::handleSequencerSettingsSetEvent (const juce::var& eventPayload)
+{
+    audioProcessor.applySequencerSettingsFromUi (eventPayload);
 }
 
 void SamplePlayerAudioProcessorEditor::handleStrumSettingsSetEvent (const juce::var& eventPayload)

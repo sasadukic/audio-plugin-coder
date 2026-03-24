@@ -993,6 +993,93 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         }
     }
 
+    // Step sequencer ratchet tick handler: fire remaining subdivisions after note-on
+    if (auto stepRT = std::atomic_load (&stepSequencerRuntime);
+        stepRT != nullptr && stepRT->enabled && stepRT->ratchetSubsRemaining > 0)
+    {
+        const auto subdivisionCountForRateStep = [] (int rateIndex) -> int
+        {
+            if (rateIndex == 0) return 1;
+            if (rateIndex == 1) return 2;
+            if (rateIndex == 2) return 4;
+            if (rateIndex == 3) return 8;
+            return 0;
+        };
+
+        int nextTickSample = stepRT->samplesUntilNextSubstep;
+        while (nextTickSample < buffer.getNumSamples() && stepRT->ratchetSubsRemaining > 0)
+        {
+            --stepRT->ratchetSubsRemaining;
+            const int playedNote = stepRT->ratchetNote;
+            const int velocity127 = juce::jlimit (1, 127, stepRT->ratchetVelocity127);
+            const float velocity01 = static_cast<float> (velocity127) / 127.0f;
+            const int channel = stepRT->ratchetChannel;
+            const int stepPlaybackSlot = stepRT->ratchetPlaybackSlot;
+
+            BlockSettings stepSettings = settings;
+            if (stepRT->ratchetKeyswitchSlot >= 0)
+            {
+                bool loopEnabled = true;
+                const auto currentSet = std::atomic_load (&currentSampleSet);
+                if (currentSet != nullptr)
+                {
+                    if (const auto loopIt = currentSet->loopPlaybackBySlot.find (stepRT->ratchetKeyswitchSlot);
+                        loopIt != currentSet->loopPlaybackBySlot.end())
+                    {
+                        loopEnabled = loopIt->second;
+                    }
+                }
+                stepSettings.loopEnabled = loopEnabled;
+            }
+
+            const bool canDouble = stepRT->ratchetDoubling
+                                 && hasMultipleRoundRobinsForNote (playedNote, velocity127);
+            if (canDouble)
+            {
+                const auto leftZone = startVoiceForNoteInternal (channel,
+                                                                 playedNote,
+                                                                 velocity01,
+                                                                 stepSettings,
+                                                                 false,
+                                                                 -1.0f,
+                                                                 0,
+                                                                 nullptr,
+                                                                 stepPlaybackSlot);
+                startVoiceForNoteInternal (channel,
+                                           playedNote,
+                                           velocity01,
+                                           stepSettings,
+                                           true,
+                                           1.0f,
+                                           1,
+                                           leftZone.get(),
+                                           stepPlaybackSlot);
+            }
+            else
+            {
+                startVoiceForNoteInternal (channel,
+                                           playedNote,
+                                           velocity01,
+                                           stepSettings,
+                                           false,
+                                           0.0f,
+                                           0,
+                                           nullptr,
+                                           stepPlaybackSlot);
+            }
+
+            // Compute interval for next ratchet tick
+            const int stepIdx = juce::jlimit (0, static_cast<int> (stepRT->steps.size()) - 1,
+                                              juce::jmax (0, stepRT->currentStep));
+            const int subdivisions = subdivisionCountForRateStep (stepRT->steps[static_cast<size_t> (stepIdx)].rateIndex);
+            const int interval = juce::jmax (1,
+                static_cast<int> ((currentSampleRate * 0.5) / static_cast<double> (juce::jmax (1, subdivisions))));
+            nextTickSample += interval;
+        }
+
+        stepRT->samplesUntilNextSubstep = nextTickSample - buffer.getNumSamples();
+    }
+
     auto inputBuffer = getBusBuffer (buffer, true, 0);
     auto outputBuffer = getBusBuffer (buffer, false, 0);
     const bool inputHasChannels = inputBuffer.getNumChannels() > 0;
@@ -2735,6 +2822,54 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
     // Only kill voices when strum is being disabled (not on setting tweaks)
     if (! enabled && oldWasEnabled)
         resetVoicesRequested.store (true);
+}
+
+void SamplePlayerAudioProcessor::applySequencerSettingsFromUi (const juce::var& payload)
+{
+    bool doubling = false;
+    int uiRateIndex = 2;
+
+    if (const auto* object = payload.getDynamicObject())
+    {
+        const auto doublingVar = object->getProperty ("doubling");
+        if (! doublingVar.isVoid())
+            doubling = static_cast<bool> (doublingVar);
+
+        uiRateIndex = juce::jlimit (0, 3, static_cast<int> (object->getProperty ("rateIndex")));
+    }
+
+    auto updatedRuntime = std::make_shared<StepSequencerRuntime>();
+    if (auto currentRuntime = std::atomic_load (&stepSequencerRuntime); currentRuntime != nullptr)
+    {
+        updatedRuntime->enabled           = currentRuntime->enabled;
+        updatedRuntime->followsInputNote  = currentRuntime->followsInputNote;
+        updatedRuntime->steps             = currentRuntime->steps;
+
+        // Carry over live trigger / ratchet state
+        updatedRuntime->triggerDepthByMidi   = currentRuntime->triggerDepthByMidi;
+        updatedRuntime->triggerChannelByMidi = currentRuntime->triggerChannelByMidi;
+        updatedRuntime->triggerToPlayedNote  = currentRuntime->triggerToPlayedNote;
+        updatedRuntime->playedDepthByMidi    = currentRuntime->playedDepthByMidi;
+        updatedRuntime->currentStep          = currentRuntime->currentStep;
+        updatedRuntime->currentSubdivision   = currentRuntime->currentSubdivision;
+        updatedRuntime->samplesUntilNextStep    = currentRuntime->samplesUntilNextStep;
+        updatedRuntime->samplesUntilNextSubstep = currentRuntime->samplesUntilNextSubstep;
+        updatedRuntime->randomState          = currentRuntime->randomState;
+
+        // Carry over ratchet state
+        updatedRuntime->ratchetNote          = currentRuntime->ratchetNote;
+        updatedRuntime->ratchetVelocity127   = currentRuntime->ratchetVelocity127;
+        updatedRuntime->ratchetChannel       = currentRuntime->ratchetChannel;
+        updatedRuntime->ratchetPlaybackSlot  = currentRuntime->ratchetPlaybackSlot;
+        updatedRuntime->ratchetKeyswitchSlot = currentRuntime->ratchetKeyswitchSlot;
+        updatedRuntime->ratchetSubsRemaining = currentRuntime->ratchetSubsRemaining;
+        updatedRuntime->ratchetDoubling      = currentRuntime->ratchetDoubling;
+    }
+
+    updatedRuntime->doubling  = doubling;
+    updatedRuntime->rateIndex = uiRateIndex;
+
+    std::atomic_store (&stepSequencerRuntime, updatedRuntime);
 }
 
 void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::var& parsedRoot, juce::int64 payloadBytes, int requestId)
@@ -5436,6 +5571,8 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                         runtime->samplesUntilNextSubstep = juce::jmax (1, static_cast<int> (currentSampleRate * 0.5));
                         runtime->samplesUntilNextStep = runtime->samplesUntilNextSubstep;
                         runtime->currentSubdivision = 0;
+                        if (! isStrumRuntime)
+                            runtime->ratchetSubsRemaining = 0;
                         runtime->currentStep = (runtime->currentStep + 1) % static_cast<int> (runtime->steps.size());
                         return true;
                     }
@@ -5444,10 +5581,22 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                     {
                         const int subIndex = juce::jlimit (0, subdivisions - 1, runtime->currentSubdivision);
                         velocity127 = juce::jlimit (1, 127, step.subVelocities[static_cast<size_t> (subIndex)]);
+                        runtime->currentSubdivision = (runtime->currentSubdivision + 1) % subdivisions;
+                        if (runtime->currentSubdivision == 0)
+                            runtime->currentStep = (runtime->currentStep + 1) % static_cast<int> (runtime->steps.size());
                     }
-                    runtime->currentSubdivision = (runtime->currentSubdivision + 1) % subdivisions;
-                    if (runtime->currentSubdivision == 0)
-                        runtime->currentStep = (runtime->currentStep + 1) % static_cast<int> (runtime->steps.size());
+                    else
+                    {
+                        // Step sequencer: fire first subdivision now, set up ratchet for the rest
+                        runtime->currentSubdivision = 0;
+                        runtime->ratchetNote          = playedNote;
+                        runtime->ratchetVelocity127   = velocity127;
+                        runtime->ratchetChannel       = message.getChannel();
+                        runtime->ratchetPlaybackSlot  = stepPlaybackSlot;
+                        runtime->ratchetKeyswitchSlot = step.keyswitchSlot;
+                        runtime->ratchetDoubling      = runtime->doubling;
+                        runtime->ratchetSubsRemaining = subdivisions - 1;
+                    }
 
                     const int interval = juce::jmax (1,
                         static_cast<int> ((currentSampleRate * 0.5) / static_cast<double> (subdivisions)));
