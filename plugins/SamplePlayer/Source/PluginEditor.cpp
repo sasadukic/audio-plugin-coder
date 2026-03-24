@@ -873,37 +873,56 @@ void SamplePlayerAudioProcessorEditor::handleSampleDataGetEvent (const juce::var
         }
     }
 
-    const auto requestStartMs = juce::Time::getMillisecondCounterHiRes();
-    auto dataUrl = audioProcessor.getSampleDataUrlForMapEntry (rootMidi, velocityLayer, rrIndex, fileName);
-    if (dataUrl.isEmpty())
+    // Offload the expensive WAV encoding + Base64 work to a background thread
+    // so the message thread stays responsive for timer callbacks and UI events.
+    auto safeThis = juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> (this);
+    sampleDataRequestPool.addJob ([safeThis, &proc = audioProcessor,
+                                   requestId, order, rootMidi, velocityLayer, rrIndex,
+                                   fileName, manifestPath, manifestPathCandidates]() mutable
     {
-        if (manifestPath.isNotEmpty())
-            manifestPathCandidates.insert (0, manifestPath);
-
-        for (const auto& pathCandidate : manifestPathCandidates)
+        const auto requestStartMs = juce::Time::getMillisecondCounterHiRes();
+        auto dataUrl = proc.getSampleDataUrlForMapEntry (rootMidi, velocityLayer, rrIndex, fileName);
+        if (dataUrl.isEmpty())
         {
-            dataUrl = audioProcessor.getSampleDataUrlForAbsolutePath (pathCandidate, fileName);
-            if (dataUrl.isNotEmpty())
-                break;
+            if (manifestPath.isNotEmpty())
+                manifestPathCandidates.insert (0, manifestPath);
+
+            for (const auto& pathCandidate : manifestPathCandidates)
+            {
+                dataUrl = proc.getSampleDataUrlForAbsolutePath (pathCandidate, fileName);
+                if (dataUrl.isNotEmpty())
+                    break;
+            }
         }
-    }
 
-    auto object = juce::DynamicObject::Ptr (new juce::DynamicObject());
-    object->setProperty ("requestId", requestId);
-    object->setProperty ("order", order);
-    object->setProperty ("dataUrl", dataUrl);
-    object->setProperty ("hasData", dataUrl.isNotEmpty());
-    webView->emitEventIfBrowserIsVisible ("sample_data_payload", juce::var (object.get()));
+        const auto elapsedMs = juce::Time::getMillisecondCounterHiRes() - requestStartMs;
+        const auto bytesOut = dataUrl.getNumBytesAsUTF8();
 
-    appendUiDebugLog ("sample_data_get handled | requestId=" + juce::String (requestId)
-                      + " | order=" + juce::String (order)
-                      + " | root=" + juce::String (rootMidi)
-                      + " | velocityLayer=" + juce::String (velocityLayer)
-                      + " | rr=" + juce::String (rrIndex)
-                      + " | manifestPath=" + juce::String (manifestPath.isNotEmpty() ? "yes" : "no")
-                      + " | manifestPathCandidates=" + juce::String (manifestPathCandidates.size())
-                      + " | bytesOut=" + juce::String (dataUrl.getNumBytesAsUTF8())
-                      + " | elapsedMs=" + juce::String (juce::Time::getMillisecondCounterHiRes() - requestStartMs, 2));
+        juce::MessageManager::callAsync ([safeThis, requestId, order, rootMidi, velocityLayer, rrIndex,
+                                          manifestPath, manifestPathCandidates,
+                                          dataUrl = std::move (dataUrl), elapsedMs, bytesOut]()
+        {
+            if (! safeThis)
+                return;
+
+            auto object = juce::DynamicObject::Ptr (new juce::DynamicObject());
+            object->setProperty ("requestId", requestId);
+            object->setProperty ("order", order);
+            object->setProperty ("dataUrl", dataUrl);
+            object->setProperty ("hasData", dataUrl.isNotEmpty());
+            safeThis->webView->emitEventIfBrowserIsVisible ("sample_data_payload", juce::var (object.get()));
+
+            appendUiDebugLog ("sample_data_get handled | requestId=" + juce::String (requestId)
+                                        + " | order=" + juce::String (order)
+                                        + " | root=" + juce::String (rootMidi)
+                                        + " | velocityLayer=" + juce::String (velocityLayer)
+                                        + " | rr=" + juce::String (rrIndex)
+                                        + " | manifestPath=" + juce::String (manifestPath.isNotEmpty() ? "yes" : "no")
+                                        + " | manifestPathCandidates=" + juce::String (manifestPathCandidates.size())
+                                        + " | bytesOut=" + juce::String (bytesOut)
+                                        + " | elapsedMs=" + juce::String (elapsedMs, 2));
+        });
+    });
 }
 
 void SamplePlayerAudioProcessorEditor::handleGraphicDataGetEvent (const juce::var& eventPayload)

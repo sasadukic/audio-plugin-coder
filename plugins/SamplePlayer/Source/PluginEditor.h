@@ -56,6 +56,7 @@ private:
     std::unique_ptr<juce::FileChooser> saveInstrumentChooser;
     std::unique_ptr<juce::FileChooser> loadInstrumentChooser;
     std::unique_ptr<juce::FileChooser> audioFileChooser;
+    juce::ThreadPool sampleDataRequestPool { 1 };
 
     std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);
     static juce::WebBrowserComponent::Options createWebOptions (SamplePlayerAudioProcessorEditor& editor);
