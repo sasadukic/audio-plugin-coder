@@ -9,6 +9,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -1411,31 +1412,84 @@ bool SamplePlayerAudioProcessor::loadSampleFiles (const juce::Array<juce::File>&
     auto newSampleSet = std::make_shared<SampleSet>();
     newSampleSet->keyswitchSlotByMidi.fill (-1);
 
-    for (const auto& file : uniqueFiles)
+    // --- Parallel sample file reading ---
+    const size_t fileCount = uniqueFiles.size();
+    // Each slot holds the loaded zone (nullptr on failure), preserving order.
+    std::vector<std::shared_ptr<SampleZone>> loadedZones (fileCount);
+
+    const auto loadOneZone = [this] (const juce::File& file) -> std::shared_ptr<SampleZone>
     {
-        auto reader = std::unique_ptr<juce::AudioFormatReader> (formatManager.createReaderFor (file));
+        // Per-thread format manager avoids thread-safety issues.
+        thread_local juce::AudioFormatManager threadFm;
+        thread_local bool threadFmReady = false;
+        if (! threadFmReady)
+        {
+            threadFm.registerBasicFormats();
+            threadFmReady = true;
+        }
 
+        auto reader = std::unique_ptr<juce::AudioFormatReader> (threadFm.createReaderFor (file));
         if (reader == nullptr || reader->lengthInSamples < 2)
-            continue;
-
-        const auto zone = std::make_shared<SampleZone>();
-        zone->sourceFile = file;
-        zone->sourceSampleRate = reader->sampleRate > 0.0 ? reader->sampleRate : 44100.0;
-        zone->metadata = parseZoneMetadataFromFileName (file.getFileNameWithoutExtension());
+            return nullptr;
 
         const int channels = static_cast<int> (juce::jlimit<juce::uint32> (1U, 2U, reader->numChannels));
         const auto totalSamples64 = juce::jmin<juce::int64> (reader->lengthInSamples,
                                                              static_cast<juce::int64> (std::numeric_limits<int>::max()));
         const int totalSamples = static_cast<int> (totalSamples64);
-
         if (totalSamples < 2)
-            continue;
+            return nullptr;
 
+        auto zone = std::make_shared<SampleZone>();
+        zone->sourceFile = file;
+        zone->sourceSampleRate = reader->sampleRate > 0.0 ? reader->sampleRate : 44100.0;
+        zone->metadata = parseZoneMetadataFromFileName (file.getFileNameWithoutExtension());
         zone->audio.setSize (channels, totalSamples);
         reader->read (&zone->audio, 0, totalSamples, 0, true, true);
+        return zone;
+    };
 
-        newSampleSet->zones.push_back (zone);
-        newSampleSet->sourcePaths.add (file.getFullPathName());
+    const unsigned int hwThreads = std::thread::hardware_concurrency();
+    const unsigned int numThreads = juce::jlimit (1u, 8u, hwThreads > 0 ? hwThreads : 4u);
+
+    if (fileCount <= 4 || numThreads <= 1)
+    {
+        // Small set — load sequentially, no thread overhead.
+        for (size_t i = 0; i < fileCount; ++i)
+            loadedZones[i] = loadOneZone (uniqueFiles[i]);
+    }
+    else
+    {
+        // Split work across threads.
+        std::vector<std::thread> workers;
+        workers.reserve (numThreads);
+
+        std::atomic<size_t> nextIndex { 0 };
+
+        for (unsigned int t = 0; t < numThreads; ++t)
+        {
+            workers.emplace_back ([&]()
+            {
+                while (true)
+                {
+                    const size_t idx = nextIndex.fetch_add (1, std::memory_order_relaxed);
+                    if (idx >= fileCount)
+                        break;
+                    loadedZones[idx] = loadOneZone (uniqueFiles[idx]);
+                }
+            });
+        }
+
+        for (auto& w : workers)
+            w.join();
+    }
+
+    for (size_t i = 0; i < fileCount; ++i)
+    {
+        if (loadedZones[i] != nullptr)
+        {
+            newSampleSet->zones.push_back (std::move (loadedZones[i]));
+            newSampleSet->sourcePaths.add (uniqueFiles[i].getFullPathName());
+        }
     }
 
     std::sort (newSampleSet->zones.begin(), newSampleSet->zones.end(), [] (const auto& a, const auto& b)
