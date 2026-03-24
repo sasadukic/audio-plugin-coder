@@ -914,7 +914,7 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                             stepSettings.loopEnabled = loopEnabled;
                         }
 
-                        const bool canDouble = runtime->doubling && hasMultipleRoundRobinsForNote (note, velocity127);
+                        const bool canDouble = runtime->doubling;
                         if (canDouble)
                         {
                             const auto leftZone = startVoiceForNoteInternal (channel,
@@ -1032,8 +1032,7 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 stepSettings.loopEnabled = loopEnabled;
             }
 
-            const bool canDouble = sequencerDoublingEnabled.load (std::memory_order_relaxed)
-                && hasMultipleRoundRobinsForNote (playedNote, velocity127);
+            const bool canDouble = sequencerDoublingEnabled.load (std::memory_order_relaxed);
             if (canDouble)
             {
                 const auto leftZone = startVoiceForNoteInternal (channel,
@@ -5656,8 +5655,7 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 }
 
                 const float velocity01 = static_cast<float> (velocity127) / 127.0f;
-                const bool canDouble = sequencerDoublingEnabled.load (std::memory_order_relaxed)
-                    && hasMultipleRoundRobinsForNote (playedNote, velocity127);
+                const bool canDouble = sequencerDoublingEnabled.load (std::memory_order_relaxed);
                 if (canDouble)
                 {
                     const auto leftZone = startVoiceForNoteInternal (message.getChannel(),
@@ -5735,8 +5733,7 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
             auto strumRT = std::atomic_load (&strumSequencerRuntime);
             const bool doublingOn = strumDoublingEnabled.load (std::memory_order_relaxed)
                 || (strumRT != nullptr && strumRT->doubling);
-            const int vel127 = juce::jlimit (1, 127, static_cast<int> (std::round (message.getFloatVelocity() * 127.0f)));
-            if (doublingOn && hasMultipleRoundRobinsForNote (note, vel127))
+            if (doublingOn)
             {
                 const auto leftZone = startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, false, -1.0f, 0);
                 startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, true, 1.0f, 1, leftZone.get());

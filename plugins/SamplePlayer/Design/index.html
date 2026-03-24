@@ -7790,6 +7790,8 @@
 
       const positionSequencerMenuAt = (btn, menu) => {
         if (!btn || !menu) return;
+        // Temporarily disable overflow clipping on the grid so fixed menus render
+        if (el.sequencerGrid) el.sequencerGrid.style.overflowX = "visible";
         const rect = btn.getBoundingClientRect();
         const menuGap = 6;
         menu.style.left = "";
@@ -7832,6 +7834,8 @@
         Array.from(document.querySelectorAll(".sequencer-step-rate-btn")).forEach((btn) => {
           btn.setAttribute("aria-expanded", "false");
         });
+        // Restore overflow clipping on grid
+        if (el.sequencerGrid) el.sequencerGrid.style.overflowX = "";
       };
 
       if (el.sequencerGrid) {
