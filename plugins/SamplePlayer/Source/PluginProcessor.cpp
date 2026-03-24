@@ -976,11 +976,27 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             {
                 const auto& step = runtime->steps[static_cast<size_t> (runtime->currentStep)];
                 const int subdivisions = subdivisionCountForRate (step.rateIndex);
+                const int stepPlaybackSlot = step.keyswitchSlot >= 0
+                    ? step.keyswitchSlot
+                    : juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
+                BlockSettings stepSettings = settings;
 
                 if (step.keyswitchSlot >= 0)
                 {
                     activeMapSetSlot.store (step.keyswitchSlot, std::memory_order_relaxed);
                     pendingActiveMapSetSlotFromMidi.store (step.keyswitchSlot, std::memory_order_relaxed);
+                    bool loopEnabled = true;
+                    const auto sampleSet = std::atomic_load (&currentSampleSet);
+                    if (sampleSet != nullptr)
+                    {
+                        if (const auto loopIt = sampleSet->loopPlaybackBySlot.find (step.keyswitchSlot);
+                            loopIt != sampleSet->loopPlaybackBySlot.end())
+                        {
+                            loopEnabled = loopIt->second;
+                        }
+                    }
+                    activeMapLoopPlaybackEnabled.store (loopEnabled, std::memory_order_relaxed);
+                    stepSettings.loopEnabled = loopEnabled;
                 }
 
                 if (subdivisions > 0)
@@ -1006,12 +1022,36 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                         const bool canDouble = runtime->doubling;
                         if (canDouble)
                         {
-                            const auto leftZone = startVoiceForNoteInternal (channel, note, velocity01, settings, false, -1.0f, 0);
-                            startVoiceForNoteInternal (channel, note, velocity01, settings, true, 1.0f, 1, leftZone.get());
+                            const auto leftZone = startVoiceForNoteInternal (channel,
+                                                                             note,
+                                                                             velocity01,
+                                                                             stepSettings,
+                                                                             false,
+                                                                             -1.0f,
+                                                                             0,
+                                                                             nullptr,
+                                                                             stepPlaybackSlot);
+                            startVoiceForNoteInternal (channel,
+                                                       note,
+                                                       velocity01,
+                                                       stepSettings,
+                                                       true,
+                                                       1.0f,
+                                                       1,
+                                                       leftZone.get(),
+                                                       stepPlaybackSlot);
                         }
                         else
                         {
-                            startVoiceForNote (channel, note, velocity01, settings);
+                            startVoiceForNoteInternal (channel,
+                                                       note,
+                                                       velocity01,
+                                                       stepSettings,
+                                                       false,
+                                                       0.0f,
+                                                       0,
+                                                       nullptr,
+                                                       stepPlaybackSlot);
                         }
                     }
                 }
@@ -5367,6 +5407,10 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 sequencerCurrentStepForUi.store (stepIndex, std::memory_order_relaxed);
 
                 const auto& step = runtime->steps[static_cast<size_t> (stepIndex)];
+                const int stepPlaybackSlot = step.keyswitchSlot >= 0
+                    ? step.keyswitchSlot
+                    : juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
+                BlockSettings stepSettings = settings;
                 if (step.keyswitchSlot >= 0)
                 {
                     activeMapSetSlot.store (step.keyswitchSlot, std::memory_order_relaxed);
@@ -5378,6 +5422,7 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                         loopEnabled = loopIt->second;
                     }
                     activeMapLoopPlaybackEnabled.store (loopEnabled, std::memory_order_relaxed);
+                    stepSettings.loopEnabled = loopEnabled;
                 }
 
                 if (step.velocity127 <= 0)
@@ -5431,22 +5476,33 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                     const auto leftZone = startVoiceForNoteInternal (message.getChannel(),
                                                                      playedNote,
                                                                      velocity01,
-                                                                     settings,
+                                                                     stepSettings,
                                                                      false,
                                                                      -1.0f,
-                                                                     0);
+                                                                     0,
+                                                                     nullptr,
+                                                                     stepPlaybackSlot);
                     startVoiceForNoteInternal (message.getChannel(),
                                                playedNote,
                                                velocity01,
-                                               settings,
+                                               stepSettings,
                                                true,
                                                1.0f,
                                                1,
-                                               leftZone.get());
+                                               leftZone.get(),
+                                               stepPlaybackSlot);
                 }
                 else
                 {
-                    startVoiceForNote (message.getChannel(), playedNote, velocity01, settings);
+                    startVoiceForNoteInternal (message.getChannel(),
+                                               playedNote,
+                                               velocity01,
+                                               stepSettings,
+                                               false,
+                                               0.0f,
+                                               0,
+                                               nullptr,
+                                               stepPlaybackSlot);
                 }
                 return true;
             };
@@ -5650,11 +5706,17 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
                                                                                                                       bool suppressMonoCut,
                                                                                                                       float pan,
                                                                                                                       int rrOffset,
-                                                                                                                      const SampleZone* excludedZone)
+                                                                                                                      const SampleZone* excludedZone,
+                                                                                                                      int forcedMapSetSlot)
 {
     const int velocity127 = juce::jlimit (1, 127, static_cast<int> (std::round (velocity * 127.0f)));
     bool usedModwheelLayerSelection = false;
-    auto zone = pickZoneForNote (midiNoteNumber, velocity127, &usedModwheelLayerSelection, rrOffset, excludedZone);
+    auto zone = pickZoneForNote (midiNoteNumber,
+                                 velocity127,
+                                 &usedModwheelLayerSelection,
+                                 rrOffset,
+                                 excludedZone,
+                                 forcedMapSetSlot);
 
     if (zone == nullptr)
         return {};
@@ -5936,7 +5998,8 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
                                                                                                               int velocity127,
                                                                                                               bool* usedModwheelLayerSelection,
                                                                                                               int rrOffset,
-                                                                                                              const SampleZone* excludedZone)
+                                                                                                              const SampleZone* excludedZone,
+                                                                                                              int forcedMapSetSlot)
 {
     if (usedModwheelLayerSelection != nullptr)
         *usedModwheelLayerSelection = false;
@@ -5946,7 +6009,9 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     if (sampleSet == nullptr || sampleSet->zones.empty())
         return {};
 
-    const int activeSlot = juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
+    const int activeSlot = forcedMapSetSlot >= 0
+        ? forcedMapSetSlot
+        : juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
 
     std::vector<std::shared_ptr<const SampleZone>> noteAndVelocityMatches;
     std::vector<std::shared_ptr<const SampleZone>> noteOnlyMatches;

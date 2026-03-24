@@ -327,7 +327,8 @@ private:
                                                                  bool suppressMonoCut,
                                                                  float pan,
                                                                  int rrOffset,
-                                                                 const SampleZone* excludedZone = nullptr);
+                                                                 const SampleZone* excludedZone = nullptr,
+                                                                 int forcedMapSetSlot = -1);
     void releaseVoicesForNote (int midiChannel, int midiNoteNumber, bool allowTailOff, const BlockSettings& settings);
     void enforceSingleVoicePerMidiNote();
     void stopAllVoices();
@@ -343,7 +344,8 @@ private:
                                                        int velocity127,
                                                        bool* usedModwheelLayerSelection = nullptr,
                                                        int rrOffset = 0,
-                                                       const SampleZone* excludedZone = nullptr);
+                                                       const SampleZone* excludedZone = nullptr,
+                                                       int forcedMapSetSlot = -1);
     bool hasMultipleRoundRobinsForNote (int midiNoteNumber, int velocity127) const;
 
     BlockSettings getBlockSettingsSnapshot() const;
