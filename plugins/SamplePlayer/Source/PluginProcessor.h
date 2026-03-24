@@ -437,6 +437,8 @@ private:
     std::atomic<juce::uint64> midiHeldMaskLo { 0 };
     std::atomic<juce::uint64> midiHeldMaskHi { 0 };
     std::unordered_map<int, int> roundRobinCounters;
+    std::unordered_map<int, std::array<int, 2>> rrHistory;  // last-2 chosen indices per rrKey
+    juce::uint32 rrRandomState { 0xDEADBEEFu };
     mutable juce::CriticalSection pendingPreviewMidiLock;
     std::vector<PendingPreviewMidiEvent> pendingPreviewMidiEvents;
 

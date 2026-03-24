@@ -5056,6 +5056,7 @@
       sequencerSteps: Array.from({ length: SEQUENCER_STEP_COUNT }, () => ({
         noteMidi: 60,
         velocity: 100,
+        rateIndex: 2,
         keyswitchSetId: ""
       })),
       strumEnabled: false,
@@ -7498,10 +7499,15 @@
         const parsed = noteToMidi(String(source.note || "").trim());
         noteMidi = parsed === null ? 60 : parsed;
       }
+      const rawRateIndex = Number(source.rateIndex);
+      const rateIndex = Number.isFinite(rawRateIndex)
+        ? Math.max(0, Math.min(4, Math.round(rawRateIndex)))
+        : 2;
 
       return {
         noteMidi: Math.max(0, Math.min(127, Math.round(noteMidi))),
         velocity: clampSequencerVelocity(source.velocity),
+        rateIndex: rateIndex,
         keyswitchSetId: normalizeSequencerKeyswitchId(source.keyswitchSetId)
       };
     }
@@ -7536,6 +7542,7 @@
         steps: state.sequencerSteps.map((step) => ({
           noteMidi: Math.max(0, Math.min(127, Math.round(Number(step?.noteMidi) || 60))),
           velocity: clampSequencerVelocity(step?.velocity),
+          rateIndex: Math.max(0, Math.min(4, Math.round(Number(step?.rateIndex) || 2))),
           keyswitchSetId: normalizeSequencerKeyswitchId(step?.keyswitchSetId)
         }))
       };
@@ -7721,6 +7728,26 @@
         keyswitchField.appendChild(keyswitchSelect);
         stepNode.appendChild(keyswitchField);
 
+        const SEQ_RATE_LABELS = ["1/4", "1/8", "1/16", "1/32", "Rest"];
+        const rateField = document.createElement("div");
+        rateField.className = "sequencer-step-field";
+        const rateLabel = document.createElement("label");
+        rateLabel.textContent = "R";
+        const rateSelect = document.createElement("select");
+        rateSelect.className = "sequencer-step-rate";
+        rateSelect.dataset.stepIndex = String(index);
+        rateSelect.dataset.field = "rate";
+        SEQ_RATE_LABELS.forEach((label, rateIdx) => {
+          const option = document.createElement("option");
+          option.value = String(rateIdx);
+          option.textContent = label;
+          option.selected = rateIdx === normalizedStep.rateIndex;
+          rateSelect.appendChild(option);
+        });
+        rateField.appendChild(rateLabel);
+        rateField.appendChild(rateSelect);
+        stepNode.appendChild(rateField);
+
         el.sequencerGrid.appendChild(stepNode);
       });
 
@@ -7765,6 +7792,9 @@
           } else if (field === "keyswitch" && target instanceof HTMLSelectElement) {
             step.keyswitchSetId = normalizeSequencerKeyswitchId(target.value);
             target.value = step.keyswitchSetId;
+          } else if (field === "rate" && target instanceof HTMLSelectElement) {
+            step.rateIndex = Math.max(0, Math.min(4, Math.round(Number(target.value) || 2)));
+            target.value = String(step.rateIndex);
           } else {
             return;
           }
@@ -15495,6 +15525,7 @@
       state.sequencerSteps = Array.from({ length: SEQUENCER_STEP_COUNT }, () => ({
         noteMidi: 60,
         velocity: 100,
+        rateIndex: 2,
         keyswitchSetId: ""
       }));
       if (state.nativeAutoSamplerAvailable && state.nativeAutoSamplerActive) {

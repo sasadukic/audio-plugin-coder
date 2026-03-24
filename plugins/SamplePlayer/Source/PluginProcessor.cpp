@@ -2804,6 +2804,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     {
         int noteMidi = 60;
         int velocity127 = 100;
+        int rateIndex = 2;
         juce::String keyswitchSetId;
     };
 
@@ -2858,6 +2859,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
 
                     step.noteMidi = juce::jlimit (0, 127, noteMidi);
                     step.velocity127 = juce::jlimit (1, 127, varToInt (stepObject->getProperty ("velocity"), step.velocity127));
+                    step.rateIndex = juce::jlimit (0, 4, varToInt (stepObject->getProperty ("rateIndex"), step.rateIndex));
                     step.keyswitchSetId = stepObject->getProperty ("keyswitchSetId").toString().trim();
                 }
             }
@@ -3009,6 +3011,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
             auto& step = runtime->steps[i];
             step.noteMidi = juce::jlimit (0, 127, uiStep.noteMidi);
             step.velocity127 = juce::jlimit (1, 127, uiStep.velocity127);
+            step.rateIndex = juce::jlimit (0, 4, uiStep.rateIndex);
             step.keyswitchSlot = -1;
 
             const auto targetSetId = uiStep.keyswitchSetId.trim();
@@ -5426,7 +5429,6 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 setMidiHeldState (playedNote, true);
 
                 int velocity127 = juce::jlimit (1, 127, step.velocity127);
-                if (isStrumRuntime)
                 {
                     const int subdivisions = subdivisionCountForRate (step.rateIndex);
                     if (subdivisions <= 0)
@@ -5438,8 +5440,11 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                         return true;
                     }
 
-                    const int subIndex = juce::jlimit (0, subdivisions - 1, runtime->currentSubdivision);
-                    velocity127 = juce::jlimit (1, 127, step.subVelocities[static_cast<size_t> (subIndex)]);
+                    if (isStrumRuntime)
+                    {
+                        const int subIndex = juce::jlimit (0, subdivisions - 1, runtime->currentSubdivision);
+                        velocity127 = juce::jlimit (1, 127, step.subVelocities[static_cast<size_t> (subIndex)]);
+                    }
                     runtime->currentSubdivision = (runtime->currentSubdivision + 1) % subdivisions;
                     if (runtime->currentSubdivision == 0)
                         runtime->currentStep = (runtime->currentStep + 1) % static_cast<int> (runtime->steps.size());
@@ -5532,8 +5537,8 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
             const int vel127 = juce::jlimit (1, 127, static_cast<int> (std::round (message.getFloatVelocity() * 127.0f)));
             if (doublingOn && hasMultipleRoundRobinsForNote (note, vel127))
             {
-                startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, false, -1.0f, 0);
-                startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, true, 1.0f, 1);
+                const auto leftZone = startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, false, -1.0f, 0);
+                startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, true, 1.0f, 1, leftZone.get());
             }
             else
             {
@@ -5934,7 +5939,7 @@ void SamplePlayerAudioProcessor::startStealTailFromVoice (const VoiceState& sour
 std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioProcessor::pickZoneForNote (int midiNoteNumber,
                                                                                                               int velocity127,
                                                                                                               bool* usedModwheelLayerSelection,
-                                                                                                              int rrOffset,
+                                                                                                              int /*rrOffset*/,
                                                                                                               const SampleZone* excludedZone,
                                                                                                               int forcedMapSetSlot)
 {
@@ -6072,7 +6077,6 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     });
 
     const int rrKey = (activeSlot << 8) | juce::jlimit (0, 127, midiNoteNumber);
-    auto& rrCounter = roundRobinCounters[rrKey];
     const auto poolSize = static_cast<int> (candidatePool->size());
     const auto zoneChoiceId = [] (const SampleZone& zone) -> juce::uint64
     {
@@ -6084,27 +6088,67 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     };
 
     const juce::uint64 excludedChoiceId = excludedZone != nullptr ? zoneChoiceId (*excludedZone) : 0;
-    int wrappedIndex = poolSize > 0
-        ? ((rrCounter + juce::jmax (0, rrOffset)) % poolSize)
-        : 0;
 
+    // Random RR selection with last-2 exclusion.
+    // Rule: never repeat the last 2 played indices (when pool is large enough).
+    // When doubling: excludedZone ensures L and R don't pick the same sample.
+    auto& history = rrHistory[rrKey];
+
+    auto nextRandom = [&]() -> int
+    {
+        rrRandomState = rrRandomState * 1664525u + 1013904223u;
+        return static_cast<int> ((rrRandomState >> 8) & 0x00ffffffu);
+    };
+
+    int chosenIndex = 0;
+
+    if (poolSize <= 1)
+    {
+        chosenIndex = 0;
+    }
+    else if (poolSize == 2)
+    {
+        // With only 2 options, just avoid last-1 played
+        chosenIndex = nextRandom() % poolSize;
+        if (chosenIndex == history[0])
+            chosenIndex = (chosenIndex + 1) % poolSize;
+    }
+    else
+    {
+        // Pool >= 3: avoid last-2 played indices
+        const int maxAttempts = poolSize * 2;
+        for (int attempt = 0; attempt < maxAttempts; ++attempt)
+        {
+            chosenIndex = nextRandom() % poolSize;
+            if (chosenIndex != history[0] && chosenIndex != history[1])
+                break;
+        }
+    }
+
+    // If excludedZone is set (doubling right voice), ensure we don't pick same as left
     if (excludedChoiceId != 0 && poolSize > 1)
     {
-        for (int attempt = 0; attempt < poolSize; ++attempt)
+        const auto& chosen = candidatePool->at (static_cast<size_t> (chosenIndex));
+        if (chosen != nullptr && zoneChoiceId (*chosen) == excludedChoiceId)
         {
-            const int candidateIndex = (wrappedIndex + attempt) % poolSize;
-            const auto& candidate = candidatePool->at (static_cast<size_t> (candidateIndex));
-            if (candidate != nullptr && zoneChoiceId (*candidate) != excludedChoiceId)
+            for (int attempt = 0; attempt < poolSize; ++attempt)
             {
-                wrappedIndex = candidateIndex;
-                break;
+                const int candidateIndex = (chosenIndex + 1 + attempt) % poolSize;
+                const auto& candidate = candidatePool->at (static_cast<size_t> (candidateIndex));
+                if (candidate != nullptr && zoneChoiceId (*candidate) != excludedChoiceId)
+                {
+                    chosenIndex = candidateIndex;
+                    break;
+                }
             }
         }
     }
 
-    rrCounter = (rrCounter + 1) % 8192;
+    // Update history: shift [0] -> [1], store new in [0]
+    history[1] = history[0];
+    history[0] = chosenIndex;
 
-    return candidatePool->at (static_cast<size_t> (wrappedIndex));
+    return candidatePool->at (static_cast<size_t> (chosenIndex));
 }
 
 bool SamplePlayerAudioProcessor::hasMultipleRoundRobinsForNote (int midiNoteNumber, int velocity127) const
