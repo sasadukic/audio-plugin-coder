@@ -5751,6 +5751,47 @@
       } catch {}
     }
 
+    // ── Comprehensive UI profiler ───────────────────────────────────────
+    const _perfLog = [];
+    let _perfFlushTimer = 0;
+    function perfLog(tag, durationMs, detail) {
+      _perfLog.push({ t: performance.now(), tag, ms: durationMs, detail: detail || "" });
+      if (_perfLog.length > 500) _perfLog.splice(0, _perfLog.length - 500);
+      if (!_perfFlushTimer) {
+        _perfFlushTimer = window.setTimeout(() => {
+          _perfFlushTimer = 0;
+          perfFlush();
+        }, 2000);
+      }
+    }
+    function perfFlush() {
+      if (!_perfLog.length) return;
+      const lines = _perfLog.splice(0, _perfLog.length)
+        .map(e => `  [JS ${e.tag}] ${e.ms.toFixed(1)}ms${e.detail ? " | " + e.detail : ""}`)
+        .join("\n");
+      debugLoadLog("──── JS PERF FLUSH ────\n" + lines);
+    }
+    function perfWrap(tag, fn, detailFn) {
+      return function(...args) {
+        const t0 = performance.now();
+        const result = fn.apply(this, args);
+        const ms = performance.now() - t0;
+        const detail = detailFn ? detailFn(...args) : "";
+        if (ms > 1) perfLog(tag, ms, detail);
+        return result;
+      };
+    }
+    function perfWrapAsync(tag, fn, detailFn) {
+      return async function(...args) {
+        const t0 = performance.now();
+        const result = await fn.apply(this, args);
+        const ms = performance.now() - t0;
+        const detail = detailFn ? detailFn(...args) : "";
+        if (ms > 1) perfLog(tag, ms, detail);
+        return result;
+      };
+    }
+
     function releaseSessionPayloadLock(delayMs = 0) {
       if (state.sessionPayloadUnlockTimer) {
         window.clearTimeout(state.sessionPayloadUnlockTimer);
@@ -6064,6 +6105,7 @@
     }
 
     async function buildSessionStateSnapshot(options = {}) {
+      const _t0 = performance.now();
       ensurePackManifestBasePathHint();
       if (options.force) {
         if ((state.pendingCacheCount || 0) <= 0) {
@@ -6076,7 +6118,7 @@
         preserveRuntimePaths: true,
         includeEmbeddedSampleData: !!options.includeEmbeddedSampleData
       });
-      return {
+      const _snapResult = {
         version: 1,
         manifest,
         ui: {
@@ -6192,9 +6234,12 @@
           strum: buildStrumSnapshot()
         }
       };
+      perfLog("buildSessionStateSnapshot", performance.now() - _t0, `force=${!!options.force}`);
+      return _snapResult;
     }
 
     async function flushSessionStateToNative(force = false, flushOptions = {}) {
+      const _t0 = performance.now();
       clearSessionStateSaveTimer();
       if (state.sessionStateRestoreInProgress) return;
       if (!getNativeBackend()) return;
@@ -6241,6 +6286,7 @@
           scheduleSessionStateSave(400);
         }
       }
+      perfLog("flushSessionStateToNative", performance.now() - _t0, `force=${force}`);
     }
 
     function scheduleSessionStateSave(delayMs = 900) {
@@ -6288,6 +6334,7 @@
     }
 
     async function applySessionStateFromPayload(payload) {
+      const _t0 = performance.now();
       if (state.sessionPayloadLock) {
         debugLoadLog("restore skipped | session payload locked");
         state.sessionStateRestoreAttempted = true;
@@ -6467,6 +6514,7 @@
       debugLoadLog(`restore mode | lightweight=${isLightweightPayload ? "yes" : "no"}`);
       debugLoadLog(`restore done | totalMs=${(performance.now() - restoreStart).toFixed(1)}`);
       completeLoadingOverlay("Ready");
+      perfLog("applySessionStateFromPayload", performance.now() - _t0, `lightweight=${isLightweightPayload}`);
     }
 
     function clampHostSize(value, min, max, fallback) {
@@ -7367,25 +7415,38 @@
 
       try {
         const stateToken = backend.addEventListener("session_state_payload", (payload) => {
-          void applySessionStateFromPayload(payload);
+          const _et = performance.now();
+          void applySessionStateFromPayload(payload).then(() => {
+            perfLog("event:session_state_payload", performance.now() - _et);
+          });
         });
         const sampleDataToken = backend.addEventListener("sample_data_payload", (payload) => {
+          const _et = performance.now();
           handleSampleDataPayload(payload);
+          perfLog("event:sample_data_payload", performance.now() - _et);
         });
         const graphicDataToken = backend.addEventListener("graphic_data_payload", (payload) => {
+          const _et = performance.now();
           handleGraphicDataPayload(payload);
+          perfLog("event:graphic_data_payload", performance.now() - _et);
         });
         const manifestPickToken = backend.addEventListener("instrument_manifest_picked", (payload) => {
+          const _et = performance.now();
           handleInstrumentManifestPickedPayload(payload);
+          perfLog("event:instrument_manifest_picked", performance.now() - _et);
         });
         const saveResultToken = backend.addEventListener("instrument_save_result", (payload) => {
+          const _et = performance.now();
           handleInstrumentSaveResult(payload);
+          perfLog("event:instrument_save_result", performance.now() - _et);
         });
         const midiActivityToken = backend.addEventListener("midi_activity", (payload) => {
           handleNativeMidiActivity(payload);
         });
         const nativeAudioPickToken = backend.addEventListener("native_audio_files_picked", (payload) => {
+          const _et = performance.now();
           handleNativePickedAudioFiles(payload);
+          perfLog("event:native_audio_files_picked", performance.now() - _et);
         });
         state.nativeSessionListeners = [stateToken, sampleDataToken, graphicDataToken, manifestPickToken, saveResultToken, midiActivityToken, nativeAudioPickToken];
       } catch {
@@ -7971,6 +8032,7 @@
     }
 
     function emitStrumSettings() {
+      const _t0 = performance.now();
       const stepCount = getStrumVisibleStepCount();
       const payload = {
         enabled: !!state.strumEnabled && stepCount > 0,
@@ -7983,6 +8045,7 @@
         stepPattern: getVisibleStrumStepPattern()
       };
       emitNativeEvent("strum_settings_set", payload);
+      perfLog("emitStrumSettings", performance.now() - _t0, `enabled=${payload.enabled}`);
     }
 
     function getStrumVisibleStepCount() {
@@ -8216,6 +8279,7 @@
     }
 
     function updateStrumUi() {
+      const _t0 = performance.now();
       if (el.strumEnableBtn) {
         const on = !!state.strumEnabled;
         el.strumEnableBtn.textContent = on ? "Enable On" : "Enable Off";
@@ -8329,7 +8393,7 @@
       }
       syncPlayerStrumMainToggle();
       syncDoublingToggle();
-
+      perfLog("updateStrumUi", performance.now() - _t0);
     }
 
     function syncPlayerStrumMainToggle() {
@@ -13399,6 +13463,7 @@
     }
 
     function renderKeyboardMap(validEntries = getActiveMapEntries(), preserveView = false) {
+      const _t0 = performance.now();
       updateKeyswitchMapSelector();
       const {
         velocityLayers: matrixVelocityLayers,
@@ -13714,6 +13779,7 @@
           el.mapEmpty.classList.remove("hidden");
         }
       }
+      perfLog("renderKeyboardMap", performance.now() - _t0, `entries=${valid.length}`);
     }
 
     function getPlayerKeyboardWhiteCount() {
@@ -15932,6 +15998,7 @@
     }
 
     function renderSetup() {
+      const _t0 = performance.now();
       const valid = state.entries.filter((e) => e.valid);
       const invalid = state.entries.filter((e) => !e.valid);
       updateWheelBaseTheme();
@@ -15991,6 +16058,7 @@
         setStatus(el.setupStatus, "");
       }
       scheduleHostResizeForActiveTab();
+      perfLog("renderSetup", performance.now() - _t0, `entries=${state.entries.length}`);
     }
 
     function ingest(filesLike) {
@@ -17199,6 +17267,7 @@
     }
 
     function renderAuto() {
+      const _t0 = performance.now();
       updatePlayerAuthorDisplay();
       updateAutoModwheelVelocityAvailability();
       const summary = getAutoRenderEstimate();
@@ -17223,6 +17292,7 @@
       }
       updateStartSamplingButtonLabel();
       scheduleHostResizeForActiveTab();
+      perfLog("renderAuto", performance.now() - _t0);
     }
 
     function scheduleAutoRender() {

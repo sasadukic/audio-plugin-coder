@@ -335,6 +335,11 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
     if (! webView)
         return;
 
+    const auto _timerStart = juce::Time::getMillisecondCounterHiRes();
+
+    // Flush profiler ring buffer to log file periodically
+    audioProcessor.perfFlushToFile();
+
     const int currentLightweightVersion = audioProcessor.getUiSessionStateLightweightVersion();
     if (currentLightweightVersion != lastPushedLightweightVersion)
     {
@@ -492,7 +497,12 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
                       || progress.statusMessage != lastAutoSamplerStatus;
 
     if (! changed)
+    {
+        const auto _timerMs = juce::Time::getMillisecondCounterHiRes() - _timerStart;
+        if (_timerMs > 5.0)
+            audioProcessor.perfLog ("timerCallback", _timerMs, "SLOW-nochange");
         return;
+    }
 
     lastAutoSamplerActive = progress.active;
     lastAutoSamplerExpected = progress.expectedTakes;
@@ -500,6 +510,10 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
     lastAutoSamplerInputDetected = progress.inputDetected;
     lastAutoSamplerStatus = progress.statusMessage;
     webView->emitEventIfBrowserIsVisible ("autosampler_status", makeAutoSamplerStatusVar (progress));
+
+    const auto _timerMs = juce::Time::getMillisecondCounterHiRes() - _timerStart;
+    if (_timerMs > 5.0)
+        audioProcessor.perfLog ("timerCallback", _timerMs, "SLOW");
 }
 
 void SamplePlayerAudioProcessorEditor::handleAutoSamplerControlEvent (const juce::var& eventPayload)
@@ -722,6 +736,7 @@ void SamplePlayerAudioProcessorEditor::handleUIResizeEvent (const juce::var& eve
 
 void SamplePlayerAudioProcessorEditor::handleSessionStateSetEvent (const juce::var& eventPayload)
 {
+    const auto t0 = juce::Time::getMillisecondCounterHiRes();
     juce::String jsonPayload;
 
     if (const auto* object = eventPayload.getDynamicObject())
@@ -730,10 +745,13 @@ void SamplePlayerAudioProcessorEditor::handleSessionStateSetEvent (const juce::v
         jsonPayload = eventPayload.toString();
 
     audioProcessor.setUiSessionStateJson (jsonPayload);
+    audioProcessor.perfLog ("session_state_set", juce::Time::getMillisecondCounterHiRes() - t0,
+                            "bytes=" + juce::String (jsonPayload.getNumBytesAsUTF8()));
 }
 
 void SamplePlayerAudioProcessorEditor::handleActiveMapSetEvent (const juce::var& eventPayload)
 {
+    const auto t0 = juce::Time::getMillisecondCounterHiRes();
     juce::String setId;
 
     if (const auto* object = eventPayload.getDynamicObject())
@@ -745,6 +763,8 @@ void SamplePlayerAudioProcessorEditor::handleActiveMapSetEvent (const juce::var&
         return;
 
     audioProcessor.setActiveMapSetId (setId);
+    audioProcessor.perfLog ("active_map_set", juce::Time::getMillisecondCounterHiRes() - t0,
+                            "setId=" + setId);
 }
 
 void SamplePlayerAudioProcessorEditor::handleSequencerHostTriggerSetEvent (const juce::var& eventPayload)
@@ -769,7 +789,9 @@ void SamplePlayerAudioProcessorEditor::handleSequencerHostTriggerSetEvent (const
 
 void SamplePlayerAudioProcessorEditor::handleStrumSettingsSetEvent (const juce::var& eventPayload)
 {
+    const auto t0 = juce::Time::getMillisecondCounterHiRes();
     audioProcessor.applyStrumSettingsFromUi (eventPayload);
+    audioProcessor.perfLog ("strum_settings_set", juce::Time::getMillisecondCounterHiRes() - t0, {});
 }
 
 void SamplePlayerAudioProcessorEditor::handleSessionStateGetEvent (const juce::var& eventPayload)
@@ -886,6 +908,7 @@ void SamplePlayerAudioProcessorEditor::handleSampleDataGetEvent (const juce::var
 
 void SamplePlayerAudioProcessorEditor::handleGraphicDataGetEvent (const juce::var& eventPayload)
 {
+    const auto t0 = juce::Time::getMillisecondCounterHiRes();
     if (! webView)
         return;
 
@@ -924,6 +947,8 @@ void SamplePlayerAudioProcessorEditor::handleGraphicDataGetEvent (const juce::va
     response->setProperty ("fileName", fileName);
     response->setProperty ("mimeType", mimeType);
     webView->emitEventIfBrowserIsVisible ("graphic_data_payload", juce::var (response.get()));
+    audioProcessor.perfLog ("graphic_data_get", juce::Time::getMillisecondCounterHiRes() - t0,
+                            "kind=" + kind + " path=" + path + " bytes=" + juce::String (dataUrl.length()));
 }
 
 void SamplePlayerAudioProcessorEditor::handlePreviewMidiEvent (const juce::var& eventPayload)
@@ -999,6 +1024,7 @@ void SamplePlayerAudioProcessorEditor::handlePerformanceWheelSetEvent (const juc
 
 void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const juce::var& eventPayload)
 {
+    const auto _t0 = juce::Time::getMillisecondCounterHiRes();
     if (! webView)
         return;
 
@@ -1159,6 +1185,7 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
     if (juce::File::isAbsolutePath (manifestPath))
     {
         writeBundle (juce::File (manifestPath));
+        audioProcessor.perfLog ("save_instrument_bundle", juce::Time::getMillisecondCounterHiRes() - _t0, "direct-path");
         return;
     }
 

@@ -193,6 +193,10 @@ public:
 
     juce::AudioProcessorValueTreeState parameters;
 
+    // ── Profiler (public so editor can call) ────────────────────────────
+    void perfLog (const char* tag, double durationMs, const juce::String& detail = {});
+    void perfFlushToFile (bool force = false);
+
 private:
     struct SampleZone
     {
@@ -553,6 +557,24 @@ private:
     double presetLoadTraceStartMs = 0.0;
     bool presetLoadTraceActive = false;
     juce::String presetLoadTraceSource;
+
+    // ── Comprehensive profiler ──────────────────────────────────────────
+    struct PerfEntry
+    {
+        double timestampMs = 0.0;
+        double durationMs = 0.0;
+        char tag[48] = {};
+        char detail[128] = {};
+    };
+
+    static constexpr int kPerfRingSize = 2048;
+    std::array<PerfEntry, kPerfRingSize> perfRing;
+    std::atomic<int> perfRingHead { 0 };
+    std::atomic<int> perfFlushTail { 0 };
+    double lastPerfFlushMs = 0.0;
+    double processBlockPeakMs = 0.0;
+    juce::uint64 processBlockCallCount = 0;
+    double processBlockTotalMs = 0.0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplePlayerAudioProcessor)
 };

@@ -140,6 +140,67 @@ double elapsedMsFrom (double startMs)
     return juce::Time::getMillisecondCounterHiRes() - startMs;
 }
 
+} // close anonymous namespace temporarily for member definitions
+
+void SamplePlayerAudioProcessor::perfLog (const char* tag, double durationMs, const juce::String& detail)
+{
+    const int idx = perfRingHead.fetch_add (1, std::memory_order_relaxed) % kPerfRingSize;
+    auto& entry = perfRing[static_cast<size_t> (idx)];
+    entry.timestampMs = juce::Time::getMillisecondCounterHiRes();
+    entry.durationMs = durationMs;
+    std::strncpy (entry.tag, tag, sizeof (entry.tag) - 1);
+    entry.tag[sizeof (entry.tag) - 1] = '\0';
+    const auto detailUtf8 = detail.toStdString();
+    std::strncpy (entry.detail, detailUtf8.c_str(), sizeof (entry.detail) - 1);
+    entry.detail[sizeof (entry.detail) - 1] = '\0';
+}
+
+void SamplePlayerAudioProcessor::perfFlushToFile (bool force)
+{
+    const auto now = juce::Time::getMillisecondCounterHiRes();
+    // Flush at most every 2 seconds unless forced
+    if (! force && (now - lastPerfFlushMs) < 2000.0)
+        return;
+    lastPerfFlushMs = now;
+
+    const int head = perfRingHead.load (std::memory_order_relaxed);
+    const int tail = perfFlushTail.load (std::memory_order_relaxed);
+    if (head == tail && ! force)
+        return;
+
+    juce::String batch;
+    batch.preallocateBytes (4096);
+    batch << "──── PERF FLUSH | processBlockCalls=" << juce::String (processBlockCallCount)
+          << " | peakMs=" << juce::String (processBlockPeakMs, 3)
+          << " | avgMs=" << juce::String (processBlockCallCount > 0
+                                              ? processBlockTotalMs / static_cast<double> (processBlockCallCount)
+                                              : 0.0, 3)
+          << " ────\n";
+
+    int count = 0;
+    for (int i = tail; i != head && count < kPerfRingSize; ++i, ++count)
+    {
+        const auto& entry = perfRing[static_cast<size_t> (i % kPerfRingSize)];
+        if (entry.tag[0] == '\0')
+            continue;
+        batch << "  [" << entry.tag << "] "
+              << juce::String (entry.durationMs, 2) << "ms"
+              << (entry.detail[0] != '\0' ? juce::String (" | ") + entry.detail : juce::String {})
+              << "\n";
+    }
+
+    perfFlushTail.store (head, std::memory_order_relaxed);
+    // Reset peak/totals for next window
+    processBlockPeakMs = 0.0;
+    processBlockTotalMs = 0.0;
+    processBlockCallCount = 0;
+
+    writeLoadDebugLog (batch.trimEnd());
+}
+
+namespace
+{
+
 juce::String resolveAutoSamplerDestinationPath (const juce::String& rawPath)
 {
     auto path = rawPath.trim();
@@ -516,6 +577,10 @@ SamplePlayerAudioProcessor::SamplePlayerAudioProcessor()
     auto initialStrumRuntime = std::make_shared<StepSequencerRuntime>();
     std::atomic_store (&strumSequencerRuntime, initialStrumRuntime);
     sequencerCurrentStepForUi.store (-1, std::memory_order_relaxed);
+
+    writeLoadDebugLog ("\n====== PROFILER SESSION START ======"
+                       "\nTimestamp: " + juce::Time::getCurrentTime().toISO8601 (true)
+                       + "\n==================================");
 }
 
 SamplePlayerAudioProcessor::~SamplePlayerAudioProcessor() = default;
@@ -798,6 +863,7 @@ bool SamplePlayerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layo
 
 void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+    const auto pbStartMs = juce::Time::getMillisecondCounterHiRes();
     juce::ScopedNoDenormals noDenormals;
 
     if (const auto* modParam = parameters.getRawParameterValue (kModWheelParamId))
@@ -1129,6 +1195,17 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     }
 
     midiMessages.swapWith (renderMidi);
+
+    // ── processBlock profiling ──
+    const auto pbMs = juce::Time::getMillisecondCounterHiRes() - pbStartMs;
+    ++processBlockCallCount;
+    processBlockTotalMs += pbMs;
+    if (pbMs > processBlockPeakMs)
+        processBlockPeakMs = pbMs;
+    if (pbMs > 3.0)
+        perfLog ("processBlock-SPIKE", pbMs,
+                 "samples=" + juce::String (buffer.getNumSamples())
+                 + " voices=" + juce::String ([this]() { int c = 0; for (const auto& v : voices) if (v.active) ++c; return c; }()));
 }
 
 bool SamplePlayerAudioProcessor::hasEditor() const
@@ -1232,6 +1309,8 @@ void SamplePlayerAudioProcessor::getStateInformation (juce::MemoryBlock& destDat
     writeLoadDebugLog ("getStateInformation saved | format=binary-v1 | bytes="
                        + juce::String (static_cast<juce::int64> (destData.getSize()))
                        + " | elapsedMs=" + juce::String (elapsedMsFrom (saveStartMs), 2));
+    perfLog ("getStateInformation", elapsedMsFrom (saveStartMs),
+             "bytes=" + juce::String (static_cast<juce::int64> (destData.getSize())));
 }
 
 void SamplePlayerAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
@@ -1351,6 +1430,8 @@ void SamplePlayerAudioProcessor::setStateInformation (const void* data, int size
     writeLoadDebugLog ("setStateInformation completed | legacyRestoreMs=" + juce::String (legacyRestoreMs, 2)
                        + " | wallpaperStageMs=" + juce::String (wallpaperStageMs, 2)
                        + " | totalMs=" + juce::String (elapsedMsFrom (loadStartMs), 2));
+    perfLog ("setStateInformation", elapsedMsFrom (loadStartMs),
+             "bytes=" + juce::String (sizeInBytes));
 }
 
 bool SamplePlayerAudioProcessor::isSupportedSampleFile (const juce::File& file)
@@ -1725,6 +1806,8 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
     writeLoadDebugLog ("setUiSessionStateJson queued | requestId=" + juce::String (requestId)
                        + " | bytes=" + juce::String (jsonBytes)
                        + " | queuePrepMs=" + juce::String (elapsedMsFrom (requestStartMs), 2));
+    perfLog ("setUiSessionStateJson", elapsedMsFrom (requestStartMs),
+             "requestId=" + juce::String (requestId) + " bytes=" + juce::String (jsonBytes));
 
     sessionStateSyncThreadPool.addJob ([this, requestId, midiRequestedSlot]()
     {
@@ -3946,6 +4029,10 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                        + " | decodeFailures=" + juce::String (decodeFailures)
                        + " | unresolvedPaths=" + unresolvedVariantPaths.joinIntoString (" ; ")
                        + " | cacheBytes=" + juce::String (static_cast<juce::int64> (decodedEmbeddedAudioCacheTotalBytes)));
+    perfLog ("syncSampleSet", elapsedMsFrom (syncStartMs),
+             "zones=" + juce::String (static_cast<int> (newSampleSet->zones.size()))
+             + " cacheHits=" + juce::String (cacheHits)
+             + " misses=" + juce::String (cacheMisses));
 }
 
 std::shared_ptr<const SamplePlayerAudioProcessor::DecodedEmbeddedAudioCacheEntry>
