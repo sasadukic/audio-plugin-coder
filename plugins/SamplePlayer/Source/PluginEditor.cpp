@@ -339,6 +339,7 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
 
     // Flush profiler ring buffer to log file periodically
     audioProcessor.perfFlushToFile();
+    const auto _afterFlush = juce::Time::getMillisecondCounterHiRes();
 
     const int currentLightweightVersion = audioProcessor.getUiSessionStateLightweightVersion();
     if (currentLightweightVersion != lastPushedLightweightVersion)
@@ -353,9 +354,49 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
             payloadObject->setProperty ("json", lightweightSessionJson);
             payloadObject->setProperty ("lightweight", true);
             payloadObject->setProperty ("full", false);
+            const auto _beforePush = juce::Time::getMillisecondCounterHiRes();
             webView->emitEventIfBrowserIsVisible ("session_state_payload", juce::var (payloadObject.get()));
+            const auto _afterPush = juce::Time::getMillisecondCounterHiRes();
             appendUiDebugLog ("session_state_push auto | bytesOut="
-                              + juce::String (lightweightSessionJson.getNumBytesAsUTF8()));
+                              + juce::String (lightweightSessionJson.getNumBytesAsUTF8())
+                              + " | emitMs=" + juce::String (_afterPush - _beforePush, 2)
+                              + " | flushMs=" + juce::String (_afterFlush - _timerStart, 2));
+        }
+    }
+
+    // Drain pending sample-data payloads (throttled to max 2 per tick to
+    // prevent WKWebView IPC channel saturation which blocks the message thread).
+    {
+        constexpr int kMaxEmitsPerTick = 2;
+        int emitted = 0;
+        while (emitted < kMaxEmitsPerTick)
+        {
+            PendingSampleDataEmit pending;
+            {
+                const juce::ScopedLock lock (pendingSampleDataEmitLock);
+                if (pendingSampleDataEmitQueue.empty())
+                    break;
+                pending = std::move (pendingSampleDataEmitQueue.front());
+                pendingSampleDataEmitQueue.pop_front();
+            }
+
+            auto object = juce::DynamicObject::Ptr (new juce::DynamicObject());
+            object->setProperty ("requestId", pending.requestId);
+            object->setProperty ("order", pending.order);
+            object->setProperty ("dataUrl", pending.dataUrl);
+            object->setProperty ("hasData", pending.dataUrl.isNotEmpty());
+            webView->emitEventIfBrowserIsVisible ("sample_data_payload", juce::var (object.get()));
+
+            appendUiDebugLog ("sample_data_get emitted | requestId=" + juce::String (pending.requestId)
+                              + " | order=" + juce::String (pending.order)
+                              + " | root=" + juce::String (pending.rootMidi)
+                              + " | velocityLayer=" + juce::String (pending.velocityLayer)
+                              + " | rr=" + juce::String (pending.rrIndex)
+                              + " | manifestPath=" + juce::String (pending.hasManifestPath ? "yes" : "no")
+                              + " | manifestPathCandidates=" + juce::String (pending.manifestPathCandidateCount)
+                              + " | bytesOut=" + juce::String (pending.bytesOut)
+                              + " | encodingMs=" + juce::String (pending.encodingElapsedMs, 2));
+            ++emitted;
         }
     }
 
@@ -873,15 +914,18 @@ void SamplePlayerAudioProcessorEditor::handleSampleDataGetEvent (const juce::var
         }
     }
 
-    // Offload the expensive WAV encoding + Base64 work to a background thread
-    // so the message thread stays responsive for timer callbacks and UI events.
-    auto safeThis = juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> (this);
-    sampleDataRequestPool.addJob ([safeThis, &proc = audioProcessor,
-                                   requestId, order, rootMidi, velocityLayer, rrIndex,
-                                   fileName, manifestPath, manifestPathCandidates]() mutable
+    const bool hasManPath = manifestPath.isNotEmpty();
+    const int candCount = manifestPathCandidates.size();
+
+    // Offload expensive WAV encoding to a background thread.  Results are
+    // queued and drained by the 10Hz timer (max 2 per tick) to prevent
+    // WKWebView IPC channel flooding which stalls the message thread.
+    sampleDataRequestPool.addJob ([this, requestId, order, rootMidi, velocityLayer, rrIndex,
+                                   fileName, manifestPath, manifestPathCandidates,
+                                   hasManPath, candCount]() mutable
     {
         const auto requestStartMs = juce::Time::getMillisecondCounterHiRes();
-        auto dataUrl = proc.getSampleDataUrlForMapEntry (rootMidi, velocityLayer, rrIndex, fileName);
+        auto dataUrl = audioProcessor.getSampleDataUrlForMapEntry (rootMidi, velocityLayer, rrIndex, fileName);
         if (dataUrl.isEmpty())
         {
             if (manifestPath.isNotEmpty())
@@ -889,39 +933,28 @@ void SamplePlayerAudioProcessorEditor::handleSampleDataGetEvent (const juce::var
 
             for (const auto& pathCandidate : manifestPathCandidates)
             {
-                dataUrl = proc.getSampleDataUrlForAbsolutePath (pathCandidate, fileName);
+                dataUrl = audioProcessor.getSampleDataUrlForAbsolutePath (pathCandidate, fileName);
                 if (dataUrl.isNotEmpty())
                     break;
             }
         }
 
-        const auto elapsedMs = juce::Time::getMillisecondCounterHiRes() - requestStartMs;
-        const auto bytesOut = dataUrl.getNumBytesAsUTF8();
+        PendingSampleDataEmit pending;
+        pending.requestId = requestId;
+        pending.order = order;
+        pending.dataUrl = std::move (dataUrl);
+        pending.rootMidi = rootMidi;
+        pending.velocityLayer = velocityLayer;
+        pending.rrIndex = rrIndex;
+        pending.hasManifestPath = hasManPath;
+        pending.manifestPathCandidateCount = candCount;
+        pending.bytesOut = pending.dataUrl.getNumBytesAsUTF8();
+        pending.encodingElapsedMs = juce::Time::getMillisecondCounterHiRes() - requestStartMs;
 
-        juce::MessageManager::callAsync ([safeThis, requestId, order, rootMidi, velocityLayer, rrIndex,
-                                          manifestPath, manifestPathCandidates,
-                                          dataUrl = std::move (dataUrl), elapsedMs, bytesOut]()
         {
-            if (! safeThis)
-                return;
-
-            auto object = juce::DynamicObject::Ptr (new juce::DynamicObject());
-            object->setProperty ("requestId", requestId);
-            object->setProperty ("order", order);
-            object->setProperty ("dataUrl", dataUrl);
-            object->setProperty ("hasData", dataUrl.isNotEmpty());
-            safeThis->webView->emitEventIfBrowserIsVisible ("sample_data_payload", juce::var (object.get()));
-
-            appendUiDebugLog ("sample_data_get handled | requestId=" + juce::String (requestId)
-                                        + " | order=" + juce::String (order)
-                                        + " | root=" + juce::String (rootMidi)
-                                        + " | velocityLayer=" + juce::String (velocityLayer)
-                                        + " | rr=" + juce::String (rrIndex)
-                                        + " | manifestPath=" + juce::String (manifestPath.isNotEmpty() ? "yes" : "no")
-                                        + " | manifestPathCandidates=" + juce::String (manifestPathCandidates.size())
-                                        + " | bytesOut=" + juce::String (bytesOut)
-                                        + " | elapsedMs=" + juce::String (elapsedMs, 2));
-        });
+            const juce::ScopedLock lock (pendingSampleDataEmitLock);
+            pendingSampleDataEmitQueue.push_back (std::move (pending));
+        }
     });
 }
 

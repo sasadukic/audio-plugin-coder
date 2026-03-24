@@ -4,6 +4,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_gui_extra/juce_gui_extra.h>
+#include <deque>
 
 class SamplePlayerAudioProcessorEditor : public juce::AudioProcessorEditor,
                                          private juce::Timer
@@ -57,6 +58,23 @@ private:
     std::unique_ptr<juce::FileChooser> loadInstrumentChooser;
     std::unique_ptr<juce::FileChooser> audioFileChooser;
     juce::ThreadPool sampleDataRequestPool { 1 };
+
+    struct PendingSampleDataEmit
+    {
+        int requestId = -1;
+        int order = -1;
+        juce::String dataUrl;
+        int rootMidi = 60;
+        int velocityLayer = 1;
+        int rrIndex = 1;
+        bool hasManifestPath = false;
+        int manifestPathCandidateCount = 0;
+        size_t bytesOut = 0;
+        double encodingElapsedMs = 0.0;
+    };
+
+    juce::CriticalSection pendingSampleDataEmitLock;
+    std::deque<PendingSampleDataEmit> pendingSampleDataEmitQueue;
 
     std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);
     static juce::WebBrowserComponent::Options createWebOptions (SamplePlayerAudioProcessorEditor& editor);
