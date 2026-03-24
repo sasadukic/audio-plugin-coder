@@ -1311,16 +1311,25 @@ void SamplePlayerAudioProcessor::setStateInformation (const void* data, int size
                        + " | embeddedSampleData=" + juce::String (embeddedSessionHasSampleData ? "yes" : "no")
                        + " | sessionJsonBytes=" + juce::String (restoredUiSessionJson.getNumBytesAsUTF8()));
 
-    // If session payload is lightweight (no embedded sample data), restore from unpacked file paths.
-    if (! embeddedSessionHasSampleData)
+    // Always restore from unpacked file paths first so samples are in RAM immediately.
+    // When embedded sample data is present, the subsequent thread-pool sync will refine
+    // zone mapping (keyswitches, velocity layers, note ranges) in the background.
     {
         juce::StringArray samplePathLines;
         samplePathLines.addLines (restoredState.getProperty (kSampleFilePathsProperty).toString());
-        restoreSampleFilesFromState (samplePathLines);
+        if (samplePathLines.size() > 0)
+        {
+            restoreSampleFilesFromState (samplePathLines);
+            writeLoadDebugLog ("setStateInformation restored " + juce::String (samplePathLines.size())
+                               + " sample paths from state (embeddedData=" + juce::String (embeddedSessionHasSampleData ? "yes" : "no") + ")");
+        }
 
-        const auto zoneOverrides = restoredState.getChildWithName (kZoneOverridesNode);
-        if (zoneOverrides.isValid())
-            applyZoneOverridesState (zoneOverrides);
+        if (! embeddedSessionHasSampleData)
+        {
+            const auto zoneOverrides = restoredState.getChildWithName (kZoneOverridesNode);
+            if (zoneOverrides.isValid())
+                applyZoneOverridesState (zoneOverrides);
+        }
     }
 
     const auto legacyRestoreMs = elapsedMsFrom (loadStartMs);
