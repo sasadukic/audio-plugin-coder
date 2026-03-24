@@ -6178,6 +6178,8 @@
           strum: buildStrumSnapshot()
         }
       };
+      perfLog("buildSessionStateSnapshot", performance.now() - _t0, `force=${!!options.force}`);
+      return _snapResult;
     }
 
     function buildQuickSessionSnapshotFromManifest(manifest) {
@@ -6234,8 +6236,6 @@
           strum: buildStrumSnapshot()
         }
       };
-      perfLog("buildSessionStateSnapshot", performance.now() - _t0, `force=${!!options.force}`);
-      return _snapResult;
     }
 
     async function flushSessionStateToNative(force = false, flushOptions = {}) {
@@ -6275,10 +6275,9 @@
             debugLoadLog(`flush session state | totalMs=${totalMs.toFixed(1)} | jsonBytes=${jsonPayload.length}`);
           }
         }
-      } catch {
-        if (force) {
-          // Ignore failures during teardown.
-        }
+      } catch (flushErr) {
+        debugLoadLog(`flush ERROR | force=${force} | ${String(flushErr?.message || flushErr || "unknown")}`);
+        console.error("flushSessionStateToNative error:", flushErr);
       } finally {
         state.sessionStateSaveInFlight = false;
         if (state.sessionStateSaveQueued) {
