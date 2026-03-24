@@ -2579,7 +2579,12 @@ void SamplePlayerAudioProcessor::setSequencerHostTriggerEnabled (bool enabled)
 {
     auto updatedRuntime = std::make_shared<StepSequencerRuntime>();
     if (auto currentRuntime = std::atomic_load (&stepSequencerRuntime); currentRuntime != nullptr)
+    {
         updatedRuntime->steps = currentRuntime->steps;
+        updatedRuntime->doubling = currentRuntime->doubling;
+        updatedRuntime->rateIndex = currentRuntime->rateIndex;
+        updatedRuntime->followsInputNote = currentRuntime->followsInputNote;
+    }
 
     updatedRuntime->enabled = enabled;
     updatedRuntime->currentStep = -1;
@@ -2784,6 +2789,8 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                                           modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed));
     juce::var baseManualRangesVar;
     bool sequencerHostTriggerEnabled = false;
+    bool sequencerDoubling = false;
+    int sequencerRateIndex = 2;
 
     struct UiKeyswitchState
     {
@@ -2821,6 +2828,14 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
             const auto sequencerEnabledVar = sequencerObject->getProperty ("hostTriggerEnabled");
             if (! sequencerEnabledVar.isVoid())
                 sequencerHostTriggerEnabled = static_cast<bool> (sequencerEnabledVar);
+
+            const auto sequencerDoublingVar = sequencerObject->getProperty ("doubling");
+            if (! sequencerDoublingVar.isVoid())
+                sequencerDoubling = static_cast<bool> (sequencerDoublingVar);
+
+            const auto sequencerRateVar = sequencerObject->getProperty ("rateIndex");
+            if (! sequencerRateVar.isVoid())
+                sequencerRateIndex = juce::jlimit (0, 3, varToInt (sequencerRateVar, 2));
 
             if (const auto* sequencerStepsArray = sequencerObject->getProperty ("steps").getArray())
             {
@@ -2985,6 +3000,8 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     {
         auto runtime = std::make_shared<StepSequencerRuntime>();
         runtime->enabled = sequencerHostTriggerEnabled;
+        runtime->doubling = sequencerDoubling;
+        runtime->rateIndex = sequencerRateIndex;
 
         for (size_t i = 0; i < runtime->steps.size(); ++i)
         {

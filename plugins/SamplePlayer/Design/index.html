@@ -4881,6 +4881,28 @@
             </div>
           </div>
 
+          <div id="sequencerArpSection" class="section collapsible collapsed">
+            <h2 id="sequencerArpToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="sequencerArpBody">Sequencer</h2>
+            <div id="sequencerArpBody" class="section-body">
+              <div class="btn-row import-pack-controls strum-controls-row">
+                <button id="sequencerModeBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Off</button>
+                <button id="sequencerDoublingBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Doubling Off</button>
+                <div class="strum-menu-wrap">
+                  <button id="sequencerRateBtn" class="sample-loop-tool-btn strum-menu-btn" type="button"
+                          aria-haspopup="true" aria-expanded="false">Rate 1/16</button>
+                  <div id="sequencerRateMenu" class="strum-menu hidden" role="menu" aria-label="Sequencer rate">
+                    <button class="strum-menu-item" type="button" data-seq-rate-index="0">1/4</button>
+                    <button class="strum-menu-item" type="button" data-seq-rate-index="1">1/8</button>
+                    <button class="strum-menu-item" type="button" data-seq-rate-index="2">1/16</button>
+                    <button class="strum-menu-item" type="button" data-seq-rate-index="3">1/32</button>
+                  </div>
+                </div>
+              </div>
+              <div id="sequencerGrid" class="sequencer-grid" aria-label="Sequencer steps"></div>
+              <div id="sequencerArpStatus" class="status"></div>
+            </div>
+          </div>
+
           <div id="graphicsSection" class="section collapsible collapsed">
             <h2 id="graphicsToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="graphicsBody">Graphics</h2>
             <div id="graphicsBody" class="section-body">
@@ -5222,6 +5244,9 @@
       sequencerArpToggle: document.getElementById("sequencerArpToggle"),
       sequencerArpStatus: document.getElementById("sequencerArpStatus"),
       sequencerModeBtn: document.getElementById("sequencerModeBtn"),
+      sequencerDoublingBtn: document.getElementById("sequencerDoublingBtn"),
+      sequencerRateBtn: document.getElementById("sequencerRateBtn"),
+      sequencerRateMenu: document.getElementById("sequencerRateMenu"),
       sequencerGrid: document.getElementById("sequencerGrid"),
 
       tabs: Array.from(document.querySelectorAll(".tab-btn")),
@@ -7493,6 +7518,9 @@
     function ensureSequencerState() {
       state.sequencerSteps = normalizeSequencerSteps(state.sequencerSteps);
       state.sequencerHostTriggerEnabled = !!state.sequencerHostTriggerEnabled;
+      state.sequencerDoubling = !!state.sequencerDoubling;
+      if (!Number.isFinite(state.sequencerRateIndex)) state.sequencerRateIndex = 2;
+      state.sequencerRateIndex = Math.max(0, Math.min(3, Math.round(state.sequencerRateIndex)));
       if (!Number.isFinite(state.sequencerCurrentStep)) state.sequencerCurrentStep = -1;
       if (state.sequencerCurrentStep >= SEQUENCER_STEP_COUNT || state.sequencerCurrentStep < -1) {
         state.sequencerCurrentStep = -1;
@@ -7503,6 +7531,8 @@
       ensureSequencerState();
       return {
         hostTriggerEnabled: !!state.sequencerHostTriggerEnabled,
+        doubling: !!state.sequencerDoubling,
+        rateIndex: Math.max(0, Math.min(3, Math.round(Number(state.sequencerRateIndex) || 2))),
         steps: state.sequencerSteps.map((step) => ({
           noteMidi: Math.max(0, Math.min(127, Math.round(Number(step?.noteMidi) || 60))),
           velocity: clampSequencerVelocity(step?.velocity),
@@ -7562,6 +7592,21 @@
         : "Sequencer Off: play mapped notes directly";
     }
 
+    function updateSequencerDoublingButton() {
+      if (!el.sequencerDoublingBtn) return;
+      const on = !!state.sequencerDoubling;
+      el.sequencerDoublingBtn.textContent = on ? "Doubling On" : "Doubling Off";
+      el.sequencerDoublingBtn.setAttribute("aria-pressed", on ? "true" : "false");
+      el.sequencerDoublingBtn.classList.toggle("active", on);
+    }
+
+    function updateSequencerRateButton() {
+      if (!el.sequencerRateBtn) return;
+      const RATE_LABELS = ["1/4", "1/8", "1/16", "1/32"];
+      const idx = Math.max(0, Math.min(3, Math.round(Number(state.sequencerRateIndex) || 2)));
+      el.sequencerRateBtn.textContent = "Rate " + RATE_LABELS[idx];
+    }
+
     function updateSequencerStepHighlight() {
       if (!el.sequencerGrid) return;
       const activeIndex = Math.max(-1, Math.min(SEQUENCER_STEP_COUNT - 1, Math.round(Number(state.sequencerCurrentStep) || -1)));
@@ -7575,6 +7620,8 @@
     function applySequencerSnapshot(snapshot, shouldRender = true) {
       const source = (snapshot && typeof snapshot === "object") ? snapshot : {};
       state.sequencerHostTriggerEnabled = !!source.hostTriggerEnabled;
+      state.sequencerDoubling = !!source.doubling;
+      state.sequencerRateIndex = Number.isFinite(source.rateIndex) ? Math.max(0, Math.min(3, Math.round(source.rateIndex))) : 2;
       state.sequencerSteps = normalizeSequencerSteps(source.steps);
       state.sequencerCurrentStep = -1;
       if (shouldRender) renderSequencerArpControls();
@@ -7583,6 +7630,8 @@
     function renderSequencerArpControls() {
       ensureSequencerState();
       updateSequencerModeButton();
+      updateSequencerDoublingButton();
+      updateSequencerRateButton();
 
       if (!el.sequencerGrid) {
         updateSequencerStepHighlight();
@@ -7751,7 +7800,40 @@
         });
       }
 
+      if (el.sequencerDoublingBtn) {
+        el.sequencerDoublingBtn.addEventListener("click", () => {
+          ensureSequencerState();
+          ensureSessionStateWritable("sequencer-doubling-toggle");
+          state.sequencerDoubling = !state.sequencerDoubling;
+          updateSequencerDoublingButton();
+          scheduleSessionStateSave(220);
+        });
+      }
+
+      if (el.sequencerRateBtn && el.sequencerRateMenu) {
+        el.sequencerRateBtn.addEventListener("click", () => {
+          const isOpen = !el.sequencerRateMenu.classList.contains("hidden");
+          el.sequencerRateMenu.classList.toggle("hidden", isOpen);
+          el.sequencerRateBtn.setAttribute("aria-expanded", isOpen ? "false" : "true");
+        });
+        el.sequencerRateMenu.addEventListener("click", (ev) => {
+          const btn = ev.target.closest("[data-seq-rate-index]");
+          if (!btn) return;
+          const idx = Math.round(Number(btn.dataset.seqRateIndex));
+          if (!Number.isFinite(idx) || idx < 0 || idx > 3) return;
+          ensureSequencerState();
+          ensureSessionStateWritable("sequencer-rate-change");
+          state.sequencerRateIndex = idx;
+          updateSequencerRateButton();
+          el.sequencerRateMenu.classList.add("hidden");
+          el.sequencerRateBtn.setAttribute("aria-expanded", "false");
+          scheduleSessionStateSave(220);
+        });
+      }
+
       updateSequencerModeButton();
+      updateSequencerDoublingButton();
+      updateSequencerRateButton();
       renderSequencerArpControls();
     }
 
