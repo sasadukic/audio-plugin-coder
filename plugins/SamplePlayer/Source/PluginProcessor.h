@@ -164,6 +164,11 @@ public:
     bool setWallpaperFile (const juce::File& file);
     juce::File getWallpaperFile() const;
     void setUiSessionStateJson (const juce::String& json);
+    int getUiSessionStateLightweightVersion() const noexcept;
+    void perfLog (const juce::String& eventName,
+                  double elapsedMs,
+                  const juce::String& details = {});
+    void perfFlushToFile();
     void loadMonolithDirect (const juce::String& filePath);
     void setActiveMapSetId (const juce::String& setId);
     juce::String getUiSessionStateJson (bool lightweightPreferred = false);
@@ -444,6 +449,7 @@ private:
     mutable juce::CriticalSection uiSessionStateLock;
     juce::String uiSessionStateJson;
     juce::String uiSessionStateLightweightJson;
+    std::atomic<int> uiSessionStateLightweightVersion { 0 };
     juce::String pendingActiveMapSetId;
     mutable juce::CriticalSection sessionMapSyncLock;
     juce::String lastSessionMapSignature;

@@ -1577,6 +1577,22 @@ juce::File SamplePlayerAudioProcessor::getWallpaperFile() const
     return wallpaperFile;
 }
 
+int SamplePlayerAudioProcessor::getUiSessionStateLightweightVersion() const noexcept
+{
+    return uiSessionStateLightweightVersion.load (std::memory_order_relaxed);
+}
+
+void SamplePlayerAudioProcessor::perfLog (const juce::String& eventName,
+                                          double elapsedMs,
+                                          const juce::String& details)
+{
+    juce::ignoreUnused (eventName, elapsedMs, details);
+}
+
+void SamplePlayerAudioProcessor::perfFlushToFile()
+{
+}
+
 void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json)
 {
     const auto requestStartMs = juce::Time::getMillisecondCounterHiRes();
@@ -1584,6 +1600,7 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
 
     int parsedPitchDownOctaves = 0;
     float parsedModwheelValue01 = modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed);
+        uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
     float parsedExpressionValue01 = expressionControllerValue01.load (std::memory_order_relaxed);
     if (normalizedJson.isNotEmpty())
     {
@@ -1776,7 +1793,10 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
         {
             const juce::ScopedLock lock (uiSessionStateLock);
             if (requestId == sessionStateSyncRequestId.load (std::memory_order_relaxed))
+            {
                 uiSessionStateLightweightJson = lightweightJson;
+                uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
+            }
         }
 
         writeLoadDebugLog ("session lightweight cache ready | requestId=" + juce::String (requestId)
@@ -1893,6 +1913,7 @@ void SamplePlayerAudioProcessor::loadMonolithDirect (const juce::String& filePat
                 if (lw.isEmpty())
                     lw = uiSessionStateJson;
                 uiSessionStateLightweightJson = lw;
+                uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
             }
         }
 
@@ -2047,6 +2068,7 @@ juce::String SamplePlayerAudioProcessor::getUiSessionStateJson (bool lightweight
 
                 uiSessionStateJson = juce::JSON::toString (parsed);
                 uiSessionStateLightweightJson = makeLightweightSessionStateJson (uiSessionStateJson, nullptr);
+                uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
                 writeLoadDebugLog ("active map persisted to session json | setId=" + desiredSetId);
             }
         }
