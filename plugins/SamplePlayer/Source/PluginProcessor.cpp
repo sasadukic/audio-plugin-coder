@@ -6343,8 +6343,13 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     }
 
     // Update history: shift [0] -> [1], store new in [0]
-    history[1] = history[0];
-    history[0] = chosenIndex;
+    // Skip for doubled right voices (excludedZone set) so the doubled pair
+    // doesn't consume two history slots per musical event.
+    if (excludedZone == nullptr)
+    {
+        history[1] = history[0];
+        history[0] = chosenIndex;
+    }
 
     return candidatePool->at (static_cast<size_t> (chosenIndex));
 }

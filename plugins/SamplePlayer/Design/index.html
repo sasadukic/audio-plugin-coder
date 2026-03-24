@@ -7759,23 +7759,8 @@
         rateBtn.textContent = SEQ_RATE_LABELS[normalizedStep.rateIndex] || "1/16";
         rateBtn.setAttribute("aria-haspopup", "true");
         rateBtn.setAttribute("aria-expanded", "false");
-        const rateMenu = document.createElement("div");
-        rateMenu.className = "strum-menu sequencer-step-rate-menu hidden";
-        rateMenu.setAttribute("role", "menu");
-        rateMenu.setAttribute("aria-label", `Step ${index + 1} rate`);
-        SEQ_RATE_LABELS.forEach((label, rateIdx) => {
-          const option = document.createElement("button");
-          option.className = "strum-menu-item sequencer-step-rate-item";
-          option.type = "button";
-          option.dataset.stepIndex = String(index);
-          option.dataset.stepRateIndex = String(rateIdx);
-          option.textContent = label;
-          option.classList.toggle("active", rateIdx === normalizedStep.rateIndex);
-          rateMenu.appendChild(option);
-        });
         rateField.appendChild(rateLabel);
         rateWrap.appendChild(rateBtn);
-        rateWrap.appendChild(rateMenu);
         rateField.appendChild(rateWrap);
         stepNode.appendChild(rateField);
 
@@ -7788,10 +7773,65 @@
     function setupSequencerArp() {
       ensureSequencerState();
 
+      // Floating rate overlay — lives on document.body to avoid overflow clipping
+      const seqRateOverlay = document.createElement("div");
+      seqRateOverlay.className = "strum-menu hidden";
+      seqRateOverlay.setAttribute("role", "menu");
+      seqRateOverlay.setAttribute("aria-label", "Step rate");
+      document.body.appendChild(seqRateOverlay);
+      let seqRateOverlayStepIndex = -1;
+
+      const SEQ_RATE_OVERLAY_LABELS = ["1/4", "1/8", "1/16", "1/32", "Rest"];
+
+      const showSeqRateOverlay = (btn, stepIndex) => {
+        const step = normalizeSequencerStep(state.sequencerSteps[stepIndex]);
+        seqRateOverlay.innerHTML = "";
+        SEQ_RATE_OVERLAY_LABELS.forEach((label, rateIdx) => {
+          const item = document.createElement("button");
+          item.className = "strum-menu-item sequencer-step-rate-item";
+          item.type = "button";
+          item.dataset.stepIndex = String(stepIndex);
+          item.dataset.stepRateIndex = String(rateIdx);
+          item.textContent = label;
+          item.classList.toggle("active", rateIdx === step.rateIndex);
+          seqRateOverlay.appendChild(item);
+        });
+        seqRateOverlayStepIndex = stepIndex;
+        const rect = btn.getBoundingClientRect();
+        seqRateOverlay.style.minWidth = `${Math.max(72, Math.round(rect.width))}px`;
+        seqRateOverlay.style.left = "";
+        seqRateOverlay.style.top = "";
+        seqRateOverlay.classList.remove("hidden");
+        const menuRect = seqRateOverlay.getBoundingClientRect();
+        let top = rect.top - 6 - menuRect.height;
+        let left = rect.left;
+        if (top < 0) top = rect.bottom + 6;
+        if (left + menuRect.width > window.innerWidth) {
+          left = Math.max(0, window.innerWidth - menuRect.width - 4);
+        }
+        seqRateOverlay.style.top = `${Math.round(top)}px`;
+        seqRateOverlay.style.left = `${Math.round(left)}px`;
+      };
+
+      seqRateOverlay.addEventListener("click", (ev) => {
+        const item = ev.target instanceof Element ? ev.target.closest(".sequencer-step-rate-item") : null;
+        if (!(item instanceof HTMLButtonElement)) return;
+        const stepIndex = Math.round(Number(item.dataset.stepIndex));
+        if (!Number.isFinite(stepIndex) || stepIndex < 0 || stepIndex >= SEQUENCER_STEP_COUNT) return;
+        ensureSequencerState();
+        ensureSessionStateWritable("sequencer-step-rate-select");
+        const step = normalizeSequencerStep(state.sequencerSteps[stepIndex]);
+        step.rateIndex = Math.max(0, Math.min(4, Math.round(Number(item.dataset.stepRateIndex) || 2)));
+        state.sequencerSteps[stepIndex] = step;
+        closeSequencerMenus();
+        renderSequencerArpControls();
+        if (el.sequencerArpStatus) setStatus(el.sequencerArpStatus, "");
+        emitSequencerSettings();
+        scheduleSessionStateSave(320);
+      });
+
       const positionSequencerMenuAt = (btn, menu) => {
         if (!btn || !menu) return;
-        // Temporarily disable overflow clipping on the grid so fixed menus render
-        if (el.sequencerGrid) el.sequencerGrid.style.overflowX = "visible";
         const rect = btn.getBoundingClientRect();
         const menuGap = 6;
         menu.style.left = "";
@@ -7801,10 +7841,10 @@
         menu.style.minWidth = `${Math.max(72, Math.round(rect.width))}px`;
         menu.classList.remove("hidden");
         const menuRect = menu.getBoundingClientRect();
-        let top = rect.bottom + menuGap;
+        let top = rect.top - menuGap - menuRect.height;
         let left = rect.left;
-        if (top + menuRect.height > window.innerHeight) {
-          top = Math.max(0, rect.top - menuGap - menuRect.height);
+        if (top < 0) {
+          top = rect.bottom + menuGap;
         }
         if (left + menuRect.width > window.innerWidth) {
           left = Math.max(0, window.innerWidth - menuRect.width - 4);
@@ -7823,19 +7863,14 @@
           el.sequencerRateMenu.style.minWidth = "";
         }
         if (el.sequencerRateBtn) el.sequencerRateBtn.setAttribute("aria-expanded", "false");
-        Array.from(document.querySelectorAll(".sequencer-step-rate-menu")).forEach((menu) => {
-          menu.classList.add("hidden");
-          menu.style.top = "";
-          menu.style.left = "";
-          menu.style.right = "";
-          menu.style.bottom = "";
-          menu.style.minWidth = "";
-        });
+        seqRateOverlay.classList.add("hidden");
+        seqRateOverlay.style.top = "";
+        seqRateOverlay.style.left = "";
+        seqRateOverlay.innerHTML = "";
+        seqRateOverlayStepIndex = -1;
         Array.from(document.querySelectorAll(".sequencer-step-rate-btn")).forEach((btn) => {
           btn.setAttribute("aria-expanded", "false");
         });
-        // Restore overflow clipping on grid
-        if (el.sequencerGrid) el.sequencerGrid.style.overflowX = "";
       };
 
       if (el.sequencerGrid) {
@@ -7887,31 +7922,14 @@
           const target = ev.target;
           if (!(target instanceof Element)) return;
 
-          const rateItem = target.closest(".sequencer-step-rate-item");
-          if (rateItem instanceof HTMLButtonElement) {
-            const stepIndex = Math.round(Number(rateItem.dataset.stepIndex));
-            if (!Number.isFinite(stepIndex) || stepIndex < 0 || stepIndex >= SEQUENCER_STEP_COUNT) return;
-            ensureSequencerState();
-            ensureSessionStateWritable("sequencer-step-rate-select");
-            const step = normalizeSequencerStep(state.sequencerSteps[stepIndex]);
-            step.rateIndex = Math.max(0, Math.min(4, Math.round(Number(rateItem.dataset.stepRateIndex) || 2)));
-            state.sequencerSteps[stepIndex] = step;
-            closeSequencerMenus();
-            renderSequencerArpControls();
-            if (el.sequencerArpStatus) setStatus(el.sequencerArpStatus, "");
-            emitSequencerSettings();
-            scheduleSessionStateSave(320);
-            return;
-          }
-
           const rateBtn = target.closest(".sequencer-step-rate-btn");
           if (rateBtn instanceof HTMLButtonElement) {
-            const menu = rateBtn.parentElement?.querySelector(".sequencer-step-rate-menu");
-            if (!(menu instanceof HTMLElement)) return;
-            const isOpen = !menu.classList.contains("hidden");
+            const stepIndex = Math.round(Number(rateBtn.dataset.stepIndex));
+            if (!Number.isFinite(stepIndex) || stepIndex < 0 || stepIndex >= SEQUENCER_STEP_COUNT) return;
+            const isOpen = seqRateOverlayStepIndex === stepIndex && !seqRateOverlay.classList.contains("hidden");
             closeSequencerMenus();
             if (!isOpen) {
-              positionSequencerMenuAt(rateBtn, menu);
+              showSeqRateOverlay(rateBtn, stepIndex);
               rateBtn.setAttribute("aria-expanded", "true");
             }
           }
@@ -7987,7 +8005,8 @@
       document.addEventListener("click", (ev) => {
         const target = ev.target;
         if (!(target instanceof Element)) return;
-        const clickedInsideMenu = !!target.closest(".sequencer-step-rate-menu") || !!target.closest("#sequencerRateMenu");
+        const clickedInsideOverlay = seqRateOverlay.contains(target);
+        const clickedInsideMenu = clickedInsideOverlay || !!target.closest("#sequencerRateMenu");
         const clickedMenuButton = !!target.closest(".sequencer-step-rate-btn") || !!target.closest("#sequencerRateBtn");
         if (!clickedInsideMenu && !clickedMenuButton) closeSequencerMenus();
       });
