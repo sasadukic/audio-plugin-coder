@@ -344,6 +344,13 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
     const int currentLightweightVersion = audioProcessor.getUiSessionStateLightweightVersion();
     if (currentLightweightVersion != lastPushedLightweightVersion)
     {
+        const auto nowMs = juce::Time::getMillisecondCounterHiRes();
+        if (nowMs < suppressLightweightPushUntilMs)
+        {
+            lastPushedLightweightVersion = currentLightweightVersion;
+        }
+        else
+        {
         const auto lightweightSessionJson = audioProcessor.getUiSessionStateJson (true);
         lastPushedLightweightVersion = currentLightweightVersion;
         if (lightweightSessionJson.isNotEmpty()
@@ -362,12 +369,13 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
                               + " | emitMs=" + juce::String (_afterPush - _beforePush, 2)
                               + " | flushMs=" + juce::String (_afterFlush - _timerStart, 2));
         }
+        }
     }
 
-    // Drain pending sample-data payloads (throttled to max 2 per tick to
+    // Drain pending sample-data payloads (throttled to max 1 per tick to
     // prevent WKWebView IPC channel saturation which blocks the message thread).
     {
-        constexpr int kMaxEmitsPerTick = 2;
+        constexpr int kMaxEmitsPerTick = 1;
         int emitted = 0;
         while (emitted < kMaxEmitsPerTick)
         {
@@ -816,6 +824,10 @@ void SamplePlayerAudioProcessorEditor::handleSessionStateSetEvent (const juce::v
     else if (eventPayload.isString())
         jsonPayload = eventPayload.toString();
 
+    // The payload came from the UI itself.  Suppress the timer's automatic
+    // lightweight session push for a short window so local edits such as
+    // doubling do not bounce a large JSON payload straight back into JS.
+    suppressLightweightPushUntilMs = juce::Time::getMillisecondCounterHiRes() + 4000.0;
     audioProcessor.setUiSessionStateJson (jsonPayload);
     audioProcessor.perfLog ("session_state_set", juce::Time::getMillisecondCounterHiRes() - t0,
                             "bytes=" + juce::String (jsonPayload.getNumBytesAsUTF8()));

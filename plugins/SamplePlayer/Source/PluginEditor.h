@@ -45,6 +45,7 @@ private:
     int lastEditorHeight = defaultPlayerHeight;
     juce::String lastPushedLightweightSessionJson;
     int lastPushedLightweightVersion = -1;
+    double suppressLightweightPushUntilMs = 0.0;
     juce::uint64 lastPushedHeldMidiMaskLo = 0;
     juce::uint64 lastPushedHeldMidiMaskHi = 0;
     float lastPushedModWheelValue = -1.0f;
