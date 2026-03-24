@@ -13098,7 +13098,7 @@
       if (typeof pending.resolve === "function") pending.resolve(dataUrl);
       if (pending.forSave) return;
 
-      if (state.selectedMapEntryOrder === entry.order || !el.sampleEditor.classList.contains("hidden")) {
+      if (state.selectedMapEntryOrder === entry.order) {
         void openSampleEditor(entry);
       }
     }

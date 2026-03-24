@@ -400,6 +400,37 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
         }
     }
 
+    {
+        constexpr int kMaxGraphicEmitsPerTick = 1;
+        int emitted = 0;
+        while (emitted < kMaxGraphicEmitsPerTick)
+        {
+            PendingGraphicDataEmit pending;
+            {
+                const juce::ScopedLock lock (pendingGraphicDataEmitLock);
+                if (pendingGraphicDataEmitQueue.empty())
+                    break;
+                pending = std::move (pendingGraphicDataEmitQueue.front());
+                pendingGraphicDataEmitQueue.pop_front();
+            }
+
+            auto response = juce::DynamicObject::Ptr (new juce::DynamicObject());
+            response->setProperty ("requestId", pending.requestId);
+            response->setProperty ("kind", pending.kind);
+            response->setProperty ("path", pending.path);
+            response->setProperty ("dataUrl", pending.dataUrl);
+            response->setProperty ("hasData", pending.dataUrl.isNotEmpty());
+            response->setProperty ("fileName", pending.fileName);
+            response->setProperty ("mimeType", pending.mimeType);
+            webView->emitEventIfBrowserIsVisible ("graphic_data_payload", juce::var (response.get()));
+            audioProcessor.perfLog ("graphic_data_emit", pending.encodingElapsedMs,
+                                    "kind=" + pending.kind
+                                    + " path=" + pending.path
+                                    + " bytes=" + juce::String (pending.bytesOut));
+            ++emitted;
+        }
+    }
+
     const auto emitTakeEvent = [this] (const juce::String& fileName,
                                        const juce::String& filePath,
                                        int rootMidi,
@@ -960,7 +991,6 @@ void SamplePlayerAudioProcessorEditor::handleSampleDataGetEvent (const juce::var
 
 void SamplePlayerAudioProcessorEditor::handleGraphicDataGetEvent (const juce::var& eventPayload)
 {
-    const auto t0 = juce::Time::getMillisecondCounterHiRes();
     if (! webView)
         return;
 
@@ -975,32 +1005,34 @@ void SamplePlayerAudioProcessorEditor::handleGraphicDataGetEvent (const juce::va
         path = object->getProperty ("path").toString().trim();
     }
 
-    auto response = juce::DynamicObject::Ptr (new juce::DynamicObject());
-    response->setProperty ("requestId", requestId);
-    response->setProperty ("kind", kind);
-    response->setProperty ("path", path);
-
-    juce::String dataUrl;
-    juce::String mimeType;
-    juce::String fileName;
-    if (juce::File::isAbsolutePath (path))
+    graphicDataRequestPool.addJob ([this, requestId, kind, path]()
     {
-        const auto file = juce::File (path);
-        if (file.existsAsFile())
-        {
-            dataUrl = buildFileDataUrl (file);
-            fileName = file.getFileName();
-            mimeType = file.getFileExtension().toLowerCase();
-        }
-    }
+        const auto t0 = juce::Time::getMillisecondCounterHiRes();
 
-    response->setProperty ("dataUrl", dataUrl);
-    response->setProperty ("hasData", dataUrl.isNotEmpty());
-    response->setProperty ("fileName", fileName);
-    response->setProperty ("mimeType", mimeType);
-    webView->emitEventIfBrowserIsVisible ("graphic_data_payload", juce::var (response.get()));
-    audioProcessor.perfLog ("graphic_data_get", juce::Time::getMillisecondCounterHiRes() - t0,
-                            "kind=" + kind + " path=" + path + " bytes=" + juce::String (dataUrl.length()));
+        PendingGraphicDataEmit pending;
+        pending.requestId = requestId;
+        pending.kind = kind;
+        pending.path = path;
+
+        if (juce::File::isAbsolutePath (path))
+        {
+            const auto file = juce::File (path);
+            if (file.existsAsFile())
+            {
+                pending.dataUrl = buildFileDataUrl (file);
+                pending.fileName = file.getFileName();
+                pending.mimeType = file.getFileExtension().toLowerCase();
+            }
+        }
+
+        pending.bytesOut = static_cast<size_t> (pending.dataUrl.length());
+        pending.encodingElapsedMs = juce::Time::getMillisecondCounterHiRes() - t0;
+
+        {
+            const juce::ScopedLock lock (pendingGraphicDataEmitLock);
+            pendingGraphicDataEmitQueue.push_back (std::move (pending));
+        }
+    });
 }
 
 void SamplePlayerAudioProcessorEditor::handlePreviewMidiEvent (const juce::var& eventPayload)

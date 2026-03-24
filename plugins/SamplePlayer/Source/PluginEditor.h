@@ -58,6 +58,7 @@ private:
     std::unique_ptr<juce::FileChooser> loadInstrumentChooser;
     std::unique_ptr<juce::FileChooser> audioFileChooser;
     juce::ThreadPool sampleDataRequestPool { 1 };
+    juce::ThreadPool graphicDataRequestPool { 1 };
 
     struct PendingSampleDataEmit
     {
@@ -75,6 +76,21 @@ private:
 
     juce::CriticalSection pendingSampleDataEmitLock;
     std::deque<PendingSampleDataEmit> pendingSampleDataEmitQueue;
+
+    struct PendingGraphicDataEmit
+    {
+        int requestId = -1;
+        juce::String kind;
+        juce::String path;
+        juce::String dataUrl;
+        juce::String fileName;
+        juce::String mimeType;
+        size_t bytesOut = 0;
+        double encodingElapsedMs = 0.0;
+    };
+
+    juce::CriticalSection pendingGraphicDataEmitLock;
+    std::deque<PendingGraphicDataEmit> pendingGraphicDataEmitQueue;
 
     std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);
     static juce::WebBrowserComponent::Options createWebOptions (SamplePlayerAudioProcessorEditor& editor);
