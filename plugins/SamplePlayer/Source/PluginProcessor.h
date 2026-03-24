@@ -167,7 +167,6 @@ public:
     void loadMonolithDirect (const juce::String& filePath);
     void setActiveMapSetId (const juce::String& setId);
     juce::String getUiSessionStateJson (bool lightweightPreferred = false);
-    int getUiSessionStateLightweightVersion() const noexcept { return uiSessionStateLightweightVersion.load (std::memory_order_relaxed); }
     juce::String getSampleDataUrlForMapEntry (int rootMidi,
                                               int velocityLayer,
                                               int rrIndex,
@@ -193,10 +192,6 @@ public:
 
     juce::AudioProcessorValueTreeState parameters;
 
-    // ── Profiler (public so editor can call) ────────────────────────────
-    void perfLog (const char* tag, double durationMs, const juce::String& detail = {});
-    void perfFlushToFile (bool force = false);
-
 private:
     struct SampleZone
     {
@@ -213,8 +208,6 @@ private:
         juce::String summary;
         std::unordered_map<std::string, int> mapSetSlotById;
         std::unordered_map<int, bool> loopPlaybackBySlot;
-        std::unordered_map<int, bool> fixedPitchBySlot;
-        std::unordered_map<int, bool> singleRootBySlot;
         std::array<int, 128> keyswitchSlotByMidi {};
         bool hasKeyswitchSets = false;
     };
@@ -320,15 +313,13 @@ private:
 
     void handleMidiMessage (const juce::MidiMessage& message, const BlockSettings& settings, bool previewMessage = false);
     void startVoiceForNote (int midiChannel, int midiNoteNumber, float velocity, const BlockSettings& settings);
-    std::shared_ptr<const SampleZone> startVoiceForNoteInternal (int midiChannel,
-                                                                 int midiNoteNumber,
-                                                                 float velocity,
-                                                                 const BlockSettings& settings,
-                                                                 bool suppressMonoCut,
-                                                                 float pan,
-                                                                 int rrOffset,
-                                                                 const SampleZone* excludedZone = nullptr,
-                                                                 int forcedMapSetSlot = -1);
+    void startVoiceForNoteInternal (int midiChannel,
+                                    int midiNoteNumber,
+                                    float velocity,
+                                    const BlockSettings& settings,
+                                    bool suppressMonoCut,
+                                    float pan,
+                                    int rrOffset);
     void releaseVoicesForNote (int midiChannel, int midiNoteNumber, bool allowTailOff, const BlockSettings& settings);
     void enforceSingleVoicePerMidiNote();
     void stopAllVoices();
@@ -338,14 +329,11 @@ private:
     VoiceState* stealOldestVoice();
     void startStealTailFromVoice (const VoiceState& sourceVoice);
     void setMidiHeldState (int midiNote, bool held) noexcept;
-    bool isSingleRootDrumSlot (const SampleSet& sampleSet, int mapSetSlot) const;
 
     std::shared_ptr<const SampleZone> pickZoneForNote (int midiNoteNumber,
                                                        int velocity127,
                                                        bool* usedModwheelLayerSelection = nullptr,
-                                                       int rrOffset = 0,
-                                                       const SampleZone* excludedZone = nullptr,
-                                                       int forcedMapSetSlot = -1);
+                                                       int rrOffset = 0);
     bool hasMultipleRoundRobinsForNote (int midiNoteNumber, int velocity127) const;
 
     BlockSettings getBlockSettingsSnapshot() const;
@@ -439,10 +427,7 @@ private:
     std::array<int, 128> midiNoteOnCounts {};
     std::atomic<juce::uint64> midiHeldMaskLo { 0 };
     std::atomic<juce::uint64> midiHeldMaskHi { 0 };
-    std::atomic<bool> roundRobinRandomMode { false };
     std::unordered_map<int, int> roundRobinCounters;
-    std::unordered_map<int, std::array<juce::uint64, 2>> roundRobinRecentChoiceIds;
-    juce::uint32 roundRobinRandomState = 0x12345678u;
     mutable juce::CriticalSection pendingPreviewMidiLock;
     std::vector<PendingPreviewMidiEvent> pendingPreviewMidiEvents;
 
@@ -459,19 +444,15 @@ private:
     mutable juce::CriticalSection uiSessionStateLock;
     juce::String uiSessionStateJson;
     juce::String uiSessionStateLightweightJson;
-    std::atomic<int> uiSessionStateLightweightVersion { 0 };
     juce::String pendingActiveMapSetId;
     mutable juce::CriticalSection sessionMapSyncLock;
     juce::String lastSessionMapSignature;
     std::atomic<int> sessionStateSyncRequestId { 0 };
-    std::atomic<bool> sessionSyncJobActive { false };
-    std::atomic<bool> sessionSyncResyncNeeded { false };
     std::atomic<bool> monolithDecodeInProgress { false };
     std::atomic<bool> modwheelVelocityLayerControlEnabled { false };
     std::atomic<float> modwheelVelocityLayerControlValue01 { 0.0f };
     std::atomic<float> expressionControllerValue01 { 0.0f };
     std::atomic<int> playerPitchDownOctaves { 0 };
-    std::atomic<bool> strumDoublingEnabled { false };
     std::atomic<bool> activeMapLoopPlaybackEnabled { true };
     mutable juce::CriticalSection decodedEmbeddedAudioCacheLock;
     std::unordered_map<juce::uint64, std::shared_ptr<DecodedEmbeddedAudioCacheEntry>> decodedEmbeddedAudioCache;
@@ -559,24 +540,6 @@ private:
     double presetLoadTraceStartMs = 0.0;
     bool presetLoadTraceActive = false;
     juce::String presetLoadTraceSource;
-
-    // ── Comprehensive profiler ──────────────────────────────────────────
-    struct PerfEntry
-    {
-        double timestampMs = 0.0;
-        double durationMs = 0.0;
-        char tag[48] = {};
-        char detail[128] = {};
-    };
-
-    static constexpr int kPerfRingSize = 2048;
-    std::array<PerfEntry, kPerfRingSize> perfRing;
-    std::atomic<int> perfRingHead { 0 };
-    std::atomic<int> perfFlushTail { 0 };
-    double lastPerfFlushMs = 0.0;
-    double processBlockPeakMs = 0.0;
-    juce::uint64 processBlockCallCount = 0;
-    double processBlockTotalMs = 0.0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplePlayerAudioProcessor)
 };

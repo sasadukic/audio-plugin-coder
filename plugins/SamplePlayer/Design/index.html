@@ -25,9 +25,6 @@
       --player-press-glow-rgb: 224, 224, 224;
       --player-wheel-rgb: 236, 236, 236;
       --player-wheel-rgb-dark: 216, 216, 216;
-      --player-open-string-rgb: 152, 152, 152;
-      --player-open-string-border-rgb: 224, 224, 224;
-      --player-open-string-text-rgb: 244, 244, 244;
       --player-key-tint-alpha-top: 0;
       --player-key-tint-alpha-bottom: 0;
       --player-key-press-tint-alpha-top: 0;
@@ -858,26 +855,10 @@
       position: relative;
       overflow: hidden;
       background-color: rgb(var(--player-topbar-rgb, 8, 11, 17));
-    }
-
-    .player-wallpaper-layer {
-      position: absolute;
-      inset: 0 0 var(--player-kb-height) 0;
-      z-index: 0;
-      pointer-events: none;
-      overflow: hidden;
-    }
-
-    .player-wallpaper-image {
-      position: absolute;
-      display: block;
-      width: auto;
-      height: auto;
-      max-width: none;
-      max-height: none;
-      object-fit: fill;
-      object-position: 0 0;
-      pointer-events: none;
+      background-image: var(--player-wallpaper);
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: var(--player-wallpaper-position, center);
     }
 
     .player-logo-zone {
@@ -1533,56 +1514,6 @@
     .player-key-black .player-key-label {
       bottom: 7px;
       color: rgba(228, 238, 252, 0.7);
-    }
-
-    .player-key-white.open-string,
-    .player-key-white.open-string.has-sample,
-    .player-key-white.c-note.open-string,
-    .player-key-white.c-note.open-string.has-sample {
-      border-right-color: rgba(var(--player-open-string-border-rgb), 0.78);
-      border-top-color: rgba(var(--player-open-string-border-rgb), 0.96);
-      background:
-        linear-gradient(
-          180deg,
-          rgba(var(--player-open-string-rgb), 0.34),
-          rgba(var(--player-open-string-rgb), 0.56)
-        ),
-        linear-gradient(180deg, #d8dce3, #b6bec9);
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.66),
-        inset 0 -10px 18px rgba(0, 0, 0, 0.12),
-        0 0 0 1px rgba(var(--player-open-string-border-rgb), 0.18),
-        0 0 14px rgba(var(--player-open-string-rgb), 0.22);
-    }
-
-    .player-key-white.open-string::before {
-      opacity: 0.22;
-      background:
-        radial-gradient(circle at 50% 26%, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0) 62%),
-        linear-gradient(180deg, rgba(var(--player-open-string-border-rgb), 0.08), rgba(var(--player-open-string-rgb), 0));
-    }
-
-    .player-key-black.open-string {
-      border-color: rgba(var(--player-open-string-border-rgb), 0.42);
-      background:
-        linear-gradient(
-          180deg,
-          rgba(var(--player-open-string-rgb), 0.6),
-          rgba(var(--player-open-string-rgb), 0.28)
-        ),
-        linear-gradient(180deg, #343a42, #171c22);
-      box-shadow:
-        0 10px 18px rgba(0, 0, 0, 0.46),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08),
-        inset 0 -8px 12px rgba(0, 0, 0, 0.56),
-        0 0 14px rgba(var(--player-open-string-rgb), 0.24);
-    }
-
-    .player-key.open-string .player-key-label,
-    .player-key-white.c-note.open-string .player-key-label,
-    .player-key-white.c-note.open-string.has-sample .player-key-label {
-      color: rgba(var(--player-open-string-text-rgb), 0.94);
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.26);
     }
 
     .player-key-white.no-sample {
@@ -2899,70 +2830,6 @@
       padding: 10px;
     }
 
-    .lock-modal-window {
-      width: min(420px, 100%);
-    }
-
-    .lock-modal-copy {
-      margin: 0 0 12px;
-      font-size: 12px;
-      line-height: 1.45;
-      color: var(--text-dim);
-    }
-
-    .lock-modal-field {
-      display: grid;
-      gap: 6px;
-      margin: 0;
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-dim);
-    }
-
-    .lock-modal-input {
-      width: 100%;
-      min-width: 0;
-      height: 34px;
-      border: 1px solid rgba(140, 146, 156, 0.32);
-      border-radius: 8px;
-      background: rgba(8, 12, 18, 0.92);
-      color: var(--text);
-      font: inherit;
-      font-size: 13px;
-      letter-spacing: 0.02em;
-      padding: 0 10px;
-      outline: none;
-    }
-
-    .lock-modal-input:focus {
-      border-color: rgba(255, 216, 92, 0.6);
-      box-shadow: 0 0 0 1px rgba(255, 216, 92, 0.24);
-    }
-
-    .lock-modal-status {
-      min-height: 18px;
-      margin-top: 10px;
-      font-size: 11px;
-      line-height: 1.35;
-      color: var(--text-dim);
-    }
-
-    .lock-modal-status.error {
-      color: #ff9c9c;
-    }
-
-    .lock-modal-status.ok {
-      color: #b9efad;
-    }
-
-    .lock-modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 12px;
-    }
-
     .render {
       border: 0;
       border-radius: 0;
@@ -3082,12 +2949,6 @@
       gap: 8px;
       flex-wrap: wrap;
       margin-right: 0;
-    }
-
-    .keyswitch-import-toggle {
-      white-space: nowrap;
-      font-size: 11px;
-      padding: 0;
     }
 
     .keyswitch-map-matrix-controls {
@@ -3296,12 +3157,6 @@
       color: rgba(203, 211, 224, 0.88);
       border-color: rgba(140, 146, 156, 0.24);
       background: rgba(9, 13, 20, 0.84);
-    }
-
-    .keyswitch-map-loop-btn.random {
-      color: rgba(224, 224, 224, 0.96);
-      border-color: rgba(180, 180, 180, 0.34);
-      background: rgba(52, 52, 52, 0.9);
     }
 
     .keyswitch-map-key {
@@ -3619,7 +3474,9 @@
     }
 
     .logo-position-menu {
-      position: fixed;
+      position: absolute;
+      left: 0;
+      top: calc(100% + 6px);
       z-index: 2000;
       display: grid;
       grid-template-columns: repeat(3, 24px);
@@ -4380,26 +4237,9 @@
       white-space: nowrap;
     }
 
-    .map-key-context-menu-item.checkbox-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding-right: 18px;
-    }
-
-    .map-key-context-menu-checkbox {
-      margin: 0;
-      pointer-events: none;
-      accent-color: rgb(var(--player-open-string-border-rgb));
-    }
-
     .map-key-context-menu-item:hover {
       background: rgba(80, 140, 255, 0.25);
       color: #fff;
-    }
-
-    .map-key.open-string {
-      box-shadow: inset 0 0 0 2px rgba(var(--player-open-string-border-rgb), 0.86);
     }
 
     .hidden {
@@ -4549,9 +4389,6 @@
 
     <section id="panel-player" class="panel active">
       <div id="playerStage" class="player-stage">
-        <div id="playerWallpaperLayer" class="player-wallpaper-layer" aria-hidden="true">
-          <img id="playerWallpaperImage" class="player-wallpaper-image hidden" alt="" aria-hidden="true">
-        </div>
         <div class="player-logo-zone" aria-hidden="true">
           <div id="playerLogoWrap" class="player-logo hidden" aria-hidden="true">
             <img id="playerLogo" class="player-logo-img" alt="">
@@ -4802,10 +4639,6 @@
                   <button id="addFolderBtn" class="sample-loop-tool-btn" type="button">Add Folder</button>
                   <button id="newKeyswitchBtn" class="sample-loop-tool-btn" type="button">New Keyswitch</button>
                   <button id="importKeyswitchesBtn" class="sample-loop-tool-btn" type="button">Import Keyswitches</button>
-                  <label class="checkbox keyswitch-import-toggle" title="Imported one-note keyswitches play at their original pitch on every key">
-                    <input id="keyswitchSingleNoteFixedPitchToggle" type="checkbox">
-                    <span>Fixed Pitch</span>
-                  </label>
                   <button id="clearInstrumentBtn" class="sample-loop-tool-btn" type="button">Clear</button>
                 </div>
                 <div id="newKeyswitchPopover" class="new-ks-popover">
@@ -4826,7 +4659,6 @@
                     <button id="keyswitchMapLoopModeBtn" class="keyswitch-map-loop-btn" type="button" aria-pressed="true" title="Loop playback enabled">Loop</button>
                     <input id="keyswitchMapLoopToggle" type="checkbox" checked>
                   </div>
-                  <button id="keyswitchMapRrModeBtn" class="keyswitch-map-loop-btn" type="button" aria-pressed="false" title="Round robin playback in sequential order">Sequential</button>
                   <span id="keyswitchMapWarning" class="keyswitch-map-warning hidden" aria-live="polite"></span>
                 </div>
               </div>
@@ -5092,27 +4924,6 @@
     </div>
   </div>
 
-  <div id="instrumentLockModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="instrumentLockModalTitle">
-    <div class="modal-window lock-modal-window">
-      <div class="modal-head">
-        <h2 id="instrumentLockModalTitle" class="modal-title">Lock Instrument</h2>
-        <button id="closeInstrumentLockBtn" class="modal-close" type="button" aria-label="Close instrument lock dialog">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p id="instrumentLockModalCopy" class="lock-modal-copy">Set a password to hide Setup / Mapping until you unlock it.</p>
-        <label class="lock-modal-field" for="instrumentLockPasswordInput">
-          Password
-          <input id="instrumentLockPasswordInput" class="lock-modal-input" type="password" autocomplete="off" spellcheck="false" />
-        </label>
-        <div id="instrumentLockModalStatus" class="lock-modal-status hidden" aria-live="polite"></div>
-        <div class="lock-modal-actions">
-          <button id="instrumentLockCancelBtn" type="button">Cancel</button>
-          <button id="instrumentLockConfirmBtn" class="sample-loop-tool-btn" type="button">Lock Instrument</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <script>
     const NOTE_TO_SEMITONE = {
       C: 0, "C#": 1, Db: 1, D: 2, "D#": 3, Eb: 3, E: 4,
@@ -5187,7 +4998,6 @@
       playerParticlesEnabled: true,
       playerGodRaysEnabled: true,
       playerEdgeWaveBlurEnabled: true,
-      playerWallpaperSwatchRgb: [40, 40, 40],
       playerParticleRgb: [218, 222, 229],
       playerParticleGlowRgb: [238, 242, 248],
       playerParticles: [],
@@ -5197,10 +5007,8 @@
       playerParticlesDpr: 1,
       autoPresets: [],
       keyswitchSets: [],
-      keyswitchImportSingleNoteFixedPitchEnabled: false,
       activeMapSetId: "base",
       baseLoopPlaybackEnabled: true,
-      roundRobinPlaybackMode: "sequential",
       mapMatrixVelocityLayers: 3,
       mapMatrixRrColumns: 1,
       mapMatrixInterval: 1,
@@ -5210,10 +5018,8 @@
       mapMatrixRrCursor: {},
       mapMatrixPaintActive: false,
       mapMatrixLastPaintCellKey: "",
-      openStringMidis: [],
       keyContextMenuTargetMidi: null,
       keyContextMenuTargetLayer: null,
-      keyContextMenuScope: "",
       sequencerHostTriggerEnabled: false,
       sequencerCurrentStep: -1,
       sequencerSteps: Array.from({ length: SEQUENCER_STEP_COUNT }, () => ({
@@ -5226,9 +5032,6 @@
       strumSequencerSteps: 0,
       strumDoubling: false,
       playerPitchDownOctaves: 0,
-      instrumentLockPasswordHash: "",
-      instrumentLocked: false,
-      instrumentLockModalMode: "",
       strumShowOnMain: false,
       strumRateIndex: 2,
       strumSwingPercent: 0,
@@ -5268,8 +5071,6 @@
       sessionStateSaveInFlight: false,
       sessionStateSaveQueued: false,
       sessionStateFlushDebugCount: 0,
-      sessionStateDirtyRevision: 0,
-      lastFlushedSessionStateRevision: -1,
       lastFlushedJsonHash: "",
       pendingCacheCount: 0,
       sessionStateRestoreCompletedAt: 0,
@@ -5299,8 +5100,6 @@
       loadingOverlay: document.getElementById("loadingOverlay"),
       loadingLabel: document.getElementById("loadingLabel"),
       tabsBar: document.querySelector(".tabs"),
-      playerTabBtn: document.querySelector('.tab-btn[data-tab="player"]'),
-      setupTabBtn: document.querySelector('.tab-btn[data-tab="setup"]'),
       playerControls: document.querySelector(".player-controls"),
       playerAuthorDisplay: document.getElementById("playerAuthorDisplay"),
       playerParticles: document.getElementById("playerParticles"),
@@ -5321,8 +5120,6 @@
       logoPositionButtons: Array.from(document.querySelectorAll("#logoPositionMenu .logo-pos-btn")),
       logoRemoveBtn: document.getElementById("logoRemoveBtn"),
       playerStage: document.getElementById("playerStage"),
-      playerWallpaperLayer: document.getElementById("playerWallpaperLayer"),
-      playerWallpaperImage: document.getElementById("playerWallpaperImage"),
       playerLogoWrap: document.getElementById("playerLogoWrap"),
       playerLogo: document.getElementById("playerLogo"),
       playerEmptyState: document.getElementById("playerEmptyState"),
@@ -5355,10 +5152,8 @@
       keyswitchMapNormalizeBtn: document.getElementById("keyswitchMapNormalizeBtn"),
       keyswitchMapLoopWrap: document.getElementById("keyswitchMapLoopWrap"),
       keyswitchMapLoopModeBtn: document.getElementById("keyswitchMapLoopModeBtn"),
-      keyswitchMapRrModeBtn: document.getElementById("keyswitchMapRrModeBtn"),
       keyswitchMapLoopToggle: document.getElementById("keyswitchMapLoopToggle"),
       keyswitchMapWarning: document.getElementById("keyswitchMapWarning"),
-      keyswitchSingleNoteFixedPitchToggle: document.getElementById("keyswitchSingleNoteFixedPitchToggle"),
       sampleEditor: document.getElementById("sampleEditor"),
       sampleEditorTitle: document.getElementById("sampleEditorTitle"),
       sampleEditorMeta: document.getElementById("sampleEditorMeta"),
@@ -5436,14 +5231,6 @@
       openSummaryBtn: document.getElementById("openSummaryBtn"),
       closeSummaryBtn: document.getElementById("closeSummaryBtn"),
       summaryModal: document.getElementById("summaryModal"),
-      instrumentLockModal: document.getElementById("instrumentLockModal"),
-      instrumentLockModalTitle: document.getElementById("instrumentLockModalTitle"),
-      instrumentLockModalCopy: document.getElementById("instrumentLockModalCopy"),
-      instrumentLockModalStatus: document.getElementById("instrumentLockModalStatus"),
-      instrumentLockPasswordInput: document.getElementById("instrumentLockPasswordInput"),
-      instrumentLockConfirmBtn: document.getElementById("instrumentLockConfirmBtn"),
-      instrumentLockCancelBtn: document.getElementById("instrumentLockCancelBtn"),
-      closeInstrumentLockBtn: document.getElementById("closeInstrumentLockBtn"),
       filesInput: document.getElementById("filesInput"),
       folderInput: document.getElementById("folderInput"),
       packInput: document.getElementById("packInput"),
@@ -5751,47 +5538,6 @@
       } catch {}
     }
 
-    // ── Comprehensive UI profiler ───────────────────────────────────────
-    const _perfLog = [];
-    let _perfFlushTimer = 0;
-    function perfLog(tag, durationMs, detail) {
-      _perfLog.push({ t: performance.now(), tag, ms: durationMs, detail: detail || "" });
-      if (_perfLog.length > 500) _perfLog.splice(0, _perfLog.length - 500);
-      if (!_perfFlushTimer) {
-        _perfFlushTimer = window.setTimeout(() => {
-          _perfFlushTimer = 0;
-          perfFlush();
-        }, 2000);
-      }
-    }
-    function perfFlush() {
-      if (!_perfLog.length) return;
-      const lines = _perfLog.splice(0, _perfLog.length)
-        .map(e => `  [JS ${e.tag}] ${e.ms.toFixed(1)}ms${e.detail ? " | " + e.detail : ""}`)
-        .join("\n");
-      debugLoadLog("──── JS PERF FLUSH ────\n" + lines);
-    }
-    function perfWrap(tag, fn, detailFn) {
-      return function(...args) {
-        const t0 = performance.now();
-        const result = fn.apply(this, args);
-        const ms = performance.now() - t0;
-        const detail = detailFn ? detailFn(...args) : "";
-        if (ms > 1) perfLog(tag, ms, detail);
-        return result;
-      };
-    }
-    function perfWrapAsync(tag, fn, detailFn) {
-      return async function(...args) {
-        const t0 = performance.now();
-        const result = await fn.apply(this, args);
-        const ms = performance.now() - t0;
-        const detail = detailFn ? detailFn(...args) : "";
-        if (ms > 1) perfLog(tag, ms, detail);
-        return result;
-      };
-    }
-
     function releaseSessionPayloadLock(delayMs = 0) {
       if (state.sessionPayloadUnlockTimer) {
         window.clearTimeout(state.sessionPayloadUnlockTimer);
@@ -6014,15 +5760,6 @@
       return /^[A-Za-z]:\//.test(normalized) || normalized.startsWith("/");
     }
 
-    // Stable timestamp for session state saves — avoids producing a different
-    // JSON string on every flush, which would defeat the C++ no-op check and
-    // trigger an expensive thread-pool parse+sync cycle every time.
-    let _stableCreatedUtc = "";
-    function getStableCreatedUtc() {
-      if (!_stableCreatedUtc) _stableCreatedUtc = new Date().toISOString();
-      return _stableCreatedUtc;
-    }
-
     function ensurePackManifestBasePathHint() {
       if (getPackManifestBasePath()) return;
       const hasRelativeManifestPaths = getAllMapEntries().some((entry) => {
@@ -6085,16 +5822,6 @@
       state.sessionStateSaveTimer = 0;
     }
 
-    function markSessionStateDirty() {
-      state.sessionStateDirtyRevision = (Number(state.sessionStateDirtyRevision) || 0) + 1;
-      return state.sessionStateDirtyRevision;
-    }
-
-    function invalidateSessionStateFlushCache() {
-      state.lastFlushedJsonHash = "";
-      state.lastFlushedSessionStateRevision = -1;
-    }
-
     function ensureSessionStateWritable(reason = "manual-edit") {
       if (!state.sessionStateLightweight) return;
       state.sessionStateLightweight = false;
@@ -6105,7 +5832,6 @@
     }
 
     async function buildSessionStateSnapshot(options = {}) {
-      const _t0 = performance.now();
       ensurePackManifestBasePathHint();
       if (options.force) {
         if ((state.pendingCacheCount || 0) <= 0) {
@@ -6118,7 +5844,7 @@
         preserveRuntimePaths: true,
         includeEmbeddedSampleData: !!options.includeEmbeddedSampleData
       });
-      const _snapResult = {
+      return {
         version: 1,
         manifest,
         ui: {
@@ -6141,17 +5867,13 @@
             key: String(set?.key || ""),
             keyMidi: Number.isFinite(set?.keyMidi) ? Math.round(set.keyMidi) : null,
             loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
-            singleNoteFixedPitchEnabled: set?.singleNoteFixedPitchEnabled === true,
             index,
             active: String(state.activeMapSetId || "") === String(set?.id || ""),
             manualRanges: cloneManualRangesObject(set?.manualRanges)
           })),
-          keyswitchImportSingleNoteFixedPitchEnabled: !!state.keyswitchImportSingleNoteFixedPitchEnabled,
           velocityCrossfadeByRoot: { ...(state.velocityCrossfadeByRoot || {}) },
           loopCrossfadeMs: clampLoopCrossfadeMs(state.loopCrossfadeMs),
           allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
-          roundRobinPlaybackMode: normalizeRoundRobinPlaybackMode(state.roundRobinPlaybackMode),
-          openStringMidis: normalizeOpenStringMidis(state.openStringMidis),
           autoRR: !!state.autoRR,
           autoGainCrossfade: !!state.autoGainCrossfade,
           wallpaperPosition: normalizeWallpaperPosition(state.wallpaperPosition),
@@ -6169,17 +5891,11 @@
           expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
           pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
           playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
-          instrumentLock: {
-            passwordHash: String(state.instrumentLockPasswordHash || "").trim(),
-            locked: !!state.instrumentLockPasswordHash && !!state.instrumentLocked
-          },
           auto: buildAutoControlsSnapshot(),
           sequencer: buildSequencerSnapshot(),
           strum: buildStrumSnapshot()
         }
       };
-      perfLog("buildSessionStateSnapshot", performance.now() - _t0, `force=${!!options.force}`);
-      return _snapResult;
     }
 
     function buildQuickSessionSnapshotFromManifest(manifest) {
@@ -6204,12 +5920,9 @@
           manifestBasePath: getPackManifestBasePath(),
           manualRootRanges: cloneManualRangesObject(state.manualRootRanges),
           keyswitchSets: [],
-          keyswitchImportSingleNoteFixedPitchEnabled: !!state.keyswitchImportSingleNoteFixedPitchEnabled,
           velocityCrossfadeByRoot: { ...(state.velocityCrossfadeByRoot || {}) },
           loopCrossfadeMs: clampLoopCrossfadeMs(state.loopCrossfadeMs),
           allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
-          roundRobinPlaybackMode: normalizeRoundRobinPlaybackMode(state.roundRobinPlaybackMode),
-          openStringMidis: normalizeOpenStringMidis(state.openStringMidis),
           autoRR: !!state.autoRR,
           autoGainCrossfade: !!state.autoGainCrossfade,
           wallpaperPosition: normalizeWallpaperPosition(state.wallpaperPosition),
@@ -6227,10 +5940,6 @@
           expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
           pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
           playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
-          instrumentLock: {
-            passwordHash: String(state.instrumentLockPasswordHash || "").trim(),
-            locked: !!state.instrumentLockPasswordHash && !!state.instrumentLocked
-          },
           auto: buildAutoControlsSnapshot(),
           sequencer: buildSequencerSnapshot(),
           strum: buildStrumSnapshot()
@@ -6239,7 +5948,6 @@
     }
 
     async function flushSessionStateToNative(force = false, flushOptions = {}) {
-      const _t0 = performance.now();
       clearSessionStateSaveTimer();
       if (state.sessionStateRestoreInProgress) return;
       if (!getNativeBackend()) return;
@@ -6256,18 +5964,84 @@
       try {
         const flushStart = performance.now();
 
-        const dirtyRevision = Number(state.sessionStateDirtyRevision) || 0;
-        if (!force && dirtyRevision === Number(state.lastFlushedSessionStateRevision)) {
+        // Build a lightweight signature directly from state fields BEFORE
+        // building the full snapshot.  This avoids the expensive
+        // buildManifestSkeleton + buildManifestMapping + JSON.stringify
+        // on large payloads (wallpaper/logo data URLs can be several MB)
+        // when nothing actually changed.
+        const baseEntries = Array.isArray(state.entries) ? state.entries : [];
+        const ksSets = Array.isArray(state.keyswitchSets) ? state.keyswitchSets : [];
+        let entrySigParts = "";
+        for (let i = 0; i < baseEntries.length; i++) {
+          const e = baseEntries[i];
+          if (!e || !e.valid) continue;
+          entrySigParts += `${e.order}:${e.rootMidi}:${e.velocityLayer}:${(e.loopStartNorm||0).toFixed(4)}:${(e.loopEndNorm||1).toFixed(4)}:${(e.sampleStartNorm||0).toFixed(4)}:${e.loopEnabled?1:0}:${e.fineTuneCents||0}:${(e.editorGainDb||0).toFixed(1)},`;
+        }
+        for (let si = 0; si < ksSets.length; si++) {
+          const set = ksSets[si];
+          const setEntries = Array.isArray(set?.entries) ? set.entries : [];
+          for (let i = 0; i < setEntries.length; i++) {
+            const e = setEntries[i];
+            if (!e || !e.valid) continue;
+            entrySigParts += `${e.order}:${e.rootMidi}:${e.velocityLayer}:${(e.loopStartNorm||0).toFixed(4)}:${(e.loopEndNorm||1).toFixed(4)}:${(e.sampleStartNorm||0).toFixed(4)}:${e.loopEnabled?1:0}:${e.fineTuneCents||0}:${(e.editorGainDb||0).toFixed(1)},`;
+          }
+        }
+
+        const hashSig = [
+          state.setupOctaveStart,
+          state.activeMapSetId,
+          state.mapMatrixInterval,
+          state.mapMatrixVelocityLayers,
+          state.mapMatrixRrColumns,
+          state.mapMatrixSplitEnabled,
+          state.baseLoopPlaybackEnabled,
+          getPackManifestFilePath(),
+          getPackManifestBasePath(),
+          state.wallpaperPosition,
+          state.wallpaperName,
+          state.logoPosition,
+          state.logoName,
+          state.loopCrossfadeMs,
+          state.allowPitchUpAboveHighest,
+          state.autoRR,
+          state.autoGainCrossfade,
+          state.playerParticlesEnabled,
+          state.playerGodRaysEnabled,
+          state.playerEdgeWaveBlurEnabled,
+          state.modWheelValue,
+          state.expressionValue,
+          state.pitchBendValue,
+          state.playerPitchDownOctaves,
+          baseEntries.length,
+          ksSets.length,
+          state.strumEnabled,
+          state.strumSequencerSteps,
+          state.strumSequencerMode,
+          state.strumDoubling,
+          state.strumShowOnMain,
+          state.strumRateIndex,
+          state.strumSwingPercent,
+          state.strumVelocityHumanizePercent,
+          state.strumTimingHumanizeMs,
+          state.sequencerHostTriggerEnabled,
+          JSON.stringify(state.manualRootRanges || {}),
+          JSON.stringify(state.velocityCrossfadeByRoot || {}),
+          JSON.stringify(state.sequencerSteps),
+          JSON.stringify(state.strumStepPattern),
+          ksSets.map(s => `${s?.id}:${s?.key}:${s?.keyMidi}:${JSON.stringify(s?.manualRanges||{})}`).join(";"),
+          entrySigParts
+        ].join("|");
+
+        if (hashSig === state.lastFlushedJsonHash && !force) {
           debugLoadLog(`flush skipped | identical sig | ${(performance.now() - flushStart).toFixed(1)}ms`);
         } else {
+          state.lastFlushedJsonHash = hashSig;
           const snapshot = await buildSessionStateSnapshot({
             force,
             includeEmbeddedSampleData: !!flushOptions.includeEmbeddedSampleData
           });
           const jsonPayload = JSON.stringify(snapshot);
           emitNativeEvent("session_state_set", { json: jsonPayload });
-          state.lastFlushedSessionStateRevision = dirtyRevision;
-          state.lastFlushedJsonHash = String(dirtyRevision);
           const totalMs = performance.now() - flushStart;
           const debugCount = Number(state.sessionStateFlushDebugCount) || 0;
           if (debugCount < 5 || totalMs > 500) {
@@ -6275,9 +6049,10 @@
             debugLoadLog(`flush session state | totalMs=${totalMs.toFixed(1)} | jsonBytes=${jsonPayload.length}`);
           }
         }
-      } catch (flushErr) {
-        debugLoadLog(`flush ERROR | force=${force} | ${String(flushErr?.message || flushErr || "unknown")}`);
-        console.error("flushSessionStateToNative error:", flushErr);
+      } catch {
+        if (force) {
+          // Ignore failures during teardown.
+        }
       } finally {
         state.sessionStateSaveInFlight = false;
         if (state.sessionStateSaveQueued) {
@@ -6285,7 +6060,6 @@
           scheduleSessionStateSave(400);
         }
       }
-      perfLog("flushSessionStateToNative", performance.now() - _t0, `force=${force}`);
     }
 
     function scheduleSessionStateSave(delayMs = 900) {
@@ -6293,9 +6067,8 @@
       if (!getNativeBackend()) return;
       if (!state.sessionStateRestoreAttempted) return;
       if (state.sessionStateLightweight) return;
-      markSessionStateDirty();
       clearSessionStateSaveTimer();
-      const waitMs = Math.max(1500, Math.round(Number(delayMs) || 1500));
+      const waitMs = Math.max(600, Math.round(Number(delayMs) || 900));
       state.sessionStateSaveTimer = window.setTimeout(() => {
         state.sessionStateSaveTimer = 0;
         void flushSessionStateToNative(false);
@@ -6333,7 +6106,6 @@
     }
 
     async function applySessionStateFromPayload(payload) {
-      const _t0 = performance.now();
       if (state.sessionPayloadLock) {
         debugLoadLog("restore skipped | session payload locked");
         state.sessionStateRestoreAttempted = true;
@@ -6432,9 +6204,6 @@
           : {};
         state.loopCrossfadeMs = clampLoopCrossfadeMs(ui.loopCrossfadeMs ?? state.loopCrossfadeMs);
         state.allowPitchUpAboveHighest = ui.allowPitchUpAboveHighest !== undefined ? !!ui.allowPitchUpAboveHighest : state.allowPitchUpAboveHighest;
-        state.roundRobinPlaybackMode = normalizeRoundRobinPlaybackMode(ui.roundRobinPlaybackMode ?? state.roundRobinPlaybackMode);
-        state.openStringMidis = normalizeOpenStringMidis(ui.openStringMidis ?? state.openStringMidis);
-        state.keyswitchImportSingleNoteFixedPitchEnabled = ui.keyswitchImportSingleNoteFixedPitchEnabled === true;
         state.autoRR = ui.autoRR !== undefined ? !!ui.autoRR : state.autoRR;
         state.autoGainCrossfade = ui.autoGainCrossfade !== undefined ? !!ui.autoGainCrossfade : state.autoGainCrossfade;
         state.playerParticlesEnabled = ui.particlesEnabled !== undefined ? !!ui.particlesEnabled : state.playerParticlesEnabled;
@@ -6444,19 +6213,16 @@
         state.expressionValue = Math.max(0, Math.min(1, Number(ui.expressionValue) || 0));
         state.pitchBendValue = Math.max(-1, Math.min(1, Number(ui.pitchBendValue) || 0));
         state.playerPitchDownOctaves = Math.max(0, Math.min(2, Math.round(Number(ui.playerPitchDownOctaves) || 0)));
-        const lockState = getInstrumentLockStateFromUi(ui);
-        state.instrumentLockPasswordHash = lockState.passwordHash;
-        state.instrumentLocked = lockState.locked;
         state.baseLoopPlaybackEnabled = ui.baseLoopPlaybackEnabled !== false;
         state.packManifestFilePath = String(ui.manifestFilePath || "").trim();
         state.packManifestBasePath = String(ui.manifestBasePath || "").trim();
         updatePerformanceWheelVisuals();
 
         if (state.wallpaperName) {
-          applyWallpaperPosition(ui.wallpaperPosition || state.wallpaperPosition, { persist: false });
+          applyWallpaperPosition(ui.wallpaperPosition || state.wallpaperPosition);
         }
         if (state.logoName) {
-          applyLogoPosition(ui.logoPosition || state.logoPosition, { persist: false });
+          applyLogoPosition(ui.logoPosition || state.logoPosition);
         }
 
         const restoredSetStates = Array.isArray(ui.keyswitchSets) ? ui.keyswitchSets : [];
@@ -6465,7 +6231,6 @@
           if (!matched) return;
           matched.manualRanges = cloneManualRangesObject(snapshotSet.manualRanges);
           matched.loopPlaybackEnabled = snapshotSet?.loopPlaybackEnabled !== false;
-          matched.singleNoteFixedPitchEnabled = snapshotSet?.singleNoteFixedPitchEnabled === true;
         });
 
         const activeSetSnapshot = restoredSetStates.find((item) => !!item?.active);
@@ -6496,7 +6261,6 @@
       updatePlayerEmptyState();
       syncAllKnobValues();
       updateStrumUi();
-      updateInstrumentLockUi();
       emitStrumSettings();
       scheduleHostResizeForActiveTab();
       state.sessionStateRestored = true;
@@ -6505,15 +6269,14 @@
       state.sessionStateLightweight = isLightweightPayload;
       if (!isLightweightPayload) {
         state.sessionStateHydrationRequested = false;
-        // Don't flush state back to C++ right after restoring — the data just
-        // came from the native side and hasn't changed.  Flushing here would
-        // cancel or restart the ongoing sample decode job for no reason.
-        state.sessionStateSaveQueued = false;
+        if (state.sessionStateSaveQueued) {
+          state.sessionStateSaveQueued = false;
+          scheduleSessionStateSave(240);
+        }
       }
       debugLoadLog(`restore mode | lightweight=${isLightweightPayload ? "yes" : "no"}`);
       debugLoadLog(`restore done | totalMs=${(performance.now() - restoreStart).toFixed(1)}`);
       completeLoadingOverlay("Ready");
-      perfLog("applySessionStateFromPayload", performance.now() - _t0, `lightweight=${isLightweightPayload}`);
     }
 
     function clampHostSize(value, min, max, fallback) {
@@ -7414,38 +7177,25 @@
 
       try {
         const stateToken = backend.addEventListener("session_state_payload", (payload) => {
-          const _et = performance.now();
-          void applySessionStateFromPayload(payload).then(() => {
-            perfLog("event:session_state_payload", performance.now() - _et);
-          });
+          void applySessionStateFromPayload(payload);
         });
         const sampleDataToken = backend.addEventListener("sample_data_payload", (payload) => {
-          const _et = performance.now();
           handleSampleDataPayload(payload);
-          perfLog("event:sample_data_payload", performance.now() - _et);
         });
         const graphicDataToken = backend.addEventListener("graphic_data_payload", (payload) => {
-          const _et = performance.now();
           handleGraphicDataPayload(payload);
-          perfLog("event:graphic_data_payload", performance.now() - _et);
         });
         const manifestPickToken = backend.addEventListener("instrument_manifest_picked", (payload) => {
-          const _et = performance.now();
           handleInstrumentManifestPickedPayload(payload);
-          perfLog("event:instrument_manifest_picked", performance.now() - _et);
         });
         const saveResultToken = backend.addEventListener("instrument_save_result", (payload) => {
-          const _et = performance.now();
           handleInstrumentSaveResult(payload);
-          perfLog("event:instrument_save_result", performance.now() - _et);
         });
         const midiActivityToken = backend.addEventListener("midi_activity", (payload) => {
           handleNativeMidiActivity(payload);
         });
         const nativeAudioPickToken = backend.addEventListener("native_audio_files_picked", (payload) => {
-          const _et = performance.now();
           handleNativePickedAudioFiles(payload);
-          perfLog("event:native_audio_files_picked", performance.now() - _et);
         });
         state.nativeSessionListeners = [stateToken, sampleDataToken, graphicDataToken, manifestPickToken, saveResultToken, midiActivityToken, nativeAudioPickToken];
       } catch {
@@ -7594,8 +7344,7 @@
           id: "base",
           label: "Main",
           entries: baseEntries,
-          manualRanges: state.manualRootRanges,
-          singleNoteFixedPitchEnabled: false
+          manualRanges: state.manualRootRanges
         });
       }
 
@@ -7605,8 +7354,7 @@
           id: set.id,
           label: `${set.name}${keyLabel}`,
           entries: Array.isArray(set.entries) ? set.entries.filter((entry) => entry.valid) : [],
-          manualRanges: set.manualRanges || {},
-          singleNoteFixedPitchEnabled: set?.singleNoteFixedPitchEnabled === true
+          manualRanges: set.manualRanges || {}
         });
       });
       if (!sets.length) {
@@ -7614,8 +7362,7 @@
           id: "base",
           label: "Main",
           entries: baseEntries,
-          manualRanges: state.manualRootRanges,
-          singleNoteFixedPitchEnabled: false
+          manualRanges: state.manualRootRanges
         });
       }
       return sets;
@@ -7776,37 +7523,6 @@
           };
         })
       };
-    }
-
-    function normalizeRoundRobinPlaybackMode(value) {
-      return String(value || "").trim().toLowerCase() === "random" ? "random" : "sequential";
-    }
-
-    function normalizeOpenStringMidis(values) {
-      if (!Array.isArray(values)) return [];
-      return Array.from(new Set(
-        values
-          .map((value) => Math.round(Number(value)))
-          .filter((value) => Number.isFinite(value) && value >= 0 && value <= 127)
-      )).sort((a, b) => a - b);
-    }
-
-    function isOpenStringMidi(midi) {
-      const note = Math.round(Number(midi));
-      if (!Number.isFinite(note)) return false;
-      return normalizeOpenStringMidis(state.openStringMidis).includes(note);
-    }
-
-    function toggleOpenStringMidi(midi) {
-      const note = Math.max(0, Math.min(127, Math.round(Number(midi) || 0)));
-      const next = new Set(normalizeOpenStringMidis(state.openStringMidis));
-      if (next.has(note)) {
-        next.delete(note);
-      } else {
-        next.add(note);
-      }
-      state.openStringMidis = Array.from(next).sort((a, b) => a - b);
-      return next.has(note);
     }
 
     function applyStrumSnapshot(snapshot) {
@@ -8031,7 +7747,6 @@
     }
 
     function emitStrumSettings() {
-      const _t0 = performance.now();
       const stepCount = getStrumVisibleStepCount();
       const payload = {
         enabled: !!state.strumEnabled && stepCount > 0,
@@ -8044,7 +7759,6 @@
         stepPattern: getVisibleStrumStepPattern()
       };
       emitNativeEvent("strum_settings_set", payload);
-      perfLog("emitStrumSettings", performance.now() - _t0, `enabled=${payload.enabled}`);
     }
 
     function getStrumVisibleStepCount() {
@@ -8278,7 +7992,6 @@
     }
 
     function updateStrumUi() {
-      const _t0 = performance.now();
       if (el.strumEnableBtn) {
         const on = !!state.strumEnabled;
         el.strumEnableBtn.textContent = on ? "Enable On" : "Enable Off";
@@ -8392,7 +8105,7 @@
       }
       syncPlayerStrumMainToggle();
       syncDoublingToggle();
-      perfLog("updateStrumUi", performance.now() - _t0);
+
     }
 
     function syncPlayerStrumMainToggle() {
@@ -8886,17 +8599,6 @@
         : "One-shot playback enabled";
     }
 
-    function updateRoundRobinModeButton() {
-      if (!el.keyswitchMapRrModeBtn) return;
-      const isRandom = normalizeRoundRobinPlaybackMode(state.roundRobinPlaybackMode) === "random";
-      el.keyswitchMapRrModeBtn.textContent = isRandom ? "Random" : "Sequential";
-      el.keyswitchMapRrModeBtn.setAttribute("aria-pressed", isRandom ? "true" : "false");
-      el.keyswitchMapRrModeBtn.classList.toggle("random", isRandom);
-      el.keyswitchMapRrModeBtn.title = isRandom
-        ? "Round robin playback in random order without repeating the last two samples"
-        : "Round robin playback in sequential order";
-    }
-
     function syncLoopOneshotWithAutoLoopSamples(options = {}) {
       const shouldRender = !!options.shouldRender;
       const shouldPersist = !!options.persist;
@@ -8931,10 +8633,8 @@
       const activeKeyswitchSet = getKeyswitchSetById(state.activeMapSetId);
       const showLoopEditor = !!activeMapSet;
       if (el.keyswitchMapLoopWrap) el.keyswitchMapLoopWrap.classList.toggle("hidden", !showLoopEditor);
-      if (el.keyswitchMapRrModeBtn) el.keyswitchMapRrModeBtn.classList.toggle("hidden", !showLoopEditor);
       if (el.keyswitchMapNormalizeBtn) el.keyswitchMapNormalizeBtn.classList.toggle("hidden", !showLoopEditor);
       syncLoopOneshotWithAutoLoopSamples({ shouldRender: false, persist: false });
-      updateRoundRobinModeButton();
       if (!activeKeyswitchSet) {
         const duplicates = getDuplicateKeyswitchNotes();
         if (duplicates.length > 0) {
@@ -9119,7 +8819,6 @@
             key: normalizedKey.key,
             keyMidi: normalizedKey.keyMidi,
             loopPlaybackEnabled: data?.loopPlaybackEnabled !== false,
-            singleNoteFixedPitchEnabled: data?.singleNoteFixedPitchEnabled === true || !!state.keyswitchImportSingleNoteFixedPitchEnabled,
             sourceFile: file.name,
             sourcePath: sourceFilePath,
             manifestBasePath: importedManifestBasePath,
@@ -9176,65 +8875,6 @@
       ];
     }
 
-    function rgbToHsl(r, g, b) {
-      const rn = Math.max(0, Math.min(255, Number(r) || 0)) / 255;
-      const gn = Math.max(0, Math.min(255, Number(g) || 0)) / 255;
-      const bn = Math.max(0, Math.min(255, Number(b) || 0)) / 255;
-      const max = Math.max(rn, gn, bn);
-      const min = Math.min(rn, gn, bn);
-      let h = 0;
-      let s = 0;
-      const l = (max + min) * 0.5;
-
-      if (max !== min) {
-        const delta = max - min;
-        s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min);
-        switch (max) {
-          case rn:
-            h = ((gn - bn) / delta) + (gn < bn ? 6 : 0);
-            break;
-          case gn:
-            h = ((bn - rn) / delta) + 2;
-            break;
-          default:
-            h = ((rn - gn) / delta) + 4;
-            break;
-        }
-        h /= 6;
-      }
-
-      return { h, s, l };
-    }
-
-    function hslToRgb(h, s, l) {
-      const hue = ((Number(h) || 0) % 1 + 1) % 1;
-      const sat = clamp01(s);
-      const light = clamp01(l);
-
-      if (sat <= 0) {
-        const gray = Math.round(light * 255);
-        return [gray, gray, gray];
-      }
-
-      const hueToChannel = (p, q, t) => {
-        let next = t;
-        if (next < 0) next += 1;
-        if (next > 1) next -= 1;
-        if (next < 1 / 6) return p + ((q - p) * 6 * next);
-        if (next < 1 / 2) return q;
-        if (next < 2 / 3) return p + ((q - p) * ((2 / 3) - next) * 6);
-        return p;
-      };
-
-      const q = light < 0.5 ? light * (1 + sat) : light + sat - (light * sat);
-      const p = (2 * light) - q;
-      return [
-        Math.round(hueToChannel(p, q, hue + (1 / 3)) * 255),
-        Math.round(hueToChannel(p, q, hue) * 255),
-        Math.round(hueToChannel(p, q, hue - (1 / 3)) * 255)
-      ];
-    }
-
     function luminanceOfRgb(rgb) {
       return (0.2126 * rgb[0]) + (0.7152 * rgb[1]) + (0.0722 * rgb[2]);
     }
@@ -9252,35 +8892,6 @@
       if (adjustedLum < 105) wheel = mixRgb(wheel, [170, 174, 182], 0.35);
       if (adjustedLum > 180) wheel = mixRgb(wheel, [160, 166, 174], 0.28);
       return wheel;
-    }
-
-    function deriveOpenStringAccentFromSwatch(swatch) {
-      const base = Array.isArray(swatch) && swatch.length >= 3
-        ? [
-          Math.max(0, Math.min(255, Math.round(Number(swatch[0]) || 0))),
-          Math.max(0, Math.min(255, Math.round(Number(swatch[1]) || 0))),
-          Math.max(0, Math.min(255, Math.round(Number(swatch[2]) || 0)))
-        ]
-        : [40, 40, 40];
-      const { h, s, l } = rgbToHsl(base[0], base[1], base[2]);
-      const accentHue = (h + 0.5) % 1;
-      const accentSat = Math.max(0.34, Math.min(0.78, (s * 0.82) + 0.24));
-      const accentLight = Math.max(0.4, Math.min(0.6, l < 0.4 ? 0.54 : (l > 0.68 ? 0.46 : l)));
-      const accent = hslToRgb(accentHue, accentSat, accentLight);
-      const border = luminanceOfRgb(accent) < 132
-        ? mixRgb(accent, [255, 255, 255], 0.34)
-        : mixRgb(accent, [255, 255, 255], 0.16);
-      const text = luminanceOfRgb(accent) > 150 ? [24, 26, 30] : [244, 246, 249];
-      return { accent, border, text };
-    }
-
-    function applyPlayerOpenStringAccentFromSwatch(swatch) {
-      const base = Array.isArray(swatch) && swatch.length >= 3 ? swatch.slice(0, 3) : [40, 40, 40];
-      state.playerWallpaperSwatchRgb = base.map((value) => Math.max(0, Math.min(255, Math.round(Number(value) || 0))));
-      const { accent, border, text } = deriveOpenStringAccentFromSwatch(state.playerWallpaperSwatchRgb);
-      document.documentElement.style.setProperty("--player-open-string-rgb", `${accent[0]}, ${accent[1]}, ${accent[2]}`);
-      document.documentElement.style.setProperty("--player-open-string-border-rgb", `${border[0]}, ${border[1]}, ${border[2]}`);
-      document.documentElement.style.setProperty("--player-open-string-text-rgb", `${text[0]}, ${text[1]}, ${text[2]}`);
     }
 
     function extractSwatchFromImageFile(file) {
@@ -10034,7 +9645,7 @@
         .slice(0, limit);
       if (!candidates.length) return;
       let cursor = 0;
-      const workers = Math.min(8, candidates.length);
+      const workers = Math.min(4, candidates.length);
       const runWorker = async () => {
         while (cursor < candidates.length) {
           const entry = candidates[cursor];
@@ -10080,11 +9691,9 @@
       }
     }
 
-    async function setWallpaper(file, options = {}) {
+    async function setWallpaper(file) {
       if (!isLikelyImageFile(file)) return;
-      const persist = options?.persist !== false;
       if (state.wallpaperObjectUrl) URL.revokeObjectURL(state.wallpaperObjectUrl);
-      const wallpaperImage = el.playerWallpaperImage;
       const url = URL.createObjectURL(file);
       state.wallpaperObjectUrl = url;
       state.wallpaperUrl = url;
@@ -10101,77 +9710,56 @@
           state.wallpaperDataUrl = "";
         });
       if (el.playerStage) el.playerStage.classList.add("has-wallpaper");
-      if (wallpaperImage) {
-        wallpaperImage.src = url;
-        wallpaperImage.classList.remove("hidden");
-      }
-      applyWallpaperPosition(state.wallpaperPosition, { persist: false });
+      // Show wallpaper/effects immediately; swatch refinement is applied after extract.
+      el.playerStage.style.setProperty("--player-wallpaper", `url('${url}')`);
+      applyWallpaperPosition(state.wallpaperPosition);
+      refreshPlayerParticles();
+      const { swatch, dark, light } = await extractSwatchFromImageFile(file);
+      const [swatchR, swatchG, swatchB] = swatch;
+      const [darkR, darkG, darkB] = dark;
+      const [lightR, lightG, lightB] = light;
+      const wheelRgb = deriveWheelColorFromSwatch(swatch, dark, light);
+      const wheelDarkRgb = mixRgb(wheelRgb, [90, 96, 108], 0.18);
+      const glowBaseR = Math.round((swatchR * 0.72) + (lightR * 0.28));
+      const glowBaseG = Math.round((swatchG * 0.72) + (lightG * 0.28));
+      const glowBaseB = Math.round((swatchB * 0.72) + (lightB * 0.28));
+      const glowR = Math.round(glowBaseR + ((255 - glowBaseR) * 0.2));
+      const glowG = Math.round(glowBaseG + ((255 - glowBaseG) * 0.2));
+      const glowB = Math.round(glowBaseB + ((255 - glowBaseB) * 0.2));
+      document.documentElement.style.setProperty("--player-swatch-rgb", `${swatchR}, ${swatchG}, ${swatchB}`);
+      document.documentElement.style.setProperty("--player-topbar-rgb", `${darkR}, ${darkG}, ${darkB}`);
+      document.documentElement.style.setProperty("--player-line-rgb", `${lightR}, ${lightG}, ${lightB}`);
+      document.documentElement.style.setProperty("--player-bright-rgb", `${lightR}, ${lightG}, ${lightB}`);
+      document.documentElement.style.setProperty("--player-press-glow-rgb", `${glowR}, ${glowG}, ${glowB}`);
+      document.documentElement.style.setProperty("--player-wheel-rgb", `${wheelRgb[0]}, ${wheelRgb[1]}, ${wheelRgb[2]}`);
+      document.documentElement.style.setProperty("--player-wheel-rgb-dark", `${wheelDarkRgb[0]}, ${wheelDarkRgb[1]}, ${wheelDarkRgb[2]}`);
+      state.playerParticleRgb = [lightR, lightG, lightB];
+      state.playerParticleGlowRgb = mixRgb([lightR, lightG, lightB], [255, 255, 255], 0.32);
+      document.documentElement.style.setProperty("--player-key-tint-alpha-top", "0.33");
+      document.documentElement.style.setProperty("--player-key-tint-alpha-bottom", "0.45");
+      document.documentElement.style.setProperty("--player-key-press-tint-alpha-top", "0.46");
+      document.documentElement.style.setProperty("--player-key-press-tint-alpha-bottom", "0.6");
+      document.documentElement.style.setProperty("--player-key-press-black-alpha-top", "0.38");
+      document.documentElement.style.setProperty("--player-key-press-black-alpha-bottom", "0.5");
       setWallpaperMenuOpen(false);
       updateWallpaperToggle();
       updateTopBarTheme();
       updateLoadingOverlayTheme();
       updatePlayerEdgeWaveBlurState();
       refreshPlayerParticles();
-      void extractSwatchFromImageFile(file)
-        .then(({ swatch, dark, light }) => {
-          if (state.wallpaperObjectUrl !== url) return;
-          const [swatchR, swatchG, swatchB] = swatch;
-          const [darkR, darkG, darkB] = dark;
-          const [lightR, lightG, lightB] = light;
-          const wheelRgb = deriveWheelColorFromSwatch(swatch, dark, light);
-          const wheelDarkRgb = mixRgb(wheelRgb, [90, 96, 108], 0.18);
-          const glowBaseR = Math.round((swatchR * 0.72) + (lightR * 0.28));
-          const glowBaseG = Math.round((swatchG * 0.72) + (lightG * 0.28));
-          const glowBaseB = Math.round((swatchB * 0.72) + (lightB * 0.28));
-          const glowR = Math.round(glowBaseR + ((255 - glowBaseR) * 0.2));
-          const glowG = Math.round(glowBaseG + ((255 - glowBaseG) * 0.2));
-          const glowB = Math.round(glowBaseB + ((255 - glowBaseB) * 0.2));
-          state.playerWallpaperSwatchRgb = [swatchR, swatchG, swatchB];
-          document.documentElement.style.setProperty("--player-swatch-rgb", `${swatchR}, ${swatchG}, ${swatchB}`);
-          document.documentElement.style.setProperty("--player-topbar-rgb", `${darkR}, ${darkG}, ${darkB}`);
-          document.documentElement.style.setProperty("--player-line-rgb", `${lightR}, ${lightG}, ${lightB}`);
-          document.documentElement.style.setProperty("--player-bright-rgb", `${lightR}, ${lightG}, ${lightB}`);
-          document.documentElement.style.setProperty("--player-press-glow-rgb", `${glowR}, ${glowG}, ${glowB}`);
-          document.documentElement.style.setProperty("--player-wheel-rgb", `${wheelRgb[0]}, ${wheelRgb[1]}, ${wheelRgb[2]}`);
-          document.documentElement.style.setProperty("--player-wheel-rgb-dark", `${wheelDarkRgb[0]}, ${wheelDarkRgb[1]}, ${wheelDarkRgb[2]}`);
-          state.playerParticleRgb = [lightR, lightG, lightB];
-          state.playerParticleGlowRgb = mixRgb([lightR, lightG, lightB], [255, 255, 255], 0.32);
-          document.documentElement.style.setProperty("--player-key-tint-alpha-top", "0.33");
-          document.documentElement.style.setProperty("--player-key-tint-alpha-bottom", "0.45");
-          document.documentElement.style.setProperty("--player-key-press-tint-alpha-top", "0.46");
-          document.documentElement.style.setProperty("--player-key-press-tint-alpha-bottom", "0.6");
-          document.documentElement.style.setProperty("--player-key-press-black-alpha-top", "0.38");
-          document.documentElement.style.setProperty("--player-key-press-black-alpha-bottom", "0.5");
-          applyPlayerOpenStringAccentFromSwatch([swatchR, swatchG, swatchB]);
-          updateTopBarTheme();
-          updateLoadingOverlayTheme();
-          updatePlayerEdgeWaveBlurState();
-          refreshPlayerParticles();
-        })
-        .catch(() => {});
-      if (persist) scheduleSessionStateSave(350);
+      scheduleSessionStateSave(350);
     }
 
-    function clearWallpaper(options = {}) {
-      const persist = options?.persist !== false;
+    function clearWallpaper() {
       if (state.wallpaperObjectUrl) URL.revokeObjectURL(state.wallpaperObjectUrl);
-      const wallpaperImage = el.playerWallpaperImage;
       state.wallpaperObjectUrl = "";
       state.wallpaperUrl = "";
       state.wallpaperName = "";
       state.wallpaperSourcePath = "";
       state.wallpaperDataUrl = "";
-      state.playerWallpaperSwatchRgb = [40, 40, 40];
       if (el.playerStage) el.playerStage.classList.remove("has-wallpaper");
-      if (wallpaperImage) {
-        wallpaperImage.removeAttribute("src");
-        wallpaperImage.classList.add("hidden");
-        wallpaperImage.style.removeProperty("left");
-        wallpaperImage.style.removeProperty("right");
-        wallpaperImage.style.removeProperty("top");
-        wallpaperImage.style.removeProperty("bottom");
-        wallpaperImage.style.removeProperty("transform");
-      }
+      el.playerStage.style.removeProperty("--player-wallpaper");
+      el.playerStage.style.removeProperty("--player-wallpaper-position");
       document.documentElement.style.setProperty("--player-swatch-rgb", "40, 40, 40");
       document.documentElement.style.setProperty("--player-topbar-rgb", "40, 40, 40");
       document.documentElement.style.setProperty("--player-line-rgb", "150, 150, 150");
@@ -10185,7 +9773,6 @@
       document.documentElement.style.setProperty("--player-key-press-tint-alpha-bottom", "0");
       document.documentElement.style.setProperty("--player-key-press-black-alpha-top", "0");
       document.documentElement.style.setProperty("--player-key-press-black-alpha-bottom", "0");
-      applyPlayerOpenStringAccentFromSwatch([40, 40, 40]);
       updateWheelBaseTheme();
       el.wallpaperInput.value = "";
       setWallpaperMenuOpen(false);
@@ -10194,7 +9781,7 @@
       updateLoadingOverlayTheme();
       updatePlayerEdgeWaveBlurState();
       refreshPlayerParticles();
-      if (persist) scheduleSessionStateSave(350);
+      scheduleSessionStateSave(350);
     }
 
     function entryHasPlayableSource(entry) {
@@ -10262,59 +9849,11 @@
       el.importPackControls.classList.toggle("logo-menu-open", hasOpenMenu);
     }
 
-    function clearGraphicsMenuPosition(menu) {
-      if (!menu) return;
-      menu.style.top = "";
-      menu.style.left = "";
-      menu.style.right = "";
-      menu.style.bottom = "";
-      menu.style.minWidth = "";
-    }
-
-    function positionGraphicsMenuAt(button, menu) {
-      if (!button || !menu) return;
-      const buttonRect = button.getBoundingClientRect();
-      const menuGap = 6;
-      const viewportPadding = 4;
-      clearGraphicsMenuPosition(menu);
-      menu.style.minWidth = `${Math.max(96, Math.round(buttonRect.width))}px`;
-      menu.classList.remove("hidden");
-
-      const menuRect = menu.getBoundingClientRect();
-      let top = buttonRect.bottom + menuGap;
-      let left = buttonRect.left;
-
-      if (top + menuRect.height > window.innerHeight - viewportPadding) {
-        top = Math.max(viewportPadding, buttonRect.top - menuGap - menuRect.height);
-      }
-
-      if (left + menuRect.width > window.innerWidth - viewportPadding) {
-        left = Math.max(viewportPadding, window.innerWidth - menuRect.width - viewportPadding);
-      }
-
-      menu.style.top = `${Math.round(top)}px`;
-      menu.style.left = `${Math.round(left)}px`;
-    }
-
-    function refreshOpenGraphicsMenuPositions() {
-      if (state.wallpaperMenuOpen) {
-        positionGraphicsMenuAt(el.wallpaperToggle, el.wallpaperPositionMenu);
-      }
-      if (state.logoMenuOpen) {
-        positionGraphicsMenuAt(el.logoToggle, el.logoPositionMenu);
-      }
-    }
-
     function setWallpaperMenuOpen(open) {
       if (!el.wallpaperPositionMenu) return;
       const next = !!open && !!state.wallpaperName;
       state.wallpaperMenuOpen = next;
       el.wallpaperPositionMenu.classList.toggle("hidden", !next);
-      if (next) {
-        positionGraphicsMenuAt(el.wallpaperToggle, el.wallpaperPositionMenu);
-      } else {
-        clearGraphicsMenuPosition(el.wallpaperPositionMenu);
-      }
       syncGraphicsMenuOverflowState();
       if (el.wallpaperToggle) el.wallpaperToggle.setAttribute("aria-expanded", String(next));
     }
@@ -10329,46 +9868,27 @@
       });
     }
 
-    function applyWallpaperPosition(position, options = {}) {
+    function applyWallpaperPosition(position) {
       const normalized = normalizeWallpaperPosition(position);
-      const persist = options?.persist !== false;
       state.wallpaperPosition = normalized;
+      if (!el.playerStage) return;
+
+      const map = {
+        "top-left": "left top",
+        "top-center": "center top",
+        "top-right": "right top",
+        "middle-left": "left center",
+        "middle-center": "center center",
+        "middle-right": "right center",
+        "bottom-left": "left bottom",
+        "bottom-center": "center bottom",
+        "bottom-right": "right bottom"
+      };
+
+      const cssPos = map[normalized] || "center center";
+      el.playerStage.style.setProperty("--player-wallpaper-position", cssPos);
       updateWallpaperPositionMenu();
-      const wallpaperImage = el.playerWallpaperImage;
-      if (!wallpaperImage) {
-        if (persist) scheduleSessionStateSave(350);
-        return;
-      }
-      const topTrimPx = 44;
-
-      const [vertical = "middle", horizontal = "center"] = normalized.split("-");
-      wallpaperImage.style.removeProperty("left");
-      wallpaperImage.style.removeProperty("right");
-      wallpaperImage.style.removeProperty("top");
-      wallpaperImage.style.removeProperty("bottom");
-
-      const transforms = [];
-
-      if (horizontal === "left") {
-        wallpaperImage.style.left = "0";
-      } else if (horizontal === "right") {
-        wallpaperImage.style.right = "0";
-      } else {
-        wallpaperImage.style.left = "50%";
-        transforms.push("translateX(-50%)");
-      }
-
-      if (vertical === "top") {
-        wallpaperImage.style.top = `${-topTrimPx}px`;
-      } else if (vertical === "bottom") {
-        wallpaperImage.style.bottom = "0";
-      } else {
-        wallpaperImage.style.top = "50%";
-        transforms.push("translateY(-50%)");
-      }
-
-      wallpaperImage.style.transform = transforms.length ? transforms.join(" ") : "none";
-      if (persist) scheduleSessionStateSave(350);
+      scheduleSessionStateSave(350);
     }
 
     function setLogoMenuOpen(open) {
@@ -10376,11 +9896,6 @@
       const next = !!open && !!state.logoName;
       state.logoMenuOpen = next;
       el.logoPositionMenu.classList.toggle("hidden", !next);
-      if (next) {
-        positionGraphicsMenuAt(el.logoToggle, el.logoPositionMenu);
-      } else {
-        clearGraphicsMenuPosition(el.logoPositionMenu);
-      }
       syncGraphicsMenuOverflowState();
       if (el.logoToggle) el.logoToggle.setAttribute("aria-expanded", String(next));
     }
@@ -10395,15 +9910,10 @@
       });
     }
 
-    function applyLogoPosition(position, options = {}) {
+    function applyLogoPosition(position) {
       const normalized = normalizeLogoPosition(position);
-      const persist = options?.persist !== false;
       state.logoPosition = normalized;
-      updateLogoPositionMenu();
-      if (!el.playerLogoWrap) {
-        if (persist) scheduleSessionStateSave(350);
-        return;
-      }
+      if (!el.playerLogoWrap) return;
 
       const col = normalized.endsWith("-left")
         ? "left"
@@ -10424,12 +9934,12 @@
       el.playerLogoWrap.style.setProperty("--player-logo-left", left);
       el.playerLogoWrap.style.setProperty("--player-logo-right", right);
       el.playerLogoWrap.style.setProperty("--player-logo-transform", transform);
-      if (persist) scheduleSessionStateSave(350);
+      updateLogoPositionMenu();
+      scheduleSessionStateSave(350);
     }
 
-    function setLogo(file, options = {}) {
+    function setLogo(file) {
       if (!isLikelyImageFile(file)) return;
-      const persist = options?.persist !== false;
       if (state.logoObjectUrl) URL.revokeObjectURL(state.logoObjectUrl);
       const url = URL.createObjectURL(file);
       state.logoObjectUrl = url;
@@ -10453,14 +9963,13 @@
       if (el.playerLogoWrap) {
         el.playerLogoWrap.classList.remove("hidden");
       }
-      applyLogoPosition(state.logoPosition, { persist: false });
+      applyLogoPosition(state.logoPosition);
       setLogoMenuOpen(false);
       updateLogoToggle();
-      if (persist) scheduleSessionStateSave(350);
+      scheduleSessionStateSave(350);
     }
 
-    function clearLogo(options = {}) {
-      const persist = options?.persist !== false;
+    function clearLogo() {
       if (state.logoObjectUrl) URL.revokeObjectURL(state.logoObjectUrl);
       state.logoObjectUrl = "";
       state.logoUrl = "";
@@ -10478,7 +9987,7 @@
       setLogoMenuOpen(false);
       updateLogoToggle();
       updateLogoPositionMenu();
-      if (persist) scheduleSessionStateSave(350);
+      scheduleSessionStateSave(350);
     }
 
     function updateLogoToggle() {
@@ -13098,7 +12607,7 @@
       if (typeof pending.resolve === "function") pending.resolve(dataUrl);
       if (pending.forSave) return;
 
-      if (state.selectedMapEntryOrder === entry.order) {
+      if (state.selectedMapEntryOrder === entry.order || !el.sampleEditor.classList.contains("hidden")) {
         void openSampleEditor(entry);
       }
     }
@@ -13462,7 +12971,6 @@
     }
 
     function renderKeyboardMap(validEntries = getActiveMapEntries(), preserveView = false) {
-      const _t0 = performance.now();
       updateKeyswitchMapSelector();
       const {
         velocityLayers: matrixVelocityLayers,
@@ -13762,10 +13270,6 @@
         } else {
           key.dataset.midi = String(midi);
           key.textContent = midiToNote(midi);
-          if (isOpenStringMidi(midi)) {
-            key.classList.add("open-string");
-            key.title = `${midiToNote(midi)} | Open string`;
-          }
         }
         el.mapKeys.appendChild(key);
       }
@@ -13778,7 +13282,6 @@
           el.mapEmpty.classList.remove("hidden");
         }
       }
-      perfLog("renderKeyboardMap", performance.now() - _t0, `entries=${valid.length}`);
     }
 
     function getPlayerKeyboardWhiteCount() {
@@ -13870,10 +13373,6 @@
 
       const playbackSource = getPlayerPlaybackSource();
       const { roots, rangesByRoot } = getResolvedRootRanges(playbackSource.entries, playbackSource.manualRanges);
-      const activeMapSet = getActiveMapSet();
-      const singleRootDrumMidi = isSingleNoteFixedPitchEnabledForSet(activeMapSet)
-        ? getSinglePlayableRootMidi(playbackSource.entries)
-        : null;
       const keyswitchSets = getPlayerKeyswitchDisplaySets();
       const keyswitchSetsByMidi = new Map();
       keyswitchSets.forEach((set) => {
@@ -13888,7 +13387,6 @@
           playableMidis.add(midi);
         }
       });
-      const openStringMidis = new Set(normalizeOpenStringMidis(state.openStringMidis));
 
       function decorateKeyswitchPlayerKey(keyNode, midi) {
         const sets = keyswitchSetsByMidi.get(midi);
@@ -13906,67 +13404,14 @@
         keyNode.title = `Keyswitch ${sets[0].key}: ${setNames}`;
       }
 
-      function decorateOpenStringPlayerKey(keyNode, midi) {
-        if (!openStringMidis.has(midi)) return;
-        keyNode.classList.add("open-string");
-        const aria = keyNode.getAttribute("aria-label") || `${midiToNote(midi)} (${midi})`;
-        keyNode.setAttribute("aria-label", `${aria}, open string`);
-        const titleBase = keyNode.title ? `${keyNode.title} | ` : "";
-        keyNode.title = `${titleBase}Open string`;
-      }
-
       function bindPlayerKeyEvents(keyNode, midi) {
         let releaseTimer = 0;
-        let longPressTimer = 0;
-        let longPressTriggered = false;
         let lastPressTs = -1;
         let keyHeld = false;
         let keyHeldVelocity = 100;
         keyNode.dataset.midi = String(midi);
         keyNode.setAttribute("aria-label", `${midiToNote(midi)} (${midi})`);
         if (keyNode.disabled) return;
-
-        function clearLongPressTimer() {
-          if (!longPressTimer) return;
-          window.clearTimeout(longPressTimer);
-          longPressTimer = 0;
-        }
-
-        function toggleOpenStringFromGesture() {
-          const enabled = toggleOpenStringMidi(midi);
-          renderPlayerKeyboard();
-          setStatus(el.setupStatus,
-            `${enabled ? "Marked" : "Unmarked"} ${midiToNote(midi)} as open string.`,
-            "ok");
-          scheduleSessionStateSave(250);
-        }
-
-        function releaseHeldNoteIfNeeded() {
-          if (!keyHeld) return;
-          const sentNativeNoteOff = emitNativePreviewMidi(false, midi, keyHeldVelocity, 1);
-          if (!sentNativeNoteOff) {
-            stopPreviewVoiceForKey(midi, getPlayerVoiceSettings().releaseSec, null, false);
-          }
-          keyHeld = false;
-        }
-
-        function openPlayerKeyMenuFromHold(clientX, clientY) {
-          clearLongPressTimer();
-          longPressTriggered = true;
-          releaseHeldNoteIfNeeded();
-          if (!keyNode.classList.contains("keyswitch-latched")) {
-            keyNode.classList.remove("is-down");
-          }
-          showKeyContextMenu(clientX, clientY, midi, "player");
-        }
-
-        function scheduleLongPressMenu(clientX, clientY) {
-          clearLongPressTimer();
-          longPressTriggered = false;
-          longPressTimer = window.setTimeout(() => {
-            openPlayerKeyMenuFromHold(clientX, clientY);
-          }, 420);
-        }
 
         function triggerPressFromClientY(clientY, eventTimeStamp = null) {
           const stamp = Number.isFinite(eventTimeStamp) ? Number(eventTimeStamp) : performance.now();
@@ -13995,14 +13440,8 @@
 
         keyNode.addEventListener("pointerdown", (ev) => {
           if (typeof ev.button === "number" && ev.button > 0) return;
-          if (ev.altKey) {
-            ev.preventDefault();
-            toggleOpenStringFromGesture();
-            return;
-          }
           ev.preventDefault();
           triggerPressFromClientY(ev.clientY, ev.timeStamp);
-          scheduleLongPressMenu(ev.clientX, ev.clientY);
           if (keyNode.setPointerCapture) {
             try {
               keyNode.setPointerCapture(ev.pointerId);
@@ -14011,8 +13450,13 @@
         });
 
         const release = (ev) => {
-          clearLongPressTimer();
-          releaseHeldNoteIfNeeded();
+          if (keyHeld) {
+            const sentNativeNoteOff = emitNativePreviewMidi(false, midi, keyHeldVelocity, 1);
+            if (!sentNativeNoteOff) {
+              stopPreviewVoiceForKey(midi, getPlayerVoiceSettings().releaseSec, null, false);
+            }
+          }
+          keyHeld = false;
           if (releaseTimer) window.clearTimeout(releaseTimer);
           releaseTimer = window.setTimeout(() => {
             if (!keyNode.classList.contains("keyswitch-latched")) {
@@ -14020,7 +13464,6 @@
             }
             releaseTimer = 0;
           }, 240);
-          longPressTriggered = false;
           if (ev && keyNode.releasePointerCapture && keyNode.hasPointerCapture && keyNode.hasPointerCapture(ev.pointerId)) {
             try {
               keyNode.releasePointerCapture(ev.pointerId);
@@ -14037,10 +13480,6 @@
 
         keyNode.addEventListener("mousedown", (ev) => {
           if (typeof ev.button === "number" && ev.button > 0) return;
-          if (ev.altKey) {
-            ev.preventDefault();
-            return;
-          }
           ev.preventDefault();
           triggerPressFromClientY(ev.clientY, ev.timeStamp);
         });
@@ -14051,7 +13490,6 @@
           if (!touch) return;
           ev.preventDefault();
           triggerPressFromClientY(touch.clientY, ev.timeStamp);
-          scheduleLongPressMenu(touch.clientX, touch.clientY);
         }, { passive: false });
         keyNode.addEventListener("touchend", release);
         keyNode.addEventListener("touchcancel", release);
@@ -14074,7 +13512,7 @@
           key.appendChild(label);
         }
 
-        const hasMappedSample = playableMidis.has(midi) || singleRootDrumMidi !== null;
+        const hasMappedSample = playableMidis.has(midi);
         const isKeyswitch = keyswitchSetsByMidi.has(midi);
         const isInteractive = hasMappedSample || isKeyswitch;
         if (isInteractive) {
@@ -14088,7 +13526,6 @@
         }
         bindPlayerKeyEvents(key, midi);
         decorateKeyswitchPlayerKey(key, midi);
-        if (hasMappedSample && !isKeyswitch) decorateOpenStringPlayerKey(key, midi);
         el.playerKeyboardWhites.appendChild(key);
         whiteIndex += 1;
       }
@@ -14107,7 +13544,7 @@
         const offset = blackOffsets[semitone] ?? 0.8;
         key.style.left = `${(whiteIndex + offset) * whiteKeyWidth}px`;
         key.style.width = `${whiteKeyWidth * 0.68}px`;
-        const hasMappedSample = playableMidis.has(midi) || singleRootDrumMidi !== null;
+        const hasMappedSample = playableMidis.has(midi);
         const isKeyswitch = keyswitchSetsByMidi.has(midi);
         const isInteractive = hasMappedSample || isKeyswitch;
         if (isInteractive) {
@@ -14121,7 +13558,6 @@
         }
         bindPlayerKeyEvents(key, midi);
         decorateKeyswitchPlayerKey(key, midi);
-        if (hasMappedSample && !isKeyswitch) decorateOpenStringPlayerKey(key, midi);
         el.playerKeyboardBlacks.appendChild(key);
       }
 
@@ -14145,29 +13581,6 @@
         if (playedMidi >= range.low && playedMidi <= range.high) return root;
       }
       return null;
-    }
-
-    function getSinglePlayableRootMidi(entries = state.entries) {
-      const roots = getMappedSampleRoots(entries);
-      return roots.length === 1 ? roots[0] : null;
-    }
-
-    function isSingleNoteFixedPitchEnabledForSet(mapSet) {
-      return !!mapSet
-        && mapSet.id !== "base"
-        && mapSet.singleNoteFixedPitchEnabled === true;
-    }
-
-    function selectPlaybackRootForPlayedNote(
-      playedMidi,
-      entries = state.entries,
-      manualRanges = state.manualRootRanges,
-      options = null
-    ) {
-      const donorRoot = selectDonorRootForPlayedNote(playedMidi, entries, manualRanges);
-      if (donorRoot !== null) return donorRoot;
-      if (!options || !options.allowSingleRootDrumFallback) return null;
-      return getSinglePlayableRootMidi(entries);
     }
 
     function getVelocityLayersForRoot(donorRoot, entries = state.entries) {
@@ -14710,7 +14123,6 @@
       velocityNorm,
       playedMidi,
       donorRoot,
-      fixedRootPlayback = false,
       layerMixGain = 1,
       externalKeySerial = null,
       layerStartDelaySec = 0,
@@ -14732,7 +14144,6 @@
             velocityNorm,
             playedMidi,
             donorRoot,
-            fixedRootPlayback,
             layerMixGain,
             retrySerial,
             layerStartDelaySec,
@@ -14765,7 +14176,7 @@
       }
 
       const velocityGain = Math.max(0.05, Math.min(1, 0.2 + (velocityNorm * 0.8)));
-      const semitoneRatio = fixedRootPlayback ? 1 : Math.pow(2, (playedMidi - donorRoot) / 12);
+      const semitoneRatio = Math.pow(2, (playedMidi - donorRoot) / 12);
       const fineTuneRatio = Math.pow(2, clampFineTune(entry.fineTuneCents ?? 0) / 1200);
       const sampleGainScale = dbToGain(entry.editorGainDb ?? 0);
       const playbackRate = Math.max(0.125, Math.min(8, semitoneRatio * fineTuneRatio));
@@ -14995,52 +14406,40 @@
       let manualRanges = (options && typeof options.manualRanges === "object" && options.manualRanges !== null)
         ? options.manualRanges
         : null;
-      const explicitSingleRootDrumFallback = !!(options && options.allowSingleRootDrumFallback);
       let switchedByKeyswitch = false;
 
       if (!hasExplicitSource) {
-        const playbackSource = getPlayerPlaybackSource();
-        const activeMapSet = getActiveMapSet();
-        const allowSingleRootDrumFallback = isSingleNoteFixedPitchEnabledForSet(activeMapSet)
-          && Number.isFinite(getSinglePlayableRootMidi(playbackSource.entries));
         const keyswitchSet = getKeyswitchSetForMidi(midi);
         if (keyswitchSet) {
-          const isActiveSingleRootDrumTrigger = allowSingleRootDrumFallback
-            && String(keyswitchSet.id || "") === String(activeMapSet?.id || "");
-          if (!isActiveSingleRootDrumTrigger) {
-            const activeTab = document.querySelector(".tab-btn.active")?.dataset.tab || "player";
-            const isPlayerTab = activeTab === "player";
-            setActiveMapSet(keyswitchSet.id, !isPlayerTab);
-            if (getNativeBackend()) {
-              // Send a real keyswitch note-on through the DSP path so articulation
-              // switching is sample-accurate and does not depend on UI event timing.
-              emitNativePreviewMidi(true, midi, 100, 1);
-            }
-            if (isPlayerTab) {
-              renderPlayerKeyboard();
-            }
-            switchedByKeyswitch = true;
-            // Avoid synchronous native session flush here; it causes noticeable stalls
-            // when rapidly switching articulations from the player keyboard.
-            return true;
+          const activeTab = document.querySelector(".tab-btn.active")?.dataset.tab || "player";
+          const isPlayerTab = activeTab === "player";
+          setActiveMapSet(keyswitchSet.id, !isPlayerTab);
+          if (getNativeBackend()) {
+            // Send a real keyswitch note-on through the DSP path so articulation
+            // switching is sample-accurate and does not depend on UI event timing.
+            emitNativePreviewMidi(true, midi, 100, 1);
           }
+          if (isPlayerTab) {
+            renderPlayerKeyboard();
+          }
+          switchedByKeyswitch = true;
+          // Avoid synchronous native session flush here; it causes noticeable stalls
+          // when rapidly switching articulations from the player keyboard.
+          return true;
         }
 
         // In the native plugin, route preview keys through the DSP engine so
         // audio goes through the plugin output bus (host metering works).
         if (getNativeBackend()) {
-          const donorRoot = selectPlaybackRootForPlayedNote(
-            playedMidi,
-            playbackSource.entries,
-            playbackSource.manualRanges,
-            { allowSingleRootDrumFallback }
-          );
+          const playbackSource = getPlayerPlaybackSource();
+          const donorRoot = selectDonorRootForPlayedNote(playedMidi, playbackSource.entries, playbackSource.manualRanges);
           if (donorRoot === null) return switchedByKeyswitch;
           const ratio = Math.max(0, Math.min(1, pointerRatioY));
           const midiVelocity = Math.max(1, Math.min(127, Math.round((ratio * 126) + 1)));
           return emitNativePreviewMidi(true, playedMidi, midiVelocity, 1);
         }
 
+        const playbackSource = getPlayerPlaybackSource();
         sourceEntries = playbackSource.entries;
         manualRanges = playbackSource.manualRanges;
       }
@@ -15049,16 +14448,8 @@
       if (!manualRanges || typeof manualRanges !== "object") manualRanges = state.manualRootRanges;
       const ratio = Math.max(0, Math.min(1, pointerRatioY));
       const velocityNorm = ratio;
-      const donorRoot = selectPlaybackRootForPlayedNote(
-        playedMidi,
-        sourceEntries,
-        manualRanges,
-        { allowSingleRootDrumFallback: explicitSingleRootDrumFallback }
-      );
+      const donorRoot = selectDonorRootForPlayedNote(playedMidi, sourceEntries, manualRanges);
       if (donorRoot === null) return switchedByKeyswitch;
-      const fixedRootPlayback = (!hasExplicitSource)
-        ? (isSingleNoteFixedPitchEnabledForSet(getActiveMapSet()) && Number.isFinite(getSinglePlayableRootMidi(sourceEntries)))
-        : !!(options && options.fixedRootPlayback);
       const useModwheelVelocity = isAutoModwheelVelocityControlActiveForRoot(donorRoot, sourceEntries);
       const loopedVelocityRoot = hasLoopedEntriesForRoot(donorRoot, sourceEntries);
       const lockVelocityToModwheelMode = useModwheelVelocity && loopedVelocityRoot;
@@ -15092,12 +14483,12 @@
           void ensureEntrySampleUrl(entry, 3200).then((url) => {
             if (!url) return;
             if ((state.previewTriggerSerialByKey.get(keyMidi) ?? 0) !== keySerial) return;
-            playMappedSampleEntry(entry, playbackVelocityNorm, playedMidi, donorRoot, fixedRootPlayback, gain, keySerial, delaySec, holdLoopUntilRelease);
+            playMappedSampleEntry(entry, playbackVelocityNorm, playedMidi, donorRoot, gain, keySerial, delaySec, holdLoopUntilRelease);
           });
           startedCount += 1;
           return;
         }
-        playMappedSampleEntry(entry, playbackVelocityNorm, playedMidi, donorRoot, fixedRootPlayback, gain, keySerial, delaySec, holdLoopUntilRelease);
+        playMappedSampleEntry(entry, playbackVelocityNorm, playedMidi, donorRoot, gain, keySerial, delaySec, holdLoopUntilRelease);
         startedCount += 1;
       });
 
@@ -15183,7 +14574,6 @@
             key: normalized.key,
             keyMidi: normalized.keyMidi,
             loopPlaybackEnabled: true,
-            singleNoteFixedPitchEnabled: false,
             sourceFile: "",
             sourcePath: "",
             manifestBasePath: "",
@@ -15235,15 +14625,6 @@
         el.keyswitchMapLoopModeBtn.addEventListener("click", () => {
           el.keyswitchMapLoopToggle.checked = !el.keyswitchMapLoopToggle.checked;
           applyActiveKeyswitchSetLoopToggle(true);
-        });
-      }
-      if (el.keyswitchMapRrModeBtn) {
-        el.keyswitchMapRrModeBtn.addEventListener("click", () => {
-          state.roundRobinPlaybackMode = normalizeRoundRobinPlaybackMode(state.roundRobinPlaybackMode) === "random"
-            ? "sequential"
-            : "random";
-          updateRoundRobinModeButton();
-          scheduleSessionStateSave(250);
         });
       }
       if (el.mapMatrixIntervalInput) {
@@ -15491,9 +14872,6 @@
       updateSampleGainLine(null);
 
       el.mapKeys.addEventListener("pointerdown", (ev) => {
-        const isSecondaryGesture = (typeof ev.button === "number" && ev.button === 2)
-          || (!!ev.ctrlKey && (typeof ev.button !== "number" || ev.button === 0));
-        if (isSecondaryGesture) return;
         const keyNode = ev.target.closest(".map-key");
         if (!keyNode || keyNode.classList.contains("disabled")) return;
         const midi = Number(keyNode.dataset.midi);
@@ -15513,64 +14891,9 @@
         el.mapKeyContextMenu.classList.remove("visible");
       };
 
-      const isSecondaryMenuGesture = (ev) => {
-        if (!ev) return false;
-        if (typeof ev.button === "number" && ev.button === 2) return true;
-        if (!!ev.ctrlKey && (typeof ev.button !== "number" || ev.button === 0)) return true;
-        return false;
-      };
-
-      const showKeyContextMenu = (clientX, clientY, midi, scope, layer = null) => {
-        if (!Number.isFinite(Number(midi))) return;
-        state.keyContextMenuTargetMidi = Math.round(Number(midi));
-        state.keyContextMenuTargetLayer = Number.isFinite(Number(layer)) ? Math.round(Number(layer)) : null;
-        state.keyContextMenuScope = String(scope || "").trim();
-        buildKeyContextMenuItems();
-        const menu = el.mapKeyContextMenu;
-        menu.style.left = `${clientX}px`;
-        menu.style.top = `${clientY}px`;
-        menu.classList.add("visible");
-        requestAnimationFrame(() => {
-          const rect = menu.getBoundingClientRect();
-          if (rect.right > window.innerWidth) menu.style.left = `${window.innerWidth - rect.width - 4}px`;
-          if (rect.bottom > window.innerHeight) menu.style.top = `${window.innerHeight - rect.height - 4}px`;
-        });
-      };
-
       const buildKeyContextMenuItems = () => {
         const menu = el.mapKeyContextMenu;
         menu.textContent = "";
-        const scope = String(state.keyContextMenuScope || "").trim();
-        const midi = Math.round(Number(state.keyContextMenuTargetMidi));
-
-        const appendOpenStringItem = () => {
-          if (!Number.isFinite(midi)) return;
-          const item = document.createElement("label");
-          item.className = "map-key-context-menu-item checkbox-item";
-          item.dataset.action = "toggle-open-string";
-
-          const checkbox = document.createElement("input");
-          checkbox.type = "checkbox";
-          checkbox.className = "map-key-context-menu-checkbox";
-          checkbox.checked = isOpenStringMidi(midi);
-          checkbox.tabIndex = -1;
-          checkbox.setAttribute("aria-hidden", "true");
-
-          const label = document.createElement("span");
-          label.textContent = "Open string";
-
-          item.appendChild(checkbox);
-          item.appendChild(label);
-          menu.appendChild(item);
-        };
-
-        if (scope === "player") {
-          appendOpenStringItem();
-          return;
-        }
-
-        appendOpenStringItem();
-
         if (state.mapMatrixSplitEnabled && state.mapMatrixVelocityLayers > 1) {
           const layers = clampMapMatrixVelocityLayers(state.mapMatrixVelocityLayers);
           for (let v = 1; v <= layers; v++) {
@@ -15597,68 +14920,28 @@
         if (!Number.isFinite(midi)) return;
         ev.preventDefault();
         ev.stopPropagation();
-        showKeyContextMenu(ev.clientX, ev.clientY, midi, "map");
-      });
-
-      el.mapKeys.addEventListener("mousedown", (ev) => {
-        if (!isSecondaryMenuGesture(ev)) return;
-        const keyNode = ev.target.closest(".map-key");
-        if (!keyNode || keyNode.classList.contains("disabled")) return;
-        const midi = Number(keyNode.dataset.midi);
-        if (!Number.isFinite(midi)) return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        showKeyContextMenu(ev.clientX, ev.clientY, midi, "map");
-      });
-
-      el.playerKeyboard.addEventListener("contextmenu", (ev) => {
-        const keyNode = ev.target.closest(".player-key");
-        if (!keyNode) return;
-        if (keyNode.classList.contains("no-sample") || keyNode.classList.contains("is-keyswitch")) return;
-        const midi = Number(keyNode.dataset.midi);
-        if (!Number.isFinite(midi)) return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        showKeyContextMenu(ev.clientX, ev.clientY, midi, "player");
-      });
-
-      el.playerKeyboard.addEventListener("mousedown", (ev) => {
-        if (!isSecondaryMenuGesture(ev)) return;
-        const keyNode = ev.target.closest(".player-key");
-        if (!keyNode) return;
-        if (keyNode.classList.contains("no-sample") || keyNode.classList.contains("is-keyswitch")) return;
-        const midi = Number(keyNode.dataset.midi);
-        if (!Number.isFinite(midi)) return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        showKeyContextMenu(ev.clientX, ev.clientY, midi, "player");
+        state.keyContextMenuTargetMidi = midi;
+        state.keyContextMenuTargetLayer = null;
+        buildKeyContextMenuItems();
+        const menu = el.mapKeyContextMenu;
+        menu.style.left = ev.clientX + "px";
+        menu.style.top = ev.clientY + "px";
+        menu.classList.add("visible");
+        requestAnimationFrame(() => {
+          const rect = menu.getBoundingClientRect();
+          if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 4) + "px";
+          if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 4) + "px";
+        });
       });
 
       el.mapKeyContextMenu.addEventListener("click", (ev) => {
         const item = ev.target.closest(".map-key-context-menu-item");
         if (!item) return;
         hideKeyContextMenu();
-        if (item.dataset.action === "toggle-open-string") {
-          const midi = Math.round(Number(state.keyContextMenuTargetMidi));
-          if (!Number.isFinite(midi)) return;
-          const scope = String(state.keyContextMenuScope || "").trim();
-          const enabled = toggleOpenStringMidi(midi);
-          state.keyContextMenuScope = "";
-          if (scope === "map") {
-            renderKeyboardMap(undefined, true);
-          }
-          renderPlayerKeyboard();
-          setStatus(el.setupStatus,
-            `${enabled ? "Marked" : "Unmarked"} ${midiToNote(midi)} as open string.`,
-            "ok");
-          scheduleSessionStateSave(250);
-          return;
-        }
         if (item.dataset.action === "load-samples") {
           if (item.dataset.layer) {
             state.keyContextMenuTargetLayer = Number(item.dataset.layer);
           }
-          state.keyContextMenuScope = "";
           if (getNativeBackend()) {
             emitNativeEvent("pick_audio_files", {});
           }
@@ -15997,7 +15280,6 @@
     }
 
     function renderSetup() {
-      const _t0 = performance.now();
       const valid = state.entries.filter((e) => e.valid);
       const invalid = state.entries.filter((e) => !e.valid);
       updateWheelBaseTheme();
@@ -16009,9 +15291,6 @@
         applyMapMatrixIntervalRanges(getActiveMapEntries());
       }
       updateKeyswitchMapSelector();
-      if (el.keyswitchSingleNoteFixedPitchToggle) {
-        el.keyswitchSingleNoteFixedPitchToggle.checked = !!state.keyswitchImportSingleNoteFixedPitchEnabled;
-      }
       renderSequencerArpControls();
       renderKeyboardMap(getActiveMapEntries(), true);
       syncVelocityCrossfadeControl();
@@ -16057,7 +15336,6 @@
         setStatus(el.setupStatus, "");
       }
       scheduleHostResizeForActiveTab();
-      perfLog("renderSetup", performance.now() - _t0, `entries=${state.entries.length}`);
     }
 
     function ingest(filesLike) {
@@ -16110,49 +15388,70 @@
       scheduleSessionStateSave(350);
     }
 
-    function revokeMapEntrySampleUrls(entries) {
-      (entries || []).forEach((entry) => {
-        if (entry?.sampleUrl) URL.revokeObjectURL(entry.sampleUrl);
-      });
-    }
-
     function clearInstrument() {
-      const activeSetId = String(state.activeMapSetId || "base");
-      const activeKeyswitchSet = activeSetId !== "base" ? getKeyswitchSetById(activeSetId) : null;
-      const targetLabel = activeKeyswitchSet
-        ? `keyswitch \"${String(activeKeyswitchSet.name || activeSetId).trim() || activeSetId}\"`
-        : "main mapping";
+      const preservedMapMatrix = {
+        interval: clampMapMatrixInterval(state.mapMatrixInterval),
+        velocityLayers: clampMapMatrixVelocityLayers(state.mapMatrixVelocityLayers),
+        rrColumns: clampMapMatrixRrColumns(state.mapMatrixRrColumns),
+        splitEnabled: !!state.mapMatrixSplitEnabled
+      };
 
-      ensureSessionStateWritable("clear-map-set");
-      stopAllPreviewVoices();
-      closeSampleEditor();
-
-      if (activeKeyswitchSet) {
-        revokeMapEntrySampleUrls(activeKeyswitchSet.entries);
-        activeKeyswitchSet.entries = [];
-        activeKeyswitchSet.manualRanges = {};
-      } else {
-        revokeMapEntrySampleUrls(state.entries);
-        state.entries = [];
-        state.manualRootRanges = {};
+      stopAutoSamplingCountdown(false);
+      state.sequencerCurrentStep = -1;
+      state.sequencerHostTriggerEnabled = false;
+      state.sequencerSteps = Array.from({ length: SEQUENCER_STEP_COUNT }, () => ({
+        noteMidi: 60,
+        velocity: 100,
+        keyswitchSetId: ""
+      }));
+      if (state.nativeAutoSamplerAvailable && state.nativeAutoSamplerActive) {
+        emitNativeEvent("autosampler_control", { action: "stop" });
       }
-
-      state.packLoaded = false;
-    invalidateSessionStateFlushCache();
-      state.rrCursor = {};
+      state.nativeAutoSamplerActive = false;
+      state.nativeAutoSamplerExpected = 0;
+      state.nativeAutoSamplerCaptured = 0;
+      state.nativeAutoSamplerTakeCount = 0;
+      state.deferredAutoLoopOrders = [];
+      state.nativeAutoSamplerLoopPostConfig = null;
+      state.nativeAutoSamplerInputDetected = false;
+      state.nativeAutoSamplerMessage = "";
+      updateStartSamplingButtonLabel();
+      stopAllPreviewVoices();
+      state.entrySampleHydrationPromises.clear();
+      state.entries.forEach((entry) => {
+        if (entry.sampleUrl) URL.revokeObjectURL(entry.sampleUrl);
+      });
+      state.entries = [];
+      state.manualRootRanges = {};
+      state.keyswitchSets = [];
+      state.activeMapSetId = "base";
+      state.baseLoopPlaybackEnabled = true;
+      state.mapMatrixAssignMode = false;
       state.mapMatrixRrCursor = {};
       state.mapMatrixPaintActive = false;
       state.mapMatrixLastPaintCellKey = "";
+      state.mapMatrixInterval = preservedMapMatrix.interval;
+      state.mapMatrixVelocityLayers = preservedMapMatrix.velocityLayers;
+      state.mapMatrixRrColumns = preservedMapMatrix.rrColumns;
+      state.mapMatrixSplitEnabled = preservedMapMatrix.splitEnabled;
+      state.mapMatrixAutoFillRr = true;
+      state.packManifestFilePath = "";
+      state.packManifestBasePath = "";
+      state.nextVirtualOrder = -1;
+      state.packLoaded = false;
+      state.lastFlushedJsonHash = "";
+      state.rrCursor = {};
       state.waveformCache.clear();
       state.pendingSampleDataRequests.clear();
+      state.pendingGraphicDataRequests.clear();
+      state.pendingManifestPickRequests.clear();
       state.entrySampleHydrationPromises.clear();
       state.velocityCrossfadeByRoot = {};
       state.velocityCrossfadePercent = 0;
-
+      closeSampleEditor();
       renderSetup();
       updatePlayerEmptyState();
       syncAllKnobValues();
-      setStatus(el.setupStatus, `Cleared ${targetLabel}.`, "ok");
       scheduleSessionStateSave(250);
     }
 
@@ -16242,8 +15541,7 @@
         formatVersion: 1,
         instrumentName: (el.autoInstrument.value || "Instrument").trim(),
         author: (el.autoAuthor?.value || "").trim(),
-        createdUtc: getStableCreatedUtc(),
-        openStringMidis: normalizeOpenStringMidis(state.openStringMidis),
+        createdUtc: new Date().toISOString(),
         settings: {
           gapFillMode: "nextHigherOnly",
           allowPitchUpAboveHighest: state.allowPitchUpAboveHighest,
@@ -16266,8 +15564,7 @@
           enabled: !!state.wallpaperName,
           path: wallpaperPath,
           fitMode: "fill",
-          brightness: 1.0,
-          position: normalizeWallpaperPosition(state.wallpaperPosition)
+          brightness: 1.0
         },
         logo: {
           enabled: !!state.logoName,
@@ -16298,14 +15595,14 @@
               name: setName,
               keyswitchKey: setKey,
               loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
-              singleNoteFixedPitchEnabled: set?.singleNoteFixedPitchEnabled === true,
               mapping: buildManifestMapping(Array.isArray(set?.entries) ? set.entries : [], {
                 preserveRuntimePaths,
                 includeEmbeddedSampleData,
                 sampleFolderName: setSampleFolder
               })
             };
-          });
+          })
+          .filter((set) => Array.isArray(set.mapping) && set.mapping.length > 0);
       }
       return manifest;
     }
@@ -16665,11 +15962,11 @@
       if (!(nextFile instanceof File)) return false;
 
       if (kind === "wallpaper") {
-        await setWallpaper(nextFile, { persist: false });
+        await setWallpaper(nextFile);
         state.wallpaperSourcePath = absolutePath;
         state.wallpaperDataUrl = String(payload.dataUrl || "");
       } else if (kind === "logo") {
-        setLogo(nextFile, { persist: false });
+        setLogo(nextFile);
         state.logoSourcePath = absolutePath;
         state.logoDataUrl = String(payload.dataUrl || "");
       }
@@ -16678,8 +15975,8 @@
     }
 
     async function restoreGraphicsFromManifest(data, manifestBasePath) {
-      clearWallpaper({ persist: false });
-      clearLogo({ persist: false });
+      clearWallpaper();
+      clearLogo();
 
       const wallpaper = (data?.wallpaper && typeof data.wallpaper === "object") ? data.wallpaper : null;
       const logo = (data?.logo && typeof data.logo === "object") ? data.logo : null;
@@ -16691,21 +15988,17 @@
           try {
             const file = await makeImageFileFromDataUrl(embeddedDataUrl, fileName, "");
             if (file instanceof File) {
-              await setWallpaper(file, { persist: false });
+              await setWallpaper(file);
               state.wallpaperDataUrl = embeddedDataUrl;
-              applyWallpaperPosition(normalizeWallpaperPosition(wallpaper.position || state.wallpaperPosition), { persist: false });
             }
           } catch {}
         } else if (typeof wallpaper.path === "string") {
-          const restoredWallpaper = await restoreGraphicFromManifest(
+          await restoreGraphicFromManifest(
             "wallpaper",
             manifestBasePath,
             wallpaper.path,
             stripFileExtension(String(wallpaper.path || "").split(/[\\/]/).pop() || "wallpaper") + ".png"
           );
-          if (restoredWallpaper) {
-            applyWallpaperPosition(normalizeWallpaperPosition(wallpaper.position || state.wallpaperPosition), { persist: false });
-          }
         }
       }
 
@@ -16716,9 +16009,9 @@
           try {
             const file = await makeImageFileFromDataUrl(embeddedDataUrl, fileName, "");
             if (file instanceof File) {
-              setLogo(file, { persist: false });
+              setLogo(file);
               state.logoDataUrl = embeddedDataUrl;
-              applyLogoPosition(normalizeLogoPosition(logo.position || state.logoPosition), { persist: false });
+              applyLogoPosition(normalizeLogoPosition(logo.position || state.logoPosition));
             }
           } catch {}
         } else if (typeof logo.path === "string") {
@@ -16729,15 +16022,15 @@
             stripFileExtension(String(logo.path || "").split(/[\\/]/).pop() || "logo") + ".png"
           );
           if (restoredLogo) {
-            applyLogoPosition(normalizeLogoPosition(logo.position || state.logoPosition), { persist: false });
+            applyLogoPosition(normalizeLogoPosition(logo.position || state.logoPosition));
           }
         }
       }
     }
 
     async function restoreGraphicsFromSessionUi(uiState, manifestData, manifestBasePath) {
-      clearWallpaper({ persist: false });
-      clearLogo({ persist: false });
+      clearWallpaper();
+      clearLogo();
 
       const ui = (uiState && typeof uiState === "object") ? uiState : {};
       const wallpaperManifest = (manifestData?.wallpaper && typeof manifestData.wallpaper === "object")
@@ -16761,11 +16054,11 @@
         if (!(nextFile instanceof File)) return false;
 
         if (kind === "wallpaper") {
-          await setWallpaper(nextFile, { persist: false });
+          await setWallpaper(nextFile);
           state.wallpaperDataUrl = dataUrl;
           state.wallpaperSourcePath = sourcePath;
         } else {
-          setLogo(nextFile, { persist: false });
+          setLogo(nextFile);
           state.logoDataUrl = dataUrl;
           state.logoSourcePath = sourcePath;
         }
@@ -16788,11 +16081,11 @@
         if (!(nextFile instanceof File)) return false;
 
         if (kind === "wallpaper") {
-          await setWallpaper(nextFile, { persist: false });
+          await setWallpaper(nextFile);
           state.wallpaperDataUrl = String(payload.dataUrl || "");
           state.wallpaperSourcePath = sourcePath;
         } else {
-          setLogo(nextFile, { persist: false });
+          setLogo(nextFile);
           state.logoDataUrl = String(payload.dataUrl || "");
           state.logoSourcePath = sourcePath;
         }
@@ -16803,34 +16096,19 @@
         await restoreFromUiDataUrl("wallpaper", ui.wallpaperDataUrl, ui.wallpaperName, ui.wallpaperSourcePath)
         || await restoreFromAbsolutePath("wallpaper", ui.wallpaperSourcePath)
       );
-      if (restoredWallpaper) {
-        applyWallpaperPosition(normalizeWallpaperPosition(
-          ui.wallpaperPosition || wallpaperManifest?.position || state.wallpaperPosition
-        ), { persist: false });
-      }
       if (!restoredWallpaper && wallpaperManifest?.enabled && typeof wallpaperManifest.path === "string") {
-        const fallbackWallpaper = await restoreGraphicFromManifest(
+        await restoreGraphicFromManifest(
           "wallpaper",
           manifestBasePath,
           wallpaperManifest.path,
           stripFileExtension(String(wallpaperManifest.path || "").split(/[\\/]/).pop() || "wallpaper") + ".png"
         );
-        if (fallbackWallpaper) {
-          applyWallpaperPosition(normalizeWallpaperPosition(
-            ui.wallpaperPosition || wallpaperManifest.position || state.wallpaperPosition
-          ), { persist: false });
-        }
       }
 
       const restoredLogo = (
         await restoreFromUiDataUrl("logo", ui.logoDataUrl, ui.logoName, ui.logoSourcePath)
         || await restoreFromAbsolutePath("logo", ui.logoSourcePath)
       );
-      if (restoredLogo) {
-        applyLogoPosition(normalizeLogoPosition(
-          ui.logoPosition || logoManifest?.position || state.logoPosition
-        ), { persist: false });
-      }
       if (!restoredLogo && logoManifest?.enabled && typeof logoManifest.path === "string") {
         const fallbackLogo = await restoreGraphicFromManifest(
           "logo",
@@ -16839,7 +16117,7 @@
           stripFileExtension(String(logoManifest.path || "").split(/[\\/]/).pop() || "logo") + ".png"
         );
         if (fallbackLogo) {
-          applyLogoPosition(normalizeLogoPosition(logoManifest.position || state.logoPosition), { persist: false });
+          applyLogoPosition(normalizeLogoPosition(logoManifest.position || state.logoPosition));
         }
       }
     }
@@ -16849,7 +16127,7 @@
       const manifestFilePath = String(options?.manifestFilePath || "").trim();
       const manifestBasePath = String(options?.manifestBasePath || "").trim();
       const silentStatus = !!options?.silentStatus;
-      const hydrateManifestSamples = options?.hydrateManifestSamples === true;
+      const hydrateManifestSamples = options?.hydrateManifestSamples !== false;
       const sessionUiState = (options?.sessionUiState && typeof options.sessionUiState === "object")
         ? options.sessionUiState
         : ((options?.sessionUiGraphics && typeof options.sessionUiGraphics === "object")
@@ -16909,7 +16187,6 @@
           key: keyInfo.key,
           keyMidi: keyInfo.keyMidi,
           loopPlaybackEnabled: sessionLoopPlayback === null ? (rawSet?.loopPlaybackEnabled !== false) : sessionLoopPlayback,
-          singleNoteFixedPitchEnabled: sessionUiSet?.singleNoteFixedPitchEnabled === true || rawSet?.singleNoteFixedPitchEnabled === true,
           sourceFile: sourceLabel,
           entries: setEntries,
           manualRanges: cloneManualRangesObject(sessionUiSet?.manualRanges)
@@ -16925,9 +16202,6 @@
       state.manualRootRanges = {};
       state.activeMapSetId = importedKeyswitchSets.length > 0 ? importedKeyswitchSets[0].id : "base";
       state.baseLoopPlaybackEnabled = data?.settings?.baseLoopPlaybackEnabled !== false;
-      const lockState = getInstrumentLockStateFromUi(sessionUiState);
-      state.instrumentLockPasswordHash = lockState.passwordHash;
-      state.instrumentLocked = lockState.locked;
       state.packManifestFilePath = manifestFilePath;
       state.packManifestBasePath = manifestBasePath;
       state.nextVirtualOrder = -1;
@@ -16944,7 +16218,6 @@
         el.autoInstrument.value = data.instrumentName.trim();
       }
       const loadedSettings = (data?.settings && typeof data.settings === "object") ? data.settings : null;
-      state.openStringMidis = normalizeOpenStringMidis(data?.openStringMidis ?? loadedSettings?.openStringMidis);
       if (el.autoLoop && loadedSettings && Object.prototype.hasOwnProperty.call(loadedSettings, "autoLoopSamples")) {
         el.autoLoop.checked = !!loadedSettings.autoLoopSamples;
       }
@@ -16984,9 +16257,9 @@
       }
 
       if (sessionUiState) {
-        void restoreGraphicsFromSessionUi(sessionUiState, data, manifestBasePath);
+        await restoreGraphicsFromSessionUi(sessionUiState, data, manifestBasePath);
       } else {
-        void restoreGraphicsFromManifest(data, manifestBasePath);
+        await restoreGraphicsFromManifest(data, manifestBasePath);
       }
 
       if (!options?.skipRender) {
@@ -16998,7 +16271,6 @@
         updatePlayerEmptyState();
         syncAllKnobValues();
       }
-      updateInstrumentLockUi();
       if (hydrateManifestSamples) {
         void hydrateMissingManifestSampleUrls(120);
       }
@@ -17040,13 +16312,12 @@
           manifestFilePath,
           manifestBasePath,
           silentStatus: false,
-          hydrateManifestSamples: false
+          hydrateManifestSamples: !isMonolith
         });
         setLoadingOverlay(74, "Applying instrument...");
         if (!getNativeBackend()) await waitForNativeBackend(300);
         setLoadingOverlay(96, "Finalizing...");
-        markSessionStateDirty();
-        invalidateSessionStateFlushCache();
+        state.lastFlushedJsonHash = "";
         if (isMonolith) {
           void flushSessionStateToNative(false);
         } else {
@@ -17058,7 +16329,7 @@
         state.sessionStateLightweight = false;
         state.sessionStateHydrationRequested = false;
         state.lastSessionPayloadSig = "";
-        invalidateSessionStateFlushCache();
+        state.lastFlushedJsonHash = "";
         loadSucceeded = true;
         debugLoadLog(`loadPack done | seq=${loadSeq} | entries=${state.entries.length} | sets=${state.keyswitchSets.length}`);
       } catch (error) {
@@ -17266,7 +16537,6 @@
     }
 
     function renderAuto() {
-      const _t0 = performance.now();
       updatePlayerAuthorDisplay();
       updateAutoModwheelVelocityAvailability();
       const summary = getAutoRenderEstimate();
@@ -17291,7 +16561,6 @@
       }
       updateStartSamplingButtonLabel();
       scheduleHostResizeForActiveTab();
-      perfLog("renderAuto", performance.now() - _t0);
     }
 
     function scheduleAutoRender() {
@@ -17313,147 +16582,15 @@
       el.playerAuthorDisplay.classList.toggle("visible", show);
     }
 
-    function getInstrumentLockStateFromUi(uiState) {
-      const ui = (uiState && typeof uiState === "object") ? uiState : {};
-      const raw = (ui.instrumentLock && typeof ui.instrumentLock === "object")
-        ? ui.instrumentLock
-        : ui;
-      const passwordHash = String(raw.passwordHash || raw.instrumentLockPasswordHash || "").trim();
-      const locked = !!passwordHash && !!raw.locked;
-      return { passwordHash, locked };
-    }
-
-    async function hashInstrumentLockPassword(password) {
-      const raw = String(password || "");
-      if (window.crypto?.subtle && typeof TextEncoder !== "undefined") {
-        const data = new TextEncoder().encode(raw);
-        const digest = await window.crypto.subtle.digest("SHA-256", data);
-        return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
-      }
-
-      let hash = 2166136261;
-      for (let index = 0; index < raw.length; index += 1) {
-        hash ^= raw.charCodeAt(index);
-        hash = Math.imul(hash, 16777619);
-      }
-      return `fallback_${(hash >>> 0).toString(16).padStart(8, "0")}`;
-    }
-
-    function setInstrumentLockModalStatus(message = "", tone = "") {
-      if (!el.instrumentLockModalStatus) return;
-      const text = String(message || "").trim();
-      const visible = text.length > 0;
-      el.instrumentLockModalStatus.textContent = text;
-      el.instrumentLockModalStatus.classList.toggle("hidden", !visible);
-      el.instrumentLockModalStatus.classList.toggle("error", visible && tone === "error");
-      el.instrumentLockModalStatus.classList.toggle("ok", visible && tone === "ok");
-    }
-
-    function updateInstrumentLockUi() {
-      const hasPassword = !!String(state.instrumentLockPasswordHash || "").trim();
-      if (!hasPassword) state.instrumentLocked = false;
-      const locked = hasPassword && !!state.instrumentLocked;
-
-      if (el.playerTabBtn) {
-        el.playerTabBtn.classList.toggle("hidden", locked);
-      }
-      if (el.setupTabBtn) {
-        el.setupTabBtn.classList.toggle("hidden", locked);
-      }
-      if (locked && document.querySelector(".tab-btn.active")?.dataset.tab === "setup") {
-        activateTab("player");
-        return;
-      }
-      if (el.playerTabBtn && !locked) {
-        el.playerTabBtn.title = "Player";
-      }
-      if (el.tabsBar) {
-        const tabsTitle = !hasPassword
-          ? "Click empty top bar area to lock"
-          : (locked ? "Click empty top bar area to unlock" : "Click empty top bar area to lock");
-        el.tabsBar.title = tabsTitle;
-      }
-      updateSaveButtonVisibility();
-    }
-
-    function closeInstrumentLockModal() {
-      if (!el.instrumentLockModal) return;
-      el.instrumentLockModal.classList.add("hidden");
-      state.instrumentLockModalMode = "";
-      setInstrumentLockModalStatus("");
-      if (el.instrumentLockPasswordInput) el.instrumentLockPasswordInput.value = "";
-    }
-
-    function openInstrumentLockModal(mode) {
-      if (!el.instrumentLockModal || !el.instrumentLockModalTitle || !el.instrumentLockModalCopy || !el.instrumentLockConfirmBtn) return;
-      const nextMode = mode === "unlock" ? "unlock" : "set";
-      state.instrumentLockModalMode = nextMode;
-      el.instrumentLockModalTitle.textContent = nextMode === "unlock" ? "Unlock Instrument" : "Lock Instrument";
-      el.instrumentLockModalCopy.textContent = nextMode === "unlock"
-        ? "Enter the password to show Setup / Mapping again."
-        : "Set a password to hide Setup / Mapping until the correct password is entered.";
-      el.instrumentLockConfirmBtn.textContent = nextMode === "unlock" ? "Unlock Instrument" : "Lock Instrument";
-      if (el.instrumentLockPasswordInput) el.instrumentLockPasswordInput.value = "";
-      setInstrumentLockModalStatus("");
-      el.instrumentLockModal.classList.remove("hidden");
-      window.requestAnimationFrame(() => {
-        el.instrumentLockPasswordInput?.focus();
-        el.instrumentLockPasswordInput?.select();
-      });
-    }
-
-    function lockInstrumentNow() {
-      if (!state.instrumentLockPasswordHash) return;
-      state.instrumentLocked = true;
-      activateTab("player");
-      updateInstrumentLockUi();
-      scheduleSessionStateSave(180);
-    }
-
-    async function submitInstrumentLockModal() {
-      const mode = state.instrumentLockModalMode === "unlock" ? "unlock" : "set";
-      const rawPassword = String(el.instrumentLockPasswordInput?.value || "");
-      if (!rawPassword.trim()) {
-        setInstrumentLockModalStatus("Enter a password first.", "error");
-        el.instrumentLockPasswordInput?.focus();
-        return;
-      }
-
-      if (mode === "set") {
-        state.instrumentLockPasswordHash = await hashInstrumentLockPassword(rawPassword);
-        state.instrumentLocked = true;
-        closeInstrumentLockModal();
-        activateTab("player");
-        updateInstrumentLockUi();
-        scheduleSessionStateSave(180);
-        return;
-      }
-
-      const hashed = await hashInstrumentLockPassword(rawPassword);
-      if (hashed !== state.instrumentLockPasswordHash) {
-        setInstrumentLockModalStatus("Incorrect password.", "error");
-        el.instrumentLockPasswordInput?.focus();
-        el.instrumentLockPasswordInput?.select();
-        return;
-      }
-
-      state.instrumentLocked = false;
-      closeInstrumentLockModal();
-      updateInstrumentLockUi();
-      scheduleSessionStateSave(180);
-    }
-
     function updateSaveButtonVisibility(activeTab = null) {
       if (!el.saveSmpinstBtn) return;
-      const locked = !!state.instrumentLockPasswordHash && !!state.instrumentLocked;
       const tab = activeTab
         || document.querySelector(".tab-btn.active")?.dataset.tab
         || "player";
-      el.saveSmpinstBtn.classList.toggle("hidden", locked || tab !== "setup");
+      el.saveSmpinstBtn.classList.toggle("hidden", tab !== "setup");
     }
 
     function activateTab(tab) {
-      if (state.instrumentLocked && tab === "setup") tab = "player";
       el.tabs.forEach((btn) => {
         const target = btn.dataset.tab;
         if (!target) return;
@@ -17480,23 +16617,6 @@
           if (!tab) return;
           activateTab(tab);
         });
-      });
-
-      el.tabsBar?.addEventListener("click", (ev) => {
-        const target = ev.target;
-        if (!(target instanceof Element)) return;
-        if (target.closest("button, input, select, textarea, a, label")) return;
-        if (!ev.altKey) return;
-
-        if (!state.instrumentLockPasswordHash) {
-          openInstrumentLockModal("set");
-          return;
-        }
-        if (state.instrumentLocked) {
-          openInstrumentLockModal("unlock");
-          return;
-        }
-        lockInstrumentNow();
       });
     }
 
@@ -17657,13 +16777,9 @@
     }
 
     function setupWallpaper() {
-      el.wallpaperInput.addEventListener("change", async (ev) => {
+      el.wallpaperInput.addEventListener("change", (ev) => {
         const [file] = Array.from(ev.target.files || []);
-        if (file) {
-          state.ignoreSessionPayloadUntil = Date.now() + 5000;
-          await setWallpaper(file);
-        }
-        ev.target.value = "";
+        if (file) setWallpaper(file);
       });
 
       el.logoInput.addEventListener("change", (ev) => {
@@ -17673,7 +16789,6 @@
 
       el.wallpaperToggle.addEventListener("click", () => {
         if (!state.wallpaperName) {
-          el.wallpaperInput.value = "";
           el.wallpaperInput.click();
           return;
         }
@@ -17772,14 +16887,6 @@
         setLogoMenuOpen(false);
       });
 
-      window.addEventListener("resize", () => {
-        refreshOpenGraphicsMenuPositions();
-      });
-
-      window.addEventListener("scroll", () => {
-        refreshOpenGraphicsMenuPositions();
-      }, true);
-
       ["dragenter", "dragover"].forEach((eventName) => {
         el.playerStage.addEventListener(eventName, (ev) => {
           ev.preventDefault();
@@ -17789,10 +16896,7 @@
       el.playerStage.addEventListener("drop", (ev) => {
         ev.preventDefault();
         const image = Array.from(ev.dataTransfer.files || []).find((f) => f.type.startsWith("image/"));
-        if (image) {
-          state.ignoreSessionPayloadUntil = Date.now() + 5000;
-          setWallpaper(image);
-        }
+        if (image) setWallpaper(image);
       });
 
       updateParticlesToggle();
@@ -17818,13 +16922,6 @@
         el.folderInput.click();
       });
       el.clearInstrumentBtn.addEventListener("click", clearInstrument);
-      if (el.keyswitchSingleNoteFixedPitchToggle) {
-        el.keyswitchSingleNoteFixedPitchToggle.checked = !!state.keyswitchImportSingleNoteFixedPitchEnabled;
-        el.keyswitchSingleNoteFixedPitchToggle.addEventListener("change", () => {
-          state.keyswitchImportSingleNoteFixedPitchEnabled = !!el.keyswitchSingleNoteFixedPitchToggle.checked;
-          scheduleSessionStateSave(250);
-        });
-      }
       if (el.importKeyswitchesBtn && el.keyswitchInput) {
         el.importKeyswitchesBtn.addEventListener("click", () => el.keyswitchInput.click());
       }
@@ -17907,34 +17004,6 @@
       window.addEventListener("keydown", (ev) => {
         if (ev.key === "Escape" && !el.summaryModal.classList.contains("hidden")) {
           closeSummaryModal();
-        }
-      });
-    }
-
-    function setupInstrumentLockModal() {
-      if (!el.instrumentLockModal || !el.instrumentLockConfirmBtn || !el.instrumentLockCancelBtn || !el.closeInstrumentLockBtn) return;
-      el.instrumentLockConfirmBtn.addEventListener("click", () => {
-        void submitInstrumentLockModal();
-      });
-      el.instrumentLockCancelBtn.addEventListener("click", closeInstrumentLockModal);
-      el.closeInstrumentLockBtn.addEventListener("click", closeInstrumentLockModal);
-      el.instrumentLockModal.addEventListener("click", (ev) => {
-        if (ev.target === el.instrumentLockModal) closeInstrumentLockModal();
-      });
-      el.instrumentLockPasswordInput?.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter") {
-          ev.preventDefault();
-          void submitInstrumentLockModal();
-          return;
-        }
-        if (ev.key === "Escape") {
-          ev.preventDefault();
-          closeInstrumentLockModal();
-        }
-      });
-      window.addEventListener("keydown", (ev) => {
-        if (ev.key === "Escape" && !el.instrumentLockModal.classList.contains("hidden")) {
-          closeInstrumentLockModal();
         }
       });
     }
@@ -18451,14 +17520,12 @@
       setupSequencerArp();
       setupImport();
       setupSummaryModal();
-      setupInstrumentLockModal();
       setupAuto();
       syncAllKnobValues();
       clearWallpaper();
       updateWallpaperToggle();
       clearLogo();
       updateLogoToggle();
-      updateInstrumentLockUi();
       renderSetup();
       updatePlayerEmptyState();
       renderAuto();

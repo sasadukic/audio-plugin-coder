@@ -28,72 +28,6 @@ constexpr int kBinaryStateVersion = 1;
 constexpr bool kEnableLoadDebugLogging = true;
 constexpr std::int64_t kLoadDebugMaxFileBytes = 4 * 1024 * 1024;
 
-bool parseRoundRobinPlaybackModeIsRandom (const juce::var& value, bool fallback)
-{
-    const auto text = value.toString().trim().toLowerCase();
-    if (text == "random")
-        return true;
-    if (text == "sequential")
-        return false;
-    return fallback;
-}
-
-// ---------------------------------------------------------------------------
-// Fast JSON scalar extraction helpers — avoid parsing multi-MB JSON on the
-// message thread just to read a handful of small scalar properties inside
-// the "ui" object.
-// ---------------------------------------------------------------------------
-
-double fastExtractJsonDouble (const juce::String& json, const juce::String& key, double fallback)
-{
-    // Looks for  "key":  <number>  within the JSON string.
-    const auto searchToken = "\"" + key + "\"";
-    int pos = json.indexOf (searchToken);
-    if (pos < 0)
-        return fallback;
-    pos += searchToken.length();
-    // Skip whitespace and colon
-    while (pos < json.length() && (json[pos] == ' ' || json[pos] == ':'))
-        ++pos;
-    if (pos >= json.length())
-        return fallback;
-    // Read the number literal
-    int end = pos;
-    while (end < json.length())
-    {
-        const auto ch = json[end];
-        if ((ch >= '0' && ch <= '9') || ch == '.' || ch == '-' || ch == '+' || ch == 'e' || ch == 'E')
-            ++end;
-        else
-            break;
-    }
-    if (end == pos)
-        return fallback;
-    return json.substring (pos, end).getDoubleValue();
-}
-
-juce::String fastExtractJsonString (const juce::String& json, const juce::String& key)
-{
-    const auto searchToken = "\"" + key + "\"";
-    int pos = json.indexOf (searchToken);
-    if (pos < 0)
-        return {};
-    pos += searchToken.length();
-    while (pos < json.length() && (json[pos] == ' ' || json[pos] == ':'))
-        ++pos;
-    if (pos >= json.length() || json[pos] != '"')
-        return {};
-    ++pos;
-    int end = pos;
-    while (end < json.length() && json[end] != '"')
-    {
-        if (json[end] == '\\')
-            ++end; // skip escaped char
-        ++end;
-    }
-    return json.substring (pos, end);
-}
-
 const juce::File& getLoadDebugLogFile()
 {
     static const juce::File file = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
@@ -139,67 +73,6 @@ double elapsedMsFrom (double startMs)
 {
     return juce::Time::getMillisecondCounterHiRes() - startMs;
 }
-
-} // close anonymous namespace temporarily for member definitions
-
-void SamplePlayerAudioProcessor::perfLog (const char* tag, double durationMs, const juce::String& detail)
-{
-    const int idx = perfRingHead.fetch_add (1, std::memory_order_relaxed) % kPerfRingSize;
-    auto& entry = perfRing[static_cast<size_t> (idx)];
-    entry.timestampMs = juce::Time::getMillisecondCounterHiRes();
-    entry.durationMs = durationMs;
-    std::strncpy (entry.tag, tag, sizeof (entry.tag) - 1);
-    entry.tag[sizeof (entry.tag) - 1] = '\0';
-    const auto detailUtf8 = detail.toStdString();
-    std::strncpy (entry.detail, detailUtf8.c_str(), sizeof (entry.detail) - 1);
-    entry.detail[sizeof (entry.detail) - 1] = '\0';
-}
-
-void SamplePlayerAudioProcessor::perfFlushToFile (bool force)
-{
-    const auto now = juce::Time::getMillisecondCounterHiRes();
-    // Flush at most every 2 seconds unless forced
-    if (! force && (now - lastPerfFlushMs) < 2000.0)
-        return;
-    lastPerfFlushMs = now;
-
-    const int head = perfRingHead.load (std::memory_order_relaxed);
-    const int tail = perfFlushTail.load (std::memory_order_relaxed);
-    if (head == tail && ! force)
-        return;
-
-    juce::String batch;
-    batch.preallocateBytes (4096);
-    batch << "──── PERF FLUSH | processBlockCalls=" << juce::String (processBlockCallCount)
-          << " | peakMs=" << juce::String (processBlockPeakMs, 3)
-          << " | avgMs=" << juce::String (processBlockCallCount > 0
-                                              ? processBlockTotalMs / static_cast<double> (processBlockCallCount)
-                                              : 0.0, 3)
-          << " ────\n";
-
-    int count = 0;
-    for (int i = tail; i != head && count < kPerfRingSize; ++i, ++count)
-    {
-        const auto& entry = perfRing[static_cast<size_t> (i % kPerfRingSize)];
-        if (entry.tag[0] == '\0')
-            continue;
-        batch << "  [" << entry.tag << "] "
-              << juce::String (entry.durationMs, 2) << "ms"
-              << (entry.detail[0] != '\0' ? juce::String (" | ") + entry.detail : juce::String {})
-              << "\n";
-    }
-
-    perfFlushTail.store (head, std::memory_order_relaxed);
-    // Reset peak/totals for next window
-    processBlockPeakMs = 0.0;
-    processBlockTotalMs = 0.0;
-    processBlockCallCount = 0;
-
-    writeLoadDebugLog (batch.trimEnd());
-}
-
-namespace
-{
 
 juce::String resolveAutoSamplerDestinationPath (const juce::String& rawPath)
 {
@@ -531,23 +404,37 @@ juce::String makeLightweightSessionStateJson (const juce::String& fullJson,
     if (parsed.isVoid())
         return fullJson;
 
+    juce::String wallpaperDataUrl;
+    juce::String logoDataUrl;
+    if (const auto* rootObject = parsed.getDynamicObject())
+    {
+        if (const auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
+        {
+            wallpaperDataUrl = uiObject->getProperty ("wallpaperDataUrl").toString().trim();
+            logoDataUrl = uiObject->getProperty ("logoDataUrl").toString().trim();
+        }
+    }
+
     LightweightStripStats stats;
     stripLargePayloadFieldsRecursive (parsed, stats);
 
     if (auto* rootObject = parsed.getDynamicObject())
     {
-        if (auto* manifestObj = rootObject->getProperty ("manifest").getDynamicObject())
-        {
-            manifestObj->removeProperty ("entries");
-            manifestObj->removeProperty ("variants");
-        }
-
-        // Wallpaper/logo data URLs are never included in the lightweight
-        // payload — they are only persisted via the explicit save button.
         if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
         {
-            uiObject->removeProperty ("wallpaperDataUrl");
-            uiObject->removeProperty ("logoDataUrl");
+            constexpr int maxGraphicDataUrlChars = 5 * 1024 * 1024;
+            const auto keepGraphicDataUrl = [] (const juce::String& value)
+            {
+                return value.startsWithIgnoreCase ("data:image/")
+                    && value.length() > 32
+                    && value.length() <= maxGraphicDataUrlChars;
+            };
+
+            if (keepGraphicDataUrl (wallpaperDataUrl))
+                uiObject->setProperty ("wallpaperDataUrl", wallpaperDataUrl);
+
+            if (keepGraphicDataUrl (logoDataUrl))
+                uiObject->setProperty ("logoDataUrl", logoDataUrl);
         }
     }
 
@@ -577,10 +464,6 @@ SamplePlayerAudioProcessor::SamplePlayerAudioProcessor()
     auto initialStrumRuntime = std::make_shared<StepSequencerRuntime>();
     std::atomic_store (&strumSequencerRuntime, initialStrumRuntime);
     sequencerCurrentStepForUi.store (-1, std::memory_order_relaxed);
-
-    writeLoadDebugLog ("\n====== PROFILER SESSION START ======"
-                       "\nTimestamp: " + juce::Time::getCurrentTime().toISO8601 (true)
-                       + "\n==================================");
 }
 
 SamplePlayerAudioProcessor::~SamplePlayerAudioProcessor() = default;
@@ -819,8 +702,6 @@ void SamplePlayerAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
 
     stopAllVoices();
     roundRobinCounters.clear();
-    roundRobinRecentChoiceIds.clear();
-    roundRobinRandomState = juce::uint32 (juce::Time::getMillisecondCounter());
 
     const juce::ScopedLock lock (autoSamplerLock);
     activeAutoCaptures.clear();
@@ -863,7 +744,6 @@ bool SamplePlayerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layo
 
 void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    const auto pbStartMs = juce::Time::getMillisecondCounterHiRes();
     juce::ScopedNoDenormals noDenormals;
 
     if (const auto* modParam = parameters.getRawParameterValue (kModWheelParamId))
@@ -881,7 +761,6 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     {
         stopAllVoices();
         roundRobinCounters.clear();
-        roundRobinRecentChoiceIds.clear();
     }
 
     juce::MidiBuffer incomingMidi;
@@ -976,27 +855,11 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             {
                 const auto& step = runtime->steps[static_cast<size_t> (runtime->currentStep)];
                 const int subdivisions = subdivisionCountForRate (step.rateIndex);
-                const int stepPlaybackSlot = step.keyswitchSlot >= 0
-                    ? step.keyswitchSlot
-                    : juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
-                BlockSettings stepSettings = settings;
 
                 if (step.keyswitchSlot >= 0)
                 {
                     activeMapSetSlot.store (step.keyswitchSlot, std::memory_order_relaxed);
                     pendingActiveMapSetSlotFromMidi.store (step.keyswitchSlot, std::memory_order_relaxed);
-                    bool loopEnabled = true;
-                    const auto sampleSet = std::atomic_load (&currentSampleSet);
-                    if (sampleSet != nullptr)
-                    {
-                        if (const auto loopIt = sampleSet->loopPlaybackBySlot.find (step.keyswitchSlot);
-                            loopIt != sampleSet->loopPlaybackBySlot.end())
-                        {
-                            loopEnabled = loopIt->second;
-                        }
-                    }
-                    activeMapLoopPlaybackEnabled.store (loopEnabled, std::memory_order_relaxed);
-                    stepSettings.loopEnabled = loopEnabled;
                 }
 
                 if (subdivisions > 0)
@@ -1019,39 +882,15 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                             continue;
 
                         const int channel = juce::jlimit (1, 16, runtime->triggerChannelByMidi[static_cast<size_t> (note)]);
-                        const bool canDouble = runtime->doubling;
+                        const bool canDouble = runtime->doubling && hasMultipleRoundRobinsForNote (note, velocity127);
                         if (canDouble)
                         {
-                            const auto leftZone = startVoiceForNoteInternal (channel,
-                                                                             note,
-                                                                             velocity01,
-                                                                             stepSettings,
-                                                                             false,
-                                                                             -1.0f,
-                                                                             0,
-                                                                             nullptr,
-                                                                             stepPlaybackSlot);
-                            startVoiceForNoteInternal (channel,
-                                                       note,
-                                                       velocity01,
-                                                       stepSettings,
-                                                       true,
-                                                       1.0f,
-                                                       1,
-                                                       leftZone.get(),
-                                                       stepPlaybackSlot);
+                            startVoiceForNoteInternal (channel, note, velocity01, settings, false, -1.0f, 0);
+                            startVoiceForNoteInternal (channel, note, velocity01, settings, true, 1.0f, 1);
                         }
                         else
                         {
-                            startVoiceForNoteInternal (channel,
-                                                       note,
-                                                       velocity01,
-                                                       stepSettings,
-                                                       false,
-                                                       0.0f,
-                                                       0,
-                                                       nullptr,
-                                                       stepPlaybackSlot);
+                            startVoiceForNote (channel, note, velocity01, settings);
                         }
                     }
                 }
@@ -1235,17 +1074,6 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     }
 
     midiMessages.swapWith (renderMidi);
-
-    // ── processBlock profiling ──
-    const auto pbMs = juce::Time::getMillisecondCounterHiRes() - pbStartMs;
-    ++processBlockCallCount;
-    processBlockTotalMs += pbMs;
-    if (pbMs > processBlockPeakMs)
-        processBlockPeakMs = pbMs;
-    if (pbMs > 3.0)
-        perfLog ("processBlock-SPIKE", pbMs,
-                 "samples=" + juce::String (buffer.getNumSamples())
-                 + " voices=" + juce::String ([this]() { int c = 0; for (const auto& v : voices) if (v.active) ++c; return c; }()));
 }
 
 bool SamplePlayerAudioProcessor::hasEditor() const
@@ -1349,8 +1177,6 @@ void SamplePlayerAudioProcessor::getStateInformation (juce::MemoryBlock& destDat
     writeLoadDebugLog ("getStateInformation saved | format=binary-v1 | bytes="
                        + juce::String (static_cast<juce::int64> (destData.getSize()))
                        + " | elapsedMs=" + juce::String (elapsedMsFrom (saveStartMs), 2));
-    perfLog ("getStateInformation", elapsedMsFrom (saveStartMs),
-             "bytes=" + juce::String (static_cast<juce::int64> (destData.getSize())));
 }
 
 void SamplePlayerAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
@@ -1430,25 +1256,16 @@ void SamplePlayerAudioProcessor::setStateInformation (const void* data, int size
                        + " | embeddedSampleData=" + juce::String (embeddedSessionHasSampleData ? "yes" : "no")
                        + " | sessionJsonBytes=" + juce::String (restoredUiSessionJson.getNumBytesAsUTF8()));
 
-    // Always restore from unpacked file paths first so samples are in RAM immediately.
-    // When embedded sample data is present, the subsequent thread-pool sync will refine
-    // zone mapping (keyswitches, velocity layers, note ranges) in the background.
+    // If session payload is lightweight (no embedded sample data), restore from unpacked file paths.
+    if (! embeddedSessionHasSampleData)
     {
         juce::StringArray samplePathLines;
         samplePathLines.addLines (restoredState.getProperty (kSampleFilePathsProperty).toString());
-        if (samplePathLines.size() > 0)
-        {
-            restoreSampleFilesFromState (samplePathLines);
-            writeLoadDebugLog ("setStateInformation restored " + juce::String (samplePathLines.size())
-                               + " sample paths from state (embeddedData=" + juce::String (embeddedSessionHasSampleData ? "yes" : "no") + ")");
-        }
+        restoreSampleFilesFromState (samplePathLines);
 
-        if (! embeddedSessionHasSampleData)
-        {
-            const auto zoneOverrides = restoredState.getChildWithName (kZoneOverridesNode);
-            if (zoneOverrides.isValid())
-                applyZoneOverridesState (zoneOverrides);
-        }
+        const auto zoneOverrides = restoredState.getChildWithName (kZoneOverridesNode);
+        if (zoneOverrides.isValid())
+            applyZoneOverridesState (zoneOverrides);
     }
 
     const auto legacyRestoreMs = elapsedMsFrom (loadStartMs);
@@ -1470,8 +1287,6 @@ void SamplePlayerAudioProcessor::setStateInformation (const void* data, int size
     writeLoadDebugLog ("setStateInformation completed | legacyRestoreMs=" + juce::String (legacyRestoreMs, 2)
                        + " | wallpaperStageMs=" + juce::String (wallpaperStageMs, 2)
                        + " | totalMs=" + juce::String (elapsedMsFrom (loadStartMs), 2));
-    perfLog ("setStateInformation", elapsedMsFrom (loadStartMs),
-             "bytes=" + juce::String (sizeInBytes));
 }
 
 bool SamplePlayerAudioProcessor::isSupportedSampleFile (const juce::File& file)
@@ -1611,8 +1426,6 @@ void SamplePlayerAudioProcessor::clearSampleSet()
     std::atomic_store (&stepSequencerRuntime, std::make_shared<StepSequencerRuntime>());
     activeMapSetSlot.store (0, std::memory_order_relaxed);
     activeMapLoopPlaybackEnabled.store (true, std::memory_order_relaxed);
-    roundRobinCounters.clear();
-    roundRobinRecentChoiceIds.clear();
     sequencerCurrentStepForUi.store (-1, std::memory_order_relaxed);
     resetVoicesRequested.store (true);
 }
@@ -1769,37 +1582,90 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
     const auto requestStartMs = juce::Time::getMillisecondCounterHiRes();
     juce::String normalizedJson = json;
 
-    // --- Fast scalar extraction (no full JSON parse on the message thread) ---
+    int parsedPitchDownOctaves = 0;
+    float parsedModwheelValue01 = modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed);
+    float parsedExpressionValue01 = expressionControllerValue01.load (std::memory_order_relaxed);
     if (normalizedJson.isNotEmpty())
     {
-        playerPitchDownOctaves.store (
-            juce::jlimit (0, 2, static_cast<int> (fastExtractJsonDouble (normalizedJson, "playerPitchDownOctaves", 0.0))),
-            std::memory_order_relaxed);
-
-        const float modVal = juce::jlimit (0.0f, 1.0f,
-            static_cast<float> (fastExtractJsonDouble (normalizedJson, "modWheelValue",
-                static_cast<double> (modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed)))));
-        modwheelVelocityLayerControlValue01.store (modVal, std::memory_order_relaxed);
-        if (auto* modParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kModWheelParamId)))
-            modParam->setValue (modVal);
-
-        const float exprVal = juce::jlimit (0.0f, 1.0f,
-            static_cast<float> (fastExtractJsonDouble (normalizedJson, "expressionValue",
-                static_cast<double> (expressionControllerValue01.load (std::memory_order_relaxed)))));
-        expressionControllerValue01.store (exprVal, std::memory_order_relaxed);
-        if (auto* expressionParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kExpressionParamId)))
-            expressionParam->setValue (exprVal);
-
-        const auto rrMode = fastExtractJsonString (normalizedJson, "roundRobinPlaybackMode").trim().toLowerCase();
-        if (rrMode == "random")
-            roundRobinRandomMode.store (true, std::memory_order_relaxed);
-        else if (rrMode == "sequential")
-            roundRobinRandomMode.store (false, std::memory_order_relaxed);
+        const auto parsedForPitch = juce::JSON::parse (normalizedJson);
+        if (const auto* rootObject = parsedForPitch.getDynamicObject())
+        {
+            if (const auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
+            {
+                parsedPitchDownOctaves = juce::jlimit (0, 2,
+                    varToInt (uiObject->getProperty ("playerPitchDownOctaves"), 0));
+                parsedModwheelValue01 = juce::jlimit (0.0f, 1.0f,
+                    static_cast<float> (varToDouble (uiObject->getProperty ("modWheelValue"),
+                                                     static_cast<double> (parsedModwheelValue01))));
+                parsedExpressionValue01 = juce::jlimit (0.0f, 1.0f,
+                    static_cast<float> (varToDouble (uiObject->getProperty ("expressionValue"),
+                                                     static_cast<double> (parsedExpressionValue01))));
+            }
+        }
     }
+    playerPitchDownOctaves.store (parsedPitchDownOctaves, std::memory_order_relaxed);
+    modwheelVelocityLayerControlValue01.store (parsedModwheelValue01, std::memory_order_relaxed);
+    expressionControllerValue01.store (parsedExpressionValue01, std::memory_order_relaxed);
+    if (auto* modParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kModWheelParamId)))
+        modParam->setValue (juce::jlimit (0.0f, 1.0f, parsedModwheelValue01));
+    if (auto* expressionParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kExpressionParamId)))
+        expressionParam->setValue (juce::jlimit (0.0f, 1.0f, parsedExpressionValue01));
 
-    // Defer any pending MIDI slot-patching to the thread pool job (avoid
-    // parsing huge JSON on the message thread).
     const int midiRequestedSlot = pendingActiveMapSetSlotFromMidi.exchange (-1, std::memory_order_relaxed);
+    if (midiRequestedSlot >= 0 && normalizedJson.isNotEmpty())
+    {
+        juce::String desiredSetId = midiRequestedSlot == 0 ? "base" : juce::String {};
+
+        if (midiRequestedSlot > 0)
+        {
+            if (const auto sampleSet = std::atomic_load (&currentSampleSet); sampleSet != nullptr)
+            {
+                for (const auto& entry : sampleSet->mapSetSlotById)
+                {
+                    if (entry.second == midiRequestedSlot)
+                    {
+                        desiredSetId = juce::String (entry.first);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (desiredSetId.isNotEmpty())
+        {
+            const auto parsed = juce::JSON::parse (normalizedJson);
+            if (auto* rootObject = parsed.getDynamicObject())
+            {
+                if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
+                {
+                    const auto activeSetId = uiObject->getProperty ("activeMapSetId").toString().trim();
+                    if (activeSetId != desiredSetId)
+                    {
+                        uiObject->setProperty ("activeMapSetId", desiredSetId);
+
+                        if (auto* keyswitchSets = uiObject->getProperty ("keyswitchSets").getArray())
+                        {
+                            for (auto& setVar : *keyswitchSets)
+                            {
+                                auto* setObject = setVar.getDynamicObject();
+                                if (setObject == nullptr)
+                                    continue;
+
+                                const auto candidateId = setObject->getProperty ("id").toString().trim();
+                                setObject->setProperty ("active",
+                                                        candidateId.isNotEmpty() && candidateId == desiredSetId);
+                            }
+                        }
+
+                        normalizedJson = juce::JSON::toString (parsed, false);
+                        writeLoadDebugLog ("session json active map patched from midi | slot="
+                                           + juce::String (midiRequestedSlot)
+                                           + " | setId=" + desiredSetId);
+                    }
+                }
+            }
+        }
+    }
 
     const auto jsonBytes = normalizedJson.getNumBytesAsUTF8();
 
@@ -1818,8 +1684,7 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
             return;
         }
         uiSessionStateJson = normalizedJson;
-        // Keep the old lightweight cache during rebuild so the timer doesn't
-        // fall back to the full JSON (which may contain multi-MB data URLs).
+        uiSessionStateLightweightJson.clear();
         pendingActiveMapSetId.clear();
     }
 
@@ -1830,29 +1695,14 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
         return;
     }
 
-    // If a sync job is already running, don't cancel it — just mark that a
-    // resync is needed.  The running job will pick this up when it finishes
-    // and start a new cycle.  This prevents repeated restarts of the sample
-    // decode loop (which can take seconds for large instruments).
-    if (sessionSyncJobActive.load (std::memory_order_acquire))
-    {
-        sessionSyncResyncNeeded.store (true, std::memory_order_release);
-        writeLoadDebugLog ("setUiSessionStateJson deferred | sync job active | bytes=" + juce::String (jsonBytes));
-        return;
-    }
-
     const int requestId = sessionStateSyncRequestId.fetch_add (1, std::memory_order_relaxed) + 1;
     sessionStateSyncThreadPool.removeAllJobs (false, 1);
     writeLoadDebugLog ("setUiSessionStateJson queued | requestId=" + juce::String (requestId)
                        + " | bytes=" + juce::String (jsonBytes)
                        + " | queuePrepMs=" + juce::String (elapsedMsFrom (requestStartMs), 2));
-    perfLog ("setUiSessionStateJson", elapsedMsFrom (requestStartMs),
-             "requestId=" + juce::String (requestId) + " bytes=" + juce::String (jsonBytes));
 
-    sessionStateSyncThreadPool.addJob ([this, requestId, midiRequestedSlot]()
+    sessionStateSyncThreadPool.addJob ([this, requestId]()
     {
-        sessionSyncJobActive.store (true, std::memory_order_release);
-        sessionSyncResyncNeeded.store (false, std::memory_order_release);
         const auto syncJobStartMs = juce::Time::getMillisecondCounterHiRes();
         juce::String latestJson;
         {
@@ -1877,63 +1727,6 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
                            + " | bytes=" + juce::String (jsonBytes)
                            + " | parseMs=" + juce::String (parseMs, 2));
 
-        // --- MIDI slot patching (deferred from message thread) ---
-        if (midiRequestedSlot >= 0)
-        {
-            juce::String desiredSetId = midiRequestedSlot == 0 ? "base" : juce::String {};
-            if (midiRequestedSlot > 0)
-            {
-                if (const auto sampleSet = std::atomic_load (&currentSampleSet); sampleSet != nullptr)
-                {
-                    for (const auto& entry : sampleSet->mapSetSlotById)
-                    {
-                        if (entry.second == midiRequestedSlot)
-                        {
-                            desiredSetId = juce::String (entry.first);
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (desiredSetId.isNotEmpty())
-            {
-                if (auto* rootObject = parsed.getDynamicObject())
-                {
-                    if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
-                    {
-                        const auto activeSetId = uiObject->getProperty ("activeMapSetId").toString().trim();
-                        if (activeSetId != desiredSetId)
-                        {
-                            uiObject->setProperty ("activeMapSetId", desiredSetId);
-                            if (auto* keyswitchSets = uiObject->getProperty ("keyswitchSets").getArray())
-                            {
-                                for (auto& setVar : *keyswitchSets)
-                                {
-                                    auto* setObject = setVar.getDynamicObject();
-                                    if (setObject == nullptr)
-                                        continue;
-                                    const auto candidateId = setObject->getProperty ("id").toString().trim();
-                                    setObject->setProperty ("active",
-                                                            candidateId.isNotEmpty() && candidateId == desiredSetId);
-                                }
-                            }
-
-                            // Write patched JSON back so sample sync sees the updated active set
-                            latestJson = juce::JSON::toString (parsed, false);
-                            {
-                                const juce::ScopedLock lock (uiSessionStateLock);
-                                uiSessionStateJson = latestJson;
-                            }
-                            writeLoadDebugLog ("session json active map patched from midi | slot="
-                                               + juce::String (midiRequestedSlot)
-                                               + " | setId=" + desiredSetId);
-                        }
-                    }
-                }
-            }
-        }
-
         // --- sample sync first (read-only traversal of the parsed var) ---
         writeLoadDebugLog ("session sync job start | requestId=" + juce::String (requestId)
                            + " | bytes=" + juce::String (jsonBytes));
@@ -1942,27 +1735,37 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
         // --- build lightweight cache (strips data URLs destructively from parsed var) ---
         const auto lightweightStartMs = juce::Time::getMillisecondCounterHiRes();
 
+        juce::String wallpaperDataUrl;
+        juce::String logoDataUrl;
+        if (const auto* rootObject = parsed.getDynamicObject())
+        {
+            if (const auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
+            {
+                wallpaperDataUrl = uiObject->getProperty ("wallpaperDataUrl").toString().trim();
+                logoDataUrl = uiObject->getProperty ("logoDataUrl").toString().trim();
+            }
+        }
+
         LightweightStripStats stripStats;
         stripLargePayloadFieldsRecursive (parsed, stripStats);
 
-        // Strip the manifest entries array from the lightweight payload — it
-        // contains all sample zone definitions which don't change during
-        // playback and dominate the payload size.  The UI only applies the
-        // manifest on the initial (full) restore, so this is safe.
         if (auto* rootObject = parsed.getDynamicObject())
         {
-            if (auto* manifestObj = rootObject->getProperty ("manifest").getDynamicObject())
-            {
-                manifestObj->removeProperty ("entries");
-                manifestObj->removeProperty ("variants");
-            }
-
-            // Wallpaper/logo data URLs are never included in the lightweight
-            // payload — they are only persisted via the explicit save button.
             if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
             {
-                uiObject->removeProperty ("wallpaperDataUrl");
-                uiObject->removeProperty ("logoDataUrl");
+                constexpr int maxGraphicDataUrlChars = 5 * 1024 * 1024;
+                const auto keepGraphicDataUrl = [] (const juce::String& value)
+                {
+                    return value.startsWithIgnoreCase ("data:image/")
+                        && value.length() > 32
+                        && value.length() <= maxGraphicDataUrlChars;
+                };
+
+                if (keepGraphicDataUrl (wallpaperDataUrl))
+                    uiObject->setProperty ("wallpaperDataUrl", wallpaperDataUrl);
+
+                if (keepGraphicDataUrl (logoDataUrl))
+                    uiObject->setProperty ("logoDataUrl", logoDataUrl);
             }
         }
 
@@ -1973,10 +1776,7 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
         {
             const juce::ScopedLock lock (uiSessionStateLock);
             if (requestId == sessionStateSyncRequestId.load (std::memory_order_relaxed))
-            {
                 uiSessionStateLightweightJson = lightweightJson;
-                uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
-            }
         }
 
         writeLoadDebugLog ("session lightweight cache ready | requestId=" + juce::String (requestId)
@@ -1987,73 +1787,6 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
 
         writeLoadDebugLog ("session sync job end | requestId=" + juce::String (requestId)
                            + " | elapsedMs=" + juce::String (elapsedMsFrom (syncJobStartMs), 2));
-
-        sessionSyncJobActive.store (false, std::memory_order_release);
-
-        // If a new setUiSessionStateJson arrived while we were running, kick
-        // off another sync cycle with the updated JSON.
-        if (sessionSyncResyncNeeded.exchange (false, std::memory_order_acq_rel))
-        {
-            writeLoadDebugLog ("session sync job re-queue | deferred update arrived during sync");
-            const int resyncId = sessionStateSyncRequestId.fetch_add (1, std::memory_order_relaxed) + 1;
-            sessionStateSyncThreadPool.addJob ([this, resyncId]()
-            {
-                sessionSyncJobActive.store (true, std::memory_order_release);
-                sessionSyncResyncNeeded.store (false, std::memory_order_release);
-                const auto resyncStartMs = juce::Time::getMillisecondCounterHiRes();
-
-                juce::String resyncJson;
-                {
-                    const juce::ScopedLock lock (uiSessionStateLock);
-                    resyncJson = uiSessionStateJson;
-                }
-
-                const auto resyncBytes = static_cast<juce::int64> (resyncJson.getNumBytesAsUTF8());
-                auto resyncParsed = juce::JSON::parse (resyncJson);
-                if (resyncParsed.isVoid())
-                {
-                    sessionSyncJobActive.store (false, std::memory_order_release);
-                    return;
-                }
-
-                syncSampleSetFromSessionStateJson (resyncParsed, resyncBytes, resyncId);
-
-                LightweightStripStats resyncStripStats;
-                stripLargePayloadFieldsRecursive (resyncParsed, resyncStripStats);
-                if (auto* rootObj = resyncParsed.getDynamicObject())
-                {
-                    if (auto* manifestObj = rootObj->getProperty ("manifest").getDynamicObject())
-                    {
-                        manifestObj->removeProperty ("entries");
-                        manifestObj->removeProperty ("variants");
-                    }
-                    if (auto* uiObj = rootObj->getProperty ("ui").getDynamicObject())
-                    {
-                        uiObj->removeProperty ("wallpaperDataUrl");
-                        uiObj->removeProperty ("logoDataUrl");
-                    }
-                }
-                auto resyncLightweight = juce::JSON::toString (resyncParsed, false);
-                if (resyncLightweight.isEmpty())
-                    resyncLightweight = resyncJson;
-
-                {
-                    const juce::ScopedLock lock (uiSessionStateLock);
-                    if (resyncId == sessionStateSyncRequestId.load (std::memory_order_relaxed))
-                    {
-                        uiSessionStateLightweightJson = resyncLightweight;
-                        uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
-                    }
-                }
-
-                writeLoadDebugLog ("session resync job end | requestId=" + juce::String (resyncId)
-                                   + " | elapsedMs=" + juce::String (elapsedMsFrom (resyncStartMs), 2));
-                sessionSyncJobActive.store (false, std::memory_order_release);
-
-                if (sessionSyncResyncNeeded.exchange (false, std::memory_order_acq_rel))
-                    writeLoadDebugLog ("session resync | additional deferred update pending (will pick up on next flush)");
-            });
-        }
     });
 }
 
@@ -2197,49 +1930,8 @@ void SamplePlayerAudioProcessor::setActiveMapSetId (const juce::String& setId)
 
     if (switchedInRam)
     {
-        // Patch the stored JSON and lightweight cache on a background thread
-        // to avoid parsing multi-MB JSON on the message thread.
-        const auto capturedSetId = normalizedSetId;
-        sessionStateSyncThreadPool.addJob ([this, capturedSetId]()
-        {
-            juce::String currentJson;
-            {
-                const juce::ScopedLock lock (uiSessionStateLock);
-                currentJson = uiSessionStateJson;
-            }
-            if (currentJson.isEmpty())
-                return;
-
-            const auto parsed = juce::JSON::parse (currentJson);
-            if (auto* rootObject = parsed.getDynamicObject())
-            {
-                if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
-                {
-                    uiObject->setProperty ("activeMapSetId", capturedSetId);
-                    if (auto* keyswitchSets = uiObject->getProperty ("keyswitchSets").getArray())
-                    {
-                        for (auto& setVar : *keyswitchSets)
-                        {
-                            if (auto* setObject = setVar.getDynamicObject())
-                            {
-                                const auto candidateId = setObject->getProperty ("id").toString().trim();
-                                setObject->setProperty ("active",
-                                                        candidateId.isNotEmpty() && candidateId == capturedSetId);
-                            }
-                        }
-                    }
-
-                    auto updatedJson = juce::JSON::toString (parsed);
-                    {
-                        const juce::ScopedLock lock (uiSessionStateLock);
-                        uiSessionStateJson = updatedJson;
-                        uiSessionStateLightweightJson = makeLightweightSessionStateJson (updatedJson, nullptr);
-                        uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
-                    }
-                    writeLoadDebugLog ("active map persisted (bg) | setId=" + capturedSetId);
-                }
-            }
-        });
+        const juce::ScopedLock lock (uiSessionStateLock);
+        pendingActiveMapSetId = normalizedSetId;
         writeLoadDebugLog ("active map switch requested | setId=" + normalizedSetId + " | mode=ram-fast");
         return;
     }
@@ -2331,17 +2023,44 @@ juce::String SamplePlayerAudioProcessor::getUiSessionStateJson (bool lightweight
 {
     const juce::ScopedLock lock (uiSessionStateLock);
 
+    if (pendingActiveMapSetId.isNotEmpty() && uiSessionStateJson.isNotEmpty())
+    {
+        const auto parsed = juce::JSON::parse (uiSessionStateJson);
+        if (auto* rootObject = parsed.getDynamicObject())
+        {
+            if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
+            {
+                const auto desiredSetId = pendingActiveMapSetId.trim();
+                uiObject->setProperty ("activeMapSetId", desiredSetId);
+
+                if (auto* keyswitchSets = uiObject->getProperty ("keyswitchSets").getArray())
+                {
+                    for (auto& setVar : *keyswitchSets)
+                    {
+                        if (auto* setObject = setVar.getDynamicObject())
+                        {
+                            const auto candidateId = setObject->getProperty ("id").toString().trim();
+                            setObject->setProperty ("active", candidateId.isNotEmpty() && candidateId == desiredSetId);
+                        }
+                    }
+                }
+
+                uiSessionStateJson = juce::JSON::toString (parsed);
+                uiSessionStateLightweightJson = makeLightweightSessionStateJson (uiSessionStateJson, nullptr);
+                writeLoadDebugLog ("active map persisted to session json | setId=" + desiredSetId);
+            }
+        }
+
+        pendingActiveMapSetId.clear();
+    }
+
     if (! lightweightPreferred)
         return uiSessionStateJson;
 
     if (uiSessionStateLightweightJson.isNotEmpty())
         return uiSessionStateLightweightJson;
 
-    // Don't fall back to the full JSON — it may contain 100+ MB of embedded
-    // sample data URLs that would block both the C++ message thread and the
-    // WebView JS thread.  Return empty and let the timer push the lightweight
-    // cache once the background thread pool job has built it.
-    return {};
+    return uiSessionStateJson;
 }
 
 juce::String SamplePlayerAudioProcessor::getSampleDataUrlForMapEntry (int rootMidi,
@@ -2812,8 +2531,6 @@ void SamplePlayerAudioProcessor::applyStrumSettingsFromUi (const juce::var& payl
         }
     }
 
-    strumDoublingEnabled.store (doubling, std::memory_order_relaxed);
-
     const int activeStepCount = juce::jmax (1, parsedStepCount);
     auto runtime = std::make_shared<StepSequencerRuntime>();
     runtime->enabled = enabled;
@@ -2916,7 +2633,6 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     bool allowPitchUpAboveHighest = false;
     bool useModwheelForVelocityLayers = false;
     bool baseLoopPlaybackEnabled = true;
-    bool parsedRoundRobinRandomMode = roundRobinRandomMode.load (std::memory_order_relaxed);
     juce::String manifestBasePath;
     juce::String autoDestinationPath;
     juce::String activeMapSetId = "base";
@@ -2930,7 +2646,6 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         juce::String id;
         int keyMidi = -1;
         bool loopPlaybackEnabled = true;
-        bool singleNoteFixedPitchEnabled = false;
         juce::var manualRangesVar;
     };
 
@@ -2992,8 +2707,6 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         const auto baseLoopPlaybackEnabledVar = uiObject->getProperty ("baseLoopPlaybackEnabled");
         if (! baseLoopPlaybackEnabledVar.isVoid())
             baseLoopPlaybackEnabled = static_cast<bool> (baseLoopPlaybackEnabledVar);
-        parsedRoundRobinRandomMode = parseRoundRobinPlaybackModeIsRandom (uiObject->getProperty ("roundRobinPlaybackMode"),
-                                                                          parsedRoundRobinRandomMode);
         manifestBasePath = resolveAutoSamplerDestinationPath (uiObject->getProperty ("manifestBasePath").toString());
         baseManualRangesVar = uiObject->getProperty ("manualRootRanges");
         activeMapSetId = uiObject->getProperty ("activeMapSetId").toString().trim();
@@ -3014,9 +2727,6 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                 const auto loopPlaybackEnabledVar = setObject->getProperty ("loopPlaybackEnabled");
                 if (! loopPlaybackEnabledVar.isVoid())
                     state.loopPlaybackEnabled = static_cast<bool> (loopPlaybackEnabledVar);
-                const auto fixedPitchVar = setObject->getProperty ("singleNoteFixedPitchEnabled");
-                if (! fixedPitchVar.isVoid())
-                    state.singleNoteFixedPitchEnabled = static_cast<bool> (fixedPitchVar);
 
                 const auto keyMidiVar = setObject->getProperty ("keyMidi");
                 if (! keyMidiVar.isVoid())
@@ -3054,7 +2764,6 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         int slot = 0;
         int keyswitchMidi = -1;
         bool loopPlaybackEnabled = true;
-        bool singleNoteFixedPitchEnabled = false;
         juce::var manualRangesVar;
         const juce::Array<juce::var>* mappingArray = nullptr;
     };
@@ -3082,6 +2791,9 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                 continue;
 
             const auto* mappingArray = keyswitchObject->getProperty ("mapping").getArray();
+            if (mappingArray == nullptr || mappingArray->isEmpty())
+                continue;
+
             MapSetDescriptor set;
             set.slot = i + 1;
             set.id = "keyswitch_" + juce::String (i + 1);
@@ -3097,15 +2809,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                     set.id = uiState.id;
                 set.keyswitchMidi = uiState.keyMidi;
                 set.loopPlaybackEnabled = uiState.loopPlaybackEnabled;
-                set.singleNoteFixedPitchEnabled = uiState.singleNoteFixedPitchEnabled;
                 set.manualRangesVar = uiState.manualRangesVar;
-            }
-
-            if (! set.singleNoteFixedPitchEnabled)
-            {
-                const auto fixedPitchVar = keyswitchObject->getProperty ("singleNoteFixedPitchEnabled");
-                if (! fixedPitchVar.isVoid())
-                    set.singleNoteFixedPitchEnabled = static_cast<bool> (fixedPitchVar);
             }
 
             if (set.keyswitchMidi < 0)
@@ -3223,7 +2927,6 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
 
     activeMapSetSlot.store (activeSetSlot, std::memory_order_relaxed);
     activeMapLoopPlaybackEnabled.store (activeSetLoopPlaybackEnabled, std::memory_order_relaxed);
-    roundRobinRandomMode.store (parsedRoundRobinRandomMode, std::memory_order_relaxed);
 
     struct EmbeddedVariantDescriptor
     {
@@ -3516,18 +3219,6 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     {
         newSampleSet->mapSetSlotById[mapSet.id.toStdString()] = mapSet.slot;
         newSampleSet->loopPlaybackBySlot[mapSet.slot] = mapSet.loopPlaybackEnabled;
-        newSampleSet->fixedPitchBySlot[mapSet.slot] = mapSet.singleNoteFixedPitchEnabled;
-        const auto rootsIt = rootsBySlot.find (mapSet.slot);
-        bool isSingleRoot = false;
-        if (rootsIt != rootsBySlot.end() && ! rootsIt->second.empty())
-        {
-            const int firstRoot = rootsIt->second.front();
-            isSingleRoot = std::all_of (rootsIt->second.begin(), rootsIt->second.end(), [firstRoot] (int root)
-            {
-                return root == firstRoot;
-            });
-        }
-        newSampleSet->singleRootBySlot[mapSet.slot] = isSingleRoot;
         if (mapSet.keyswitchMidi >= 0 && mapSet.keyswitchMidi <= 127)
         {
             newSampleSet->keyswitchSlotByMidi[static_cast<size_t> (mapSet.keyswitchMidi)] = mapSet.slot;
@@ -4039,11 +3730,8 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     newSampleSet->summary = buildSampleSummary (newSampleSet->zones);
     activeMapSetSlot.store (activeSetSlot, std::memory_order_relaxed);
     activeMapLoopPlaybackEnabled.store (activeSetLoopPlaybackEnabled, std::memory_order_relaxed);
-    roundRobinRandomMode.store (parsedRoundRobinRandomMode, std::memory_order_relaxed);
     std::atomic_store (&currentSampleSet, std::shared_ptr<const SampleSet> (newSampleSet));
     std::atomic_store (&stepSequencerRuntime, buildSequencerRuntime());
-    roundRobinCounters.clear();
-    roundRobinRecentChoiceIds.clear();
     sequencerCurrentStepForUi.store (-1, std::memory_order_relaxed);
     resetVoicesRequested.store (true);
     markPresetLoadPlayable ("session-sync", static_cast<int> (newSampleSet->zones.size()));
@@ -4069,10 +3757,6 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                        + " | decodeFailures=" + juce::String (decodeFailures)
                        + " | unresolvedPaths=" + unresolvedVariantPaths.joinIntoString (" ; ")
                        + " | cacheBytes=" + juce::String (static_cast<juce::int64> (decodedEmbeddedAudioCacheTotalBytes)));
-    perfLog ("syncSampleSet", elapsedMsFrom (syncStartMs),
-             "zones=" + juce::String (static_cast<int> (newSampleSet->zones.size()))
-             + " cacheHits=" + juce::String (cacheHits)
-             + " misses=" + juce::String (cacheMisses));
 }
 
 std::shared_ptr<const SamplePlayerAudioProcessor::DecodedEmbeddedAudioCacheEntry>
@@ -5314,10 +4998,6 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
         const int note = juce::jlimit (0, 127, message.getNoteNumber());
         const auto sampleSet = std::atomic_load (&currentSampleSet);
         const int activeSlot = juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
-        const bool activeSlotIsSingleRootDrum = sampleSet != nullptr
-            && isSingleRootDrumSlot (*sampleSet, activeSlot)
-            && (sampleSet->fixedPitchBySlot.count (activeSlot) > 0)
-            && sampleSet->fixedPitchBySlot.at (activeSlot);
 
         if (sampleSet != nullptr)
         {
@@ -5325,21 +5005,18 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
             if (keyswitchSlot >= 0)
             {
                 auto& noteOnCount = midiNoteOnCounts[static_cast<size_t> (note)];
+                noteOnCount = juce::jmin (1024, noteOnCount + 1);
+                setMidiHeldState (note, true);
                 activeMapSetSlot.store (keyswitchSlot, std::memory_order_relaxed);
                 pendingActiveMapSetSlotFromMidi.store (keyswitchSlot, std::memory_order_relaxed);
                 bool loopEnabled = true;
                 if (const auto loopIt = sampleSet->loopPlaybackBySlot.find (keyswitchSlot); loopIt != sampleSet->loopPlaybackBySlot.end())
                     loopEnabled = loopIt->second;
                 activeMapLoopPlaybackEnabled.store (loopEnabled, std::memory_order_relaxed);
-                if (!(activeSlotIsSingleRootDrum && keyswitchSlot == activeSlot))
-                {
-                    noteOnCount = juce::jmin (1024, noteOnCount + 1);
-                    setMidiHeldState (note, true);
-                    return;
-                }
+                return;
             }
 
-            if (sampleSet->hasKeyswitchSets && note <= 24 && ! activeSlotIsSingleRootDrum)
+            if (sampleSet->hasKeyswitchSets && note <= 24)
                 return;
         }
 
@@ -5407,10 +5084,6 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 sequencerCurrentStepForUi.store (stepIndex, std::memory_order_relaxed);
 
                 const auto& step = runtime->steps[static_cast<size_t> (stepIndex)];
-                const int stepPlaybackSlot = step.keyswitchSlot >= 0
-                    ? step.keyswitchSlot
-                    : juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
-                BlockSettings stepSettings = settings;
                 if (step.keyswitchSlot >= 0)
                 {
                     activeMapSetSlot.store (step.keyswitchSlot, std::memory_order_relaxed);
@@ -5422,7 +5095,6 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                         loopEnabled = loopIt->second;
                     }
                     activeMapLoopPlaybackEnabled.store (loopEnabled, std::memory_order_relaxed);
-                    stepSettings.loopEnabled = loopEnabled;
                 }
 
                 if (step.velocity127 <= 0)
@@ -5470,39 +5142,27 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 }
 
                 const float velocity01 = static_cast<float> (velocity127) / 127.0f;
-                const bool canDouble = runtime->doubling;
+                const bool canDouble = runtime->doubling && hasMultipleRoundRobinsForNote (playedNote, velocity127);
                 if (canDouble)
                 {
-                    const auto leftZone = startVoiceForNoteInternal (message.getChannel(),
-                                                                     playedNote,
-                                                                     velocity01,
-                                                                     stepSettings,
-                                                                     false,
-                                                                     -1.0f,
-                                                                     0,
-                                                                     nullptr,
-                                                                     stepPlaybackSlot);
                     startVoiceForNoteInternal (message.getChannel(),
                                                playedNote,
                                                velocity01,
-                                               stepSettings,
+                                               settings,
+                                               false,
+                                               -1.0f,
+                                               0);
+                    startVoiceForNoteInternal (message.getChannel(),
+                                               playedNote,
+                                               velocity01,
+                                               settings,
                                                true,
                                                1.0f,
-                                               1,
-                                               leftZone.get(),
-                                               stepPlaybackSlot);
+                                               1);
                 }
                 else
                 {
-                    startVoiceForNoteInternal (message.getChannel(),
-                                               playedNote,
-                                               velocity01,
-                                               stepSettings,
-                                               false,
-                                               0.0f,
-                                               0,
-                                               nullptr,
-                                               stepPlaybackSlot);
+                    startVoiceForNote (message.getChannel(), playedNote, velocity01, settings);
                 }
                 return true;
             };
@@ -5546,12 +5206,12 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
 
         {
             auto strumRT = std::atomic_load (&strumSequencerRuntime);
-            const bool doublingOn = strumDoublingEnabled.load (std::memory_order_relaxed)
-                || (strumRT != nullptr && strumRT->doubling);
-            if (doublingOn)
+            const bool doublingOn = strumRT != nullptr && strumRT->doubling;
+            const int vel127 = juce::jlimit (1, 127, static_cast<int> (std::round (message.getFloatVelocity() * 127.0f)));
+            if (doublingOn && hasMultipleRoundRobinsForNote (note, vel127))
             {
-                const auto leftZone = startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, false, -1.0f, 0);
-                startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, true, 1.0f, 1, leftZone.get());
+                startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, false, -1.0f, 0);
+                startVoiceForNoteInternal (message.getChannel(), note, message.getFloatVelocity(), settings, true, 1.0f, 1);
             }
             else
             {
@@ -5604,19 +5264,11 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
             const int keyswitchSlot = sampleSet->keyswitchSlotByMidi[static_cast<size_t> (note)];
             if (keyswitchSlot >= 0)
             {
-                const bool noteHasActiveVoice = std::any_of (voices.begin(), voices.end(), [note] (const auto& voice)
-                {
-                    return voice.active && voice.midiNote == note;
-                });
-
-                if (! noteHasActiveVoice)
-                {
-                    auto& noteOnCount = midiNoteOnCounts[static_cast<size_t> (note)];
-                    if (noteOnCount > 0)
-                        --noteOnCount;
-                    setMidiHeldState (note, noteOnCount > 0);
-                    return;
-                }
+                auto& noteOnCount = midiNoteOnCounts[static_cast<size_t> (note)];
+                if (noteOnCount > 0)
+                    --noteOnCount;
+                setMidiHeldState (note, noteOnCount > 0);
+                return;
             }
         }
 
@@ -5699,27 +5351,20 @@ void SamplePlayerAudioProcessor::startVoiceForNote (int midiChannel,
     startVoiceForNoteInternal (midiChannel, midiNoteNumber, velocity, settings, false, 0.0f, 0);
 }
 
-std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioProcessor::startVoiceForNoteInternal (int midiChannel,
-                                                                                                                      int midiNoteNumber,
-                                                                                                                      float velocity,
-                                                                                                                      const BlockSettings& settings,
-                                                                                                                      bool suppressMonoCut,
-                                                                                                                      float pan,
-                                                                                                                      int rrOffset,
-                                                                                                                      const SampleZone* excludedZone,
-                                                                                                                      int forcedMapSetSlot)
+void SamplePlayerAudioProcessor::startVoiceForNoteInternal (int midiChannel,
+                                                            int midiNoteNumber,
+                                                            float velocity,
+                                                            const BlockSettings& settings,
+                                                            bool suppressMonoCut,
+                                                            float pan,
+                                                            int rrOffset)
 {
     const int velocity127 = juce::jlimit (1, 127, static_cast<int> (std::round (velocity * 127.0f)));
     bool usedModwheelLayerSelection = false;
-    auto zone = pickZoneForNote (midiNoteNumber,
-                                 velocity127,
-                                 &usedModwheelLayerSelection,
-                                 rrOffset,
-                                 excludedZone,
-                                 forcedMapSetSlot);
+    auto zone = pickZoneForNote (midiNoteNumber, velocity127, &usedModwheelLayerSelection, rrOffset);
 
     if (zone == nullptr)
-        return {};
+        return;
 
     if (! suppressMonoCut)
     {
@@ -5747,29 +5392,20 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     }
 
     if (voice == nullptr)
-        return {};
+        return;
 
     *voice = VoiceState {};
-    auto selectedZone = zone;
 
     voice->active = true;
     voice->midiNote = midiNoteNumber;
     voice->midiChannel = midiChannel;
-    voice->zone = selectedZone;
+    voice->zone = std::move (zone);
     voice->position = 0.0;
     const bool ignoreMidiVelocity = usedModwheelLayerSelection && settings.loopEnabled;
     voice->velocityGain = ignoreMidiVelocity ? 1.0f : (velocity127 * velocityScale);
     voice->age = ++voiceAgeCounter;
 
-    const auto sampleSet = std::atomic_load (&currentSampleSet);
-    const int zoneSlot = voice->zone->metadata.mapSetSlot;
-    const bool fixedPitchPlayback = sampleSet != nullptr
-        && isSingleRootDrumSlot (*sampleSet, zoneSlot)
-        && (sampleSet->fixedPitchBySlot.count (zoneSlot) > 0)
-        && sampleSet->fixedPitchBySlot.at (zoneSlot);
-    const auto semitoneOffset = fixedPitchPlayback
-        ? 0.0
-        : static_cast<double> (midiNoteNumber - voice->zone->metadata.rootNote);
+    const auto semitoneOffset = static_cast<double> (midiNoteNumber - voice->zone->metadata.rootNote);
     const auto pitch = std::pow (2.0, semitoneOffset / 12.0);
     const auto sampleRateRatio = voice->zone->sourceSampleRate / juce::jmax (1.0, currentSampleRate);
     const int pitchDownOctaves = juce::jlimit (0, 2, playerPitchDownOctaves.load (std::memory_order_relaxed));
@@ -5811,8 +5447,6 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
 
     for (auto& filterState : voice->filterStates)
         filterState.reset();
-
-    return selectedZone;
 }
 
 void SamplePlayerAudioProcessor::releaseVoicesForNote (int midiChannel,
@@ -5883,35 +5517,6 @@ void SamplePlayerAudioProcessor::setMidiHeldState (int midiNote, bool held) noex
         if (mask.compare_exchange_weak (current, desired, std::memory_order_relaxed, std::memory_order_relaxed))
             break;
     }
-}
-
-bool SamplePlayerAudioProcessor::isSingleRootDrumSlot (const SampleSet& sampleSet, int mapSetSlot) const
-{
-    if (const auto it = sampleSet.singleRootBySlot.find (mapSetSlot); it != sampleSet.singleRootBySlot.end())
-        return it->second;
-
-    int detectedRoot = -1;
-
-    for (const auto& zone : sampleSet.zones)
-    {
-        if (zone == nullptr)
-            continue;
-
-        const auto& metadata = zone->metadata;
-        if (metadata.mapSetSlot != mapSetSlot)
-            continue;
-
-        if (detectedRoot < 0)
-        {
-            detectedRoot = metadata.rootNote;
-            continue;
-        }
-
-        if (metadata.rootNote != detectedRoot)
-            return false;
-    }
-
-    return detectedRoot >= 0;
 }
 
 void SamplePlayerAudioProcessor::stopAllVoices()
@@ -5997,9 +5602,7 @@ void SamplePlayerAudioProcessor::startStealTailFromVoice (const VoiceState& sour
 std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioProcessor::pickZoneForNote (int midiNoteNumber,
                                                                                                               int velocity127,
                                                                                                               bool* usedModwheelLayerSelection,
-                                                                                                              int rrOffset,
-                                                                                                              const SampleZone* excludedZone,
-                                                                                                              int forcedMapSetSlot)
+                                                                                                              int rrOffset)
 {
     if (usedModwheelLayerSelection != nullptr)
         *usedModwheelLayerSelection = false;
@@ -6009,9 +5612,7 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     if (sampleSet == nullptr || sampleSet->zones.empty())
         return {};
 
-    const int activeSlot = forcedMapSetSlot >= 0
-        ? forcedMapSetSlot
-        : juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
+    const int activeSlot = juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
 
     std::vector<std::shared_ptr<const SampleZone>> noteAndVelocityMatches;
     std::vector<std::shared_ptr<const SampleZone>> noteOnlyMatches;
@@ -6069,15 +5670,11 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     if (candidatePool->empty())
         candidatePool = &noteOnlyMatches;
 
-    const bool allowSingleRootNearestFallback = activeSlot == 0
-        || ! isSingleRootDrumSlot (*sampleSet, activeSlot)
-        || ((sampleSet->fixedPitchBySlot.count (activeSlot) > 0) && sampleSet->fixedPitchBySlot.at (activeSlot));
-
     // Nearest-root fallback: when no zone explicitly covers the played note,
     // find zones sharing the closest root and pitch-shift to it.  This ensures
     // stretched key ranges always sound even when explicit low/high metadata
     // is missing, stale, or computed differently than the UI display.
-    if (candidatePool->empty() && allowSingleRootNearestFallback)
+    if (candidatePool->empty())
     {
         int nearestRoot = -1;
         int nearestDistance = 999;
@@ -6141,80 +5738,11 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     const int rrKey = (activeSlot << 8) | juce::jlimit (0, 127, midiNoteNumber);
     auto& rrCounter = roundRobinCounters[rrKey];
     const auto poolSize = static_cast<int> (candidatePool->size());
-    const auto zoneChoiceId = [] (const SampleZone& zone) -> juce::uint64
-    {
-        juce::uint64 hash = static_cast<juce::uint64> (zone.sourceFile.getFullPathName().hashCode64());
-        hash ^= static_cast<juce::uint64> ((zone.metadata.roundRobinIndex + 1) * 131);
-        hash ^= (static_cast<juce::uint64> (zone.metadata.lowVelocity + 1) << 24);
-        hash ^= (static_cast<juce::uint64> (zone.metadata.highVelocity + 1) << 40);
-        return hash;
-    };
-
-    const juce::uint64 excludedChoiceId = excludedZone != nullptr ? zoneChoiceId (*excludedZone) : 0;
-
-    if (roundRobinRandomMode.load (std::memory_order_relaxed) && poolSize > 0)
-    {
-        auto& recentChoices = roundRobinRecentChoiceIds[rrKey];
-        std::vector<int> eligibleIndices;
-        eligibleIndices.reserve (static_cast<size_t> (poolSize));
-
-        const auto collectEligible = [&] (bool excludeRecent)
-        {
-            eligibleIndices.clear();
-            for (int index = 0; index < poolSize; ++index)
-            {
-                const auto& candidate = candidatePool->at (static_cast<size_t> (index));
-                if (candidate == nullptr)
-                    continue;
-
-                const auto choiceId = zoneChoiceId (*candidate);
-                if (excludedChoiceId != 0 && choiceId == excludedChoiceId)
-                    continue;
-                if (excludeRecent && (choiceId == recentChoices[0] || choiceId == recentChoices[1]))
-                    continue;
-                eligibleIndices.push_back (index);
-            }
-        };
-
-        collectEligible (true);
-        if (eligibleIndices.empty())
-            collectEligible (false);
-        if (eligibleIndices.empty())
-        {
-            for (int index = 0; index < poolSize; ++index)
-                eligibleIndices.push_back (index);
-        }
-
-        roundRobinRandomState = (roundRobinRandomState * 1664525u) + 1013904223u;
-        const auto sample = (roundRobinRandomState >> 8) & 0x00ffffffu;
-        const auto chosenOffset = static_cast<size_t> (sample % static_cast<juce::uint32> (eligibleIndices.size()));
-        const int chosenIndex = eligibleIndices[chosenOffset];
-        const auto& chosenZone = candidatePool->at (static_cast<size_t> (chosenIndex));
-        const auto chosenChoiceId = zoneChoiceId (*chosenZone);
-        recentChoices[1] = recentChoices[0];
-        recentChoices[0] = chosenChoiceId;
-        return chosenZone;
-    }
-
-    int wrappedIndex = poolSize > 0
+    const int wrappedIndex = poolSize > 0
         ? ((rrCounter + juce::jmax (0, rrOffset)) % poolSize)
         : 0;
-
-    if (excludedChoiceId != 0 && poolSize > 1)
-    {
-        for (int attempt = 0; attempt < poolSize; ++attempt)
-        {
-            const int candidateIndex = (wrappedIndex + attempt) % poolSize;
-            const auto& candidate = candidatePool->at (static_cast<size_t> (candidateIndex));
-            if (candidate != nullptr && zoneChoiceId (*candidate) != excludedChoiceId)
-            {
-                wrappedIndex = candidateIndex;
-                break;
-            }
-        }
-    }
-
     rrCounter = (rrCounter + 1) % 8192;
+
     return candidatePool->at (static_cast<size_t> (wrappedIndex));
 }
 
@@ -6253,13 +5781,6 @@ bool SamplePlayerAudioProcessor::hasMultipleRoundRobinsForNote (int midiNoteNumb
 
     if (! rrMatches.empty() || ! rrNoteMatches.empty())
         return rrMatches.empty() && rrNoteMatches.size() > 1;
-
-    const bool allowSingleRootNearestFallback = activeSlot == 0
-        || ! isSingleRootDrumSlot (*sampleSet, activeSlot)
-        || ((sampleSet->fixedPitchBySlot.count (activeSlot) > 0) && sampleSet->fixedPitchBySlot.at (activeSlot));
-
-    if (! allowSingleRootNearestFallback)
-        return false;
 
     // Nearest-root fallback for stretched notes outside explicit ranges.
     int nearestRoot = -1;
