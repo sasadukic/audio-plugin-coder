@@ -6076,6 +6076,7 @@
           state.strumVelocityHumanizePercent,
           state.strumTimingHumanizeMs,
           state.sequencerHostTriggerEnabled,
+          state.sequencerDoubling,
           JSON.stringify(state.manualRootRanges || {}),
           JSON.stringify(state.velocityCrossfadeByRoot || {}),
           JSON.stringify(state.sequencerSteps),
@@ -8478,6 +8479,118 @@
       syncPlayerPitchDownToggle();
       syncPlayerPitchDownToggle();
 
+      // Floating strum rate overlay — lives on document.body to avoid overflow clipping
+      const strumRateOverlay = document.createElement("div");
+      strumRateOverlay.className = "strum-menu hidden";
+      strumRateOverlay.setAttribute("role", "menu");
+      strumRateOverlay.setAttribute("aria-label", "Step rate");
+      document.body.appendChild(strumRateOverlay);
+      let strumRateOverlayStepIndex = -1;
+
+      // Floating strum keyswitch overlay — lives on document.body to avoid overflow clipping
+      const strumKeyswitchOverlay = document.createElement("div");
+      strumKeyswitchOverlay.className = "strum-menu hidden";
+      strumKeyswitchOverlay.setAttribute("role", "menu");
+      strumKeyswitchOverlay.setAttribute("aria-label", "Step keyswitch");
+      document.body.appendChild(strumKeyswitchOverlay);
+      let strumKeyswitchOverlayStepIndex = -1;
+
+      const showStrumRateOverlay = (btn, stepIndex) => {
+        ensureStrumStepPattern();
+        const step = normalizeStrumStep(state.strumStepPattern[stepIndex]);
+        strumRateOverlay.innerHTML = "";
+        STRUM_STEP_RATE_LABELS.forEach((label, rateIdx) => {
+          const item = document.createElement("button");
+          item.className = "strum-menu-item strum-step-rate-item";
+          item.type = "button";
+          item.dataset.stepIndex = String(stepIndex);
+          item.dataset.stepRateIndex = String(rateIdx);
+          item.textContent = label;
+          item.classList.toggle("active", rateIdx === step.rateIndex);
+          strumRateOverlay.appendChild(item);
+        });
+        strumRateOverlayStepIndex = stepIndex;
+        const rect = btn.getBoundingClientRect();
+        strumRateOverlay.style.minWidth = `${Math.max(72, Math.round(rect.width))}px`;
+        strumRateOverlay.style.left = "";
+        strumRateOverlay.style.top = "";
+        strumRateOverlay.classList.remove("hidden");
+        const menuRect = strumRateOverlay.getBoundingClientRect();
+        let top = rect.top - 6 - menuRect.height;
+        let left = rect.left;
+        if (top < 0) top = rect.bottom + 6;
+        if (left + menuRect.width > window.innerWidth) {
+          left = Math.max(0, window.innerWidth - menuRect.width - 4);
+        }
+        strumRateOverlay.style.top = `${Math.round(top)}px`;
+        strumRateOverlay.style.left = `${Math.round(left)}px`;
+      };
+
+      const showStrumKeyswitchOverlay = (btn, stepIndex) => {
+        ensureStrumStepPattern();
+        const keyswitchOptions = getStrumKeyswitchOptions();
+        const step = normalizeStrumStep(state.strumStepPattern[stepIndex]);
+        strumKeyswitchOverlay.innerHTML = "";
+        keyswitchOptions.forEach((option) => {
+          const item = document.createElement("button");
+          item.className = "strum-menu-item strum-step-keyswitch-item";
+          item.type = "button";
+          item.dataset.stepIndex = String(stepIndex);
+          item.dataset.stepKeyswitchId = option.value;
+          item.textContent = option.label;
+          item.classList.toggle("active", String(option.value) === String(step.keyswitchSetId || "").trim());
+          strumKeyswitchOverlay.appendChild(item);
+        });
+        strumKeyswitchOverlayStepIndex = stepIndex;
+        const rect = btn.getBoundingClientRect();
+        strumKeyswitchOverlay.style.minWidth = `${Math.max(72, Math.round(rect.width))}px`;
+        strumKeyswitchOverlay.style.left = "";
+        strumKeyswitchOverlay.style.top = "";
+        strumKeyswitchOverlay.classList.remove("hidden");
+        const menuRect = strumKeyswitchOverlay.getBoundingClientRect();
+        let top = rect.top - 6 - menuRect.height;
+        let left = rect.left;
+        if (top < 0) top = rect.bottom + 6;
+        if (left + menuRect.width > window.innerWidth) {
+          left = Math.max(0, window.innerWidth - menuRect.width - 4);
+        }
+        strumKeyswitchOverlay.style.top = `${Math.round(top)}px`;
+        strumKeyswitchOverlay.style.left = `${Math.round(left)}px`;
+      };
+
+      strumRateOverlay.addEventListener("click", (ev) => {
+        const item = ev.target instanceof Element ? ev.target.closest(".strum-step-rate-item") : null;
+        if (!(item instanceof HTMLButtonElement)) return;
+        const stepIndex = Math.round(Number(item.dataset.stepIndex));
+        if (!Number.isFinite(stepIndex) || stepIndex < 0 || stepIndex >= 8) return;
+        const rateIndex = Math.max(0, Math.min(4, Number(item.dataset.stepRateIndex) || 0));
+        ensureStrumStepPattern();
+        const normalizedStep = normalizeStrumStep(state.strumStepPattern[stepIndex]);
+        state.strumStepPattern[stepIndex] = { ...normalizedStep, rateIndex };
+        closeStrumMenus();
+        updateStrumUi();
+        emitStrumSettings();
+        scheduleSessionStateSave(280);
+      });
+
+      strumKeyswitchOverlay.addEventListener("click", (ev) => {
+        const item = ev.target instanceof Element ? ev.target.closest(".strum-step-keyswitch-item") : null;
+        if (!(item instanceof HTMLButtonElement)) return;
+        const stepIndex = Math.round(Number(item.dataset.stepIndex));
+        if (!Number.isFinite(stepIndex) || stepIndex < 0 || stepIndex >= 8) return;
+        const keyswitchSetId = String(item.dataset.stepKeyswitchId || "").trim();
+        ensureStrumStepPattern();
+        const normalizedStep = normalizeStrumStep(state.strumStepPattern[stepIndex]);
+        state.strumStepPattern[stepIndex] = {
+          ...normalizedStep,
+          keyswitchSetId: keyswitchSetId && getKeyswitchSetById(keyswitchSetId) ? keyswitchSetId : ""
+        };
+        closeStrumMenus();
+        updateStrumUi();
+        emitStrumSettings();
+        scheduleSessionStateSave(280);
+      });
+
       const positionStrumMenuAt = (btn, menu) => {
         if (!btn || !menu) return;
         const r = btn.getBoundingClientRect();
@@ -8489,10 +8602,10 @@
         menu.style.minWidth = `${Math.max(100, Math.round(r.width))}px`;
         menu.classList.remove("hidden");
         const mRect = menu.getBoundingClientRect();
-        let top = r.bottom + menuGap;
+        let top = r.top - menuGap - mRect.height;
         let left = r.left;
-        if (top + mRect.height > window.innerHeight) {
-          top = Math.max(0, r.top - menuGap - mRect.height);
+        if (top < 0) {
+          top = r.bottom + menuGap;
         }
         if (left + mRect.width > window.innerWidth) {
           left = Math.max(0, window.innerWidth - mRect.width - 4);
@@ -8502,6 +8615,12 @@
       };
 
       const closeStrumMenus = () => {
+        strumRateOverlay.classList.add("hidden");
+        strumRateOverlay.innerHTML = "";
+        strumRateOverlayStepIndex = -1;
+        strumKeyswitchOverlay.classList.add("hidden");
+        strumKeyswitchOverlay.innerHTML = "";
+        strumKeyswitchOverlayStepIndex = -1;
         const menus = [
           el.strumSequencerMenu,
           el.strumRateMenu,
@@ -8811,12 +8930,12 @@
               if (rateBtn.disabled) return;
               ev.preventDefault();
               ev.stopPropagation();
-              const menu = rateBtn.parentElement?.querySelector(".strum-step-rate-menu");
-              if (!(menu instanceof HTMLElement)) return;
-              const open = !menu.classList.contains("hidden");
+              const stepIndex = Number(rateBtn.dataset.stepIndex);
+              if (!Number.isFinite(stepIndex)) return;
+              const wasOpen = strumRateOverlayStepIndex === stepIndex && !strumRateOverlay.classList.contains("hidden");
               closeStrumMenus();
-              if (!open) {
-                positionStrumMenuAt(rateBtn, menu);
+              if (!wasOpen) {
+                showStrumRateOverlay(rateBtn, stepIndex);
                 rateBtn.setAttribute("aria-expanded", "true");
               }
               return;
@@ -8848,12 +8967,12 @@
               if (keyswitchBtn.disabled) return;
               ev.preventDefault();
               ev.stopPropagation();
-              const menu = keyswitchBtn.parentElement?.querySelector(".strum-step-keyswitch-menu");
-              if (!(menu instanceof HTMLElement)) return;
-              const open = !menu.classList.contains("hidden");
+              const stepIndex = Number(keyswitchBtn.dataset.stepIndex);
+              if (!Number.isFinite(stepIndex)) return;
+              const wasOpen = strumKeyswitchOverlayStepIndex === stepIndex && !strumKeyswitchOverlay.classList.contains("hidden");
               closeStrumMenus();
-              if (!open) {
-                positionStrumMenuAt(keyswitchBtn, menu);
+              if (!wasOpen) {
+                showStrumKeyswitchOverlay(keyswitchBtn, stepIndex);
                 keyswitchBtn.setAttribute("aria-expanded", "true");
               }
             }

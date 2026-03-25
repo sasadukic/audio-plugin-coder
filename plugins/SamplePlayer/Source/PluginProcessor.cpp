@@ -1032,7 +1032,8 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 stepSettings.loopEnabled = loopEnabled;
             }
 
-            const bool canDouble = sequencerDoublingEnabled.load (std::memory_order_relaxed);
+            const bool canDouble = sequencerDoublingEnabled.load (std::memory_order_relaxed)
+                                || stepRT->doubling;
             if (canDouble)
             {
                 const auto leftZone = startVoiceForNoteInternal (channel,
@@ -5655,7 +5656,8 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 }
 
                 const float velocity01 = static_cast<float> (velocity127) / 127.0f;
-                const bool canDouble = sequencerDoublingEnabled.load (std::memory_order_relaxed);
+                const bool canDouble = sequencerDoublingEnabled.load (std::memory_order_relaxed)
+                                    || runtime->doubling;
                 if (canDouble)
                 {
                     const auto leftZone = startVoiceForNoteInternal (message.getChannel(),
