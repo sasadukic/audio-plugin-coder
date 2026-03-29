@@ -1796,8 +1796,9 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
 
     int parsedPitchDownOctaves = 0;
     float parsedModwheelValue01 = modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed);
-        uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
+    uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
     float parsedExpressionValue01 = expressionControllerValue01.load (std::memory_order_relaxed);
+    juce::String parsedWallpaperSourcePath;
     if (normalizedJson.isNotEmpty())
     {
         const auto parsedForPitch = juce::JSON::parse (normalizedJson);
@@ -1813,6 +1814,7 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
                 parsedExpressionValue01 = juce::jlimit (0.0f, 1.0f,
                     static_cast<float> (varToDouble (uiObject->getProperty ("expressionValue"),
                                                      static_cast<double> (parsedExpressionValue01))));
+                parsedWallpaperSourcePath = uiObject->getProperty ("wallpaperSourcePath").toString().trim();
             }
         }
     }
@@ -1823,6 +1825,22 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
         modParam->setValue (juce::jlimit (0.0f, 1.0f, parsedModwheelValue01));
     if (auto* expressionParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kExpressionParamId)))
         expressionParam->setValue (juce::jlimit (0.0f, 1.0f, parsedExpressionValue01));
+
+    const auto currentWallpaperFile = getWallpaperFile();
+    const auto currentWallpaperPath = currentWallpaperFile.getFullPathName();
+
+    if (parsedWallpaperSourcePath.isNotEmpty())
+    {
+        if (parsedWallpaperSourcePath != currentWallpaperPath)
+        {
+            if (! setWallpaperFile (juce::File (parsedWallpaperSourcePath)))
+                setWallpaperFile (juce::File {});
+        }
+    }
+    else if (currentWallpaperFile != juce::File {})
+    {
+        setWallpaperFile (juce::File {});
+    }
 
     const int midiRequestedSlot = pendingActiveMapSetSlotFromMidi.exchange (-1, std::memory_order_relaxed);
     if (midiRequestedSlot >= 0 && normalizedJson.isNotEmpty())

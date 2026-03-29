@@ -5896,6 +5896,12 @@
         preserveRuntimePaths: true,
         includeEmbeddedSampleData: !!options.includeEmbeddedSampleData
       });
+      const wallpaperName = state.wallpaperName ? String(state.wallpaperName || "").trim() : "";
+      const wallpaperSourcePath = wallpaperName ? String(state.wallpaperSourcePath || "").trim() : "";
+      const logoName = state.logoName ? String(state.logoName || "").trim() : "";
+      const logoSourcePath = logoName ? String(state.logoSourcePath || "").trim() : "";
+      const includeEmbeddedGraphics = !!options.force
+        || !!options.includeEmbeddedSampleData;
       return {
         version: 1,
         manifest,
@@ -5929,13 +5935,17 @@
           autoRR: !!state.autoRR,
           autoGainCrossfade: !!state.autoGainCrossfade,
           wallpaperPosition: normalizeWallpaperPosition(state.wallpaperPosition),
-          wallpaperName: state.wallpaperName ? String(state.wallpaperName || "").trim() : "",
-          wallpaperSourcePath: state.wallpaperName ? String(state.wallpaperSourcePath || "").trim() : "",
-          wallpaperDataUrl: (options.force || options.includeEmbeddedSampleData) && state.wallpaperName ? String(state.wallpaperDataUrl || "").trim() : "",
+          wallpaperName,
+          wallpaperSourcePath,
+          wallpaperDataUrl: (includeEmbeddedGraphics || !wallpaperSourcePath) && wallpaperName
+            ? String(state.wallpaperDataUrl || "").trim()
+            : "",
           logoPosition: normalizeLogoPosition(state.logoPosition),
-          logoName: state.logoName ? String(state.logoName || "").trim() : "",
-          logoSourcePath: state.logoName ? String(state.logoSourcePath || "").trim() : "",
-          logoDataUrl: (options.force || options.includeEmbeddedSampleData) && state.logoName ? String(state.logoDataUrl || "").trim() : "",
+          logoName,
+          logoSourcePath,
+          logoDataUrl: (includeEmbeddedGraphics || !logoSourcePath) && logoName
+            ? String(state.logoDataUrl || "").trim()
+            : "",
           particlesEnabled: !!state.playerParticlesEnabled,
           godRaysEnabled: !!state.playerGodRaysEnabled,
           edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled,

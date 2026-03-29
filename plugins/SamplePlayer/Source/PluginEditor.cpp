@@ -913,7 +913,56 @@ void SamplePlayerAudioProcessorEditor::handleSessionStateGetEvent (const juce::v
     appendUiDebugLog ("session_state_get begin | mode=" + juce::String (requestFull ? "full" : "light")
                       + " | reason=" + reason);
     const auto payloadFetchStartMs = juce::Time::getMillisecondCounterHiRes();
-    const auto jsonPayload = audioProcessor.getUiSessionStateJson (! requestFull);
+    auto jsonPayload = audioProcessor.getUiSessionStateJson (! requestFull);
+    bool injectedWallpaperDataUrl = false;
+
+    if (jsonPayload.isNotEmpty())
+    {
+        auto parsed = juce::JSON::parse (jsonPayload);
+        if (auto* rootObject = parsed.getDynamicObject())
+        {
+            if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
+            {
+                const auto existingWallpaperDataUrl = uiObject->getProperty ("wallpaperDataUrl").toString().trim();
+                auto wallpaperSourcePath = uiObject->getProperty ("wallpaperSourcePath").toString().trim();
+                auto wallpaperName = uiObject->getProperty ("wallpaperName").toString().trim();
+
+                if (existingWallpaperDataUrl.isEmpty()
+                    && (wallpaperSourcePath.isNotEmpty() || wallpaperName.isNotEmpty()))
+                {
+                    juce::File wallpaperFile;
+
+                    if (juce::File::isAbsolutePath (wallpaperSourcePath))
+                    {
+                        const auto candidate = juce::File (wallpaperSourcePath);
+                        if (candidate.existsAsFile())
+                            wallpaperFile = candidate;
+                    }
+
+                    if (wallpaperFile == juce::File {})
+                        wallpaperFile = audioProcessor.getWallpaperFile();
+
+                    if (wallpaperFile.existsAsFile())
+                    {
+                        const auto injectedDataUrl = buildFileDataUrl (wallpaperFile);
+                        if (injectedDataUrl.isNotEmpty())
+                        {
+                            uiObject->setProperty ("wallpaperDataUrl", injectedDataUrl);
+
+                            if (wallpaperSourcePath.isEmpty())
+                                uiObject->setProperty ("wallpaperSourcePath", wallpaperFile.getFullPathName());
+
+                            if (wallpaperName.isEmpty())
+                                uiObject->setProperty ("wallpaperName", wallpaperFile.getFileName());
+
+                            jsonPayload = juce::JSON::toString (parsed, false);
+                            injectedWallpaperDataUrl = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
     const auto payloadFetchMs = juce::Time::getMillisecondCounterHiRes() - payloadFetchStartMs;
 
     auto object = juce::DynamicObject::Ptr (new juce::DynamicObject());
@@ -927,6 +976,7 @@ void SamplePlayerAudioProcessorEditor::handleSessionStateGetEvent (const juce::v
     appendUiDebugLog ("session_state_get handled | mode=" + juce::String (requestFull ? "full" : "light")
                       + " | reason=" + reason
                       + " | bytesOut=" + juce::String (jsonPayload.getNumBytesAsUTF8())
+                      + " | injectedWallpaper=" + juce::String (injectedWallpaperDataUrl ? "yes" : "no")
                       + " | fetchMs=" + juce::String (payloadFetchMs, 2)
                       + " | emitMs=" + juce::String (emitMs, 2)
                       + " | elapsedMs=" + juce::String (juce::Time::getMillisecondCounterHiRes() - requestStartMs, 2));
@@ -1468,4 +1518,3 @@ void SamplePlayerAudioProcessorEditor::handlePickAudioFolderEvent (const juce::v
         safeThis->audioFileChooser.reset();
     });
 }
-
