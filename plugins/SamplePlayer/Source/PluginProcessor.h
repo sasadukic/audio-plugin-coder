@@ -29,12 +29,6 @@ public:
         juce::String instrumentName;
         bool keyswitchMode = false;
         juce::String keyswitchKey;
-        juce::String wallpaperSourcePath;
-        juce::String wallpaperDataUrl;
-        juce::String wallpaperFileName;
-        juce::String logoSourcePath;
-        juce::String logoDataUrl;
-        juce::String logoFileName;
         bool loopSamples = false;
         bool autoLoopMode = true;
         float loopStartPercent = 10.0f;
@@ -161,8 +155,6 @@ public:
     juce::StringArray getZoneDisplayNames() const;
     bool updateZoneMetadata (int zoneIndex, const ZoneMetadata& metadata, juce::String& errorMessage);
 
-    bool setWallpaperFile (const juce::File& file);
-    juce::File getWallpaperFile() const;
     void setUiSessionStateJson (const juce::String& json);
     int getUiSessionStateLightweightVersion() const noexcept;
     void perfLog (const juce::String& eventName,
@@ -460,8 +452,6 @@ private:
     std::atomic<int> sequencerCurrentStepForUi { -1 };
     std::atomic<bool> resetVoicesRequested { false };
 
-    mutable juce::CriticalSection wallpaperLock;
-    juce::File wallpaperFile;
     mutable juce::CriticalSection uiSessionStateLock;
     juce::String uiSessionStateJson;
     juce::String uiSessionStateLightweightJson;

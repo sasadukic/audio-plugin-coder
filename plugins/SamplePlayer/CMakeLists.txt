@@ -36,6 +36,9 @@ juce_add_plugin(sample_player
     PLUGIN_CODE SMP2
     FORMATS ${PLUGIN_FORMATS}
     PRODUCT_NAME "Sample Player"
+    COPY_PLUGIN_AFTER_BUILD TRUE
+    VST3_COPY_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/VST3"
+    AU_COPY_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/Components"
     VST3_CATEGORIES Instrument
     NEEDS_WEBVIEW2 ${NEEDS_WEBVIEW2}
     NEEDS_WEB_BROWSER ${NEEDS_WEB_BROWSER}

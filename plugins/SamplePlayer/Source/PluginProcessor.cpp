@@ -18,7 +18,6 @@ namespace
 constexpr float velocityScale = 1.0f / 127.0f;
 constexpr float autoSamplerInterTakePauseMs = 1000.0f;
 constexpr auto kSampleFilePathsProperty = "sampleFilePaths";
-constexpr auto kWallpaperPathProperty = "wallpaperPath";
 constexpr auto kUiSessionStateProperty = "uiSessionStateJson";
 constexpr auto kModWheelParamId = "modWheel";
 constexpr auto kExpressionParamId = "expression";
@@ -405,21 +404,6 @@ juce::String makeLightweightSessionStateJson (const juce::String& fullJson,
     if (parsed.isVoid())
         return fullJson;
 
-    juce::String wallpaperDataUrl;
-    juce::String wallpaperSourcePath;
-    juce::String logoDataUrl;
-    juce::String logoSourcePath;
-    if (const auto* rootObject = parsed.getDynamicObject())
-    {
-        if (const auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
-        {
-            wallpaperDataUrl = uiObject->getProperty ("wallpaperDataUrl").toString().trim();
-            wallpaperSourcePath = uiObject->getProperty ("wallpaperSourcePath").toString().trim();
-            logoDataUrl = uiObject->getProperty ("logoDataUrl").toString().trim();
-            logoSourcePath = uiObject->getProperty ("logoSourcePath").toString().trim();
-        }
-    }
-
     LightweightStripStats stats;
     stripLargePayloadFieldsRecursive (parsed, stats);
 
@@ -429,23 +413,6 @@ juce::String makeLightweightSessionStateJson (const juce::String& fullJson,
         {
             manifestObj->removeProperty ("entries");
             manifestObj->removeProperty ("variants");
-        }
-
-        if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
-        {
-            constexpr int maxGraphicDataUrlChars = 5 * 1024 * 1024;
-            const auto keepGraphicDataUrl = [] (const juce::String& value)
-            {
-                return value.startsWithIgnoreCase ("data:image/")
-                    && value.length() > 32
-                    && value.length() <= maxGraphicDataUrlChars;
-            };
-
-            if (wallpaperSourcePath.isEmpty() && keepGraphicDataUrl (wallpaperDataUrl))
-                uiObject->setProperty ("wallpaperDataUrl", wallpaperDataUrl);
-
-            if (logoSourcePath.isEmpty() && keepGraphicDataUrl (logoDataUrl))
-                uiObject->setProperty ("logoDataUrl", logoDataUrl);
         }
     }
 
@@ -1283,13 +1250,6 @@ void SamplePlayerAudioProcessor::getStateInformation (juce::MemoryBlock& destDat
     else
         state.removeProperty (kSampleFilePathsProperty, nullptr);
 
-    const auto currentWallpaper = getWallpaperFile();
-
-    if (currentWallpaper.existsAsFile())
-        state.setProperty (kWallpaperPathProperty, currentWallpaper.getFullPathName(), nullptr);
-    else
-        state.removeProperty (kWallpaperPathProperty, nullptr);
-
     while (true)
     {
         const auto existing = state.getChildWithName (kZoneOverridesNode);
@@ -1412,23 +1372,8 @@ void SamplePlayerAudioProcessor::setStateInformation (const void* data, int size
     }
 
     const auto legacyRestoreMs = elapsedMsFrom (loadStartMs);
-
-    const auto wallpaperPath = restoredState.getProperty (kWallpaperPathProperty).toString();
-
-    if (wallpaperPath.isNotEmpty())
-    {
-        if (! setWallpaperFile (juce::File (wallpaperPath)))
-            setWallpaperFile (juce::File {});
-    }
-    else
-    {
-        setWallpaperFile (juce::File {});
-    }
-
-    const auto wallpaperStageMs = elapsedMsFrom (loadStartMs);
     setUiSessionStateJson (restoredUiSessionJson);
     writeLoadDebugLog ("setStateInformation completed | legacyRestoreMs=" + juce::String (legacyRestoreMs, 2)
-                       + " | wallpaperStageMs=" + juce::String (wallpaperStageMs, 2)
                        + " | totalMs=" + juce::String (elapsedMsFrom (loadStartMs), 2));
 }
 
@@ -1746,33 +1691,6 @@ bool SamplePlayerAudioProcessor::updateZoneMetadata (int zoneIndex,
     return true;
 }
 
-bool SamplePlayerAudioProcessor::setWallpaperFile (const juce::File& file)
-{
-    if (file == juce::File {})
-    {
-        const juce::ScopedLock lock (wallpaperLock);
-        wallpaperFile = juce::File {};
-        return true;
-    }
-
-    if (! file.existsAsFile())
-        return false;
-
-    const auto image = juce::ImageFileFormat::loadFrom (file);
-    if (image.isNull())
-        return false;
-
-    const juce::ScopedLock lock (wallpaperLock);
-    wallpaperFile = file;
-    return true;
-}
-
-juce::File SamplePlayerAudioProcessor::getWallpaperFile() const
-{
-    const juce::ScopedLock lock (wallpaperLock);
-    return wallpaperFile;
-}
-
 int SamplePlayerAudioProcessor::getUiSessionStateLightweightVersion() const noexcept
 {
     return uiSessionStateLightweightVersion.load (std::memory_order_relaxed);
@@ -1798,7 +1716,6 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
     float parsedModwheelValue01 = modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed);
     uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
     float parsedExpressionValue01 = expressionControllerValue01.load (std::memory_order_relaxed);
-    juce::String parsedWallpaperSourcePath;
     if (normalizedJson.isNotEmpty())
     {
         const auto parsedForPitch = juce::JSON::parse (normalizedJson);
@@ -1814,7 +1731,6 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
                 parsedExpressionValue01 = juce::jlimit (0.0f, 1.0f,
                     static_cast<float> (varToDouble (uiObject->getProperty ("expressionValue"),
                                                      static_cast<double> (parsedExpressionValue01))));
-                parsedWallpaperSourcePath = uiObject->getProperty ("wallpaperSourcePath").toString().trim();
             }
         }
     }
@@ -1825,22 +1741,6 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
         modParam->setValue (juce::jlimit (0.0f, 1.0f, parsedModwheelValue01));
     if (auto* expressionParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kExpressionParamId)))
         expressionParam->setValue (juce::jlimit (0.0f, 1.0f, parsedExpressionValue01));
-
-    const auto currentWallpaperFile = getWallpaperFile();
-    const auto currentWallpaperPath = currentWallpaperFile.getFullPathName();
-
-    if (parsedWallpaperSourcePath.isNotEmpty())
-    {
-        if (parsedWallpaperSourcePath != currentWallpaperPath)
-        {
-            if (! setWallpaperFile (juce::File (parsedWallpaperSourcePath)))
-                setWallpaperFile (juce::File {});
-        }
-    }
-    else if (currentWallpaperFile != juce::File {})
-    {
-        setWallpaperFile (juce::File {});
-    }
 
     const int midiRequestedSlot = pendingActiveMapSetSlotFromMidi.exchange (-1, std::memory_order_relaxed);
     if (midiRequestedSlot >= 0 && normalizedJson.isNotEmpty())
@@ -1965,17 +1865,6 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
         // --- build lightweight cache (strips data URLs destructively from parsed var) ---
         const auto lightweightStartMs = juce::Time::getMillisecondCounterHiRes();
 
-        juce::String wallpaperDataUrl;
-        juce::String logoDataUrl;
-        if (const auto* rootObject = parsed.getDynamicObject())
-        {
-            if (const auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
-            {
-                wallpaperDataUrl = uiObject->getProperty ("wallpaperDataUrl").toString().trim();
-                logoDataUrl = uiObject->getProperty ("logoDataUrl").toString().trim();
-            }
-        }
-
         LightweightStripStats stripStats;
         stripLargePayloadFieldsRecursive (parsed, stripStats);
 
@@ -1985,29 +1874,6 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
             {
                 manifestObj->removeProperty ("entries");
                 manifestObj->removeProperty ("variants");
-            }
-        }
-
-        if (auto* rootObject = parsed.getDynamicObject())
-        {
-            if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
-            {
-                constexpr int maxGraphicDataUrlChars = 5 * 1024 * 1024;
-                const auto keepGraphicDataUrl = [] (const juce::String& value)
-                {
-                    return value.startsWithIgnoreCase ("data:image/")
-                        && value.length() > 32
-                        && value.length() <= maxGraphicDataUrlChars;
-                };
-
-                const auto wallpaperSourcePath = uiObject->getProperty ("wallpaperSourcePath").toString().trim();
-                const auto logoSourcePath = uiObject->getProperty ("logoSourcePath").toString().trim();
-
-                if (wallpaperSourcePath.isEmpty() && keepGraphicDataUrl (wallpaperDataUrl))
-                    uiObject->setProperty ("wallpaperDataUrl", wallpaperDataUrl);
-
-                if (logoSourcePath.isEmpty() && keepGraphicDataUrl (logoDataUrl))
-                    uiObject->setProperty ("logoDataUrl", logoDataUrl);
             }
         }
 
@@ -4471,12 +4337,6 @@ bool SamplePlayerAudioProcessor::startAutoSamplerCapture (const AutoSamplerSetti
     next.instrumentName = juce::File::createLegalFileName (settings.instrumentName.trim());
     next.keyswitchMode = settings.keyswitchMode;
     next.keyswitchKey = sanitizeKeyswitchKeyToken (settings.keyswitchKey);
-    next.wallpaperSourcePath = settings.wallpaperSourcePath.trim();
-    next.wallpaperDataUrl = settings.wallpaperDataUrl.trim();
-    next.wallpaperFileName = settings.wallpaperFileName.trim();
-    next.logoSourcePath = settings.logoSourcePath.trim();
-    next.logoDataUrl = settings.logoDataUrl.trim();
-    next.logoFileName = settings.logoFileName.trim();
     if (next.instrumentName.isEmpty())
         next.instrumentName = "Instrument";
     next.loopStartPercent = juce::jlimit (0.0f, 100.0f, sanitizeFloat (next.loopStartPercent, 10.0f));
@@ -4551,152 +4411,6 @@ bool SamplePlayerAudioProcessor::startAutoSamplerCapture (const AutoSamplerSetti
         {
             errorMessage = "Could not create sample output folder: " + audioCreateResult.getErrorMessage();
             return false;
-        }
-    }
-
-    const auto inferWallpaperExtensionFromDataUrl = [] (const juce::String& dataUrl) -> juce::String
-    {
-        const auto comma = dataUrl.indexOfChar (',');
-        if (comma <= 0)
-            return {};
-
-        const auto header = dataUrl.substring (0, comma).toLowerCase();
-        if (header.contains ("image/png"))  return ".png";
-        if (header.contains ("image/jpeg")) return ".jpg";
-        if (header.contains ("image/webp")) return ".webp";
-        if (header.contains ("image/bmp"))  return ".bmp";
-        if (header.contains ("image/gif"))  return ".gif";
-        if (header.contains ("image/svg"))  return ".svg";
-        if (header.contains ("image/avif")) return ".avif";
-        return {};
-    };
-
-    const auto currentWallpaperFile = getWallpaperFile();
-    const auto hasWallpaperPayload = next.wallpaperSourcePath.isNotEmpty()
-                                  || next.wallpaperDataUrl.isNotEmpty()
-                                  || currentWallpaperFile.existsAsFile();
-    const auto hasLogoPayload = next.logoSourcePath.isNotEmpty()
-                             || next.logoDataUrl.isNotEmpty()
-                             || next.logoFileName.isNotEmpty();
-    if (hasWallpaperPayload || hasLogoPayload)
-    {
-        auto graphicsDirectory = destinationRoot.getChildFile ("Graphics");
-        if (graphicsDirectory.existsAsFile())
-        {
-            errorMessage = "Graphics output path points to a file. Remove it or choose another destination.";
-            return false;
-        }
-
-        if (! graphicsDirectory.isDirectory())
-        {
-            const auto graphicsCreateResult = graphicsDirectory.createDirectory();
-            if (graphicsCreateResult.failed())
-            {
-                errorMessage = "Could not create Graphics folder: " + graphicsCreateResult.getErrorMessage();
-                return false;
-            }
-        }
-
-        const auto exportGraphicAsset = [&] (const juce::String& sourcePath,
-                                             const juce::String& dataUrl,
-                                             const juce::String& preferredFileName,
-                                             const juce::String& fallbackBaseName,
-                                             const juce::File& fallbackSource,
-                                             juce::String& outFilePath) -> bool
-        {
-            juce::File sourceFile;
-            if (juce::File::isAbsolutePath (sourcePath))
-            {
-                const auto candidate = juce::File (sourcePath);
-                if (candidate.existsAsFile())
-                    sourceFile = candidate;
-            }
-
-            if (sourceFile == juce::File {} && fallbackSource.existsAsFile())
-                sourceFile = fallbackSource;
-
-            juce::String fileName = preferredFileName;
-            if (fileName.isEmpty() && sourceFile.existsAsFile())
-                fileName = sourceFile.getFileName();
-            if (fileName.isEmpty())
-                fileName = fallbackBaseName;
-
-            auto extension = juce::File (fileName).getFileExtension().trim().toLowerCase();
-            if (extension.isEmpty() && sourceFile.existsAsFile())
-                extension = sourceFile.getFileExtension().trim().toLowerCase();
-            if (extension.isEmpty())
-                extension = inferWallpaperExtensionFromDataUrl (dataUrl);
-            if (extension.isEmpty())
-                extension = ".png";
-
-            auto baseName = juce::File::createLegalFileName (juce::File (fileName).getFileNameWithoutExtension());
-            if (baseName.isEmpty())
-                baseName = juce::File::createLegalFileName (fallbackBaseName);
-            if (baseName.isEmpty())
-                baseName = "graphic";
-
-            const auto targetFile = graphicsDirectory.getChildFile (baseName + extension);
-            bool exported = false;
-
-            if (sourceFile.existsAsFile())
-            {
-                if (sourceFile.getFullPathName() == targetFile.getFullPathName())
-                {
-                    exported = true;
-                }
-                else
-                {
-                    if (targetFile.existsAsFile())
-                        targetFile.deleteFile();
-                    exported = sourceFile.copyFileTo (targetFile);
-                }
-            }
-
-            if (! exported && dataUrl.isNotEmpty())
-            {
-                juce::MemoryBlock imageBytes;
-                if (decodeDataUrlAudioToMemory (dataUrl, imageBytes) && imageBytes.getSize() > 0)
-                {
-                    if (targetFile.existsAsFile())
-                        targetFile.deleteFile();
-                    exported = targetFile.replaceWithData (imageBytes.getData(), imageBytes.getSize());
-                }
-            }
-
-            if (exported)
-                outFilePath = targetFile.getFullPathName();
-
-            return exported;
-        };
-
-        if (hasWallpaperPayload)
-        {
-            juce::String exportedWallpaperPath;
-            if (! exportGraphicAsset (next.wallpaperSourcePath,
-                                      next.wallpaperDataUrl,
-                                      next.wallpaperFileName,
-                                      next.instrumentName + "_wallpaper",
-                                      currentWallpaperFile,
-                                      exportedWallpaperPath))
-            {
-                errorMessage = "Could not write wallpaper file to Graphics folder.";
-                return false;
-            }
-        }
-
-        if (hasLogoPayload)
-        {
-            juce::String exportedLogoPath;
-            if (! exportGraphicAsset (next.logoSourcePath,
-                                      next.logoDataUrl,
-                                      next.logoFileName,
-                                      next.instrumentName + "_logo",
-                                      juce::File {},
-                                      exportedLogoPath))
-            {
-                errorMessage = "Could not write logo file to Graphics folder.";
-                return false;
-            }
         }
     }
 

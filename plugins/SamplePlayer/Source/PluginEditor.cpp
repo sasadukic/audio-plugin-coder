@@ -75,6 +75,35 @@ juce::String sanitizeRelativeAssetPath (const juce::String& rawPath)
 
     return safe.joinIntoString ("/");
 }
+
+juce::String extractResourcePathFromUrl (const juce::String& rawUrl)
+{
+    auto url = rawUrl.trim();
+    if (url.isEmpty())
+        return {};
+
+    const auto root = juce::WebBrowserComponent::getResourceProviderRoot();
+    if (url.startsWithIgnoreCase (root))
+        url = url.fromFirstOccurrenceOf (root, false, false);
+    else if (const auto schemePos = url.indexOf ("://"); schemePos >= 0)
+    {
+        if (const auto pathPos = url.indexOfChar (schemePos + 3, '/'); pathPos >= 0)
+            url = url.substring (pathPos);
+        else
+            url.clear();
+    }
+
+    url = url.upToFirstOccurrenceOf ("?", false, false);
+    url = url.upToFirstOccurrenceOf ("#", false, false);
+
+    if (url.isEmpty() || url == "/")
+        return "index.html";
+
+    if (url.startsWithChar ('/'))
+        url = url.substring (1);
+
+    return sanitizeRelativeAssetPath (url);
+}
 } // namespace
 
 SamplePlayerAudioProcessorEditor::SamplePlayerAudioProcessorEditor (SamplePlayerAudioProcessor& p)
@@ -83,6 +112,9 @@ SamplePlayerAudioProcessorEditor::SamplePlayerAudioProcessorEditor (SamplePlayer
     webView.reset (new SinglePageBrowser (createWebOptions (*this)));
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
+
+    lastPushedLightweightVersion = audioProcessor.getUiSessionStateLightweightVersion();
+    lastPushedLightweightSessionJson = audioProcessor.getUiSessionStateJson (true);
 
     setSize (defaultEditorWidth, defaultPlayerHeight);
     startTimerHz (10);
@@ -158,10 +190,6 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
                      {
                          editor.handleSampleDataGetEvent (payload);
                      })
-                     .withEventListener ("graphic_data_get", [&editor] (const juce::var& payload)
-                     {
-                         editor.handleGraphicDataGetEvent (payload);
-                     })
                      .withEventListener ("preview_midi", [&editor] (const juce::var& payload)
                      {
                          editor.handlePreviewMidiEvent (payload);
@@ -209,13 +237,25 @@ std::optional<juce::WebBrowserComponent::Resource> SamplePlayerAudioProcessorEdi
         };
     };
 
-    auto resourcePath = url.fromFirstOccurrenceOf (
-        juce::WebBrowserComponent::getResourceProviderRoot(), false, false);
+    auto makeStringResource = [] (const juce::String& text, const char* mime)
+    {
+        const auto utf8 = text.toUTF8();
+        const auto* bytesBegin = reinterpret_cast<const std::byte*> (utf8.getAddress());
+        const auto numBytes = static_cast<size_t> (std::strlen (utf8.getAddress()));
 
-    if (resourcePath.isEmpty() || resourcePath == "/")
-        resourcePath = "/index.html";
+        return juce::WebBrowserComponent::Resource{
+            std::vector<std::byte> (bytesBegin, bytesBegin + numBytes),
+            juce::String (mime)
+        };
+    };
 
-    auto path = resourcePath.startsWithChar ('/') ? resourcePath.substring (1) : resourcePath;
+    const auto path = extractResourcePathFromUrl (url);
+
+    if (path.isEmpty())
+    {
+        appendUiDebugLog ("resource request ignored | unresolved path | url=" + url);
+        return std::nullopt;
+    }
 
     if (path == "index.html")
     {
@@ -231,6 +271,15 @@ std::optional<juce::WebBrowserComponent::Resource> SamplePlayerAudioProcessorEdi
                              "image/svg+xml");
     }
 
+    if (path == "session-state-light.json" || path == "session-state-full.json")
+    {
+        const auto jsonPayload = buildSessionStateJsonForFrontend (path == "session-state-full.json");
+        appendUiDebugLog ("resource request served | path=" + path
+                          + " | bytesOut=" + juce::String (jsonPayload.getNumBytesAsUTF8()));
+        return makeStringResource (jsonPayload, "application/json");
+    }
+
+    appendUiDebugLog ("resource request missing | path=" + path + " | url=" + url);
     return std::nullopt;
 }
 
@@ -307,31 +356,9 @@ juce::String SamplePlayerAudioProcessorEditor::buildAudioWavDataUrl (const Sampl
     return "data:audio/wav;base64," + base64;
 }
 
-juce::String SamplePlayerAudioProcessorEditor::buildFileDataUrl (const juce::File& file)
+juce::String SamplePlayerAudioProcessorEditor::buildSessionStateJsonForFrontend (bool requestFull) const
 {
-    if (! file.existsAsFile())
-        return {};
-
-    juce::MemoryBlock bytes;
-    if (! file.loadFileAsData (bytes) || bytes.getSize() == 0)
-        return {};
-
-    const auto ext = file.getFileExtension().toLowerCase();
-    juce::String mimeType = "application/octet-stream";
-    if (ext == ".png") mimeType = "image/png";
-    else if (ext == ".jpg" || ext == ".jpeg") mimeType = "image/jpeg";
-    else if (ext == ".webp") mimeType = "image/webp";
-    else if (ext == ".bmp") mimeType = "image/bmp";
-    else if (ext == ".gif") mimeType = "image/gif";
-    else if (ext == ".svg") mimeType = "image/svg+xml";
-    else if (ext == ".avif") mimeType = "image/avif";
-    else if (ext == ".wav") mimeType = "audio/wav";
-    else if (ext == ".aif" || ext == ".aiff") mimeType = "audio/aiff";
-    else if (ext == ".flac") mimeType = "audio/flac";
-    else if (ext == ".ogg") mimeType = "audio/ogg";
-    else if (ext == ".mp3") mimeType = "audio/mpeg";
-
-    return "data:" + mimeType + ";base64," + juce::Base64::toBase64 (bytes.getData(), bytes.getSize());
+    return audioProcessor.getUiSessionStateJson (! requestFull);
 }
 
 void SamplePlayerAudioProcessorEditor::timerCallback()
@@ -362,14 +389,15 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
         {
             lastPushedLightweightSessionJson = lightweightSessionJson;
             auto payloadObject = juce::DynamicObject::Ptr (new juce::DynamicObject());
-            payloadObject->setProperty ("json", lightweightSessionJson);
             payloadObject->setProperty ("lightweight", true);
             payloadObject->setProperty ("full", false);
+            payloadObject->setProperty ("version", currentLightweightVersion);
+            payloadObject->setProperty ("reason", "auto");
             const auto _beforePush = juce::Time::getMillisecondCounterHiRes();
-            webView->emitEventIfBrowserIsVisible ("session_state_payload", juce::var (payloadObject.get()));
+            webView->emitEventIfBrowserIsVisible ("session_state_changed", juce::var (payloadObject.get()));
             const auto _afterPush = juce::Time::getMillisecondCounterHiRes();
-            appendUiDebugLog ("session_state_push auto | bytesOut="
-                              + juce::String (lightweightSessionJson.getNumBytesAsUTF8())
+            appendUiDebugLog ("session_state_changed auto | version="
+                              + juce::String (currentLightweightVersion)
                               + " | emitMs=" + juce::String (_afterPush - _beforePush, 2)
                               + " | flushMs=" + juce::String (_afterFlush - _timerStart, 2));
         }
@@ -408,37 +436,6 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
                               + " | manifestPathCandidates=" + juce::String (pending.manifestPathCandidateCount)
                               + " | bytesOut=" + juce::String (pending.bytesOut)
                               + " | encodingMs=" + juce::String (pending.encodingElapsedMs, 2));
-            ++emitted;
-        }
-    }
-
-    {
-        constexpr int kMaxGraphicEmitsPerTick = 1;
-        int emitted = 0;
-        while (emitted < kMaxGraphicEmitsPerTick)
-        {
-            PendingGraphicDataEmit pending;
-            {
-                const juce::ScopedLock lock (pendingGraphicDataEmitLock);
-                if (pendingGraphicDataEmitQueue.empty())
-                    break;
-                pending = std::move (pendingGraphicDataEmitQueue.front());
-                pendingGraphicDataEmitQueue.pop_front();
-            }
-
-            auto response = juce::DynamicObject::Ptr (new juce::DynamicObject());
-            response->setProperty ("requestId", pending.requestId);
-            response->setProperty ("kind", pending.kind);
-            response->setProperty ("path", pending.path);
-            response->setProperty ("dataUrl", pending.dataUrl);
-            response->setProperty ("hasData", pending.dataUrl.isNotEmpty());
-            response->setProperty ("fileName", pending.fileName);
-            response->setProperty ("mimeType", pending.mimeType);
-            webView->emitEventIfBrowserIsVisible ("graphic_data_payload", juce::var (response.get()));
-            audioProcessor.perfLog ("graphic_data_emit", pending.encodingElapsedMs,
-                                    "kind=" + pending.kind
-                                    + " path=" + pending.path
-                                    + " bytes=" + juce::String (pending.bytesOut));
             ++emitted;
         }
     }
@@ -635,12 +632,6 @@ void SamplePlayerAudioProcessorEditor::handleAutoSamplerControlEvent (const juce
         settings.instrumentName = settingsObj->getProperty ("instrumentName").toString();
         settings.keyswitchMode = static_cast<bool> (settingsObj->getProperty ("keyswitchMode"));
         settings.keyswitchKey = settingsObj->getProperty ("keyswitchKey").toString();
-        settings.wallpaperSourcePath = settingsObj->getProperty ("wallpaperSourcePath").toString();
-        settings.wallpaperDataUrl = settingsObj->getProperty ("wallpaperDataUrl").toString();
-        settings.wallpaperFileName = settingsObj->getProperty ("wallpaperFileName").toString();
-        settings.logoSourcePath = settingsObj->getProperty ("logoSourcePath").toString();
-        settings.logoDataUrl = settingsObj->getProperty ("logoDataUrl").toString();
-        settings.logoFileName = settingsObj->getProperty ("logoFileName").toString();
         settings.loopSamples = static_cast<bool> (settingsObj->getProperty ("loopSamples"));
         settings.autoLoopMode = static_cast<bool> (settingsObj->getProperty ("autoLoopMode"));
         settings.loopStartPercent = static_cast<float> (double (settingsObj->getProperty ("loopStartPercent")));
@@ -913,56 +904,7 @@ void SamplePlayerAudioProcessorEditor::handleSessionStateGetEvent (const juce::v
     appendUiDebugLog ("session_state_get begin | mode=" + juce::String (requestFull ? "full" : "light")
                       + " | reason=" + reason);
     const auto payloadFetchStartMs = juce::Time::getMillisecondCounterHiRes();
-    auto jsonPayload = audioProcessor.getUiSessionStateJson (! requestFull);
-    bool injectedWallpaperDataUrl = false;
-
-    if (jsonPayload.isNotEmpty())
-    {
-        auto parsed = juce::JSON::parse (jsonPayload);
-        if (auto* rootObject = parsed.getDynamicObject())
-        {
-            if (auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
-            {
-                const auto existingWallpaperDataUrl = uiObject->getProperty ("wallpaperDataUrl").toString().trim();
-                auto wallpaperSourcePath = uiObject->getProperty ("wallpaperSourcePath").toString().trim();
-                auto wallpaperName = uiObject->getProperty ("wallpaperName").toString().trim();
-
-                if (existingWallpaperDataUrl.isEmpty()
-                    && (wallpaperSourcePath.isNotEmpty() || wallpaperName.isNotEmpty()))
-                {
-                    juce::File wallpaperFile;
-
-                    if (juce::File::isAbsolutePath (wallpaperSourcePath))
-                    {
-                        const auto candidate = juce::File (wallpaperSourcePath);
-                        if (candidate.existsAsFile())
-                            wallpaperFile = candidate;
-                    }
-
-                    if (wallpaperFile == juce::File {})
-                        wallpaperFile = audioProcessor.getWallpaperFile();
-
-                    if (wallpaperFile.existsAsFile())
-                    {
-                        const auto injectedDataUrl = buildFileDataUrl (wallpaperFile);
-                        if (injectedDataUrl.isNotEmpty())
-                        {
-                            uiObject->setProperty ("wallpaperDataUrl", injectedDataUrl);
-
-                            if (wallpaperSourcePath.isEmpty())
-                                uiObject->setProperty ("wallpaperSourcePath", wallpaperFile.getFullPathName());
-
-                            if (wallpaperName.isEmpty())
-                                uiObject->setProperty ("wallpaperName", wallpaperFile.getFileName());
-
-                            jsonPayload = juce::JSON::toString (parsed, false);
-                            injectedWallpaperDataUrl = true;
-                        }
-                    }
-                }
-            }
-        }
-    }
+    const auto jsonPayload = buildSessionStateJsonForFrontend (requestFull);
     const auto payloadFetchMs = juce::Time::getMillisecondCounterHiRes() - payloadFetchStartMs;
 
     auto object = juce::DynamicObject::Ptr (new juce::DynamicObject());
@@ -976,7 +918,6 @@ void SamplePlayerAudioProcessorEditor::handleSessionStateGetEvent (const juce::v
     appendUiDebugLog ("session_state_get handled | mode=" + juce::String (requestFull ? "full" : "light")
                       + " | reason=" + reason
                       + " | bytesOut=" + juce::String (jsonPayload.getNumBytesAsUTF8())
-                      + " | injectedWallpaper=" + juce::String (injectedWallpaperDataUrl ? "yes" : "no")
                       + " | fetchMs=" + juce::String (payloadFetchMs, 2)
                       + " | emitMs=" + juce::String (emitMs, 2)
                       + " | elapsedMs=" + juce::String (juce::Time::getMillisecondCounterHiRes() - requestStartMs, 2));
@@ -1056,52 +997,6 @@ void SamplePlayerAudioProcessorEditor::handleSampleDataGetEvent (const juce::var
         {
             const juce::ScopedLock lock (pendingSampleDataEmitLock);
             pendingSampleDataEmitQueue.push_back (std::move (pending));
-        }
-    });
-}
-
-void SamplePlayerAudioProcessorEditor::handleGraphicDataGetEvent (const juce::var& eventPayload)
-{
-    if (! webView)
-        return;
-
-    int requestId = -1;
-    juce::String kind;
-    juce::String path;
-
-    if (const auto* object = eventPayload.getDynamicObject())
-    {
-        requestId = static_cast<int> (std::round (double (object->getProperty ("requestId"))));
-        kind = object->getProperty ("kind").toString().trim();
-        path = object->getProperty ("path").toString().trim();
-    }
-
-    graphicDataRequestPool.addJob ([this, requestId, kind, path]()
-    {
-        const auto t0 = juce::Time::getMillisecondCounterHiRes();
-
-        PendingGraphicDataEmit pending;
-        pending.requestId = requestId;
-        pending.kind = kind;
-        pending.path = path;
-
-        if (juce::File::isAbsolutePath (path))
-        {
-            const auto file = juce::File (path);
-            if (file.existsAsFile())
-            {
-                pending.dataUrl = buildFileDataUrl (file);
-                pending.fileName = file.getFileName();
-                pending.mimeType = file.getFileExtension().toLowerCase();
-            }
-        }
-
-        pending.bytesOut = static_cast<size_t> (pending.dataUrl.length());
-        pending.encodingElapsedMs = juce::Time::getMillisecondCounterHiRes() - t0;
-
-        {
-            const juce::ScopedLock lock (pendingGraphicDataEmitLock);
-            pendingGraphicDataEmitQueue.push_back (std::move (pending));
         }
     });
 }

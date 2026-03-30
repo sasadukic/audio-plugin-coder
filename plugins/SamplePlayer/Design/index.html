@@ -6,17 +6,31 @@
   <title>Sample Player - Simple Knob UI</title>
   <style>
     :root {
+      --line-rgb: 136, 136, 136;
+      --surface-elevated-rgb: 42, 42, 42;
+      --surface-panel-rgb: 34, 34, 34;
+      --surface-card-rgb: 28, 28, 28;
+      --surface-deep-rgb: 20, 20, 20;
+      --surface-hover-rgb: 58, 58, 58;
+      --accent-rgb: 207, 176, 114;
+      --accent-text: #ddc28b;
+      --accent-surface: rgba(60, 49, 31, 0.86);
+      --accent-surface-strong: rgba(70, 57, 36, 0.9);
+      --accent-gradient: linear-gradient(180deg, rgba(220, 190, 126, 0.92), rgba(184, 150, 90, 0.95));
+      --tooltip-surface: rgba(18, 18, 18, 0.95);
+      --modal-surface: linear-gradient(145deg, rgba(38, 38, 38, 0.98), rgba(24, 24, 24, 0.96));
+      --overlay-scrim: rgba(10, 10, 10, 0.78);
       --bg-a: #2b2b2b;
       --bg-b: #1e1e1e;
-      --chrome-surface: linear-gradient(145deg, rgba(30, 30, 30, 0.96), rgba(24, 24, 24, 0.94));
-      --panel: rgba(36, 36, 36, 0.9);
-      --line: rgba(150, 150, 150, 0.3);
-      --text: #e5e5e5;
-      --text-dim: #a8a8a8;
-      --mint: #79a9a1;
-      --blue: #b5b5b5;
-      --warn: #d0a87a;
-      --danger: #c7838b;
+      --chrome-surface: linear-gradient(145deg, rgba(var(--surface-elevated-rgb), 0.96), rgba(var(--surface-deep-rgb), 0.94));
+      --panel: rgba(var(--surface-panel-rgb), 0.9);
+      --line: rgba(var(--line-rgb), 0.3);
+      --text: #e4e4e4;
+      --text-dim: #a6a6a6;
+      --mint: #92aaa3;
+      --blue: #bdbdbd;
+      --warn: #c8aa71;
+      --danger: #be7e86;
       --radius: 14px;
       --player-swatch-rgb: 40, 40, 40;
       --player-topbar-rgb: 40, 40, 40;
@@ -84,20 +98,11 @@
       background:
         linear-gradient(
           180deg,
-          rgba(24, 26, 31, 0.9),
-          rgba(16, 18, 22, 0.88)
+          rgba(var(--surface-card-rgb), 0.9),
+          rgba(var(--surface-deep-rgb), 0.88)
         );
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
-    }
-
-    .loading-overlay.wallpaper-themed {
-      background:
-        linear-gradient(
-          180deg,
-          rgba(var(--player-topbar-rgb), 0.92),
-          rgba(var(--player-swatch-rgb), 0.84)
-        );
     }
 
     .loading-card {
@@ -108,22 +113,12 @@
       background:
         linear-gradient(
           180deg,
-          rgba(40, 40, 40, 0.94),
-          rgba(28, 28, 28, 0.9)
+          rgba(var(--surface-elevated-rgb), 0.94),
+          rgba(var(--surface-card-rgb), 0.9)
         );
       box-shadow:
         0 14px 34px rgba(0, 0, 0, 0.42),
         inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    }
-
-    .loading-overlay.wallpaper-themed .loading-card {
-      border-color: rgba(var(--player-line-rgb), 0.62);
-      background:
-        linear-gradient(
-          180deg,
-          rgba(var(--player-topbar-rgb), 0.56),
-          rgba(var(--player-swatch-rgb), 0.44)
-        );
     }
 
     .loading-label-row {
@@ -138,14 +133,10 @@
       font-size: 12px;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: rgba(224, 228, 234, 0.94);
+      color: rgba(228, 228, 228, 0.94);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-    }
-
-    .loading-overlay.wallpaper-themed .loading-label {
-      color: rgba(var(--player-line-rgb), 0.98);
     }
 
     .btn-row {
@@ -167,7 +158,7 @@
     .file-btn {
       border: 1px solid var(--line);
       border-radius: 10px;
-      background: rgba(40, 40, 40, 0.96);
+      background: rgba(var(--surface-elevated-rgb), 0.96);
       color: var(--text);
       font: inherit;
       font-size: 11px;
@@ -228,8 +219,8 @@
     .strum-menu {
       position: fixed;
       min-width: 100px;
-      background: rgba(12, 17, 26, 0.96);
-      border: 1px solid rgba(140, 146, 156, 0.3);
+      background: rgba(var(--surface-deep-rgb), 0.96);
+      border: 1px solid rgba(var(--line-rgb), 0.3);
       border-radius: 4px;
       box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
       padding: 4px;
@@ -264,14 +255,14 @@
     }
 
     .strum-menu-item:hover {
-      background: rgba(55, 58, 66, 0.94);
-      border-color: rgba(140, 146, 156, 0.5);
+      background: rgba(var(--surface-hover-rgb), 0.94);
+      border-color: rgba(var(--line-rgb), 0.5);
     }
 
     .strum-menu-item.active {
-      border-color: rgba(255, 216, 92, 0.72);
-      color: #ffdf7e;
-      background: rgba(28, 24, 13, 0.86);
+      border-color: rgba(var(--accent-rgb), 0.72);
+      color: var(--accent-text);
+      background: var(--accent-surface);
     }
 
     .strum-step-grid {
@@ -286,9 +277,9 @@
     }
 
     .strum-step-card {
-      border: 1px solid rgba(140, 146, 156, 0.28);
+      border: 1px solid rgba(var(--line-rgb), 0.28);
       border-radius: 6px;
-      background: rgba(9, 13, 20, 0.62);
+      background: rgba(var(--surface-card-rgb), 0.62);
       padding: 6px;
       display: grid;
       gap: 6px;
@@ -346,7 +337,7 @@
 
     .strum-step-velocity-bar {
       border-radius: 4px;
-      background: rgba(40, 45, 54, 0.96);
+      background: rgba(var(--surface-elevated-rgb), 0.96);
       display: flex;
       align-items: flex-end;
       flex: 1 1 0;
@@ -357,7 +348,7 @@
 
     .strum-step-velocity-fill {
       width: 100%;
-      background: linear-gradient(180deg, rgba(255, 225, 128, 0.92), rgba(255, 190, 67, 0.95));
+      background: var(--accent-gradient);
     }
 
     .strum-step-rest-label {
@@ -431,11 +422,11 @@
     }
 
     .strum-step-gap:hover {
-      background: rgba(140, 146, 156, 0.12);
-      color: rgba(210, 214, 220, 0.9);
+      background: rgba(var(--line-rgb), 0.12);
+      color: rgba(216, 216, 216, 0.9);
     }
 
-    /* Player page strum step grid — uses wallpaper swatch colors */
+    /* Player page strum step grid uses the active player color theme */
     .player-strum-step-grid {
       position: absolute;
       left: 10px;
@@ -621,12 +612,12 @@
     button:not(.player-key):hover,
     .file-btn:hover {
       border-color: rgba(140, 146, 156, 0.5);
-      background: rgba(55, 58, 66, 0.94);
+      background: rgba(var(--surface-hover-rgb), 0.94);
     }
 
     .primary {
-      border-color: rgba(170, 176, 186, 0.56);
-      background: linear-gradient(180deg, rgba(168, 174, 184, 0.24), rgba(42, 45, 52, 0.95));
+      border-color: rgba(var(--line-rgb), 0.52);
+      background: linear-gradient(180deg, rgba(176, 176, 176, 0.18), rgba(var(--surface-elevated-rgb), 0.95));
     }
 
     .tabs {
@@ -634,8 +625,8 @@
       align-items: center;
       gap: 3px;
       padding: 7px 10px;
-      border-bottom: 1px solid rgba(140, 146, 156, 0.28);
-      background: rgba(8, 11, 17, 0.08);
+      border-bottom: 1px solid rgba(var(--line-rgb), 0.28);
+      background: rgba(var(--surface-deep-rgb), 0.12);
     }
 
     .tabs.player-topbar-swatch {
@@ -663,9 +654,9 @@
     }
 
     .tab-btn {
-      border: 1px solid rgba(140, 146, 156, 0.28);
+      border: 1px solid rgba(var(--line-rgb), 0.28);
       border-radius: 10px;
-      background: rgba(40, 40, 40, 0.96);
+      background: rgba(var(--surface-elevated-rgb), 0.96);
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.08em;
@@ -694,8 +685,8 @@
     }
 
     .tab-btn.active {
-      border-color: rgba(140, 146, 156, 0.44);
-      background: linear-gradient(180deg, rgba(168, 174, 184, 0.24), rgba(42, 45, 52, 0.95));
+      border-color: rgba(var(--line-rgb), 0.44);
+      background: linear-gradient(180deg, rgba(176, 176, 176, 0.18), rgba(var(--surface-elevated-rgb), 0.95));
     }
 
     .tab-btn[data-tab="player"].active {
@@ -736,7 +727,7 @@
       font-size: 12px;
       letter-spacing: 0.03em;
       line-height: 1;
-      color: rgba(140, 146, 156, 0.58);
+      color: rgba(var(--line-rgb), 0.68);
       text-align: right;
       white-space: nowrap;
       overflow: hidden;
@@ -770,9 +761,9 @@
       width: 22px;
       height: 22px;
       border-radius: 50%;
-      border: 1px solid rgba(172, 178, 188, 0.62);
-      background: rgba(14, 19, 29, 0.75);
-      color: rgba(172, 178, 188, 0.62);
+      border: 1px solid rgba(var(--line-rgb), 0.52);
+      background: rgba(var(--surface-deep-rgb), 0.76);
+      color: rgba(194, 194, 194, 0.68);
       font-size: 14px;
       line-height: 1;
       padding: 0;
@@ -804,9 +795,9 @@
     #playerStrumMainToggle.active,
     #doublingToggle.active,
     #playerPitchDownToggle.active {
-      border-color: rgba(255, 216, 92, 0.72);
-      color: #ffdf7e;
-      background: rgba(28, 24, 13, 0.86);
+      border-color: rgba(var(--accent-rgb), 0.72);
+      color: var(--accent-text);
+      background: var(--accent-surface);
     }
 
     #doublingToggle.active .dbl-icon-off { display: none; }
@@ -855,271 +846,6 @@
       position: relative;
       overflow: hidden;
       background-color: rgb(var(--player-topbar-rgb, 8, 11, 17));
-      background-image: var(--player-wallpaper);
-      background-size: contain;
-      background-repeat: no-repeat;
-      background-position: var(--player-wallpaper-position, center);
-    }
-
-    .player-logo-zone {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 0;
-      height: 473px;
-      z-index: 5;
-      pointer-events: none;
-      overflow: hidden;
-    }
-
-    .player-particles {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 0;
-      bottom: var(--player-kb-height);
-      z-index: 4;
-      pointer-events: none;
-      opacity: 0.96;
-    }
-
-    .player-god-rays {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 0;
-      bottom: var(--player-kb-height);
-      z-index: 3;
-      pointer-events: none;
-      overflow: hidden;
-      opacity: 0;
-      transition: opacity 300ms ease;
-      background:
-        linear-gradient(
-          180deg,
-          rgba(var(--player-bright-rgb), 0.07) 0%,
-          rgba(var(--player-bright-rgb), 0.04) 20%,
-          rgba(var(--player-bright-rgb), 0) 76%
-        );
-      will-change: opacity;
-    }
-
-    .player-stage.has-wallpaper .player-god-rays {
-      opacity: 0.82;
-    }
-
-    .player-stage.god-rays-disabled .player-god-rays {
-      opacity: 0 !important;
-    }
-
-    .player-edge-wave-blur {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 0;
-      bottom: var(--player-kb-height);
-      z-index: 2;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 280ms ease;
-      overflow: hidden;
-    }
-
-    .player-stage.has-wallpaper .player-edge-wave-blur {
-      opacity: 0.9;
-    }
-
-    .player-stage.edge-wave-blur-disabled .player-edge-wave-blur {
-      opacity: 0 !important;
-    }
-
-    .player-edge-wave-side {
-      position: absolute;
-      top: -3%;
-      bottom: -3%;
-      width: min(12%, 132px);
-      backdrop-filter: blur(9px) saturate(122%);
-      -webkit-backdrop-filter: blur(9px) saturate(122%);
-      will-change: transform;
-    }
-
-    .player-edge-wave-side.left {
-      left: -7px;
-      background:
-        linear-gradient(
-          90deg,
-          rgba(var(--player-topbar-rgb), 0.7) 0%,
-          rgba(var(--player-swatch-rgb), 0.5) 40%,
-          rgba(var(--player-line-rgb), 0.18) 72%,
-          rgba(var(--player-line-rgb), 0) 100%
-        ),
-        repeating-radial-gradient(
-          ellipse at 100% 50%,
-          rgba(var(--player-bright-rgb), 0.14) 0px,
-          rgba(var(--player-bright-rgb), 0.05) 7px,
-          rgba(var(--player-bright-rgb), 0.02) 16px,
-          rgba(var(--player-bright-rgb), 0) 30px
-        );
-      animation: edgeWaveBlurLeft 7.2s ease-in-out infinite alternate;
-    }
-
-    .player-edge-wave-side.right {
-      right: -7px;
-      background:
-        linear-gradient(
-          270deg,
-          rgba(var(--player-topbar-rgb), 0.7) 0%,
-          rgba(var(--player-swatch-rgb), 0.5) 40%,
-          rgba(var(--player-line-rgb), 0.18) 72%,
-          rgba(var(--player-line-rgb), 0) 100%
-        ),
-        repeating-radial-gradient(
-          ellipse at 0% 50%,
-          rgba(var(--player-bright-rgb), 0.14) 0px,
-          rgba(var(--player-bright-rgb), 0.05) 7px,
-          rgba(var(--player-bright-rgb), 0.02) 16px,
-          rgba(var(--player-bright-rgb), 0) 30px
-        );
-      animation: edgeWaveBlurRight 8.4s ease-in-out infinite alternate;
-    }
-
-    @keyframes edgeWaveBlurLeft {
-      0% {
-        transform: translateY(-1.8%) scaleY(1.04);
-      }
-      100% {
-        transform: translateY(1.8%) scaleY(0.97);
-      }
-    }
-
-    @keyframes edgeWaveBlurRight {
-      0% {
-        transform: translateY(1.4%) scaleY(0.98);
-      }
-      100% {
-        transform: translateY(-1.6%) scaleY(1.05);
-      }
-    }
-
-    .player-god-rays::before,
-    .player-god-rays::after {
-      content: "";
-      position: absolute;
-      left: -22%;
-      right: -22%;
-      top: -26%;
-      bottom: 14%;
-      pointer-events: none;
-      transform-origin: 50% -8%;
-    }
-
-    .player-god-rays::before {
-      background:
-        linear-gradient(
-          106deg,
-          rgba(var(--player-bright-rgb), 0) 0%,
-          rgba(var(--player-bright-rgb), 0) 13.2%,
-          rgba(var(--player-bright-rgb), 0.74) 14%,
-          rgba(var(--player-bright-rgb), 0.22) 14.8%,
-          rgba(var(--player-bright-rgb), 0) 17.2%,
-          rgba(var(--player-bright-rgb), 0) 34.6%,
-          rgba(var(--player-bright-rgb), 0.56) 35.9%,
-          rgba(var(--player-bright-rgb), 0.18) 36.8%,
-          rgba(var(--player-bright-rgb), 0) 39.4%,
-          rgba(var(--player-bright-rgb), 0) 62.2%,
-          rgba(var(--player-bright-rgb), 0.7) 63.7%,
-          rgba(var(--player-bright-rgb), 0.2) 64.7%,
-          rgba(var(--player-bright-rgb), 0) 67.8%,
-          rgba(var(--player-bright-rgb), 0) 100%
-        );
-      filter: blur(9px);
-      opacity: 0.72;
-      transform: translateX(-6%) translateY(-4%) rotate(-4deg) scale(1.04);
-      animation: godRaysDriftA 18s ease-in-out infinite alternate;
-      animation-delay: -9s;
-    }
-
-    .player-god-rays::after {
-      background:
-        linear-gradient(
-          78deg,
-          rgba(var(--player-bright-rgb), 0) 0%,
-          rgba(var(--player-bright-rgb), 0) 21.8%,
-          rgba(var(--player-bright-rgb), 0.62) 22.7%,
-          rgba(var(--player-bright-rgb), 0.24) 23.5%,
-          rgba(var(--player-bright-rgb), 0) 25.4%,
-          rgba(var(--player-bright-rgb), 0) 48.5%,
-          rgba(var(--player-bright-rgb), 0.52) 49.4%,
-          rgba(var(--player-bright-rgb), 0.2) 50.1%,
-          rgba(var(--player-bright-rgb), 0) 52.5%,
-          rgba(var(--player-bright-rgb), 0) 76.6%,
-          rgba(var(--player-bright-rgb), 0.68) 77.9%,
-          rgba(var(--player-bright-rgb), 0.22) 78.8%,
-          rgba(var(--player-bright-rgb), 0) 81.4%,
-          rgba(var(--player-bright-rgb), 0) 100%
-        );
-      filter: blur(11px);
-      opacity: 0.58;
-      transform: translateX(8%) translateY(-2%) rotate(5deg) scale(1.03);
-      animation: godRaysDriftB 21s ease-in-out infinite alternate;
-      animation-delay: -12s;
-    }
-
-    @keyframes godRaysDriftA {
-      0% {
-        transform: translateX(-10%) translateY(-4%) rotate(-4deg) scale(1.18);
-      }
-      100% {
-        transform: translateX(10%) translateY(1%) rotate(-1deg) scale(1.24);
-      }
-    }
-
-    @keyframes godRaysDriftB {
-      0% {
-        transform: translateX(12%) translateY(-2%) rotate(5deg) scale(1.1);
-      }
-      100% {
-        transform: translateX(-8%) translateY(2%) rotate(2deg) scale(1.2);
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .player-edge-wave-side.left,
-      .player-edge-wave-side.right,
-      .player-god-rays::before,
-      .player-god-rays::after {
-        animation: none;
-      }
-    }
-
-    .player-logo {
-      position: absolute;
-      left: var(--player-logo-left, 12px);
-      right: var(--player-logo-right, auto);
-      top: var(--player-logo-top, 12px);
-      bottom: var(--player-logo-bottom, auto);
-      transform: var(--player-logo-transform, none);
-      z-index: 1;
-      max-width: min(36%, 320px);
-      max-height: min(86px, calc(100% - 24px));
-      pointer-events: none;
-      display: flex;
-      align-items: flex-start;
-      justify-content: flex-start;
-    }
-
-    .player-logo.hidden {
-      display: none;
-    }
-
-    .player-logo-img {
-      display: block;
-      width: auto;
-      height: auto;
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.42));
     }
 
     .player-stage::before {
@@ -1134,10 +860,6 @@
       background: linear-gradient(0deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
       opacity: 0;
       transition: opacity 220ms ease;
-    }
-
-    .player-stage.has-wallpaper::before {
-      opacity: 1;
     }
 
     .player-controls {
@@ -1183,8 +905,8 @@
       background:
         linear-gradient(
           180deg,
-          rgba(6, 11, 18, 0.86),
-          rgba(4, 8, 14, 0.98)
+          rgba(34, 34, 34, 0.9),
+          rgba(22, 22, 22, 0.98)
         );
       box-shadow:
         0 -12px 20px rgba(0, 0, 0, 0.4),
@@ -1206,10 +928,6 @@
       transition: opacity 220ms ease;
     }
 
-    .player-stage.has-wallpaper .player-keyboard-strip::before {
-      opacity: 1;
-    }
-
     .player-wheel-bank {
       position: relative;
       z-index: 4;
@@ -1224,8 +942,8 @@
       background:
         linear-gradient(
           180deg,
-          rgba(12, 16, 24, 0.95),
-          rgba(7, 11, 18, 0.98)
+          rgba(42, 42, 42, 0.95),
+          rgba(28, 28, 28, 0.98)
         );
       box-shadow:
         inset -1px 0 0 rgba(0, 0, 0, 0.35),
@@ -1431,23 +1149,23 @@
       min-width: var(--player-white-key-width);
       height: 100%;
       border-radius: 0 0 3px 3px;
-      border-right: 1px solid rgba(30, 39, 55, 0.6);
-      border-top: 1px solid rgba(212, 218, 228, 0.86);
+      border-right: 1px solid rgba(58, 58, 58, 0.58);
+      border-top: 1px solid rgba(216, 216, 216, 0.84);
       background:
         linear-gradient(
           180deg,
           rgba(var(--player-swatch-rgb), var(--player-key-tint-alpha-top)),
           rgba(var(--player-swatch-rgb), var(--player-key-tint-alpha-bottom))
         ),
-        linear-gradient(180deg, #d7dbe1, #bcc2ca);
+        linear-gradient(180deg, #d6d6d6, #b8b8b8);
       box-shadow:
-        inset 0 1px 0 rgba(238, 242, 248, 0.72),
-        inset 0 -10px 18px rgba(0, 0, 0, 0.12);
+        inset 0 1px 0 rgba(238, 238, 238, 0.72),
+        inset 0 -6px 10px rgba(0, 0, 0, 0.11);
       transform: translateY(0);
     }
 
     .player-key-white:first-child {
-      border-left: 1px solid rgba(20, 28, 42, 0.55);
+      border-left: 1px solid rgba(40, 40, 40, 0.55);
     }
 
     .player-key-white::after {
@@ -1466,12 +1184,12 @@
       top: 0;
       height: var(--player-black-key-height);
       border-radius: 0 0 3px 3px;
-      border: 1px solid rgba(176, 184, 196, 0.14);
-      background: linear-gradient(180deg, #2e333a, #1a1f26);
+      border: 1px solid rgba(156, 156, 156, 0.14);
+      background: linear-gradient(180deg, #343434, #181818);
       box-shadow:
-        0 10px 18px rgba(0, 0, 0, 0.46),
+        0 6px 10px rgba(0, 0, 0, 0.42),
         inset 0 1px 0 rgba(255, 255, 255, 0.06),
-        inset 0 -8px 12px rgba(0, 0, 0, 0.58);
+        inset 0 -5px 8px rgba(0, 0, 0, 0.54);
       transform: translate(-50%, 0);
       transform-origin: 50% 0;
       pointer-events: auto;
@@ -1487,7 +1205,7 @@
       font-size: 9px;
       letter-spacing: 0.03em;
       text-transform: uppercase;
-      color: rgba(22, 28, 36, 0.86);
+      color: rgba(46, 46, 46, 0.88);
       pointer-events: none;
     }
 
@@ -1508,20 +1226,20 @@
           rgba(var(--player-swatch-rgb), calc(var(--player-key-tint-alpha-top) + 0.1)),
           rgba(var(--player-swatch-rgb), calc(var(--player-key-tint-alpha-bottom) + 0.14))
         ),
-        linear-gradient(180deg, #cfd4dc, #aeb6c1);
+        linear-gradient(180deg, #cdcdcd, #acacac);
     }
 
     .player-key-black .player-key-label {
       bottom: 7px;
-      color: rgba(228, 238, 252, 0.7);
+      color: rgba(220, 220, 220, 0.72);
     }
 
     .player-key-white.no-sample {
-      border-right-color: rgba(21, 26, 35, 0.75);
-      border-top-color: rgba(54, 60, 70, 0.89);
-      background: linear-gradient(180deg, #454b54, #2c3138);
+      border-right-color: rgba(28, 28, 28, 0.75);
+      border-top-color: rgba(78, 78, 78, 0.88);
+      background: linear-gradient(180deg, #4a4a4a, #303030);
       box-shadow:
-        inset 0 -10px 18px rgba(0, 0, 0, 0.24);
+        inset 0 -6px 10px rgba(0, 0, 0, 0.2);
     }
 
     .player-key-white.no-sample::after {
@@ -1529,11 +1247,11 @@
     }
 
     .player-key-black.no-sample {
-      border-color: rgba(74, 80, 90, 0.22);
-      background: linear-gradient(180deg, #232830, #0e1217);
+      border-color: rgba(86, 86, 86, 0.22);
+      background: linear-gradient(180deg, #242424, #101010);
       box-shadow:
-        0 8px 14px rgba(0, 0, 0, 0.44),
-        inset 0 -8px 12px rgba(0, 0, 0, 0.52);
+        0 5px 8px rgba(0, 0, 0, 0.4),
+        inset 0 -5px 8px rgba(0, 0, 0, 0.48);
       opacity: 1;
     }
 
@@ -1542,7 +1260,7 @@
     }
 
     .player-key.no-sample .player-key-label {
-      color: rgba(230, 235, 244, 0.78);
+      color: rgba(220, 220, 220, 0.78);
     }
 
     .player-key:disabled {
@@ -1564,19 +1282,18 @@
           rgba(var(--player-swatch-rgb), var(--player-key-press-tint-alpha-top)),
           rgba(var(--player-swatch-rgb), var(--player-key-press-tint-alpha-bottom))
         ),
-        linear-gradient(180deg, #d6d8dd, #b8bdc6);
+        linear-gradient(180deg, #d1d1d1, #b4b4b4);
       box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.74),
-        inset 0 -6px 10px rgba(0, 0, 0, 0.1),
-        0 0 0 1px rgba(205, 210, 220, 0.18) inset,
-        0 0 8px rgba(var(--player-press-glow-rgb), 0.48),
-        0 0 16px rgba(var(--player-press-glow-rgb), 0.3);
+        inset 0 -4px 6px rgba(0, 0, 0, 0.09),
+        0 0 0 1px rgba(190, 190, 190, 0.18) inset,
+        0 0 4px rgba(198, 198, 198, 0.16);
     }
 
     .player-key-white.is-down::before {
       opacity: 0.16;
       background:
-        radial-gradient(circle at 50% 70%, rgba(236, 240, 245, 0.22), rgba(236, 240, 245, 0) 68%),
+        radial-gradient(circle at 50% 70%, rgba(232, 232, 232, 0.22), rgba(232, 232, 232, 0) 68%),
         linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
     }
 
@@ -1589,40 +1306,39 @@
           rgba(var(--player-swatch-rgb), var(--player-key-press-black-alpha-top)),
           rgba(var(--player-swatch-rgb), var(--player-key-press-black-alpha-bottom))
         ),
-        linear-gradient(180deg, #30353d, #0f141b);
-      border-color: rgba(191, 198, 209, 0.3);
+        linear-gradient(180deg, #383838, #141414);
+      border-color: rgba(176, 176, 176, 0.3);
       box-shadow:
-        0 3px 5px rgba(0, 0, 0, 0.48),
+        0 2px 3px rgba(0, 0, 0, 0.44),
         inset 0 1px 0 rgba(255, 255, 255, 0.03),
-        inset 0 -10px 14px rgba(0, 0, 0, 0.66),
-        0 0 0 1px rgba(201, 207, 218, 0.16),
-        0 0 8px rgba(var(--player-press-glow-rgb), 0.42),
-        0 0 16px rgba(var(--player-press-glow-rgb), 0.28);
+        inset 0 -6px 8px rgba(0, 0, 0, 0.62),
+        0 0 0 1px rgba(184, 184, 184, 0.12),
+        0 0 5px rgba(170, 170, 170, 0.12);
     }
 
     .player-key-black.is-down::before {
       opacity: 0.2;
       background:
-        radial-gradient(circle at 50% 62%, rgba(220, 228, 240, 0.26), rgba(220, 228, 240, 0) 70%),
-        linear-gradient(180deg, rgba(214, 220, 231, 0.1), rgba(214, 220, 231, 0));
+        radial-gradient(circle at 50% 62%, rgba(210, 210, 210, 0.22), rgba(210, 210, 210, 0) 70%),
+        linear-gradient(180deg, rgba(198, 198, 198, 0.08), rgba(198, 198, 198, 0));
     }
 
     .player-key-white.no-sample.is-down {
       box-shadow:
-        inset 0 1px 0 rgba(210, 216, 224, 0.24),
-        inset 0 -8px 12px rgba(0, 0, 0, 0.22);
+        inset 0 1px 0 rgba(206, 206, 206, 0.22),
+        inset 0 -5px 8px rgba(0, 0, 0, 0.2);
     }
 
     .player-key-black.no-sample.is-down {
       box-shadow:
-        0 3px 5px rgba(0, 0, 0, 0.5),
+        0 2px 3px rgba(0, 0, 0, 0.46),
         inset 0 1px 0 rgba(255, 255, 255, 0.02),
-        inset 0 -10px 14px rgba(0, 0, 0, 0.7),
-        0 0 0 1px rgba(170, 176, 186, 0.08);
+        inset 0 -6px 8px rgba(0, 0, 0, 0.66),
+        0 0 0 1px rgba(160, 160, 160, 0.08);
     }
 
     .player-key:focus-visible {
-      outline: 1px solid rgba(198, 204, 214, 0.82);
+      outline: 1px solid rgba(188, 188, 188, 0.82);
       outline-offset: -1px;
     }
 
@@ -1686,12 +1402,12 @@
     }
 
     .section.collapsible:not(.collapsed) > h2 {
-      background: rgba(255, 216, 92, 0.96);
-      color: #2b2d32;
+      background: rgba(var(--accent-rgb), 0.9);
+      color: #2e291f;
     }
 
     .section.collapsible:not(.collapsed) > h2::after {
-      color: #2b2d32;
+      color: #2e291f;
     }
 
     .section.collapsible > h2::after {
@@ -1829,9 +1545,9 @@
     }
 
     .sequencer-step {
-      border: 1px solid rgba(140, 146, 156, 0.28);
+      border: 1px solid rgba(var(--line-rgb), 0.28);
       border-radius: 6px;
-      background: rgba(9, 13, 20, 0.62);
+      background: rgba(var(--surface-card-rgb), 0.62);
       padding: 4px;
       display: grid;
       gap: 4px;
@@ -1839,9 +1555,9 @@
     }
 
     .sequencer-step.is-active {
-      border-color: rgba(255, 216, 92, 0.8);
-      background: rgba(28, 23, 12, 0.82);
-      box-shadow: inset 0 0 0 1px rgba(255, 216, 92, 0.36);
+      border-color: rgba(var(--accent-rgb), 0.8);
+      background: var(--accent-surface-strong);
+      box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.3);
     }
 
     .sequencer-step-head {
@@ -1883,9 +1599,9 @@
       width: 100%;
       min-width: 0;
       height: 20px;
-      border: 1px solid rgba(140, 146, 156, 0.3);
+      border: 1px solid rgba(var(--line-rgb), 0.3);
       border-radius: 5px;
-      background: rgba(12, 17, 26, 0.86);
+      background: rgba(var(--surface-deep-rgb), 0.86);
       color: var(--text);
       font-size: 9px;
       letter-spacing: 0.03em;
@@ -1913,8 +1629,8 @@
     }
 
     .sequencer-step-rate-btn:hover {
-      border-color: rgba(140, 146, 156, 0.5);
-      background: rgba(20, 26, 38, 0.9);
+      border-color: rgba(var(--line-rgb), 0.5);
+      background: rgba(var(--surface-panel-rgb), 0.9);
     }
 
     .knob {
@@ -1938,9 +1654,9 @@
       transform: translateX(-50%);
       white-space: nowrap;
       pointer-events: none;
-      border: 1px solid rgba(140, 146, 156, 0.36);
+      border: 1px solid rgba(var(--line-rgb), 0.36);
       border-radius: 6px;
-      background: rgba(10, 14, 21, 0.95);
+      background: var(--tooltip-surface);
       color: var(--text);
       font-size: 10px;
       letter-spacing: 0.04em;
@@ -1974,7 +1690,7 @@
       border-radius: 50%;
       border: 1px solid rgba(var(--player-swatch-rgb), 0.75);
       background: transparent;
-      color: rgba(236, 244, 255, 0.95);
+      color: rgba(228, 228, 228, 0.95);
       font-size: 56px;
       line-height: 1;
       text-transform: none;
@@ -2011,7 +1727,7 @@
 
     .player-stage .player-controls .knob-face {
       border-color: rgba(var(--player-bright-rgb), 0.72);
-      background: rgba(10, 14, 22, 0.6);
+      background: rgba(var(--surface-deep-rgb), 0.6);
     }
 
     .player-stage .player-controls .knob-pointer {
@@ -2024,7 +1740,7 @@
 
     .player-stage .player-controls .knob[data-tooltip]::after {
       border-color: rgba(var(--player-bright-rgb), 0.5);
-      background: rgba(10, 14, 21, 0.95);
+      background: var(--tooltip-surface);
       color: rgba(var(--player-bright-rgb), 0.96);
     }
 
@@ -2034,7 +1750,7 @@
 
     .tabs.player-topbar-swatch .top-right-controls .knob-face {
       border-color: rgba(var(--player-bright-rgb), 0.72);
-      background: rgba(10, 14, 22, 0.65);
+      background: rgba(var(--surface-deep-rgb), 0.65);
     }
 
     .tabs.player-topbar-swatch .top-right-controls .knob-pointer {
@@ -2055,7 +1771,7 @@
     .tabs.player-topbar-swatch #playerPitchDownToggle {
       border-color: rgba(var(--player-bright-rgb), 0.72);
       color: rgba(var(--player-bright-rgb), 0.72);
-      background: rgba(10, 14, 22, 0.65);
+      background: rgba(var(--surface-deep-rgb), 0.65);
     }
 
     .tabs.player-topbar-swatch #playerStrumMainToggle.active,
@@ -2063,7 +1779,7 @@
     .tabs.player-topbar-swatch #playerPitchDownToggle.active {
       border-color: rgba(var(--player-bright-rgb), 0.96);
       color: rgba(var(--player-bright-rgb), 0.96);
-      background: rgba(10, 14, 22, 0.85);
+      background: rgba(var(--surface-deep-rgb), 0.85);
     }
 
     .knob.tooltip-right::after {
@@ -2087,8 +1803,8 @@
       height: 26px;
       margin: 0 auto 5px;
       border-radius: 50%;
-      border: 1px solid rgba(172, 178, 188, 0.62);
-      background: rgba(14, 19, 29, 0.75);
+      border: 1px solid rgba(var(--line-rgb), 0.52);
+      background: rgba(var(--surface-deep-rgb), 0.76);
       position: relative;
       box-shadow: none;
     }
@@ -2099,7 +1815,7 @@
       top: 50%;
       width: 1px;
       height: 9px;
-      background: rgba(218, 222, 229, 0.92);
+      background: rgba(220, 220, 220, 0.92);
       transform-origin: 50% 100%;
       transform: translate(-50%, -100%) rotate(-135deg);
       border-radius: 1px;
@@ -2166,16 +1882,16 @@
     }
 
     input[type="checkbox"] {
-      accent-color: var(--mint);
+      accent-color: var(--accent-text);
     }
 
     input[type="text"],
     select {
       width: 100%;
-      border: 1px solid rgba(140, 146, 156, 0.22);
+      border: 1px solid rgba(var(--line-rgb), 0.22);
       border-radius: 8px;
       padding: 7px 8px;
-      background: rgba(11, 16, 24, 0.68);
+      background: rgba(var(--surface-card-rgb), 0.68);
       color: var(--text);
       font: inherit;
       font-size: 12px;
@@ -2219,14 +1935,14 @@
       align-items: center;
       gap: 0;
       min-height: 28px;
-      border: 1px solid rgba(140, 146, 156, 0.3);
+      border: 1px solid rgba(var(--line-rgb), 0.3);
       border-radius: 8px;
-      background: rgba(11, 16, 24, 0.68);
+      background: rgba(var(--surface-card-rgb), 0.68);
       overflow: hidden;
     }
 
     .interval-stepper:focus-within {
-      border-color: rgba(255, 216, 92, 0.72);
+      border-color: rgba(var(--accent-rgb), 0.72);
     }
 
     .interval-step-btn {
@@ -2400,8 +2116,8 @@
     }
 
     .auto-loop-options > .field.is-disabled .sample-velocity-toggle {
-      border-color: rgba(140, 146, 156, 0.2);
-      background: rgba(12, 17, 26, 0.52);
+      border-color: rgba(var(--line-rgb), 0.2);
+      background: rgba(var(--surface-deep-rgb), 0.52);
     }
 
     .auto-loop-options .sample-velocity-toggle {
@@ -2442,9 +2158,9 @@
       min-width: 22px;
       height: 22px;
       padding: 0;
-      border: 1px solid rgba(140, 146, 156, 0.3);
+      border: 1px solid rgba(var(--line-rgb), 0.3);
       border-radius: 4px;
-      background: rgba(12, 17, 26, 0.8);
+      background: rgba(var(--surface-deep-rgb), 0.8);
       color: var(--text-dim);
       font-size: 10px;
       line-height: 1;
@@ -2455,9 +2171,9 @@
     }
 
     .auto-pack-trigger[aria-expanded="true"] {
-      border-color: rgba(255, 216, 92, 0.72);
-      background: rgba(28, 24, 13, 0.86);
-      color: #ffdf7e;
+      border-color: rgba(var(--accent-rgb), 0.72);
+      background: var(--accent-surface);
+      color: var(--accent-text);
     }
 
     .auto-stack-grid > .field.auto-pack-row-inline .auto-pack-as-menu {
@@ -2515,9 +2231,9 @@
       width: 132px;
       min-width: 132px;
       padding: 4px;
-      border: 1px solid rgba(140, 146, 156, 0.32);
+      border: 1px solid rgba(var(--line-rgb), 0.32);
       border-radius: 8px;
-      background: rgba(10, 14, 21, 0.96);
+      background: rgba(var(--surface-deep-rgb), 0.96);
       display: grid;
       gap: 2px;
     }
@@ -2554,9 +2270,9 @@
       width: 100%;
       min-width: 0;
       height: 22px;
-      border: 1px solid rgba(140, 146, 156, 0.3);
+      border: 1px solid rgba(var(--line-rgb), 0.3);
       border-radius: 4px;
-      background: rgba(12, 17, 26, 0.86);
+      background: rgba(var(--surface-deep-rgb), 0.86);
       color: var(--text);
       font-size: 10px;
       letter-spacing: 0.03em;
@@ -2657,21 +2373,21 @@
       transform: translateY(-50%);
       width: 14px;
       height: 14px;
-      border: 1px solid rgba(140, 146, 156, 0.4);
+      border: 1px solid rgba(var(--line-rgb), 0.4);
       border-radius: 3px;
       display: grid;
       place-items: center;
       font-size: 10px;
       line-height: 1;
-      color: rgba(255, 223, 126, 0);
-      background: rgba(8, 12, 18, 0.75);
+      color: rgba(var(--accent-rgb), 0);
+      background: rgba(var(--surface-deep-rgb), 0.75);
       transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
     }
 
     .auto-pack-check-input:checked ~ .auto-pack-check-mark {
-      border-color: rgba(255, 216, 92, 0.72);
-      color: #ffdf7e;
-      background: rgba(28, 24, 13, 0.86);
+      border-color: rgba(var(--accent-rgb), 0.72);
+      color: var(--accent-text);
+      background: var(--accent-surface);
     }
 
     .auto-pack-export-btn {
@@ -2687,9 +2403,9 @@
       width: 22px;
       height: 22px;
       padding: 0;
-      border: 1px solid rgba(140, 146, 156, 0.3);
+      border: 1px solid rgba(var(--line-rgb), 0.3);
       border-radius: 4px;
-      background: rgba(12, 17, 26, 0.8);
+      background: rgba(var(--surface-deep-rgb), 0.8);
       color: var(--text);
       display: grid;
       place-items: center;
@@ -2710,17 +2426,17 @@
     .sample-velocity-toggle-mark {
       font-size: 11px;
       font-weight: 700;
-      color: rgba(255, 223, 126, 0);
+      color: rgba(var(--accent-rgb), 0);
       transition: color 120ms ease;
       pointer-events: none;
     }
 
     .sample-velocity-toggle input:checked + .sample-velocity-toggle-mark {
-      color: #ffdf7e;
+      color: var(--accent-text);
     }
 
     .sample-velocity-toggle input:focus-visible + .sample-velocity-toggle-mark {
-      text-shadow: 0 0 6px rgba(255, 223, 126, 0.44);
+      text-shadow: 0 0 6px rgba(var(--accent-rgb), 0.32);
     }
 
     .stats {
@@ -2779,9 +2495,9 @@
     }
 
     .log {
-      border: 1px dashed rgba(140, 146, 156, 0.2);
+      border: 1px dashed rgba(var(--line-rgb), 0.2);
       border-radius: 8px;
-      background: rgba(9, 12, 19, 0.42);
+      background: rgba(var(--surface-card-rgb), 0.42);
       max-height: 260px;
       overflow: auto;
       font-family: "SFMono-Regular", Menlo, monospace;
@@ -2800,7 +2516,7 @@
       position: fixed;
       inset: 0;
       z-index: 90;
-      background: rgba(5, 8, 14, 0.78);
+      background: var(--overlay-scrim);
       display: grid;
       place-items: center;
       padding: 18px;
@@ -2808,9 +2524,9 @@
 
     .modal-window {
       width: min(860px, 100%);
-      border: 1px solid rgba(140, 146, 156, 0.34);
+      border: 1px solid rgba(var(--line-rgb), 0.34);
       border-radius: 10px;
-      background: linear-gradient(145deg, rgba(12, 18, 29, 0.98), rgba(20, 27, 40, 0.96));
+      background: var(--modal-surface);
       box-shadow: 0 22px 56px rgba(0, 0, 0, 0.42);
       overflow: hidden;
     }
@@ -2820,9 +2536,9 @@
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      border-bottom: 1px solid rgba(140, 146, 156, 0.22);
+      border-bottom: 1px solid rgba(var(--line-rgb), 0.22);
       padding: 8px 10px;
-      background: rgba(10, 15, 24, 0.7);
+      background: rgba(var(--surface-panel-rgb), 0.7);
     }
 
     .modal-title {
@@ -2908,7 +2624,7 @@
       padding: 0 16px;
       border-color: rgba(150, 58, 58, 0.86);
       background: linear-gradient(180deg, rgba(102, 22, 22, 0.98), rgba(72, 12, 12, 0.99));
-      color: #fff0f0;
+      color: #f6ecec;
       font-size: 15px;
       letter-spacing: 0.07em;
       font-weight: 700;
@@ -2932,23 +2648,23 @@
     }
 
     .notes {
-      border: 1px dashed rgba(140, 146, 156, 0.2);
+      border: 1px dashed rgba(var(--line-rgb), 0.2);
       border-radius: 8px;
       min-height: 120px;
-      background: rgba(8, 11, 17, 0.34);
+      background: rgba(var(--surface-deep-rgb), 0.34);
       padding: 7px;
       font-family: "SFMono-Regular", Menlo, monospace;
       font-size: 12px;
-      color: #c9f8ef;
+      color: var(--text);
       white-space: pre-wrap;
       line-height: 1.45;
     }
 
     .map-shell {
       --map-col-gap: 2px;
-      border: 1px solid rgba(140, 146, 156, 0.24);
+      border: 1px solid rgba(var(--line-rgb), 0.24);
       border-radius: 8px;
-      background: rgba(8, 11, 17, 0.36);
+      background: rgba(var(--surface-deep-rgb), 0.36);
       overflow: hidden;
     }
 
@@ -2995,7 +2711,7 @@
       width: 46px;
       min-width: 46px;
       max-width: 52px;
-      border: 1px solid rgba(168, 178, 194, 0.46);
+      border: 1px solid rgba(var(--line-rgb), 0.42);
       border-radius: 6px;
       padding: 3px 0;
       font-size: 11px;
@@ -3003,12 +2719,12 @@
       font-weight: 600;
       text-align: center;
       text-align-last: center;
-      color: rgba(238, 244, 255, 0.98);
-      background: linear-gradient(180deg, rgba(14, 20, 31, 0.98), rgba(7, 11, 18, 0.98));
+      color: rgba(228, 228, 228, 0.98);
+      background: linear-gradient(180deg, rgba(var(--surface-panel-rgb), 0.98), rgba(var(--surface-deep-rgb), 0.98));
       box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.08),
         inset 0 0 0 1px rgba(0, 0, 0, 0.22);
-      caret-color: rgba(238, 244, 255, 0.98);
+      caret-color: rgba(228, 228, 228, 0.98);
       appearance: textfield;
       -webkit-appearance: textfield;
       -moz-appearance: textfield;
@@ -3017,10 +2733,10 @@
     .keyswitch-map-matrix-input:focus,
     .keyswitch-map-matrix-input:focus-visible {
       outline: none;
-      border-color: rgba(255, 216, 92, 0.86);
+      border-color: rgba(var(--accent-rgb), 0.86);
       box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.1),
-        0 0 0 1px rgba(255, 216, 92, 0.26);
+        0 0 0 1px rgba(var(--accent-rgb), 0.22);
     }
 
     .keyswitch-map-matrix-input::-webkit-outer-spin-button,
@@ -3055,7 +2771,7 @@
       border-radius: 6px;
       padding: 4px 8px;
       font-size: 11px;
-      background: rgba(11, 16, 24, 0.82);
+      background: rgba(var(--surface-card-rgb), 0.82);
     }
 
     .keyswitch-map-key-wrap {
@@ -3068,7 +2784,7 @@
       display: none;
       position: absolute;
       z-index: 9998;
-      background: #1e1e1e;
+      background: rgba(var(--surface-card-rgb), 0.98);
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 8px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
@@ -3095,16 +2811,16 @@
       width: 100%;
       padding: 5px 8px;
       font-size: 12px;
-      border: 1px solid rgba(168, 178, 194, 0.46);
+      border: 1px solid rgba(var(--line-rgb), 0.42);
       border-radius: 6px;
-      color: rgba(238, 244, 255, 0.98);
-      background: rgba(14, 20, 31, 0.98);
+      color: rgba(228, 228, 228, 0.98);
+      background: rgba(var(--surface-panel-rgb), 0.98);
       box-sizing: border-box;
     }
 
     .new-ks-popover input[type="text"]:focus {
       outline: none;
-      border-color: rgba(255, 216, 92, 0.86);
+      border-color: rgba(var(--accent-rgb), 0.86);
     }
 
     #newKsNoteInput {
@@ -3124,15 +2840,15 @@
       padding: 5px 12px;
       font-size: 11px;
       font-weight: 600;
-      border: 1px solid rgba(168, 178, 194, 0.3);
+      border: 1px solid rgba(var(--line-rgb), 0.34);
       border-radius: 6px;
-      color: #fff;
-      background: rgba(60, 100, 180, 0.5);
+      color: var(--text);
+      background: linear-gradient(180deg, rgba(174, 174, 174, 0.16), rgba(var(--surface-elevated-rgb), 0.95));
       cursor: default;
     }
 
     .new-ks-create-btn:hover {
-      background: rgba(70, 120, 210, 0.6);
+      background: rgba(var(--surface-hover-rgb), 0.9);
     }
 
     .keyswitch-map-key-wrap > label {
@@ -3155,9 +2871,9 @@
     }
 
     .keyswitch-map-loop-btn {
-      border: 1px solid rgba(140, 146, 156, 0.3);
+      border: 1px solid rgba(var(--line-rgb), 0.3);
       border-radius: 6px;
-      background: rgba(12, 17, 26, 0.84);
+      background: rgba(var(--surface-deep-rgb), 0.84);
       color: var(--text);
       height: 22px;
       min-width: 72px;
@@ -3171,9 +2887,9 @@
     }
 
     .keyswitch-map-loop-btn.oneshot {
-      color: rgba(203, 211, 224, 0.88);
-      border-color: rgba(140, 146, 156, 0.24);
-      background: rgba(9, 13, 20, 0.84);
+      color: rgba(206, 206, 206, 0.88);
+      border-color: rgba(var(--line-rgb), 0.24);
+      background: rgba(var(--surface-card-rgb), 0.84);
     }
 
     .keyswitch-map-key {
@@ -3184,13 +2900,13 @@
       text-transform: uppercase;
       border-radius: 6px;
       font-size: 11px;
-      background: rgba(11, 16, 24, 0.82);
+      background: rgba(var(--surface-card-rgb), 0.82);
     }
 
     .keyswitch-map-normalize-btn {
-      border: 1px solid rgba(140, 146, 156, 0.3);
+      border: 1px solid rgba(var(--line-rgb), 0.3);
       border-radius: 6px;
-      background: rgba(12, 17, 26, 0.84);
+      background: rgba(var(--surface-deep-rgb), 0.84);
       color: var(--text);
       height: 22px;
       min-width: 72px;
@@ -3205,8 +2921,8 @@
     }
 
     .keyswitch-map-normalize-btn:hover {
-      border-color: rgba(140, 146, 156, 0.5);
-      background: rgba(20, 27, 40, 0.9);
+      border-color: rgba(var(--line-rgb), 0.5);
+      background: rgba(var(--surface-panel-rgb), 0.9);
     }
 
     .keyswitch-map-normalize-btn:disabled {
@@ -3223,9 +2939,9 @@
     }
 
     .sample-editor {
-      border-bottom: 1px solid rgba(140, 146, 156, 0.2);
+      border-bottom: 1px solid rgba(var(--line-rgb), 0.2);
       padding: 8px;
-      background: rgba(10, 15, 23, 0.58);
+      background: rgba(var(--surface-panel-rgb), 0.58);
     }
 
     .sample-waveform-box {
@@ -3242,9 +2958,9 @@
 
     .sample-nav-btn {
       flex: 0 0 auto;
-      border: 1px solid rgba(140, 146, 156, 0.3);
+      border: 1px solid rgba(var(--line-rgb), 0.3);
       border-radius: 4px;
-      background: rgba(12, 17, 26, 0.8);
+      background: rgba(var(--surface-deep-rgb), 0.8);
       color: var(--text);
       height: 20px;
       width: 20px;
@@ -3258,11 +2974,11 @@
     }
 
     .sample-nav-btn:hover {
-      background: rgba(140, 146, 156, 0.25);
+      background: rgba(var(--line-rgb), 0.22);
     }
 
     .sample-nav-btn:active {
-      background: rgba(140, 146, 156, 0.4);
+      background: rgba(var(--line-rgb), 0.34);
     }
 
     .sample-editor-title {
@@ -3305,9 +3021,9 @@
       right: auto;
       transform: none;
       z-index: 1;
-      border: 1px solid rgba(140, 146, 156, 0.3);
+      border: 1px solid rgba(var(--line-rgb), 0.3);
       border-radius: 4px;
-      background: rgba(12, 17, 26, 0.8);
+      background: rgba(var(--surface-deep-rgb), 0.8);
       color: var(--text);
       height: 22px;
       width: 22px;
@@ -3340,7 +3056,7 @@
 
     .sample-editor-meta:not(:empty)::before {
       content: "| ";
-      color: rgba(140, 146, 156, 0.65);
+      color: rgba(var(--line-rgb), 0.65);
     }
 
     .sample-waveform-info {
@@ -3378,9 +3094,9 @@
     .sample-finetune-knob {
       width: 22px;
       height: 22px;
-      border: 1px solid rgba(140, 146, 156, 0.3);
+      border: 1px solid rgba(var(--line-rgb), 0.3);
       border-radius: 50%;
-      background: rgba(12, 17, 26, 0.82);
+      background: rgba(var(--surface-deep-rgb), 0.82);
       position: relative;
       cursor: ns-resize;
       touch-action: none;
@@ -3398,9 +3114,9 @@
       transform: translateX(-50%);
       white-space: nowrap;
       pointer-events: none;
-      border: 1px solid rgba(140, 146, 156, 0.36);
+      border: 1px solid rgba(var(--line-rgb), 0.36);
       border-radius: 6px;
-      background: rgba(10, 14, 21, 0.95);
+      background: var(--tooltip-surface);
       color: var(--text);
       font-size: 10px;
       letter-spacing: 0.04em;
@@ -3428,7 +3144,7 @@
       width: 2px;
       height: 8px;
       border-radius: 1px;
-      background: rgba(216, 220, 228, 0.95);
+      background: rgba(220, 220, 220, 0.95);
       transform-origin: 50% 100%;
       transform: translate(-50%, -100%) rotate(0deg);
     }
@@ -3436,7 +3152,7 @@
     .sample-loop-xfade {}
 
     .sample-loop-xfade-pointer {
-      background: rgba(255, 216, 92, 0.95);
+      background: rgba(var(--accent-rgb), 0.95);
     }
 
     .sample-loop-tools {
@@ -3451,9 +3167,9 @@
     }
 
     .sample-loop-tool-btn {
-      border: 1px solid rgba(140, 146, 156, 0.3);
+      border: 1px solid rgba(var(--line-rgb), 0.3);
       border-radius: 4px;
-      background: rgba(12, 17, 26, 0.8);
+      background: rgba(var(--surface-deep-rgb), 0.8);
       color: var(--text);
       height: 22px;
       min-width: 22px;
@@ -3472,81 +3188,13 @@
     }
 
     .sample-loop-tool-btn.active {
-      border-color: rgba(255, 216, 92, 0.72);
-      color: #ffdf7e;
-      background: rgba(28, 24, 13, 0.86);
+      border-color: rgba(var(--accent-rgb), 0.72);
+      color: var(--accent-text);
+      background: var(--accent-surface);
     }
 
     .import-pack-controls .sample-loop-tool-btn {
       white-space: nowrap;
-    }
-
-    .import-pack-controls.logo-menu-open {
-      overflow: visible;
-    }
-
-    .logo-menu-wrap {
-      position: relative;
-      display: inline-flex;
-    }
-
-    .logo-position-menu {
-      position: absolute;
-      left: 0;
-      top: calc(100% + 6px);
-      z-index: 2000;
-      display: grid;
-      grid-template-columns: repeat(3, 24px);
-      gap: 4px;
-      padding: 6px;
-      border: 1px solid rgba(140, 146, 156, 0.3);
-      border-radius: 6px;
-      background: rgba(12, 17, 26, 0.94);
-      box-shadow: 0 10px 18px rgba(0, 0, 0, 0.34);
-    }
-
-    .logo-pos-btn {
-      width: 24px;
-      height: 24px;
-      padding: 0;
-      border: 1px solid rgba(140, 146, 156, 0.26);
-      border-radius: 4px;
-      background: rgba(20, 25, 34, 0.88);
-      color: var(--text-dim);
-      font-size: 9px;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-      display: grid;
-      place-items: center;
-    }
-
-    .logo-pos-btn:hover {
-      border-color: rgba(140, 146, 156, 0.5);
-      background: rgba(33, 39, 50, 0.94);
-      color: var(--text);
-    }
-
-    .logo-pos-btn.active {
-      border-color: rgba(255, 216, 92, 0.72);
-      background: rgba(43, 35, 14, 0.92);
-      color: #ffdf7e;
-    }
-
-    .wallpaper-pos-btn.active {
-      border-color: rgba(255, 216, 92, 0.72);
-      background: rgba(43, 35, 14, 0.92);
-      color: #ffdf7e;
-    }
-
-    .logo-position-menu .logo-remove-btn {
-      grid-column: 1 / -1;
-      min-width: 0;
-      width: 100%;
-      height: 22px;
-      padding: 0 6px;
-      letter-spacing: 0.02em;
-      font-size: 9px;
-      justify-self: stretch;
     }
 
     .sample-waveform-viewport {
@@ -3556,9 +3204,9 @@
       padding: 0;
       overflow-x: auto;
       overflow-y: hidden;
-      border: 1px solid rgba(140, 146, 156, 0.28);
+      border: 1px solid rgba(var(--line-rgb), 0.28);
       border-radius: 4px;
-      background: rgba(4, 8, 14, 0.82);
+      background: rgba(var(--surface-deep-rgb), 0.82);
       scrollbar-width: none;
       -ms-overflow-style: none;
       cursor: default;
@@ -3617,8 +3265,8 @@
       top: 50%;
       height: 2px;
       transform: translateY(-50%);
-      background: rgba(255, 216, 92, 0.96);
-      box-shadow: 0 0 8px rgba(255, 216, 92, 0.34);
+      background: rgba(var(--accent-rgb), 0.96);
+      box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.24);
     }
 
     .sample-gain-line::after {
@@ -3628,9 +3276,9 @@
       top: 50%;
       width: 7px;
       height: 7px;
-      border: 1px solid rgba(255, 216, 92, 0.96);
+      border: 1px solid rgba(var(--accent-rgb), 0.96);
       border-radius: 50%;
-      background: rgba(6, 12, 20, 0.96);
+      background: rgba(var(--surface-deep-rgb), 0.96);
       transform: translateY(-50%);
     }
 
@@ -3639,22 +3287,22 @@
       right: 20px;
       top: 50%;
       transform: translateY(-50%);
-      color: rgba(255, 223, 126, 0.92);
+      color: rgba(var(--accent-rgb), 0.9);
       font-family: "SFMono-Regular", Menlo, monospace;
       font-size: 10px;
       letter-spacing: 0.03em;
       line-height: 1;
       pointer-events: none;
-      text-shadow: 0 0 4px rgba(6, 12, 20, 0.88);
+      text-shadow: 0 0 4px rgba(var(--surface-deep-rgb), 0.88);
     }
 
     .sample-loop-region {
       position: absolute;
       top: 0;
       bottom: 0;
-      background: rgba(255, 216, 92, 0.1);
-      border-left: 1px solid rgba(255, 216, 92, 0.55);
-      border-right: 1px solid rgba(255, 216, 92, 0.55);
+      background: rgba(var(--accent-rgb), 0.09);
+      border-left: 1px solid rgba(var(--accent-rgb), 0.48);
+      border-right: 1px solid rgba(var(--accent-rgb), 0.48);
       pointer-events: none;
       z-index: 3;
     }
@@ -3663,9 +3311,9 @@
       position: absolute;
       top: 0;
       bottom: 0;
-      background: linear-gradient(90deg, rgba(255, 216, 92, 0.04), rgba(255, 216, 92, 0.18));
-      border-left: 1px dashed rgba(255, 216, 92, 0.5);
-      border-right: 1px dashed rgba(255, 216, 92, 0.72);
+      background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.04), rgba(var(--accent-rgb), 0.16));
+      border-left: 1px dashed rgba(var(--accent-rgb), 0.42);
+      border-right: 1px dashed rgba(var(--accent-rgb), 0.6);
       pointer-events: none;
       z-index: 2;
     }
@@ -3676,8 +3324,8 @@
       bottom: 0;
       width: 2px;
       margin-left: -1px;
-      background: rgba(208, 242, 255, 0.96);
-      box-shadow: 0 0 8px rgba(164, 170, 180, 0.5);
+      background: rgba(222, 222, 222, 0.96);
+      box-shadow: 0 0 8px rgba(180, 180, 180, 0.34);
       pointer-events: none;
       z-index: 6;
     }
@@ -3690,9 +3338,9 @@
       width: 8px;
       height: 8px;
       transform: translate(-50%, -42%);
-      border: 1px solid rgba(208, 242, 255, 0.88);
+      border: 1px solid rgba(222, 222, 222, 0.88);
       border-radius: 50%;
-      background: rgba(9, 13, 20, 0.92);
+      background: rgba(var(--surface-card-rgb), 0.92);
     }
 
     .sample-loop-handle {
@@ -3714,7 +3362,7 @@
       left: 50%;
       width: 2px;
       transform: translateX(-50%);
-      background: rgba(255, 216, 92, 0.96);
+      background: rgba(var(--accent-rgb), 0.96);
     }
 
     .sample-loop-handle::after {
@@ -3724,15 +3372,15 @@
       top: 50%;
       width: 8px;
       height: 18px;
-      border: 1px solid rgba(255, 216, 92, 0.96);
+      border: 1px solid rgba(var(--accent-rgb), 0.96);
       border-radius: 999px;
       transform: translate(-50%, -50%);
-      background: rgba(9, 13, 20, 0.85);
+      background: rgba(var(--surface-card-rgb), 0.85);
     }
 
     .sample-loop-fade-handle::before {
       width: 1px;
-      border-left: 1px dashed rgba(255, 216, 92, 0.88);
+      border-left: 1px dashed rgba(var(--accent-rgb), 0.88);
       background: transparent;
       transform: translateX(-1px);
     }
@@ -3740,8 +3388,8 @@
     .sample-loop-fade-handle::after {
       width: 6px;
       height: 14px;
-      border: 1px dashed rgba(255, 216, 92, 0.95);
-      background: rgba(9, 13, 20, 0.78);
+      border: 1px dashed rgba(var(--accent-rgb), 0.95);
+      background: rgba(var(--surface-card-rgb), 0.78);
     }
 
     .sample-start-handle {
@@ -3756,13 +3404,13 @@
       left: 50%;
       width: 2px;
       transform: translateX(-50%);
-      background: rgba(236, 240, 246, 0.96);
-      box-shadow: 0 0 6px rgba(236, 240, 246, 0.28);
+      background: rgba(226, 226, 226, 0.96);
+      box-shadow: 0 0 6px rgba(210, 210, 210, 0.22);
     }
 
     .sample-start-handle::after {
-      border-color: rgba(236, 240, 246, 0.96);
-      background: rgba(9, 13, 20, 0.9);
+      border-color: rgba(226, 226, 226, 0.96);
+      background: rgba(var(--surface-card-rgb), 0.9);
     }
 
     .sample-waveform-content.loop-markers-dim .sample-loop-handle:not(.sample-start-handle),
@@ -3790,7 +3438,7 @@
       border: 0;
       border-radius: 0;
       background: transparent;
-      color: rgba(228, 239, 255, 0.92);
+      color: rgba(228, 228, 228, 0.92);
       font-size: 24px;
       font-weight: 600;
       line-height: 1;
@@ -4074,9 +3722,9 @@
       transform: translateX(-50%);
       white-space: nowrap;
       pointer-events: none;
-      border: 1px solid rgba(140, 146, 156, 0.36);
+      border: 1px solid rgba(var(--line-rgb), 0.36);
       border-radius: 6px;
-      background: rgba(10, 14, 21, 0.95);
+      background: var(--tooltip-surface);
       color: var(--text);
       font-size: 10px;
       letter-spacing: 0.04em;
@@ -4111,9 +3759,9 @@
       transform: translateX(-50%);
       white-space: nowrap;
       pointer-events: none;
-      border: 1px solid rgba(140, 146, 156, 0.36);
+      border: 1px solid rgba(var(--line-rgb), 0.36);
       border-radius: 6px;
-      background: rgba(10, 14, 21, 0.95);
+      background: var(--tooltip-surface);
       color: var(--text);
       font-size: 10px;
       letter-spacing: 0.04em;
@@ -4397,8 +4045,6 @@
       </div>
     </nav>
 
-    <input id="wallpaperInput" class="hidden" type="file" accept="image/*">
-    <input id="logoInput" class="hidden" type="file" accept="image/*">
     <input id="filesInput" class="hidden" type="file" multiple accept=".wav,.aif,.aiff,.flac,.ogg,.mp3,.WAV,.AIF,.AIFF,.FLAC,.OGG,.MP3">
     <input id="folderInput" class="hidden" type="file" webkitdirectory directory multiple>
     <input id="packInput" class="hidden" type="file" accept=".smpinst,.smpinstm,.json">
@@ -4406,17 +4052,6 @@
 
     <section id="panel-player" class="panel active">
       <div id="playerStage" class="player-stage">
-        <div class="player-logo-zone" aria-hidden="true">
-          <div id="playerLogoWrap" class="player-logo hidden" aria-hidden="true">
-            <img id="playerLogo" class="player-logo-img" alt="">
-          </div>
-        </div>
-        <div id="playerEdgeWaveBlur" class="player-edge-wave-blur" aria-hidden="true">
-          <div class="player-edge-wave-side left"></div>
-          <div class="player-edge-wave-side right"></div>
-        </div>
-        <div id="playerGodRays" class="player-god-rays" aria-hidden="true"></div>
-        <canvas id="playerParticles" class="player-particles hidden" aria-hidden="true"></canvas>
         <div id="playerEmptyState" class="player-empty">
           <button id="playerLoadInstrumentBtn" class="player-load-btn" type="button" aria-label="Load sample instrument" title="Load sample instrument">+</button>
         </div>
@@ -4898,62 +4533,6 @@
             </div>
           </div>
 
-          <div id="sequencerArpSection" class="section collapsible collapsed">
-            <h2 id="sequencerArpToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="sequencerArpBody">Sequencer</h2>
-            <div id="sequencerArpBody" class="section-body">
-              <div class="btn-row import-pack-controls strum-controls-row">
-                <button id="sequencerModeBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Off</button>
-                <button id="sequencerDoublingBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Doubling Off</button>
-                <div class="strum-menu-wrap">
-                  <button id="sequencerRateBtn" class="sample-loop-tool-btn strum-menu-btn" type="button"
-                          aria-haspopup="true" aria-expanded="false">Rate 1/16</button>
-                  <div id="sequencerRateMenu" class="strum-menu hidden" role="menu" aria-label="Sequencer rate">
-                    <button class="strum-menu-item" type="button" data-seq-rate-index="0">1/4</button>
-                    <button class="strum-menu-item" type="button" data-seq-rate-index="1">1/8</button>
-                    <button class="strum-menu-item" type="button" data-seq-rate-index="2">1/16</button>
-                    <button class="strum-menu-item" type="button" data-seq-rate-index="3">1/32</button>
-                  </div>
-                </div>
-              </div>
-              <div id="sequencerGrid" class="sequencer-grid" aria-label="Sequencer steps"></div>
-              <div id="sequencerArpStatus" class="status"></div>
-            </div>
-          </div>
-
-          <div id="graphicsSection" class="section collapsible collapsed">
-            <h2 id="graphicsToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="graphicsBody">Graphics</h2>
-            <div id="graphicsBody" class="section-body">
-              <div id="graphicsControls" class="btn-row import-pack-controls">
-                <div id="wallpaperMenuWrap" class="logo-menu-wrap">
-                  <button id="wallpaperToggle" class="sample-loop-tool-btn" type="button" aria-label="Add wallpaper" title="Add wallpaper">Add Wallpaper</button>
-                  <div id="wallpaperPositionMenu" class="logo-position-menu hidden" role="menu" aria-label="Wallpaper position">
-                    <button class="logo-pos-btn wallpaper-pos-btn" type="button" data-wallpaper-pos="top-left" title="Top left">TL</button>
-                    <button class="logo-pos-btn wallpaper-pos-btn" type="button" data-wallpaper-pos="top-center" title="Top center">TC</button>
-                    <button class="logo-pos-btn wallpaper-pos-btn" type="button" data-wallpaper-pos="top-right" title="Top right">TR</button>
-                    <button class="logo-pos-btn wallpaper-pos-btn" type="button" data-wallpaper-pos="middle-left" title="Middle left">ML</button>
-                    <button class="logo-pos-btn wallpaper-pos-btn" type="button" data-wallpaper-pos="middle-center" title="Middle center">MC</button>
-                    <button class="logo-pos-btn wallpaper-pos-btn" type="button" data-wallpaper-pos="middle-right" title="Middle right">MR</button>
-                    <button class="logo-pos-btn wallpaper-pos-btn" type="button" data-wallpaper-pos="bottom-left" title="Bottom left">BL</button>
-                    <button class="logo-pos-btn wallpaper-pos-btn" type="button" data-wallpaper-pos="bottom-center" title="Bottom center">BC</button>
-                    <button class="logo-pos-btn wallpaper-pos-btn" type="button" data-wallpaper-pos="bottom-right" title="Bottom right">BR</button>
-                    <button id="wallpaperRemoveBtn" class="sample-loop-tool-btn logo-remove-btn" type="button" title="Remove wallpaper">Remove</button>
-                  </div>
-                </div>
-                <div id="logoMenuWrap" class="logo-menu-wrap">
-                  <button id="logoToggle" class="sample-loop-tool-btn" type="button" aria-label="Add logo" title="Add logo">Add Logo</button>
-                  <div id="logoPositionMenu" class="logo-position-menu hidden" role="menu" aria-label="Logo position">
-                    <button class="logo-pos-btn" type="button" data-logo-pos="top-left" title="Top left">TL</button>
-                    <button class="logo-pos-btn" type="button" data-logo-pos="top-center" title="Top center">TC</button>
-                    <button class="logo-pos-btn" type="button" data-logo-pos="top-right" title="Top right">TR</button>
-                    <button id="logoRemoveBtn" class="sample-loop-tool-btn logo-remove-btn" type="button" title="Remove logo">Remove</button>
-                  </div>
-                </div>
-                <button id="particlesToggle" class="sample-loop-tool-btn" type="button" aria-pressed="true" title="Disable particles">Particles On</button>
-                <button id="godRaysToggle" class="sample-loop-tool-btn" type="button" aria-pressed="true" title="Disable god rays">God Rays On</button>
-                <button id="edgeWaveBlurToggle" class="sample-loop-tool-btn" type="button" aria-pressed="true" title="Disable edge blur">Edge Blur On</button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -4998,20 +4577,6 @@
     const STRUM_STEP_MAX_SUBDIVISIONS = 8;
 
     const state = {
-      wallpaperUrl: "",
-      wallpaperName: "",
-      wallpaperObjectUrl: "",
-      wallpaperSourcePath: "",
-      wallpaperDataUrl: "",
-      wallpaperPosition: "middle-center",
-      wallpaperMenuOpen: false,
-      logoUrl: "",
-      logoName: "",
-      logoObjectUrl: "",
-      logoSourcePath: "",
-      logoDataUrl: "",
-      logoPosition: "top-left",
-      logoMenuOpen: false,
       packLoaded: false,
       setupOctaveStart: 48,
       rrCursor: {},
@@ -5043,16 +4608,6 @@
       modWheelValue: 0,
       expressionValue: 0,
       pitchBendValue: 0,
-      playerParticlesEnabled: true,
-      playerGodRaysEnabled: true,
-      playerEdgeWaveBlurEnabled: true,
-      playerParticleRgb: [218, 222, 229],
-      playerParticleGlowRgb: [238, 242, 248],
-      playerParticles: [],
-      playerParticlesRaf: 0,
-      playerParticlesLastTs: 0,
-      playerParticlesRunning: false,
-      playerParticlesDpr: 1,
       autoPresets: [],
       keyswitchSets: [],
       activeMapSetId: "base",
@@ -5126,6 +4681,8 @@
       lastSessionPayloadSig: "",
       sessionStateLightweight: false,
       sessionStateHydrationRequested: false,
+      sessionStateFetchInFlight: false,
+      pendingSessionStateFetch: null,
       sessionPayloadLock: false,
       sessionPayloadUnlockTimer: 0,
       manualPackLoadSeq: 0,
@@ -5135,8 +4692,6 @@
       ignoreSessionPayloadUntil: 0,
       sampleDataRequestSeq: 0,
       pendingSampleDataRequests: new Map(),
-      graphicDataRequestSeq: 0,
-      pendingGraphicDataRequests: new Map(),
       manifestPickRequestSeq: 0,
       pendingManifestPickRequests: new Map(),
       entrySampleHydrationPromises: new Map(),
@@ -5151,26 +4706,7 @@
       tabsBar: document.querySelector(".tabs"),
       playerControls: document.querySelector(".player-controls"),
       playerAuthorDisplay: document.getElementById("playerAuthorDisplay"),
-      playerParticles: document.getElementById("playerParticles"),
-      wallpaperInput: document.getElementById("wallpaperInput"),
-      logoInput: document.getElementById("logoInput"),
-      wallpaperToggle: document.getElementById("wallpaperToggle"),
-      wallpaperMenuWrap: document.getElementById("wallpaperMenuWrap"),
-      wallpaperPositionMenu: document.getElementById("wallpaperPositionMenu"),
-      wallpaperPositionButtons: Array.from(document.querySelectorAll("#wallpaperPositionMenu .wallpaper-pos-btn")),
-      wallpaperRemoveBtn: document.getElementById("wallpaperRemoveBtn"),
-      logoToggle: document.getElementById("logoToggle"),
-      particlesToggle: document.getElementById("particlesToggle"),
-      godRaysToggle: document.getElementById("godRaysToggle"),
-      edgeWaveBlurToggle: document.getElementById("edgeWaveBlurToggle"),
-      importPackControls: document.getElementById("graphicsControls"),
-      logoMenuWrap: document.getElementById("logoMenuWrap"),
-      logoPositionMenu: document.getElementById("logoPositionMenu"),
-      logoPositionButtons: Array.from(document.querySelectorAll("#logoPositionMenu .logo-pos-btn")),
-      logoRemoveBtn: document.getElementById("logoRemoveBtn"),
       playerStage: document.getElementById("playerStage"),
-      playerLogoWrap: document.getElementById("playerLogoWrap"),
-      playerLogo: document.getElementById("playerLogo"),
       playerEmptyState: document.getElementById("playerEmptyState"),
       playerLoadInstrumentBtn: document.getElementById("playerLoadInstrumentBtn"),
       playerModWheelSlot: document.getElementById("playerModWheelSlot"),
@@ -5229,8 +4765,6 @@
       sampleLoopStart: document.getElementById("sampleLoopStart"),
       sampleLoopEnd: document.getElementById("sampleLoopEnd"),
       sampleEditorClose: document.getElementById("sampleEditorClose"),
-      graphicsSection: document.getElementById("graphicsSection"),
-      graphicsToggle: document.getElementById("graphicsToggle"),
       autoSamplerSection: document.getElementById("autoSamplerSection"),
       autoSamplerToggle: document.getElementById("autoSamplerToggle"),
       keyboardMapSection: document.getElementById("keyboardMapSection"),
@@ -5258,15 +4792,6 @@
       strumStepGrid: document.getElementById("strumStepGrid"),
       playerStrumStepGrid: document.getElementById("playerStrumStepGrid"),
       strumStatus: document.getElementById("strumStatus"),
-      sequencerArpSection: document.getElementById("sequencerArpSection"),
-      sequencerArpToggle: document.getElementById("sequencerArpToggle"),
-      sequencerArpStatus: document.getElementById("sequencerArpStatus"),
-      sequencerModeBtn: document.getElementById("sequencerModeBtn"),
-      sequencerDoublingBtn: document.getElementById("sequencerDoublingBtn"),
-      sequencerRateBtn: document.getElementById("sequencerRateBtn"),
-      sequencerRateMenu: document.getElementById("sequencerRateMenu"),
-      sequencerGrid: document.getElementById("sequencerGrid"),
-
       tabs: Array.from(document.querySelectorAll(".tab-btn")),
       panels: {
         player: document.getElementById("panel-player"),
@@ -5346,12 +4871,10 @@
 
     function getDefaultSetupCollapseState() {
       return {
-        graphics: true,
         autoSampler: true,
         keyboardMap: true,
         modulation: true,
-        strum: true,
-        sequencerArp: true
+        strum: true
       };
     }
 
@@ -5490,7 +5013,6 @@
 
     function updateLoadingOverlayTheme() {
       if (!el.loadingOverlay) return;
-      el.loadingOverlay.classList.toggle("wallpaper-themed", !!state.wallpaperName);
     }
 
     function setLoadingOverlay(progress = 0, label = "") {
@@ -5799,7 +5321,7 @@
         return keyswitchBase || list[0];
       }
 
-      if (/^(audio|graphics|keyswitches)\//i.test(rel)) {
+      if (/^(audio|keyswitches)\//i.test(rel)) {
         return rootBase || list[0];
       }
 
@@ -5828,14 +5350,6 @@
       if (fallbackBasePath) {
         state.packManifestBasePath = fallbackBasePath;
       }
-    }
-
-    async function makeImageFileFromDataUrl(dataUrl, fileName, mimeType = "") {
-      const response = await fetch(dataUrl);
-      const blob = await response.blob();
-      const safeName = String(fileName || "").trim() || "image";
-      const finalType = blob.type || mimeType || "image/png";
-      return new File([blob], safeName, { type: finalType });
     }
 
     function applyAutoControlsSnapshot(snapshot) {
@@ -5889,19 +5403,11 @@
         if ((state.pendingCacheCount || 0) <= 0) {
           await ensureRuntimeSampleDataForSession();
         }
-        await ensureWallpaperDataUrlForAutoSampler();
-        await ensureLogoDataUrlForAutoSampler();
       }
       const manifest = buildManifestSkeleton("smpinst", {
         preserveRuntimePaths: true,
         includeEmbeddedSampleData: !!options.includeEmbeddedSampleData
       });
-      const wallpaperName = state.wallpaperName ? String(state.wallpaperName || "").trim() : "";
-      const wallpaperSourcePath = wallpaperName ? String(state.wallpaperSourcePath || "").trim() : "";
-      const logoName = state.logoName ? String(state.logoName || "").trim() : "";
-      const logoSourcePath = logoName ? String(state.logoSourcePath || "").trim() : "";
-      const includeEmbeddedGraphics = !!options.force
-        || !!options.includeEmbeddedSampleData;
       return {
         version: 1,
         manifest,
@@ -5934,21 +5440,6 @@
           allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
           autoRR: !!state.autoRR,
           autoGainCrossfade: !!state.autoGainCrossfade,
-          wallpaperPosition: normalizeWallpaperPosition(state.wallpaperPosition),
-          wallpaperName,
-          wallpaperSourcePath,
-          wallpaperDataUrl: (includeEmbeddedGraphics || !wallpaperSourcePath) && wallpaperName
-            ? String(state.wallpaperDataUrl || "").trim()
-            : "",
-          logoPosition: normalizeLogoPosition(state.logoPosition),
-          logoName,
-          logoSourcePath,
-          logoDataUrl: (includeEmbeddedGraphics || !logoSourcePath) && logoName
-            ? String(state.logoDataUrl || "").trim()
-            : "",
-          particlesEnabled: !!state.playerParticlesEnabled,
-          godRaysEnabled: !!state.playerGodRaysEnabled,
-          edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled,
           modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
           expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
           pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
@@ -5987,17 +5478,6 @@
           allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
           autoRR: !!state.autoRR,
           autoGainCrossfade: !!state.autoGainCrossfade,
-          wallpaperPosition: normalizeWallpaperPosition(state.wallpaperPosition),
-          wallpaperName: state.wallpaperName ? String(state.wallpaperName || "").trim() : "",
-          wallpaperSourcePath: state.wallpaperName ? String(state.wallpaperSourcePath || "").trim() : "",
-          wallpaperDataUrl: state.wallpaperName ? String(state.wallpaperDataUrl || "").trim() : "",
-          logoPosition: normalizeLogoPosition(state.logoPosition),
-          logoName: state.logoName ? String(state.logoName || "").trim() : "",
-          logoSourcePath: state.logoName ? String(state.logoSourcePath || "").trim() : "",
-          logoDataUrl: state.logoName ? String(state.logoDataUrl || "").trim() : "",
-          particlesEnabled: !!state.playerParticlesEnabled,
-          godRaysEnabled: !!state.playerGodRaysEnabled,
-          edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled,
           modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
           expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
           pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
@@ -6029,7 +5509,7 @@
         // Build a lightweight signature directly from state fields BEFORE
         // building the full snapshot.  This avoids the expensive
         // buildManifestSkeleton + buildManifestMapping + JSON.stringify
-        // on large payloads (wallpaper/logo data URLs can be several MB)
+        // on large payloads
         // when nothing actually changed.
         const baseEntries = Array.isArray(state.entries) ? state.entries : [];
         const ksSets = Array.isArray(state.keyswitchSets) ? state.keyswitchSets : [];
@@ -6059,17 +5539,10 @@
           state.baseLoopPlaybackEnabled,
           getPackManifestFilePath(),
           getPackManifestBasePath(),
-          state.wallpaperPosition,
-          state.wallpaperName,
-          state.logoPosition,
-          state.logoName,
           state.loopCrossfadeMs,
           state.allowPitchUpAboveHighest,
           state.autoRR,
           state.autoGainCrossfade,
-          state.playerParticlesEnabled,
-          state.playerGodRaysEnabled,
-          state.playerEdgeWaveBlurEnabled,
           state.modWheelValue,
           state.expressionValue,
           state.pitchBendValue,
@@ -6138,19 +5611,105 @@
       }, waitMs);
     }
 
+    function getBackendResourceUrl(resourcePath) {
+      const relativePath = String(resourcePath || "").trim().replace(/^\/+/, "");
+      if (!relativePath) return window.location.href;
+      try {
+        return new URL(relativePath, window.location.href).toString();
+      } catch {
+        return `/${relativePath}`;
+      }
+    }
+
+    function requestSessionStateViaBridge(options = {}) {
+      if (!getNativeBackend()) return false;
+      const requestFull = options?.full === true;
+      const reason = String(options?.reason || "manual").trim() || "manual";
+      const emitted = emitNativeEvent("session_state_get", {
+        full: requestFull,
+        mode: requestFull ? "full" : "light",
+        reason
+      });
+      if (emitted) {
+        debugLoadLog(`restore fallback | bridge request emitted | mode=${requestFull ? "full" : "light"} | reason=${reason}`);
+      }
+      return emitted;
+    }
+
+    async function fetchNativeSessionStateSnapshot(options = {}) {
+      const requestFull = options?.full === true;
+      const reason = String(options?.reason || "manual").trim() || "manual";
+      const mode = requestFull ? "full" : "light";
+      const allowBridgeFallback = options?.allowBridgeFallback !== false;
+
+      if (state.sessionStateFetchInFlight) {
+        const queued = state.pendingSessionStateFetch;
+        state.pendingSessionStateFetch = {
+          full: requestFull || !!queued?.full,
+          reason,
+          allowBridgeFallback: allowBridgeFallback || !!queued?.allowBridgeFallback
+        };
+        return false;
+      }
+
+      state.sessionStateFetchInFlight = true;
+      try {
+        const fetchStart = performance.now();
+        const resourceUrl = getBackendResourceUrl(`session-state-${mode}.json?ts=${Date.now()}&reason=${encodeURIComponent(reason)}`);
+        const response = await fetch(resourceUrl, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`http-${response.status}`);
+        }
+        const rawJson = await response.text();
+        const trimmedJson = rawJson.trim();
+        if (!trimmedJson.startsWith("{")) {
+          const preview = trimmedJson.slice(0, 64).replace(/\s+/g, " ");
+          throw new Error(`non-json-response:${preview || "empty"}`);
+        }
+        debugLoadLog(`restore fetched | mode=${mode} | reason=${reason} | bytes=${rawJson.length} | fetchMs=${(performance.now() - fetchStart).toFixed(1)}`);
+        await applySessionStateFromPayload({
+          json: rawJson,
+          lightweight: !requestFull,
+          full: requestFull
+        });
+        return true;
+      } catch (error) {
+        const errorMessage = error && typeof error === "object" && "message" in error
+          ? String(error.message || "").trim()
+          : String(error || "").trim();
+        debugLoadLog(`restore fetch failed | mode=${mode} | reason=${reason} | error=${errorMessage || "unknown"}`);
+        if (allowBridgeFallback && requestSessionStateViaBridge({
+          full: requestFull,
+          reason: `fallback-${reason}`
+        })) {
+          return false;
+        }
+        if (requestFull) {
+          state.sessionStateHydrationRequested = false;
+          completeLoadingOverlay("Ready");
+        }
+        return false;
+      } finally {
+        state.sessionStateFetchInFlight = false;
+        if (state.pendingSessionStateFetch) {
+          const pendingFetch = state.pendingSessionStateFetch;
+          state.pendingSessionStateFetch = null;
+          window.setTimeout(() => {
+            void fetchNativeSessionStateSnapshot(pendingFetch);
+          }, 0);
+        }
+      }
+    }
+
     function requestFullSessionStateHydration(reason = "manual") {
       if (!state.sessionStateLightweight) return;
       if (state.sessionStateHydrationRequested) return;
-      if (!getNativeBackend()) return;
       state.sessionStateHydrationRequested = true;
       if (reason !== "pending-save") {
         setLoadingOverlay(14, "Loading full instrument data...");
       }
       debugLoadLog(`full session requested | reason=${reason}`);
-      if (!emitNativeEvent("session_state_get", { full: true, reason })) {
-        state.sessionStateHydrationRequested = false;
-        completeLoadingOverlay("Ready");
-      }
+      void fetchNativeSessionStateSnapshot({ full: true, reason });
     }
 
     function matchRestoredKeyswitchSet(snapshotSet) {
@@ -6269,9 +5828,6 @@
         state.allowPitchUpAboveHighest = ui.allowPitchUpAboveHighest !== undefined ? !!ui.allowPitchUpAboveHighest : state.allowPitchUpAboveHighest;
         state.autoRR = ui.autoRR !== undefined ? !!ui.autoRR : state.autoRR;
         state.autoGainCrossfade = ui.autoGainCrossfade !== undefined ? !!ui.autoGainCrossfade : state.autoGainCrossfade;
-        state.playerParticlesEnabled = ui.particlesEnabled !== undefined ? !!ui.particlesEnabled : state.playerParticlesEnabled;
-        state.playerGodRaysEnabled = ui.godRaysEnabled !== undefined ? !!ui.godRaysEnabled : state.playerGodRaysEnabled;
-        state.playerEdgeWaveBlurEnabled = ui.edgeWaveBlurEnabled !== undefined ? !!ui.edgeWaveBlurEnabled : state.playerEdgeWaveBlurEnabled;
         state.modWheelValue = Math.max(0, Math.min(1, Number(ui.modWheelValue) || 0));
         state.expressionValue = Math.max(0, Math.min(1, Number(ui.expressionValue) || 0));
         state.pitchBendValue = Math.max(-1, Math.min(1, Number(ui.pitchBendValue) || 0));
@@ -6280,13 +5836,6 @@
         state.packManifestFilePath = String(ui.manifestFilePath || "").trim();
         state.packManifestBasePath = String(ui.manifestBasePath || "").trim();
         updatePerformanceWheelVisuals();
-
-        if (state.wallpaperName) {
-          applyWallpaperPosition(ui.wallpaperPosition || state.wallpaperPosition);
-        }
-        if (state.logoName) {
-          applyLogoPosition(ui.logoPosition || state.logoPosition);
-        }
 
         const restoredSetStates = Array.isArray(ui.keyswitchSets) ? ui.keyswitchSets : [];
         restoredSetStates.forEach((snapshotSet) => {
@@ -6312,12 +5861,6 @@
         state.sessionStateRestoreInProgress = false;
       }
 
-      updateParticlesToggle();
-      updateGodRaysToggle();
-      updateEdgeWaveBlurToggle();
-      updatePlayerGodRaysState();
-      updatePlayerEdgeWaveBlurState();
-      refreshPlayerParticles();
       renderSetup();
       renderAuto();
       applyModwheelVelocityCrossfadeLink();
@@ -6433,12 +5976,6 @@
         instrumentName: String(el.autoInstrument?.value || (keyswitchMode ? "Keyswitch" : "Instrument")).trim(),
         keyswitchMode,
         keyswitchKey: keyswitchMode ? String(keyswitchInfo.key || "C0").trim() : "",
-        wallpaperSourcePath: state.wallpaperName ? String(state.wallpaperSourcePath || "").trim() : "",
-        wallpaperDataUrl: state.wallpaperName ? String(state.wallpaperDataUrl || "").trim() : "",
-        wallpaperFileName: state.wallpaperName ? String(state.wallpaperName || "").trim() : "",
-        logoSourcePath: state.logoName ? String(state.logoSourcePath || "").trim() : "",
-        logoDataUrl: state.logoName ? String(state.logoDataUrl || "").trim() : "",
-        logoFileName: state.logoName ? String(state.logoName || "").trim() : "",
         loopSamples: forceLoopCaptureOff ? false : loopConfig.loopSamples,
         autoLoopMode: forceLoopCaptureOff ? false : loopConfig.autoLoopMode,
         loopStartPercent: loopConfig.loopStartPercent,
@@ -7239,14 +6776,21 @@
       if (state.nativeSessionListeners.length) return;
 
       try {
-        const stateToken = backend.addEventListener("session_state_payload", (payload) => {
+        debugLoadLog("restore strategy | resource-fetch + bridge fallback");
+        const stateToken = backend.addEventListener("session_state_changed", (payload) => {
+          const requestFull = !!payload?.full;
+          const version = Number.isFinite(Number(payload?.version)) ? Math.round(Number(payload.version)) : -1;
+          const reason = String(payload?.reason || (requestFull ? "push-full" : `push-${version >= 0 ? version : "light"}`)).trim();
+          if (state.sessionPayloadLock) return;
+          if (state.manualPackLoadInProgress || Date.now() < Number(state.ignoreSessionPayloadUntil || 0)) return;
+          void fetchNativeSessionStateSnapshot({ full: requestFull, reason, allowBridgeFallback: true });
+        });
+        const statePayloadToken = backend.addEventListener("session_state_payload", (payload) => {
+          debugLoadLog("restore fallback payload | bridge");
           void applySessionStateFromPayload(payload);
         });
         const sampleDataToken = backend.addEventListener("sample_data_payload", (payload) => {
           handleSampleDataPayload(payload);
-        });
-        const graphicDataToken = backend.addEventListener("graphic_data_payload", (payload) => {
-          handleGraphicDataPayload(payload);
         });
         const manifestPickToken = backend.addEventListener("instrument_manifest_picked", (payload) => {
           handleInstrumentManifestPickedPayload(payload);
@@ -7260,7 +6804,7 @@
         const nativeAudioPickToken = backend.addEventListener("native_audio_files_picked", (payload) => {
           handleNativePickedAudioFiles(payload);
         });
-        state.nativeSessionListeners = [stateToken, sampleDataToken, graphicDataToken, manifestPickToken, saveResultToken, midiActivityToken, nativeAudioPickToken];
+        state.nativeSessionListeners = [stateToken, statePayloadToken, sampleDataToken, manifestPickToken, saveResultToken, midiActivityToken, nativeAudioPickToken];
       } catch {
         state.nativeSessionListeners = [];
         debugLoadLog("restore bridge failed | listener registration");
@@ -7272,12 +6816,12 @@
       const maxInitialFetchAttempts = 1;
       const requestInitialSessionState = () => {
         initialFetchAttempts += 1;
-        emitNativeEvent("session_state_get", {
+        void fetchNativeSessionStateSnapshot({
           full: false,
-          mode: "light",
-          reason: `initial-${initialFetchAttempts}`
+          reason: `initial-${initialFetchAttempts}`,
+          allowBridgeFallback: true
         });
-        debugLoadLog(`restore requested | session_state_get emitted | mode=light | attempt=${initialFetchAttempts}`);
+        debugLoadLog(`restore requested | fetch snapshot | mode=light | attempt=${initialFetchAttempts}`);
 
         if (state.sessionStateRestoreTimeout) {
           window.clearTimeout(state.sessionStateRestoreTimeout);
@@ -9411,285 +8955,14 @@
 
     function updateTopBarTheme(activeTab = null) {
       if (!el.tabsBar) return;
-      const currentTab = activeTab
-        || document.querySelector(".tab-btn.active")?.dataset.tab
-        || "player";
-      const useWallpaperTheme = currentTab === "player" && !!state.wallpaperName;
-      el.tabsBar.classList.toggle("player-topbar-swatch", useWallpaperTheme);
-    }
-
-    function getPlayerParticleTargetCount(width, height) {
-      const area = Math.max(0, width) * Math.max(0, height);
-      if (area <= 0) return 0;
-      return Math.max(14, Math.min(54, Math.round(area / 26000)));
-    }
-
-    function createPlayerParticle(width, height, spawnInside = false) {
-      const size = 2.6 + (Math.random() * 3.4);
-      return {
-        baseX: Math.random() * Math.max(1, width),
-        y: spawnInside
-          ? (Math.random() * Math.max(1, height))
-          : (-(Math.random() * Math.max(12, height * 0.95)) - 8),
-        size,
-        speed: 18 + (Math.random() * 44),
-        drift: 8 + (Math.random() * 22),
-        phase: Math.random() * Math.PI * 2,
-        rotation: Math.random() * Math.PI * 2,
-        spin: (Math.random() < 0.5 ? -1 : 1) * (0.22 + (Math.random() * 0.85)),
-        alpha: 0.24 + (Math.random() * 0.42)
-      };
-    }
-
-    function respawnPlayerParticle(particle, width, height) {
-      const reset = createPlayerParticle(width, height, false);
-      particle.baseX = reset.baseX;
-      particle.y = reset.y;
-      particle.size = reset.size;
-      particle.speed = reset.speed;
-      particle.drift = reset.drift;
-      particle.phase = reset.phase;
-      particle.rotation = reset.rotation;
-      particle.spin = reset.spin;
-      particle.alpha = reset.alpha;
-    }
-
-    function syncPlayerParticles(width, height, spawnInside = false) {
-      const targetCount = getPlayerParticleTargetCount(width, height);
-      while (state.playerParticles.length < targetCount) {
-        state.playerParticles.push(createPlayerParticle(width, height, spawnInside));
-      }
-      if (state.playerParticles.length > targetCount) {
-        state.playerParticles.length = targetCount;
-      }
-    }
-
-    function getPlayerParticlesViewportSize() {
-      if (!el.playerStage) return { width: 0, height: 0 };
-      const rect = el.playerStage.getBoundingClientRect();
-      const kbHeight = Number.parseFloat(getComputedStyle(el.playerStage).getPropertyValue("--player-kb-height")) || 0;
-      return {
-        width: Math.max(0, rect.width),
-        height: Math.max(0, rect.height - kbHeight)
-      };
-    }
-
-    function resizePlayerParticlesCanvas(spawnInside = false) {
-      if (!el.playerParticles) return { width: 0, height: 0 };
-      const { width, height } = getPlayerParticlesViewportSize();
-      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-      el.playerParticles.style.width = `${width}px`;
-      el.playerParticles.style.height = `${height}px`;
-      const pixelWidth = Math.max(1, Math.round(width * dpr));
-      const pixelHeight = Math.max(1, Math.round(height * dpr));
-      if (el.playerParticles.width !== pixelWidth || el.playerParticles.height !== pixelHeight) {
-        el.playerParticles.width = pixelWidth;
-        el.playerParticles.height = pixelHeight;
-      }
-      state.playerParticlesDpr = dpr;
-
-      if (!spawnInside) {
-        state.playerParticles = [];
-      } else {
-        state.playerParticles.forEach((particle) => {
-          particle.baseX = Math.max(-24, Math.min(width + 24, particle.baseX));
-          particle.y = Math.max(-48, Math.min(height + 48, particle.y));
-        });
-      }
-      syncPlayerParticles(width, height, spawnInside);
-      return { width, height };
-    }
-
-    function drawPlayerParticle(ctx, particle, rgb, glowRgb) {
-      const sway = Math.sin((particle.y * 0.016) + particle.phase) * particle.drift;
-      const x = particle.baseX + sway;
-      const y = particle.y;
-      const leafWidth = particle.size;
-      const leafHeight = particle.size * 2.2;
-      const alpha = particle.alpha;
-      const fillRgb = [
-        Math.round((rgb[0] * 0.78) + (glowRgb[0] * 0.22)),
-        Math.round((rgb[1] * 0.78) + (glowRgb[1] * 0.22)),
-        Math.round((rgb[2] * 0.78) + (glowRgb[2] * 0.22))
-      ];
-
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(particle.rotation);
-      ctx.shadowColor = `rgba(${glowRgb[0]}, ${glowRgb[1]}, ${glowRgb[2]}, ${Math.min(0.96, alpha)})`;
-      ctx.shadowBlur = particle.size * 5.4;
-      ctx.fillStyle = `rgba(${fillRgb[0]}, ${fillRgb[1]}, ${fillRgb[2]}, ${Math.min(0.94, alpha + 0.08)})`;
-      ctx.beginPath();
-      ctx.moveTo(0, -leafHeight * 0.55);
-      ctx.bezierCurveTo(leafWidth * 0.68, -leafHeight * 0.22, leafWidth * 0.52, leafHeight * 0.2, 0, leafHeight * 0.56);
-      ctx.bezierCurveTo(-leafWidth * 0.52, leafHeight * 0.2, -leafWidth * 0.68, -leafHeight * 0.22, 0, -leafHeight * 0.55);
-      ctx.fill();
-      ctx.strokeStyle = `rgba(${glowRgb[0]}, ${glowRgb[1]}, ${glowRgb[2]}, ${Math.min(0.9, alpha * 0.6)})`;
-      ctx.lineWidth = Math.max(0.55, particle.size * 0.18);
-      ctx.beginPath();
-      ctx.moveTo(0, -leafHeight * 0.46);
-      ctx.lineTo(0, leafHeight * 0.48);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    function animatePlayerParticlesFrame(ts) {
-      if (!state.playerParticlesRunning || !el.playerParticles) {
-        state.playerParticlesRaf = 0;
-        return;
-      }
-      const ctx = el.playerParticles.getContext("2d");
-      if (!ctx) {
-        state.playerParticlesRaf = 0;
-        return;
-      }
-
-      const { width, height } = getPlayerParticlesViewportSize();
-      if (width <= 0 || height <= 0) {
-        state.playerParticlesLastTs = ts;
-        state.playerParticlesRaf = window.requestAnimationFrame(animatePlayerParticlesFrame);
-        return;
-      }
-
-      syncPlayerParticles(width, height, true);
-      const dpr = state.playerParticlesDpr || 1;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, width, height);
-
-      const prevTs = state.playerParticlesLastTs || ts;
-      const dt = Math.min(0.05, Math.max(0.001, (ts - prevTs) / 1000));
-      state.playerParticlesLastTs = ts;
-      const rgb = state.playerParticleRgb || [218, 222, 229];
-      const glowRgb = state.playerParticleGlowRgb || rgb;
-
-      state.playerParticles.forEach((particle) => {
-        particle.y += particle.speed * dt;
-        particle.rotation += particle.spin * dt;
-        if (particle.y > (height + (particle.size * 8))) {
-          respawnPlayerParticle(particle, width, height);
-        }
-        drawPlayerParticle(ctx, particle, rgb, glowRgb);
-      });
-
-      state.playerParticlesRaf = window.requestAnimationFrame(animatePlayerParticlesFrame);
-    }
-
-    function shouldRunPlayerParticles() {
-      if (!state.wallpaperName) return false;
-      if (!state.playerParticlesEnabled) return false;
-      const currentTab = document.querySelector(".tab-btn.active")?.dataset.tab || "player";
-      if (currentTab !== "player") return false;
-      if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        return false;
-      }
-      return true;
-    }
-
-    function updateParticlesToggle() {
-      if (!el.particlesToggle) return;
-      const enabled = !!state.playerParticlesEnabled;
-      el.particlesToggle.textContent = enabled ? "Particles On" : "Particles Off";
-      el.particlesToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
-      el.particlesToggle.title = enabled ? "Disable particles" : "Enable particles";
-    }
-
-    function updateGodRaysToggle() {
-      if (!el.godRaysToggle) return;
-      const enabled = !!state.playerGodRaysEnabled;
-      el.godRaysToggle.textContent = enabled ? "God Rays On" : "God Rays Off";
-      el.godRaysToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
-      el.godRaysToggle.title = enabled ? "Disable god rays" : "Enable god rays";
-    }
-
-    function updateEdgeWaveBlurToggle() {
-      if (!el.edgeWaveBlurToggle) return;
-      const enabled = !!state.playerEdgeWaveBlurEnabled;
-      el.edgeWaveBlurToggle.textContent = enabled ? "Edge Blur On" : "Edge Blur Off";
-      el.edgeWaveBlurToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
-      el.edgeWaveBlurToggle.title = enabled ? "Disable edge blur" : "Enable edge blur";
-    }
-
-    function updatePlayerGodRaysState() {
-      if (!el.playerStage) return;
-      el.playerStage.classList.toggle("god-rays-disabled", !state.playerGodRaysEnabled);
-    }
-
-    function updatePlayerEdgeWaveBlurState() {
-      if (!el.playerStage) return;
-      el.playerStage.classList.toggle("edge-wave-blur-disabled", !state.playerEdgeWaveBlurEnabled);
-    }
-
-    function stopPlayerParticles(hideCanvas = true) {
-      state.playerParticlesRunning = false;
-      state.playerParticlesLastTs = 0;
-      if (state.playerParticlesRaf) {
-        window.cancelAnimationFrame(state.playerParticlesRaf);
-        state.playerParticlesRaf = 0;
-      }
-      if (!el.playerParticles) return;
-      if (hideCanvas) el.playerParticles.classList.add("hidden");
-      const ctx = el.playerParticles.getContext("2d");
-      if (ctx) {
-        const { width, height } = getPlayerParticlesViewportSize();
-        const dpr = state.playerParticlesDpr || 1;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.clearRect(0, 0, width, height);
-      }
-    }
-
-    function startPlayerParticles() {
-      if (!el.playerParticles) return;
-      el.playerParticles.classList.remove("hidden");
-      // Spawn in-view so the effect is visible immediately (AE-like pre-roll look).
-      resizePlayerParticlesCanvas(true);
-      state.playerParticlesRunning = true;
-      state.playerParticlesLastTs = 0;
-      if (!state.playerParticlesRaf) {
-        state.playerParticlesRaf = window.requestAnimationFrame(animatePlayerParticlesFrame);
-      }
-    }
-
-    function refreshPlayerParticles() {
-      if (shouldRunPlayerParticles()) {
-        startPlayerParticles();
-      } else {
-        stopPlayerParticles(true);
-      }
-    }
-
-    function setupPlayerParticles() {
-      if (!el.playerParticles) return;
-      const onResize = () => {
-        if (playerParticlesResizeRaf) return;
-        playerParticlesResizeRaf = window.requestAnimationFrame(() => {
-          playerParticlesResizeRaf = 0;
-          if (!state.playerParticlesRunning) return;
-          resizePlayerParticlesCanvas(true);
-        });
-      };
-      window.addEventListener("resize", onResize);
-      if (typeof window.matchMedia === "function") {
-        const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-        const onMediaChange = () => refreshPlayerParticles();
-        if (typeof media.addEventListener === "function") {
-          media.addEventListener("change", onMediaChange);
-        } else if (typeof media.addListener === "function") {
-          media.addListener(onMediaChange);
-        }
-      }
-    }
-
-    function isLikelyImageFile(file) {
-      if (!file) return false;
-      if (file.type && file.type.startsWith("image/")) return true;
-      return IMAGE_EXT_REGEX.test(String(file.name || ""));
+      void activeTab;
+      el.tabsBar.classList.remove("player-topbar-swatch");
     }
 
     let playerControlsHideTimer = 0;
     let playerControlsHovering = false;
     let playerControlsDragging = 0;
     let playerKeyboardResizeRaf = 0;
-    let playerParticlesResizeRaf = 0;
 
     function clearPlayerControlsHideTimer() {
       if (!playerControlsHideTimer) return;
@@ -10071,117 +9344,12 @@
       await Promise.all(Array.from({ length: workers }, () => runWorker()));
     }
 
-    async function ensureWallpaperDataUrlForAutoSampler() {
-      if (!state.wallpaperName) return;
-      if (state.wallpaperDataUrl) return;
-      if (!state.wallpaperObjectUrl) return;
-      try {
-        const response = await fetch(state.wallpaperObjectUrl);
-        if (!response.ok) return;
-        const blob = await response.blob();
-        const dataUrl = await readFileAsDataUrl(blob);
-        if (state.wallpaperObjectUrl) {
-          state.wallpaperDataUrl = String(dataUrl || "");
-        }
-      } catch {
-        // keep empty; native side will skip Graphics export if no payload is available
-      }
-    }
-
-    async function ensureLogoDataUrlForAutoSampler() {
-      if (!state.logoName) return;
-      if (state.logoDataUrl) return;
-      if (!state.logoObjectUrl) return;
-      try {
-        const response = await fetch(state.logoObjectUrl);
-        if (!response.ok) return;
-        const blob = await response.blob();
-        const dataUrl = await readFileAsDataUrl(blob);
-        if (state.logoObjectUrl) {
-          state.logoDataUrl = String(dataUrl || "");
-        }
-      } catch {
-        // keep empty; native side will skip Graphics export if no payload is available
-      }
-    }
-
-    async function setWallpaper(file) {
-      if (!isLikelyImageFile(file)) return;
-      if (state.wallpaperObjectUrl) URL.revokeObjectURL(state.wallpaperObjectUrl);
-      const url = URL.createObjectURL(file);
-      state.wallpaperObjectUrl = url;
-      state.wallpaperUrl = url;
-      state.wallpaperName = file.name;
-      state.wallpaperSourcePath = (file && typeof file.path === "string") ? String(file.path).trim() : "";
-      state.wallpaperDataUrl = "";
-      readFileAsDataUrl(file)
-        .then((dataUrl) => {
-          if (state.wallpaperObjectUrl !== url) return;
-          state.wallpaperDataUrl = String(dataUrl || "");
-        })
-        .catch(() => {
-          if (state.wallpaperObjectUrl !== url) return;
-          state.wallpaperDataUrl = "";
-        });
-      if (el.playerStage) el.playerStage.classList.add("has-wallpaper");
-      // Show wallpaper/effects immediately; swatch refinement is applied after extract.
-      el.playerStage.style.setProperty("--player-wallpaper", `url('${url}')`);
-      applyWallpaperPosition(state.wallpaperPosition);
-      refreshPlayerParticles();
-      const { swatch, dark, light } = await extractSwatchFromImageFile(file);
-      const [swatchR, swatchG, swatchB] = swatch;
-      const [darkR, darkG, darkB] = dark;
-      const [lightR, lightG, lightB] = light;
-      const wheelRgb = deriveWheelColorFromSwatch(swatch, dark, light);
-      const wheelDarkRgb = mixRgb(wheelRgb, [90, 96, 108], 0.18);
-      const glowBaseR = Math.round((swatchR * 0.72) + (lightR * 0.28));
-      const glowBaseG = Math.round((swatchG * 0.72) + (lightG * 0.28));
-      const glowBaseB = Math.round((swatchB * 0.72) + (lightB * 0.28));
-      const glowR = Math.round(glowBaseR + ((255 - glowBaseR) * 0.2));
-      const glowG = Math.round(glowBaseG + ((255 - glowBaseG) * 0.2));
-      const glowB = Math.round(glowBaseB + ((255 - glowBaseB) * 0.2));
-      document.documentElement.style.setProperty("--player-swatch-rgb", `${swatchR}, ${swatchG}, ${swatchB}`);
-      document.documentElement.style.setProperty("--player-topbar-rgb", `${darkR}, ${darkG}, ${darkB}`);
-      document.documentElement.style.setProperty("--player-line-rgb", `${lightR}, ${lightG}, ${lightB}`);
-      document.documentElement.style.setProperty("--player-bright-rgb", `${lightR}, ${lightG}, ${lightB}`);
-      document.documentElement.style.setProperty("--player-press-glow-rgb", `${glowR}, ${glowG}, ${glowB}`);
-      document.documentElement.style.setProperty("--player-wheel-rgb", `${wheelRgb[0]}, ${wheelRgb[1]}, ${wheelRgb[2]}`);
-      document.documentElement.style.setProperty("--player-wheel-rgb-dark", `${wheelDarkRgb[0]}, ${wheelDarkRgb[1]}, ${wheelDarkRgb[2]}`);
-      state.playerParticleRgb = [lightR, lightG, lightB];
-      state.playerParticleGlowRgb = mixRgb([lightR, lightG, lightB], [255, 255, 255], 0.32);
-      document.documentElement.style.setProperty("--player-key-tint-alpha-top", "0.33");
-      document.documentElement.style.setProperty("--player-key-tint-alpha-bottom", "0.45");
-      document.documentElement.style.setProperty("--player-key-press-tint-alpha-top", "0.46");
-      document.documentElement.style.setProperty("--player-key-press-tint-alpha-bottom", "0.6");
-      document.documentElement.style.setProperty("--player-key-press-black-alpha-top", "0.38");
-      document.documentElement.style.setProperty("--player-key-press-black-alpha-bottom", "0.5");
-      setWallpaperMenuOpen(false);
-      updateWallpaperToggle();
-      updateTopBarTheme();
-      updateLoadingOverlayTheme();
-      updatePlayerEdgeWaveBlurState();
-      refreshPlayerParticles();
-      scheduleSessionStateSave(350);
-    }
-
-    function clearWallpaper(options = {}) {
-      const persist = options?.persist !== false;
-      if (state.wallpaperObjectUrl) URL.revokeObjectURL(state.wallpaperObjectUrl);
-      state.wallpaperObjectUrl = "";
-      state.wallpaperUrl = "";
-      state.wallpaperName = "";
-      state.wallpaperSourcePath = "";
-      state.wallpaperDataUrl = "";
-      if (el.playerStage) el.playerStage.classList.remove("has-wallpaper");
-      el.playerStage.style.removeProperty("--player-wallpaper");
-      el.playerStage.style.removeProperty("--player-wallpaper-position");
+    function resetPlayerVisualTheme() {
       document.documentElement.style.setProperty("--player-swatch-rgb", "40, 40, 40");
       document.documentElement.style.setProperty("--player-topbar-rgb", "40, 40, 40");
       document.documentElement.style.setProperty("--player-line-rgb", "150, 150, 150");
       document.documentElement.style.setProperty("--player-bright-rgb", "224, 224, 224");
       document.documentElement.style.setProperty("--player-press-glow-rgb", "224, 224, 224");
-      state.playerParticleRgb = [224, 224, 224];
-      state.playerParticleGlowRgb = [236, 236, 236];
       document.documentElement.style.setProperty("--player-key-tint-alpha-top", "0");
       document.documentElement.style.setProperty("--player-key-tint-alpha-bottom", "0");
       document.documentElement.style.setProperty("--player-key-press-tint-alpha-top", "0");
@@ -10189,14 +9357,8 @@
       document.documentElement.style.setProperty("--player-key-press-black-alpha-top", "0");
       document.documentElement.style.setProperty("--player-key-press-black-alpha-bottom", "0");
       updateWheelBaseTheme();
-      el.wallpaperInput.value = "";
-      setWallpaperMenuOpen(false);
-      updateWallpaperToggle();
       updateTopBarTheme();
       updateLoadingOverlayTheme();
-      updatePlayerEdgeWaveBlurState();
-      refreshPlayerParticles();
-      if (persist) scheduleSessionStateSave(350);
     }
 
     function entryHasPlayableSource(entry) {
@@ -10205,7 +9367,6 @@
     }
 
     function updateWheelBaseTheme() {
-      if (state.wallpaperName) return;
       const hasSamples = state.entries.some((entry) => entryHasPlayableSource(entry));
       if (hasSamples) {
         document.documentElement.style.setProperty("--player-wheel-rgb", "236, 236, 236");
@@ -10214,206 +9375,6 @@
         document.documentElement.style.setProperty("--player-wheel-rgb", "74, 74, 74");
         document.documentElement.style.setProperty("--player-wheel-rgb-dark", "48, 48, 48");
       }
-    }
-
-    function updateWallpaperToggle() {
-      const hasWallpaper = !!state.wallpaperName;
-      el.wallpaperToggle.textContent = hasWallpaper ? "Position Wallpaper" : "Add Wallpaper";
-      el.wallpaperToggle.setAttribute("aria-label", hasWallpaper ? "Wallpaper position menu" : "Add wallpaper");
-      el.wallpaperToggle.title = hasWallpaper ? "Wallpaper position menu" : "Add wallpaper";
-      el.wallpaperToggle.setAttribute("aria-haspopup", "menu");
-      el.wallpaperToggle.setAttribute("aria-expanded", String(hasWallpaper && state.wallpaperMenuOpen));
-    }
-
-    function normalizeWallpaperPosition(position) {
-      const valid = new Set([
-        "top-left",
-        "top-center",
-        "top-right",
-        "middle-left",
-        "middle-center",
-        "middle-right",
-        "bottom-left",
-        "bottom-center",
-        "bottom-right"
-      ]);
-      return valid.has(position) ? position : "middle-center";
-    }
-
-    function normalizeLogoPosition(position) {
-      const alias = {
-        "middle-left": "top-left",
-        "middle-center": "top-center",
-        "middle-right": "top-right",
-        "bottom-left": "top-left",
-        "bottom-center": "top-center",
-        "bottom-right": "top-right"
-      };
-      const normalizedInput = alias[position] || position;
-      const valid = new Set([
-        "top-left",
-        "top-center",
-        "top-right"
-      ]);
-      return valid.has(normalizedInput) ? normalizedInput : "top-left";
-    }
-
-    function syncGraphicsMenuOverflowState() {
-      if (!el.importPackControls) return;
-      const hasOpenMenu = !!state.logoMenuOpen || !!state.wallpaperMenuOpen;
-      el.importPackControls.classList.toggle("logo-menu-open", hasOpenMenu);
-    }
-
-    function setWallpaperMenuOpen(open) {
-      if (!el.wallpaperPositionMenu) return;
-      const next = !!open && !!state.wallpaperName;
-      state.wallpaperMenuOpen = next;
-      el.wallpaperPositionMenu.classList.toggle("hidden", !next);
-      syncGraphicsMenuOverflowState();
-      if (el.wallpaperToggle) el.wallpaperToggle.setAttribute("aria-expanded", String(next));
-    }
-
-    function updateWallpaperPositionMenu() {
-      if (!el.wallpaperPositionButtons || !el.wallpaperPositionButtons.length) return;
-      const current = normalizeWallpaperPosition(state.wallpaperPosition);
-      el.wallpaperPositionButtons.forEach((btn) => {
-        const isActive = btn.dataset.wallpaperPos === current;
-        btn.classList.toggle("active", isActive);
-        btn.setAttribute("aria-pressed", String(isActive));
-      });
-    }
-
-    function applyWallpaperPosition(position) {
-      const normalized = normalizeWallpaperPosition(position);
-      state.wallpaperPosition = normalized;
-      if (!el.playerStage) return;
-
-      const map = {
-        "top-left": "left top",
-        "top-center": "center top",
-        "top-right": "right top",
-        "middle-left": "left center",
-        "middle-center": "center center",
-        "middle-right": "right center",
-        "bottom-left": "left bottom",
-        "bottom-center": "center bottom",
-        "bottom-right": "right bottom"
-      };
-
-      const cssPos = map[normalized] || "center center";
-      el.playerStage.style.setProperty("--player-wallpaper-position", cssPos);
-      updateWallpaperPositionMenu();
-      scheduleSessionStateSave(350);
-    }
-
-    function setLogoMenuOpen(open) {
-      if (!el.logoPositionMenu) return;
-      const next = !!open && !!state.logoName;
-      state.logoMenuOpen = next;
-      el.logoPositionMenu.classList.toggle("hidden", !next);
-      syncGraphicsMenuOverflowState();
-      if (el.logoToggle) el.logoToggle.setAttribute("aria-expanded", String(next));
-    }
-
-    function updateLogoPositionMenu() {
-      if (!el.logoPositionButtons || !el.logoPositionButtons.length) return;
-      const current = normalizeLogoPosition(state.logoPosition);
-      el.logoPositionButtons.forEach((btn) => {
-        const isActive = btn.dataset.logoPos === current;
-        btn.classList.toggle("active", isActive);
-        btn.setAttribute("aria-pressed", String(isActive));
-      });
-    }
-
-    function applyLogoPosition(position) {
-      const normalized = normalizeLogoPosition(position);
-      state.logoPosition = normalized;
-      if (!el.playerLogoWrap) return;
-
-      const col = normalized.endsWith("-left")
-        ? "left"
-        : normalized.endsWith("-center")
-          ? "center"
-          : "right";
-
-      const top = "12px";
-      const bottom = "auto";
-      const left = col === "left" ? "12px" : col === "center" ? "50%" : "auto";
-      const right = col === "right" ? "12px" : "auto";
-
-      let transform = "none";
-      if (col === "center") transform = "translateX(-50%)";
-
-      el.playerLogoWrap.style.setProperty("--player-logo-top", top);
-      el.playerLogoWrap.style.setProperty("--player-logo-bottom", bottom);
-      el.playerLogoWrap.style.setProperty("--player-logo-left", left);
-      el.playerLogoWrap.style.setProperty("--player-logo-right", right);
-      el.playerLogoWrap.style.setProperty("--player-logo-transform", transform);
-      updateLogoPositionMenu();
-      scheduleSessionStateSave(350);
-    }
-
-    function setLogo(file) {
-      if (!isLikelyImageFile(file)) return;
-      if (state.logoObjectUrl) URL.revokeObjectURL(state.logoObjectUrl);
-      const url = URL.createObjectURL(file);
-      state.logoObjectUrl = url;
-      state.logoUrl = url;
-      state.logoName = file.name;
-      state.logoSourcePath = (file && typeof file.path === "string") ? String(file.path).trim() : "";
-      state.logoDataUrl = "";
-      readFileAsDataUrl(file)
-        .then((dataUrl) => {
-          if (state.logoObjectUrl !== url) return;
-          state.logoDataUrl = String(dataUrl || "");
-        })
-        .catch(() => {
-          if (state.logoObjectUrl !== url) return;
-          state.logoDataUrl = "";
-        });
-      if (el.playerLogo) {
-        el.playerLogo.src = url;
-        el.playerLogo.alt = `Instrument logo ${file.name}`;
-      }
-      if (el.playerLogoWrap) {
-        el.playerLogoWrap.classList.remove("hidden");
-      }
-      applyLogoPosition(state.logoPosition);
-      setLogoMenuOpen(false);
-      updateLogoToggle();
-      scheduleSessionStateSave(350);
-    }
-
-    function clearLogo(options = {}) {
-      const persist = options?.persist !== false;
-      if (state.logoObjectUrl) URL.revokeObjectURL(state.logoObjectUrl);
-      state.logoObjectUrl = "";
-      state.logoUrl = "";
-      state.logoName = "";
-      state.logoSourcePath = "";
-      state.logoDataUrl = "";
-      if (el.playerLogo) {
-        el.playerLogo.removeAttribute("src");
-        el.playerLogo.alt = "";
-      }
-      if (el.playerLogoWrap) {
-        el.playerLogoWrap.classList.add("hidden");
-      }
-      if (el.logoInput) el.logoInput.value = "";
-      setLogoMenuOpen(false);
-      updateLogoToggle();
-      updateLogoPositionMenu();
-      if (persist) scheduleSessionStateSave(350);
-    }
-
-    function updateLogoToggle() {
-      if (!el.logoToggle) return;
-      const hasLogo = !!state.logoName;
-      el.logoToggle.textContent = hasLogo ? "Position Logo" : "Add Logo";
-      el.logoToggle.setAttribute("aria-label", hasLogo ? "Logo position menu" : "Add logo");
-      el.logoToggle.title = hasLogo ? "Logo position menu" : "Add logo";
-      el.logoToggle.setAttribute("aria-haspopup", "menu");
-      el.logoToggle.setAttribute("aria-expanded", String(!!state.logoMenuOpen));
     }
 
     function updatePlayerEmptyState() {
@@ -13026,73 +11987,6 @@
       if (state.selectedMapEntryOrder === entry.order || !el.sampleEditor.classList.contains("hidden")) {
         void openSampleEditor(entry);
       }
-    }
-
-    function requestGraphicDataFromNative(path, kind = "graphic") {
-      const normalizedPath = String(path || "").trim();
-      if (!normalizedPath) return Promise.resolve(null);
-      if (!getNativeBackend()) return Promise.resolve(null);
-
-      const requestId = (Number(state.graphicDataRequestSeq) || 0) + 1;
-      state.graphicDataRequestSeq = requestId;
-
-      return new Promise((resolve) => {
-        const timeoutId = window.setTimeout(() => {
-          const pending = state.pendingGraphicDataRequests.get(requestId);
-          if (!pending) return;
-          state.pendingGraphicDataRequests.delete(requestId);
-          resolve(null);
-        }, 2500);
-
-        state.pendingGraphicDataRequests.set(requestId, {
-          resolve,
-          timeoutId,
-          kind,
-          path: normalizedPath
-        });
-
-        const emitted = emitNativeEvent("graphic_data_get", {
-          requestId,
-          kind: String(kind || "graphic"),
-          path: normalizedPath
-        });
-
-        if (!emitted) {
-          const pending = state.pendingGraphicDataRequests.get(requestId);
-          if (pending) {
-            window.clearTimeout(pending.timeoutId);
-            state.pendingGraphicDataRequests.delete(requestId);
-          }
-          resolve(null);
-        }
-      });
-    }
-
-    function handleGraphicDataPayload(payload) {
-      const info = (payload && typeof payload === "object" && !Array.isArray(payload))
-        ? payload
-        : null;
-      const requestId = Math.round(Number(info?.requestId));
-      if (!Number.isFinite(requestId)) return;
-
-      const pending = state.pendingGraphicDataRequests.get(requestId);
-      if (!pending) return;
-      state.pendingGraphicDataRequests.delete(requestId);
-      window.clearTimeout(pending.timeoutId);
-
-      const dataUrl = String(info?.dataUrl || "").trim();
-      if (!dataUrl) {
-        pending.resolve(null);
-        return;
-      }
-
-      pending.resolve({
-        dataUrl,
-        path: String(info?.path || "").trim(),
-        fileName: String(info?.fileName || "").trim(),
-        mimeType: String(info?.mimeType || "").trim(),
-        kind: String(info?.kind || pending.kind || "graphic")
-      });
     }
 
     function requestManifestPickFromNative(timeoutMs = 25000) {
@@ -15860,7 +14754,6 @@
       state.rrCursor = {};
       state.waveformCache.clear();
       state.pendingSampleDataRequests.clear();
-      state.pendingGraphicDataRequests.clear();
       state.pendingManifestPickRequests.clear();
       state.entrySampleHydrationPromises.clear();
       state.velocityCrossfadeByRoot = {};
@@ -15938,20 +14831,6 @@
       const preserveRuntimePaths = !!options.preserveRuntimePaths;
       const includeEmbeddedSampleData = !!options.includeEmbeddedSampleData;
       const sampleFolderName = String(options.sampleFolderName || "samples").trim() || "samples";
-      const graphicsFolderName = String(options.graphicsFolderName || "").trim();
-      const resolvedGraphicsFolder = graphicsFolderName || "Graphics";
-      const wallpaperSourcePath = String(state.wallpaperSourcePath || "").trim().replace(/\\/g, "/");
-      const logoSourcePath = String(state.logoSourcePath || "").trim().replace(/\\/g, "/");
-      const wallpaperPath = state.wallpaperName
-        ? ((preserveRuntimePaths && isAbsolutePathLike(wallpaperSourcePath))
-          ? wallpaperSourcePath
-          : `${resolvedGraphicsFolder}/${state.wallpaperName}`)
-        : undefined;
-      const logoPath = state.logoName
-        ? ((preserveRuntimePaths && isAbsolutePathLike(logoSourcePath))
-          ? logoSourcePath
-          : `${resolvedGraphicsFolder}/${state.logoName}`)
-        : undefined;
       const ext = String(targetExt || "smpinst").trim().toLowerCase().replace(/^\./, "") || "smpinst";
       const normalizedExt = ext === "keyswitch" ? "keysw" : ext;
       const manifest = {
@@ -15974,20 +14853,7 @@
           autoLoopCrossfadeMs: getAutoLoopCrossfadeMs(),
           autoModwheelVelocityControl: !!el.autoModwheelVelocity?.checked,
           autoNormalizeRecorded: !!el.autoNormalizeRecorded?.checked,
-          baseLoopPlaybackEnabled: state.baseLoopPlaybackEnabled !== false,
-          edgeWaveBlurEnabled: !!state.playerEdgeWaveBlurEnabled
-        },
-        wallpaper: {
-          enabled: !!state.wallpaperName,
-          path: wallpaperPath,
-          fitMode: "fill",
-          brightness: 1.0
-        },
-        logo: {
-          enabled: !!state.logoName,
-          path: logoPath,
-          fitMode: "contain",
-          position: normalizeLogoPosition(state.logoPosition)
+          baseLoopPlaybackEnabled: state.baseLoopPlaybackEnabled !== false
         },
         mapping: buildManifestMapping(state.entries, { preserveRuntimePaths, includeEmbeddedSampleData, sampleFolderName })
       };
@@ -16102,8 +14968,7 @@
       try {
         const manifest = buildManifestSkeleton("smpinst", {
           preserveRuntimePaths: false,
-          sampleFolderName: "Audio",
-          graphicsFolderName: "Graphics"
+          sampleFolderName: "Audio"
         });
 
         const allEntries = [
@@ -16145,24 +15010,6 @@
         if (missingSampleCount > 0) {
           setStatus(el.setupStatus, `Save failed: ${missingSampleCount} sample(s) could not be resolved.`, "bad");
           return;
-        }
-
-        if (state.wallpaperName) {
-          await ensureWallpaperDataUrlForAutoSampler();
-          const dataUrl = String(state.wallpaperDataUrl || "").trim() || await dataUrlFromAnyUrl(state.wallpaperUrl);
-          if (dataUrl) {
-            const relPath = `Graphics/${String(state.wallpaperName).trim()}`;
-            assetsByPath.set(relPath, dataUrl);
-          }
-        }
-
-        if (state.logoName) {
-          await ensureLogoDataUrlForAutoSampler();
-          const dataUrl = String(state.logoDataUrl || "").trim() || await dataUrlFromAnyUrl(state.logoUrl);
-          if (dataUrl) {
-            const relPath = `Graphics/${String(state.logoName).trim()}`;
-            assetsByPath.set(relPath, dataUrl);
-          }
         }
 
         const usedKeyswitchManifestPaths = new Set();
@@ -16269,8 +15116,7 @@
       try {
         const manifest = buildManifestSkeleton("smpinst", {
           preserveRuntimePaths: false,
-          sampleFolderName: "Audio",
-          graphicsFolderName: "Graphics"
+          sampleFolderName: "Audio"
         });
 
         manifest.formatVersion = 2;
@@ -16317,17 +15163,6 @@
           return;
         }
 
-        if (state.wallpaperName) {
-          await ensureWallpaperDataUrlForAutoSampler();
-          const wDataUrl = String(state.wallpaperDataUrl || "").trim();
-          if (wDataUrl && manifest.wallpaper) manifest.wallpaper.dataUrl = wDataUrl;
-        }
-        if (state.logoName) {
-          await ensureLogoDataUrlForAutoSampler();
-          const lDataUrl = String(state.logoDataUrl || "").trim();
-          if (lDataUrl && manifest.logo) manifest.logo.dataUrl = lDataUrl;
-        }
-
         const monolithJson = JSON.stringify(manifest, null, 2);
         const instrumentName = String(manifest.instrumentName || "Instrument").trim();
         const defaultName = instrumentName.replace(/[^a-z0-9_\- ]+/gi, "_") + ".smpinstm";
@@ -16361,203 +15196,6 @@
       }
     }
 
-    async function restoreGraphicFromManifest(kind, manifestBasePath, relativePath, fallbackFileName) {
-      const absolutePath = resolveManifestAssetPath(manifestBasePath, relativePath);
-      if (!absolutePath) return false;
-
-      const payload = await requestGraphicDataFromNative(absolutePath, kind);
-      if (!payload?.dataUrl) return false;
-
-      const nextName = String(payload.fileName || fallbackFileName || `${kind}.png`).trim() || `${kind}.png`;
-      let nextFile = null;
-      try {
-        nextFile = await makeImageFileFromDataUrl(payload.dataUrl, nextName, payload.mimeType || "");
-      } catch {
-        return false;
-      }
-
-      if (!(nextFile instanceof File)) return false;
-
-      if (kind === "wallpaper") {
-        await setWallpaper(nextFile);
-        state.wallpaperSourcePath = absolutePath;
-        state.wallpaperDataUrl = String(payload.dataUrl || "");
-      } else if (kind === "logo") {
-        setLogo(nextFile);
-        state.logoSourcePath = absolutePath;
-        state.logoDataUrl = String(payload.dataUrl || "");
-      }
-
-      return true;
-    }
-
-    async function restoreGraphicsFromManifest(data, manifestBasePath) {
-      clearWallpaper({ persist: false });
-      clearLogo({ persist: false });
-
-      const wallpaper = (data?.wallpaper && typeof data.wallpaper === "object") ? data.wallpaper : null;
-      const logo = (data?.logo && typeof data.logo === "object") ? data.logo : null;
-
-      if (wallpaper?.enabled) {
-        const embeddedDataUrl = String(wallpaper.dataUrl || "").trim();
-        if (embeddedDataUrl.startsWith("data:")) {
-          const fileName = String(wallpaper.path || "wallpaper.png").split(/[\\/]/).pop() || "wallpaper.png";
-          try {
-            const file = await makeImageFileFromDataUrl(embeddedDataUrl, fileName, "");
-            if (file instanceof File) {
-              await setWallpaper(file);
-              state.wallpaperDataUrl = embeddedDataUrl;
-              applyWallpaperPosition(normalizeWallpaperPosition(wallpaper.position || state.wallpaperPosition));
-            }
-          } catch {}
-        } else if (typeof wallpaper.path === "string") {
-          const restoredWallpaper = await restoreGraphicFromManifest(
-            "wallpaper",
-            manifestBasePath,
-            wallpaper.path,
-            stripFileExtension(String(wallpaper.path || "").split(/[\\/]/).pop() || "wallpaper") + ".png"
-          );
-          if (restoredWallpaper) {
-            applyWallpaperPosition(normalizeWallpaperPosition(wallpaper.position || state.wallpaperPosition));
-          }
-        }
-      }
-
-      if (logo?.enabled) {
-        const embeddedDataUrl = String(logo.dataUrl || "").trim();
-        if (embeddedDataUrl.startsWith("data:")) {
-          const fileName = String(logo.path || "logo.png").split(/[\\/]/).pop() || "logo.png";
-          try {
-            const file = await makeImageFileFromDataUrl(embeddedDataUrl, fileName, "");
-            if (file instanceof File) {
-              setLogo(file);
-              state.logoDataUrl = embeddedDataUrl;
-              applyLogoPosition(normalizeLogoPosition(logo.position || state.logoPosition));
-            }
-          } catch {}
-        } else if (typeof logo.path === "string") {
-          const restoredLogo = await restoreGraphicFromManifest(
-            "logo",
-            manifestBasePath,
-            logo.path,
-            stripFileExtension(String(logo.path || "").split(/[\\/]/).pop() || "logo") + ".png"
-          );
-          if (restoredLogo) {
-            applyLogoPosition(normalizeLogoPosition(logo.position || state.logoPosition));
-          }
-        }
-      }
-    }
-
-    async function restoreGraphicsFromSessionUi(uiState, manifestData, manifestBasePath) {
-      clearWallpaper({ persist: false });
-      clearLogo({ persist: false });
-
-      const ui = (uiState && typeof uiState === "object") ? uiState : {};
-      const wallpaperManifest = (manifestData?.wallpaper && typeof manifestData.wallpaper === "object")
-        ? manifestData.wallpaper
-        : null;
-      const logoManifest = (manifestData?.logo && typeof manifestData.logo === "object")
-        ? manifestData.logo
-        : null;
-
-      const restoreFromUiDataUrl = async (kind, dataUrlRaw, nameRaw, sourcePathRaw) => {
-        const dataUrl = String(dataUrlRaw || "").trim();
-        if (!dataUrl.startsWith("data:")) return false;
-        const fileName = String(nameRaw || "").trim() || `${kind}.png`;
-        const sourcePath = String(sourcePathRaw || "").trim();
-        let nextFile = null;
-        try {
-          nextFile = await makeImageFileFromDataUrl(dataUrl, fileName);
-        } catch {
-          return false;
-        }
-        if (!(nextFile instanceof File)) return false;
-
-        if (kind === "wallpaper") {
-          await setWallpaper(nextFile);
-          state.wallpaperDataUrl = dataUrl;
-          state.wallpaperSourcePath = sourcePath;
-        } else {
-          setLogo(nextFile);
-          state.logoDataUrl = dataUrl;
-          state.logoSourcePath = sourcePath;
-        }
-        return true;
-      };
-
-      const restoreFromAbsolutePath = async (kind, sourcePathRaw) => {
-        const sourcePath = String(sourcePathRaw || "").trim();
-        if (!isAbsolutePathLike(sourcePath)) return false;
-        const payload = await requestGraphicDataFromNative(sourcePath, kind);
-        if (!payload?.dataUrl) return false;
-
-        const nextName = String(payload.fileName || "").trim() || `${kind}.png`;
-        let nextFile = null;
-        try {
-          nextFile = await makeImageFileFromDataUrl(payload.dataUrl, nextName, payload.mimeType || "");
-        } catch {
-          return false;
-        }
-        if (!(nextFile instanceof File)) return false;
-
-        if (kind === "wallpaper") {
-          await setWallpaper(nextFile);
-          state.wallpaperDataUrl = String(payload.dataUrl || "");
-          state.wallpaperSourcePath = sourcePath;
-        } else {
-          setLogo(nextFile);
-          state.logoDataUrl = String(payload.dataUrl || "");
-          state.logoSourcePath = sourcePath;
-        }
-        return true;
-      };
-
-      const restoredWallpaper = (
-        await restoreFromUiDataUrl("wallpaper", ui.wallpaperDataUrl, ui.wallpaperName, ui.wallpaperSourcePath)
-        || await restoreFromAbsolutePath("wallpaper", ui.wallpaperSourcePath)
-      );
-      if (restoredWallpaper) {
-        applyWallpaperPosition(normalizeWallpaperPosition(
-          ui.wallpaperPosition || wallpaperManifest?.position || state.wallpaperPosition
-        ));
-      }
-      if (!restoredWallpaper && wallpaperManifest?.enabled && typeof wallpaperManifest.path === "string") {
-        const fallbackWallpaper = await restoreGraphicFromManifest(
-          "wallpaper",
-          manifestBasePath,
-          wallpaperManifest.path,
-          stripFileExtension(String(wallpaperManifest.path || "").split(/[\\/]/).pop() || "wallpaper") + ".png"
-        );
-        if (fallbackWallpaper) {
-          applyWallpaperPosition(normalizeWallpaperPosition(
-            ui.wallpaperPosition || wallpaperManifest.position || state.wallpaperPosition
-          ));
-        }
-      }
-
-      const restoredLogo = (
-        await restoreFromUiDataUrl("logo", ui.logoDataUrl, ui.logoName, ui.logoSourcePath)
-        || await restoreFromAbsolutePath("logo", ui.logoSourcePath)
-      );
-      if (restoredLogo) {
-        applyLogoPosition(normalizeLogoPosition(
-          ui.logoPosition || logoManifest?.position || state.logoPosition
-        ));
-      }
-      if (!restoredLogo && logoManifest?.enabled && typeof logoManifest.path === "string") {
-        const fallbackLogo = await restoreGraphicFromManifest(
-          "logo",
-          manifestBasePath,
-          logoManifest.path,
-          stripFileExtension(String(logoManifest.path || "").split(/[\\/]/).pop() || "logo") + ".png"
-        );
-        if (fallbackLogo) {
-          applyLogoPosition(normalizeLogoPosition(logoManifest.position || state.logoPosition));
-        }
-      }
-    }
-
     async function applyLoadedPackData(data, options = {}) {
       const sourceLabel = String(options?.sourceLabel || "").trim();
       const manifestFilePath = String(options?.manifestFilePath || "").trim();
@@ -16566,9 +15204,7 @@
       const hydrateManifestSamples = options?.hydrateManifestSamples !== false;
       const sessionUiState = (options?.sessionUiState && typeof options.sessionUiState === "object")
         ? options.sessionUiState
-        : ((options?.sessionUiGraphics && typeof options.sessionUiGraphics === "object")
-          ? options.sessionUiGraphics
-          : null);
+        : null;
       const sessionUiKeyswitchSets = Array.isArray(sessionUiState?.keyswitchSets)
         ? sessionUiState.keyswitchSets
         : null;
@@ -16675,9 +15311,6 @@
       if (el.autoModwheelVelocity && loadedSettings && Object.prototype.hasOwnProperty.call(loadedSettings, "autoModwheelVelocityControl")) {
         el.autoModwheelVelocity.checked = !!loadedSettings.autoModwheelVelocityControl;
       }
-      if (loadedSettings && Object.prototype.hasOwnProperty.call(loadedSettings, "edgeWaveBlurEnabled")) {
-        state.playerEdgeWaveBlurEnabled = !!loadedSettings.edgeWaveBlurEnabled;
-      }
       updateAutoLoopDetailsVisibility(false);
       syncLoopOneshotWithAutoLoopSamples({ shouldRender: false, persist: false });
       const count = Array.isArray(data.mapping) ? data.mapping.length : 0;
@@ -16692,18 +15325,10 @@
         }
       }
 
-      if (sessionUiState) {
-        await restoreGraphicsFromSessionUi(sessionUiState, data, manifestBasePath);
-      } else {
-        await restoreGraphicsFromManifest(data, manifestBasePath);
-      }
-
       if (!options?.skipRender) {
         renderSetup();
         renderAuto();
         applyModwheelVelocityCrossfadeLink();
-        updateEdgeWaveBlurToggle();
-        updatePlayerEdgeWaveBlurState();
         updatePlayerEmptyState();
         syncAllKnobValues();
       }
@@ -17056,32 +15681,6 @@
       });
     }
 
-    function setGraphicsCollapsed(collapsed) {
-      if (!el.graphicsSection || !el.graphicsToggle) return;
-      const next = !!collapsed;
-      el.graphicsSection.classList.toggle("collapsed", next);
-      el.graphicsToggle.setAttribute("aria-expanded", String(!next));
-      saveSetupCollapseState("graphics", next);
-      scheduleHostResizeForActiveTab();
-    }
-
-    function setupGraphicsCollapse() {
-      if (!el.graphicsSection || !el.graphicsToggle) return;
-
-      function toggleCollapsed() {
-        const collapsed = el.graphicsSection.classList.contains("collapsed");
-        setGraphicsCollapsed(!collapsed);
-      }
-
-      el.graphicsToggle.addEventListener("click", toggleCollapsed);
-      el.graphicsToggle.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter" || ev.key === " ") {
-          ev.preventDefault();
-          toggleCollapsed();
-        }
-      });
-    }
-
     function setAutoSamplerCollapsed(collapsed) {
       if (!el.autoSamplerSection || !el.autoSamplerToggle) return;
       const next = !!collapsed;
@@ -17184,162 +15783,6 @@
           toggleCollapsed();
         }
       });
-    }
-
-    function setSequencerArpCollapsed(collapsed) {
-      if (!el.sequencerArpSection || !el.sequencerArpToggle) return;
-      const next = !!collapsed;
-      el.sequencerArpSection.classList.toggle("collapsed", next);
-      el.sequencerArpToggle.setAttribute("aria-expanded", String(!next));
-      saveSetupCollapseState("sequencerArp", next);
-      scheduleHostResizeForActiveTab();
-    }
-
-    function setupSequencerArpCollapse() {
-      if (!el.sequencerArpSection || !el.sequencerArpToggle) return;
-
-      function toggleCollapsed() {
-        const collapsed = el.sequencerArpSection.classList.contains("collapsed");
-        setSequencerArpCollapsed(!collapsed);
-      }
-
-      el.sequencerArpToggle.addEventListener("click", toggleCollapsed);
-      el.sequencerArpToggle.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter" || ev.key === " ") {
-          ev.preventDefault();
-          toggleCollapsed();
-        }
-      });
-    }
-
-    function setupWallpaper() {
-      el.wallpaperInput.addEventListener("change", (ev) => {
-        const [file] = Array.from(ev.target.files || []);
-        if (file) setWallpaper(file);
-      });
-
-      el.logoInput.addEventListener("change", (ev) => {
-        const [file] = Array.from(ev.target.files || []);
-        if (file) setLogo(file);
-      });
-
-      el.wallpaperToggle.addEventListener("click", () => {
-        if (!state.wallpaperName) {
-          el.wallpaperInput.click();
-          return;
-        }
-        setLogoMenuOpen(false);
-        setWallpaperMenuOpen(!state.wallpaperMenuOpen);
-      });
-
-      el.logoToggle.addEventListener("click", () => {
-        if (!state.logoName) {
-          el.logoInput.click();
-          return;
-        }
-        setWallpaperMenuOpen(false);
-        setLogoMenuOpen(!state.logoMenuOpen);
-      });
-
-      if (el.particlesToggle) {
-        el.particlesToggle.addEventListener("click", () => {
-          state.playerParticlesEnabled = !state.playerParticlesEnabled;
-          updateParticlesToggle();
-          refreshPlayerParticles();
-          scheduleSessionStateSave(300);
-        });
-      }
-
-      if (el.godRaysToggle) {
-        el.godRaysToggle.addEventListener("click", () => {
-          state.playerGodRaysEnabled = !state.playerGodRaysEnabled;
-          updateGodRaysToggle();
-          updatePlayerGodRaysState();
-          scheduleSessionStateSave(300);
-        });
-      }
-
-      if (el.edgeWaveBlurToggle) {
-        el.edgeWaveBlurToggle.addEventListener("click", () => {
-          state.playerEdgeWaveBlurEnabled = !state.playerEdgeWaveBlurEnabled;
-          updateEdgeWaveBlurToggle();
-          updatePlayerEdgeWaveBlurState();
-          scheduleSessionStateSave(300);
-        });
-      }
-
-      el.wallpaperPositionButtons.forEach((btn) => {
-        btn.addEventListener("click", (ev) => {
-          ev.preventDefault();
-          const pos = btn.dataset.wallpaperPos;
-          applyWallpaperPosition(pos);
-          setWallpaperMenuOpen(false);
-        });
-      });
-
-      if (el.wallpaperRemoveBtn) {
-        el.wallpaperRemoveBtn.addEventListener("click", (ev) => {
-          ev.preventDefault();
-          clearWallpaper();
-          setWallpaperMenuOpen(false);
-        });
-      }
-
-      el.logoPositionButtons.forEach((btn) => {
-        btn.addEventListener("click", (ev) => {
-          ev.preventDefault();
-          const pos = btn.dataset.logoPos;
-          applyLogoPosition(pos);
-          setLogoMenuOpen(false);
-        });
-      });
-
-      if (el.logoRemoveBtn) {
-        el.logoRemoveBtn.addEventListener("click", (ev) => {
-          ev.preventDefault();
-          clearLogo();
-          setLogoMenuOpen(false);
-        });
-      }
-
-      window.addEventListener("pointerdown", (ev) => {
-        const target = ev.target;
-        if (!(target instanceof Node)) return;
-
-        const insideWallpaperMenu = !!(el.wallpaperMenuWrap && el.wallpaperMenuWrap.contains(target));
-        const insideLogoMenu = !!(el.logoMenuWrap && el.logoMenuWrap.contains(target));
-
-        if (state.wallpaperMenuOpen && !insideWallpaperMenu) {
-          setWallpaperMenuOpen(false);
-        }
-        if (state.logoMenuOpen && !insideLogoMenu) {
-          setLogoMenuOpen(false);
-        }
-      });
-
-      window.addEventListener("keydown", (ev) => {
-        if (ev.key !== "Escape") return;
-        setWallpaperMenuOpen(false);
-        setLogoMenuOpen(false);
-      });
-
-      ["dragenter", "dragover"].forEach((eventName) => {
-        el.playerStage.addEventListener(eventName, (ev) => {
-          ev.preventDefault();
-        });
-      });
-
-      el.playerStage.addEventListener("drop", (ev) => {
-        ev.preventDefault();
-        const image = Array.from(ev.dataTransfer.files || []).find((f) => f.type.startsWith("image/"));
-        if (image) setWallpaper(image);
-      });
-
-      updateParticlesToggle();
-      updateGodRaysToggle();
-      updateEdgeWaveBlurToggle();
-      updatePlayerGodRaysState();
-      updatePlayerEdgeWaveBlurState();
     }
 
     function setupImport() {
@@ -17515,8 +15958,6 @@
             }
 
             const loopPostConfig = buildAutoLoopPostConfigSnapshot();
-            await ensureWallpaperDataUrlForAutoSampler();
-            await ensureLogoDataUrlForAutoSampler();
             const started = emitNativeEvent("autosampler_control", {
               action: "start",
               settings: buildNativeAutoSamplerSettings({ forceLoopCaptureOff: true })
@@ -17932,36 +16373,26 @@
       setupNativeAutoSamplerBridge();
       setupTabs();
       updateSaveButtonVisibility();
-      setupGraphicsCollapse();
       setupAutoSamplerCollapse();
       setupKeyboardMapCollapse();
       setupModulationCollapse();
       setupStrumCollapse();
-      setupSequencerArpCollapse();
-      setGraphicsCollapsed(collapseState.graphics);
       setAutoSamplerCollapsed(collapseState.autoSampler);
       setKeyboardMapCollapsed(collapseState.keyboardMap);
       setModulationCollapsed(collapseState.modulation);
       setStrumCollapsed(collapseState.strum || getStrumVisibleStepCount() <= 0);
-      setSequencerArpCollapsed(collapseState.sequencerArp);
       setupKnobs();
       setupPlayerControlsVisibility();
       setupPerformanceWheels();
       setupPlayerKeyboardSizing();
-      setupPlayerParticles();
-      setupWallpaper();
       renderPlayerKeyboard();
       setupKeyboardMap();
       setupStrum();
-      setupSequencerArp();
       setupImport();
       setupSummaryModal();
       setupAuto();
       syncAllKnobValues();
-      clearWallpaper();
-      updateWallpaperToggle();
-      clearLogo();
-      updateLogoToggle();
+      resetPlayerVisualTheme();
       renderSetup();
       updatePlayerEmptyState();
       renderAuto();
