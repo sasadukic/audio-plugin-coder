@@ -31,8 +31,23 @@ private:
 
         bool pageAboutToLoad (const juce::String& newURL) override
         {
+            if (newURL == getResourceProviderRoot())
+                backendReady = false;
+
             return newURL == getResourceProviderRoot();
         }
+
+        void pageFinishedLoading (const juce::String& url) override
+        {
+            backendReady = (url == getResourceProviderRoot());
+        }
+
+        bool isReadyForEvents() const noexcept
+        {
+            return backendReady;
+        }
+
+        bool backendReady = false;
     };
 
     std::unique_ptr<SinglePageBrowser> webView;
@@ -47,6 +62,7 @@ private:
     juce::String lastPushedLightweightSessionJson;
     int lastPushedLightweightVersion = -1;
     double suppressLightweightPushUntilMs = 0.0;
+    bool frontendReadyForEvents = false;
     juce::String pendingStartupAutoLoadPath;
     int pendingStartupAutoLoadTicks = 0;
     bool startupAutoLoadTriggered = false;

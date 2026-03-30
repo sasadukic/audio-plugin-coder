@@ -197,6 +197,10 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
 
     options = options.withNativeIntegrationEnabled()
                      .withKeepPageLoadedWhenBrowserIsHidden()
+                     .withEventListener ("frontend_ready", [&editor] (const juce::var&)
+                     {
+                         editor.frontendReadyForEvents = true;
+                     })
                      .withEventListener ("autosampler_control", [&editor] (const juce::var& payload)
                      {
                          editor.handleAutoSamplerControlEvent (payload);
@@ -413,6 +417,9 @@ void SamplePlayerAudioProcessorEditor::maybeRunStartupAutoLoad()
     if (startupAutoLoadTriggered || pendingStartupAutoLoadPath.isEmpty())
         return;
 
+    if (webView == nullptr || ! webView->isReadyForEvents() || ! frontendReadyForEvents)
+        return;
+
     if (pendingStartupAutoLoadTicks > 0)
     {
         --pendingStartupAutoLoadTicks;
@@ -448,9 +455,13 @@ void SamplePlayerAudioProcessorEditor::maybeRunStartupAutoLoad()
     auto payloadObject = juce::DynamicObject::Ptr (new juce::DynamicObject());
     payloadObject->setProperty ("lightweight", false);
     payloadObject->setProperty ("full", true);
-    payloadObject->setProperty ("version", audioProcessor.getUiSessionStateLightweightVersion());
+    const auto currentVersion = audioProcessor.getUiSessionStateLightweightVersion();
+    payloadObject->setProperty ("version", currentVersion);
     payloadObject->setProperty ("reason", "startup-autoload");
     webView->emitEventIfBrowserIsVisible ("session_state_changed", juce::var (payloadObject.get()));
+
+    lastPushedLightweightVersion = currentVersion;
+    lastPushedLightweightSessionJson = audioProcessor.getUiSessionStateJson (true);
 
     appendUiDebugLog ("startup auto-load requested full restore | path=" + pendingStartupAutoLoadPath);
 }
@@ -467,6 +478,9 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
     const auto _afterFlush = juce::Time::getMillisecondCounterHiRes();
 
     maybeRunStartupAutoLoad();
+
+    if (! webView->isReadyForEvents() || ! frontendReadyForEvents)
+        return;
 
     const int currentLightweightVersion = audioProcessor.getUiSessionStateLightweightVersion();
     if (currentLightweightVersion != lastPushedLightweightVersion)

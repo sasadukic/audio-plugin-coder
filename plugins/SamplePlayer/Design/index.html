@@ -5146,6 +5146,10 @@
       return !!getNativeBackend();
     }
 
+    function notifyNativeFrontendReady() {
+      return emitNativeEvent("frontend_ready", { timestampMs: Date.now() });
+    }
+
     function cloneManualRangesObject(source) {
       const result = {};
       if (!source || typeof source !== "object") return result;
@@ -6777,6 +6781,9 @@
         window.clearTimeout(state.sessionBridgeRetryTimer);
         state.sessionBridgeRetryTimer = 0;
       }
+
+      notifyNativeFrontendReady();
+
       if (state.nativeSessionListeners.length) return;
 
       try {

@@ -99,6 +99,20 @@ juce::String normalizePathSlashes (juce::String path)
     return path.replaceCharacter ('\\', '/');
 }
 
+juce::String extractFileNameFromPathString (juce::String path)
+{
+    path = normalizePathSlashes (path.trim());
+
+    while (path.endsWithChar ('/'))
+        path = path.dropLastCharacters (1);
+
+    if (path.isEmpty())
+        return {};
+
+    const auto slashIndex = path.lastIndexOfChar ('/');
+    return slashIndex >= 0 ? path.substring (slashIndex + 1) : path;
+}
+
 juce::String sanitizeKeyswitchKeyToken (const juce::String& rawKey)
 {
     auto key = rawKey.trim().toUpperCase();
@@ -2285,7 +2299,7 @@ juce::String SamplePlayerAudioProcessor::getSampleDataUrlForMapEntry (int rootMi
     const int targetRoot = juce::jlimit (0, 127, rootMidi);
     const int targetVelocityLayer = juce::jmax (1, velocityLayer);
     const int targetRr = juce::jmax (1, rrIndex);
-    const auto targetFileName = juce::File (fileName).getFileName().trim();
+    const auto targetFileName = extractFileNameFromPathString (fileName).trim();
 
     const auto isPlayableZone = [] (const auto& zonePtr) -> bool
     {
@@ -2446,7 +2460,7 @@ juce::String SamplePlayerAudioProcessor::getSampleDataUrlForAbsolutePath (const 
         const auto sampleSet = std::atomic_load (&currentSampleSet);
         if (sampleSet != nullptr)
         {
-            const auto targetFile = juce::File (fileNameHint).getFileName().trim();
+            const auto targetFile = extractFileNameFromPathString (fileNameHint).trim();
             if (targetFile.isNotEmpty())
             {
                 for (const auto& zone : sampleSet->zones)
@@ -2463,7 +2477,7 @@ juce::String SamplePlayerAudioProcessor::getSampleDataUrlForAbsolutePath (const 
             }
         }
 
-        const auto targetFile = juce::File (fileNameHint).getFileName().trim();
+        const auto targetFile = extractFileNameFromPathString (fileNameHint).trim();
         if (targetFile.isNotEmpty())
         {
             const auto findFileByNameRecursive = [] (const juce::File& rootDir,
@@ -3335,7 +3349,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
 
                 auto fileName = variantObject->getProperty ("originalFilename").toString().trim();
                 if (fileName.isEmpty())
-                    fileName = juce::File (variantObject->getProperty ("path").toString()).getFileName();
+                    fileName = extractFileNameFromPathString (variantObject->getProperty ("path").toString());
                 if (fileName.isEmpty())
                     fileName = "Embedded_" + midiToNoteToken (rootMidi) + "_V" + juce::String (velocityLayer) + "_RR" + juce::String (fallbackRr) + ".wav";
 
@@ -3714,7 +3728,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         auto relativePath = path.replaceCharacters ("\\", "/").trim();
         while (relativePath.startsWith ("./"))
             relativePath = relativePath.substring (2);
-        const auto nameOnly = juce::File (relativePath).getFileName();
+        const auto nameOnly = extractFileNameFromPathString (relativePath);
 
         const auto tryRootDir = [&] (const juce::File& rootDir) -> juce::File
         {
@@ -4067,7 +4081,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
 
         const auto zone = std::make_shared<SampleZone>();
 
-        auto safeFileName = juce::File (descriptor.fileName).getFileName().trim();
+        auto safeFileName = extractFileNameFromPathString (descriptor.fileName).trim();
         if (safeFileName.isEmpty())
             safeFileName = "Embedded_" + midiToNoteToken (descriptor.rootMidi) + ".wav";
 
@@ -4951,7 +4965,7 @@ void SamplePlayerAudioProcessor::processAutoSamplerCapture (const juce::AudioBuf
                 audioRelativeFolder.clear();
             const auto makeAudioVariantPath = [&audioRelativeFolder] (const juce::String& fileName)
             {
-                const auto safeFileName = juce::File (fileName).getFileName();
+                const auto safeFileName = extractFileNameFromPathString (fileName);
                 if (audioRelativeFolder.isEmpty())
                     return safeFileName;
                 return normalizePathSlashes (audioRelativeFolder + "/" + safeFileName);
