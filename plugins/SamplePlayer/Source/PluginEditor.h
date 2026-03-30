@@ -30,7 +30,12 @@ private:
 
         bool pageAboutToLoad (const juce::String& newURL) override
         {
-            return newURL == getResourceProviderRoot();
+            const auto url = newURL.trim();
+            const auto root = getResourceProviderRoot();
+            return url.isEmpty()
+                || url == "about:blank"
+                || url == root
+                || url.startsWithIgnoreCase (root);
         }
     };
 
