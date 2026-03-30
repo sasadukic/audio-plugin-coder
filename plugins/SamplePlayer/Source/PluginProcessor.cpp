@@ -99,6 +99,45 @@ juce::String normalizePathSlashes (juce::String path)
     return path.replaceCharacter ('\\', '/');
 }
 
+juce::String getStandaloneStartupAutoLoadPath()
+{
+    if (! juce::JUCEApplicationBase::isStandaloneApp())
+        return {};
+
+    juce::String requestedPath;
+    const auto args = juce::JUCEApplicationBase::getCommandLineParameterArray();
+
+    for (int i = 0; i < args.size(); ++i)
+    {
+        const auto arg = args[i].trim();
+
+        if (arg.startsWithIgnoreCase ("--autoload-manifest="))
+        {
+            requestedPath = arg.fromFirstOccurrenceOf ("=", false, false).trim();
+            break;
+        }
+
+        if (arg.equalsIgnoreCase ("--autoload-manifest") && i + 1 < args.size())
+        {
+            requestedPath = args[i + 1].trim();
+            break;
+        }
+    }
+
+    if (requestedPath.isEmpty())
+        requestedPath = juce::SystemStats::getEnvironmentVariable ("SAMPLEPLAYER_AUTOLOAD_MANIFEST", {}).trim();
+
+    requestedPath = requestedPath.unquoted().trim();
+    if (requestedPath.isEmpty())
+        return {};
+
+    const auto requestedFile = juce::File::isAbsolutePath (requestedPath)
+                                 ? juce::File (requestedPath)
+                                 : juce::File::getCurrentWorkingDirectory().getChildFile (requestedPath);
+
+    return requestedFile.getFullPathName();
+}
+
 juce::String extractFileNameFromPathString (juce::String path)
 {
     path = normalizePathSlashes (path.trim());
@@ -456,6 +495,10 @@ SamplePlayerAudioProcessor::SamplePlayerAudioProcessor()
     auto initialStrumRuntime = std::make_shared<StepSequencerRuntime>();
     std::atomic_store (&strumSequencerRuntime, initialStrumRuntime);
     sequencerCurrentStepForUi.store (-1, std::memory_order_relaxed);
+
+    pendingStandaloneStartupAutoLoadPath = getStandaloneStartupAutoLoadPath();
+    if (pendingStandaloneStartupAutoLoadPath.isNotEmpty())
+        writeLoadDebugLog ("processor startup auto-load armed | path=" + pendingStandaloneStartupAutoLoadPath);
 }
 
 SamplePlayerAudioProcessor::~SamplePlayerAudioProcessor() = default;
@@ -691,6 +734,8 @@ void SamplePlayerAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
 {
     juce::ignoreUnused (samplesPerBlock);
     currentSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
+
+    maybeRunStandaloneStartupAutoLoad();
 
     stopAllVoices();
     roundRobinCounters.clear();
@@ -1207,7 +1252,39 @@ bool SamplePlayerAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* SamplePlayerAudioProcessor::createEditor()
 {
+    maybeRunStandaloneStartupAutoLoad();
     return new SamplePlayerAudioProcessorEditor (*this);
+}
+
+void SamplePlayerAudioProcessor::maybeRunStandaloneStartupAutoLoad()
+{
+    if (standaloneStartupAutoLoadTriggered || pendingStandaloneStartupAutoLoadPath.isEmpty())
+        return;
+
+    standaloneStartupAutoLoadTriggered = true;
+
+    const auto file = juce::File (pendingStandaloneStartupAutoLoadPath);
+    if (! file.existsAsFile())
+    {
+        writeLoadDebugLog ("processor startup auto-load skipped | missing file | path=" + pendingStandaloneStartupAutoLoadPath);
+        return;
+    }
+
+    if (file.hasFileExtension ("smpinstm"))
+    {
+        writeLoadDebugLog ("processor startup auto-load begin | path=" + pendingStandaloneStartupAutoLoadPath + " | format=smpinstm");
+        loadMonolithDirect (pendingStandaloneStartupAutoLoadPath);
+        return;
+    }
+
+    if (file.hasFileExtension ("smpinst") || file.hasFileExtension ("json"))
+    {
+        writeLoadDebugLog ("processor startup auto-load begin | path=" + pendingStandaloneStartupAutoLoadPath + " | format=" + file.getFileExtension());
+        loadManifestDirect (pendingStandaloneStartupAutoLoadPath);
+        return;
+    }
+
+    writeLoadDebugLog ("processor startup auto-load skipped | unsupported extension | path=" + pendingStandaloneStartupAutoLoadPath);
 }
 
 void SamplePlayerAudioProcessor::beginPresetLoadTrace (const juce::String& source, int bytesHint)

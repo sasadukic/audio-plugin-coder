@@ -192,6 +192,8 @@ public:
     juce::AudioProcessorValueTreeState parameters;
 
 private:
+    void maybeRunStandaloneStartupAutoLoad();
+
     struct SampleZone
     {
         juce::File sourceFile;
@@ -265,6 +267,9 @@ private:
 
         int delaySamplesRemaining = 0;
     };
+
+    juce::String pendingStandaloneStartupAutoLoadPath;
+    bool standaloneStartupAutoLoadTriggered = false;
 
     struct BlockSettings
     {
