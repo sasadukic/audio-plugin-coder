@@ -23,6 +23,7 @@ private:
     static constexpr int maxEditorWidth = 2200;
     static constexpr int minEditorHeight = 240;
     static constexpr int maxEditorHeight = 2600;
+    static constexpr int startupAutoLoadDelayTicks = 8;
 
     struct SinglePageBrowser : juce::WebBrowserComponent
     {
@@ -46,6 +47,9 @@ private:
     juce::String lastPushedLightweightSessionJson;
     int lastPushedLightweightVersion = -1;
     double suppressLightweightPushUntilMs = 0.0;
+    juce::String pendingStartupAutoLoadPath;
+    int pendingStartupAutoLoadTicks = 0;
+    bool startupAutoLoadTriggered = false;
     juce::uint64 lastPushedHeldMidiMaskLo = 0;
     juce::uint64 lastPushedHeldMidiMaskHi = 0;
     float lastPushedModWheelValue = -1.0f;
@@ -82,6 +86,7 @@ private:
     static juce::var makeAutoSamplerStatusVar (const SamplePlayerAudioProcessor::AutoSamplerProgress& progress);
     static juce::String buildAudioWavDataUrl (const SamplePlayerAudioProcessor::AutoSamplerCompletedTake& take);
     juce::String buildSessionStateJsonForFrontend (bool requestFull) const;
+    void maybeRunStartupAutoLoad();
 
     void timerCallback() override;
     void handleAutoSamplerControlEvent (const juce::var& eventPayload);

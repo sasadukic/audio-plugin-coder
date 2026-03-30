@@ -1901,6 +1901,125 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
     });
 }
 
+namespace
+{
+juce::var buildDirectLoadSessionSnapshot (const juce::var& manifest,
+                                          const juce::String& filePath,
+                                          const juce::String& manifestBasePath)
+{
+    auto* rootObj = new juce::DynamicObject();
+    rootObj->setProperty ("version", 1);
+    rootObj->setProperty ("manifest", manifest);
+
+    auto* uiObj = new juce::DynamicObject();
+    uiObj->setProperty ("manifestFilePath", filePath);
+    uiObj->setProperty ("manifestBasePath", manifestBasePath);
+    uiObj->setProperty ("activeMapSetId", juce::String ("base"));
+    uiObj->setProperty ("baseLoopPlaybackEnabled", true);
+
+    if (auto* manifestRoot = manifest.getDynamicObject())
+    {
+        const auto loopPlaybackEnabledVar = manifestRoot->getProperty ("settings").getProperty ("baseLoopPlaybackEnabled", true);
+        uiObj->setProperty ("baseLoopPlaybackEnabled", loopPlaybackEnabledVar);
+
+        if (auto* manifestKsSets = manifestRoot->getProperty ("keyswitchSets").getArray())
+        {
+            juce::Array<juce::var> uiKsSets;
+            for (int i = 0; i < manifestKsSets->size(); ++i)
+            {
+                auto* ksObj = (*manifestKsSets)[i].getDynamicObject();
+                if (ksObj == nullptr)
+                    continue;
+
+                auto* uiKs = new juce::DynamicObject();
+                uiKs->setProperty ("id", ksObj->hasProperty ("id")
+                    ? ksObj->getProperty ("id")
+                    : juce::var ("keyswitch_" + juce::String (i + 1)));
+                uiKs->setProperty ("name", ksObj->getProperty ("name"));
+                uiKs->setProperty ("key", ksObj->getProperty ("key"));
+                uiKs->setProperty ("keyMidi", ksObj->getProperty ("keyMidi"));
+                uiKs->setProperty ("loopPlaybackEnabled", ksObj->getProperty ("loopPlaybackEnabled"));
+                uiKs->setProperty ("active", i == 0);
+                uiKs->setProperty ("index", i);
+                uiKsSets.add (juce::var (uiKs));
+            }
+
+            if (! uiKsSets.isEmpty())
+                uiObj->setProperty ("keyswitchSets", uiKsSets);
+        }
+    }
+
+    rootObj->setProperty ("ui", juce::var (uiObj));
+    return juce::var (rootObj);
+}
+}
+
+void SamplePlayerAudioProcessor::loadManifestDirect (const juce::String& filePath)
+{
+    const auto file = juce::File (filePath);
+    if (! file.existsAsFile())
+        return;
+
+    const int requestId = sessionStateSyncRequestId.fetch_add (1, std::memory_order_relaxed) + 1;
+    sessionStateSyncThreadPool.removeAllJobs (false, 1);
+
+    writeLoadDebugLog ("loadManifestDirect queued | requestId=" + juce::String (requestId)
+                       + " | path=" + filePath);
+
+    sessionStateSyncThreadPool.addJob ([this, requestId, filePath]()
+    {
+        const auto jobStartMs = juce::Time::getMillisecondCounterHiRes();
+        const auto manifestFile = juce::File (filePath);
+        const auto text = manifestFile.loadFileAsString();
+
+        if (text.isEmpty())
+        {
+            finishPresetLoadTrace ("loadManifestDirect", "empty-file");
+            writeLoadDebugLog ("loadManifestDirect empty file | requestId=" + juce::String (requestId));
+            return;
+        }
+
+        const auto parseStartMs = juce::Time::getMillisecondCounterHiRes();
+        auto manifestParsed = juce::JSON::parse (text);
+
+        if (manifestParsed.isVoid())
+        {
+            finishPresetLoadTrace ("loadManifestDirect", "parse-failed");
+            writeLoadDebugLog ("loadManifestDirect parse failed | requestId=" + juce::String (requestId));
+            return;
+        }
+
+        writeLoadDebugLog ("loadManifestDirect parsed | requestId=" + juce::String (requestId)
+                           + " | parseMs=" + juce::String (elapsedMsFrom (parseStartMs), 2));
+
+        auto fullSessionVar = buildDirectLoadSessionSnapshot (manifestParsed,
+                                                              filePath,
+                                                              manifestFile.getParentDirectory().getFullPathName());
+        const auto fullSessionJson = juce::JSON::toString (fullSessionVar, false);
+
+        syncSampleSetFromSessionStateJson (fullSessionVar, 0, requestId);
+
+        {
+            const juce::ScopedLock lock (uiSessionStateLock);
+            if (requestId == sessionStateSyncRequestId.load (std::memory_order_relaxed))
+            {
+                uiSessionStateJson = fullSessionJson;
+
+                LightweightStripStats stripStats;
+                auto lightweightJson = makeLightweightSessionStateJson (fullSessionJson, &stripStats);
+                if (lightweightJson.isEmpty())
+                    lightweightJson = fullSessionJson;
+
+                uiSessionStateLightweightJson = lightweightJson;
+                uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
+            }
+        }
+
+        writeLoadDebugLog ("loadManifestDirect done | requestId=" + juce::String (requestId)
+                           + " | elapsedMs=" + juce::String (elapsedMsFrom (jobStartMs), 2));
+    });
+}
+
 void SamplePlayerAudioProcessor::loadMonolithDirect (const juce::String& filePath)
 {
     const auto file = juce::File (filePath);
@@ -1943,52 +2062,9 @@ void SamplePlayerAudioProcessor::loadMonolithDirect (const juce::String& filePat
         writeLoadDebugLog ("loadMonolithDirect parsed | requestId=" + juce::String (requestId)
                            + " | parseMs=" + juce::String (elapsedMsFrom (parseStartMs), 2));
 
-        // Build a session-state-compatible wrapper around the monolith data.
-        auto* rootObj = new juce::DynamicObject();
-        rootObj->setProperty ("version", 1);
-        rootObj->setProperty ("manifest", monolithParsed);
-
-        auto* uiObj = new juce::DynamicObject();
-        uiObj->setProperty ("manifestFilePath", filePath);
-        uiObj->setProperty ("manifestBasePath",
-                            monolithFile.getParentDirectory().getFullPathName());
-        uiObj->setProperty ("activeMapSetId", juce::String ("base"));
-        uiObj->setProperty ("baseLoopPlaybackEnabled", true);
-
-        // Build ui.keyswitchSets from the monolith's keyswitchSets so that the
-        // hash computed by syncSampleSetFromSessionStateJson matches what
-        // subsequent lightweight JS flushes will produce.
-        if (auto* monolithRoot = monolithParsed.getDynamicObject())
-        {
-            if (auto* manifestKsSets = monolithRoot->getProperty ("keyswitchSets").getArray())
-            {
-                juce::Array<juce::var> uiKsSets;
-                for (int i = 0; i < manifestKsSets->size(); ++i)
-                {
-                    auto* ksObj = (*manifestKsSets)[i].getDynamicObject();
-                    if (ksObj == nullptr)
-                        continue;
-
-                    auto* uiKs = new juce::DynamicObject();
-                    uiKs->setProperty ("id", ksObj->hasProperty ("id")
-                        ? ksObj->getProperty ("id")
-                        : juce::var ("keyswitch_" + juce::String (i + 1)));
-                    uiKs->setProperty ("name", ksObj->getProperty ("name"));
-                    uiKs->setProperty ("key", ksObj->getProperty ("key"));
-                    uiKs->setProperty ("keyMidi", ksObj->getProperty ("keyMidi"));
-                    uiKs->setProperty ("loopPlaybackEnabled", true);
-                    uiKs->setProperty ("active", i == 0);
-                    uiKs->setProperty ("index", i);
-                    uiKsSets.add (juce::var (uiKs));
-                }
-
-                uiObj->setProperty ("keyswitchSets", uiKsSets);
-            }
-        }
-
-        rootObj->setProperty ("ui", juce::var (uiObj));
-        juce::var fullSessionVar (rootObj);
-
+        auto fullSessionVar = buildDirectLoadSessionSnapshot (monolithParsed,
+                                                              filePath,
+                                                              monolithFile.getParentDirectory().getFullPathName());
         const auto fullSessionJson = juce::JSON::toString (fullSessionVar, false);
 
         syncSampleSetFromSessionStateJson (fullSessionVar, 0, requestId);

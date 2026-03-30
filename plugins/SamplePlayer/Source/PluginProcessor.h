@@ -161,6 +161,7 @@ public:
                   double elapsedMs,
                   const juce::String& details = {});
     void perfFlushToFile();
+    void loadManifestDirect (const juce::String& filePath);
     void loadMonolithDirect (const juce::String& filePath);
     void setActiveMapSetId (const juce::String& setId);
     juce::String getUiSessionStateJson (bool lightweightPreferred = false);

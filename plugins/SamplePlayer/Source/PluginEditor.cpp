@@ -104,6 +104,45 @@ juce::String extractResourcePathFromUrl (const juce::String& rawUrl)
 
     return sanitizeRelativeAssetPath (url);
 }
+
+juce::String getStartupAutoLoadManifestPath()
+{
+    if (! juce::JUCEApplicationBase::isStandaloneApp())
+        return {};
+
+    juce::String requestedPath;
+    const auto args = juce::JUCEApplicationBase::getCommandLineParameterArray();
+
+    for (int i = 0; i < args.size(); ++i)
+    {
+        const auto arg = args[i].trim();
+
+        if (arg.startsWithIgnoreCase ("--autoload-manifest="))
+        {
+            requestedPath = arg.fromFirstOccurrenceOf ("=", false, false).trim();
+            break;
+        }
+
+        if (arg.equalsIgnoreCase ("--autoload-manifest") && i + 1 < args.size())
+        {
+            requestedPath = args[i + 1].trim();
+            break;
+        }
+    }
+
+    if (requestedPath.isEmpty())
+        requestedPath = juce::SystemStats::getEnvironmentVariable ("SAMPLEPLAYER_AUTOLOAD_MANIFEST", {}).trim();
+
+    requestedPath = requestedPath.unquoted().trim();
+    if (requestedPath.isEmpty())
+        return {};
+
+    const auto requestedFile = juce::File::isAbsolutePath (requestedPath)
+                                 ? juce::File (requestedPath)
+                                 : juce::File::getCurrentWorkingDirectory().getChildFile (requestedPath);
+
+    return requestedFile.getFullPathName();
+}
 } // namespace
 
 SamplePlayerAudioProcessorEditor::SamplePlayerAudioProcessorEditor (SamplePlayerAudioProcessor& p)
@@ -117,6 +156,14 @@ SamplePlayerAudioProcessorEditor::SamplePlayerAudioProcessorEditor (SamplePlayer
     lastPushedLightweightSessionJson = audioProcessor.getUiSessionStateJson (true);
 
     setSize (defaultEditorWidth, defaultPlayerHeight);
+
+    pendingStartupAutoLoadPath = getStartupAutoLoadManifestPath();
+    if (pendingStartupAutoLoadPath.isNotEmpty())
+    {
+        pendingStartupAutoLoadTicks = startupAutoLoadDelayTicks;
+        appendUiDebugLog ("startup auto-load armed | path=" + pendingStartupAutoLoadPath);
+    }
+
     startTimerHz (10);
 }
 
@@ -361,6 +408,53 @@ juce::String SamplePlayerAudioProcessorEditor::buildSessionStateJsonForFrontend 
     return audioProcessor.getUiSessionStateJson (! requestFull);
 }
 
+void SamplePlayerAudioProcessorEditor::maybeRunStartupAutoLoad()
+{
+    if (startupAutoLoadTriggered || pendingStartupAutoLoadPath.isEmpty())
+        return;
+
+    if (pendingStartupAutoLoadTicks > 0)
+    {
+        --pendingStartupAutoLoadTicks;
+        return;
+    }
+
+    startupAutoLoadTriggered = true;
+
+    const auto file = juce::File (pendingStartupAutoLoadPath);
+    if (! file.existsAsFile())
+    {
+        appendUiDebugLog ("startup auto-load skipped | missing file | path=" + pendingStartupAutoLoadPath);
+        return;
+    }
+
+    const bool isMonolith = file.hasFileExtension ("smpinstm");
+    const bool isManifest = file.hasFileExtension ("smpinst") || file.hasFileExtension ("json");
+
+    if (! isMonolith && ! isManifest)
+    {
+        appendUiDebugLog ("startup auto-load skipped | unsupported extension | path=" + pendingStartupAutoLoadPath);
+        return;
+    }
+
+    appendUiDebugLog ("startup auto-load begin | path=" + pendingStartupAutoLoadPath
+                      + " | format=" + (isMonolith ? juce::String ("smpinstm") : file.getFileExtension()));
+
+    if (isMonolith)
+        audioProcessor.loadMonolithDirect (pendingStartupAutoLoadPath);
+    else
+        audioProcessor.loadManifestDirect (pendingStartupAutoLoadPath);
+
+    auto payloadObject = juce::DynamicObject::Ptr (new juce::DynamicObject());
+    payloadObject->setProperty ("lightweight", false);
+    payloadObject->setProperty ("full", true);
+    payloadObject->setProperty ("version", audioProcessor.getUiSessionStateLightweightVersion());
+    payloadObject->setProperty ("reason", "startup-autoload");
+    webView->emitEventIfBrowserIsVisible ("session_state_changed", juce::var (payloadObject.get()));
+
+    appendUiDebugLog ("startup auto-load requested full restore | path=" + pendingStartupAutoLoadPath);
+}
+
 void SamplePlayerAudioProcessorEditor::timerCallback()
 {
     if (! webView)
@@ -371,6 +465,8 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
     // Flush profiler ring buffer to log file periodically
     audioProcessor.perfFlushToFile();
     const auto _afterFlush = juce::Time::getMillisecondCounterHiRes();
+
+    maybeRunStartupAutoLoad();
 
     const int currentLightweightVersion = audioProcessor.getUiSessionStateLightweightVersion();
     if (currentLightweightVersion != lastPushedLightweightVersion)
@@ -766,6 +862,7 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
         }
 
         const bool isMonolith = file.hasFileExtension ("smpinstm");
+        const bool isManifest = file.hasFileExtension ("smpinst") || file.hasFileExtension ("json");
         const auto format = isMonolith ? juce::String ("smpinstm")
                                        : (file.hasFileExtension ("smpinst") ? juce::String ("smpinst")
                                                                             : juce::String ("json"));
@@ -773,6 +870,20 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
         if (isMonolith)
         {
             safeThis->audioProcessor.loadMonolithDirect (file.getFullPathName());
+            emitResult (true,
+                        file.getFullPathName(),
+                        file.getFileName(),
+                        {},
+                        {},
+                        true,
+                        format);
+            safeThis->loadInstrumentChooser.reset();
+            return;
+        }
+
+        if (isManifest)
+        {
+            safeThis->audioProcessor.loadManifestDirect (file.getFullPathName());
             emitResult (true,
                         file.getFullPathName(),
                         file.getFileName(),

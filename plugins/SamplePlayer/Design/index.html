@@ -15322,11 +15322,12 @@
         return true;
       }
       const pickedFormat = String(picked.format || "").trim().toLowerCase();
-      const isNativeMonolith = !!picked.nativeLoaded || pickedFormat === "smpinstm";
-      setLoadingOverlay(4, isNativeMonolith ? "Loading monolith..." : "Loading .smpinst...");
+      const isNativeSnapshotLoad = !!picked.nativeLoaded;
+      const isMonolithFormat = pickedFormat === "smpinstm";
+      setLoadingOverlay(4, isMonolithFormat ? "Loading monolith..." : "Loading instrument...");
       debugLoadLog(`loadPack native pick | file=${picked.fileName} | path=${picked.path}`);
 
-      if (isNativeMonolith) {
+      if (isNativeSnapshotLoad) {
         state.manualPackLoadSeq = Math.max(1, Math.round(Number(state.manualPackLoadSeq) || 0) + 1);
         state.sessionStateRestoreAttempted = false;
         state.sessionStateRestored = false;
@@ -15334,7 +15335,7 @@
         state.lastSessionPayloadSig = "";
         await fetchNativeSessionStateSnapshot({
           full: false,
-          reason: "native-monolith-pick",
+          reason: isMonolithFormat ? "native-monolith-pick" : "native-manifest-pick",
           allowBridgeFallback: true
         });
         return true;
