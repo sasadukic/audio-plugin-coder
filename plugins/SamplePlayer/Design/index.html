@@ -15130,7 +15130,6 @@
       try {
         // Strict relative-path JSON manifests only (no embedded data URLs).
         const manifest = buildManifestSkeleton(ext, { preserveRuntimePaths: false });
-        delete manifest.graphics;
         const defaultBase = (manifest.instrumentName || "instrument").replace(/[^a-z0-9_-]+/gi, "_");
         let base = defaultBase || "instrument";
         if (ext === "keysw") {
@@ -15247,7 +15246,12 @@
             return;
           }
           state.wallpaperDataUrl = wallpaperDataUrl;
+          manifest.graphics = {
+            wallpaperPath: wallpaperAssetPath
+          };
           assetsByPath.set(wallpaperAssetPath, wallpaperDataUrl);
+        } else {
+          delete manifest.graphics;
         }
 
         const usedKeyswitchManifestPaths = new Set();
