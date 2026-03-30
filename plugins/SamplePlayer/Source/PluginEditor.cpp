@@ -745,11 +745,15 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
 
     int requestId = -1;
     juce::File initialDir = juce::File::getSpecialLocation (juce::File::userHomeDirectory);
+    juce::String mode = "open";
+    juce::String defaultName;
 
     if (const auto* object = eventPayload.getDynamicObject())
     {
         requestId = static_cast<int> (std::round (double (object->getProperty ("requestId"))));
         const auto currentPath = object->getProperty ("currentPath").toString().trim();
+        mode = object->getProperty ("mode").toString().trim().toLowerCase();
+        defaultName = object->getProperty ("defaultName").toString().trim();
         if (juce::File::isAbsolutePath (currentPath))
         {
             const auto current = juce::File (currentPath);
@@ -760,15 +764,26 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
         }
     }
 
-    loadInstrumentChooser = std::make_unique<juce::FileChooser> ("Open instrument JSON",
+    if (mode != "save")
+        mode = "open";
+
+    if (mode == "save" && defaultName.isNotEmpty())
+        initialDir = initialDir.getChildFile (defaultName);
+
+    loadInstrumentChooser = std::make_unique<juce::FileChooser> (mode == "save" ? "Save instrument JSON" : "Open instrument JSON",
                                                                   initialDir,
                                                                   "*.json;*.smpinst;*.smpinstm",
                                                                   true);
 
     juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> safeThis (this);
-    loadInstrumentChooser->launchAsync (juce::FileBrowserComponent::openMode
-                                        | juce::FileBrowserComponent::canSelectFiles,
-                                        [safeThis, requestId] (const juce::FileChooser& chooser)
+    const int chooserFlags = (mode == "save"
+                                ? (juce::FileBrowserComponent::saveMode
+                                   | juce::FileBrowserComponent::canSelectFiles
+                                   | juce::FileBrowserComponent::warnAboutOverwriting)
+                                : (juce::FileBrowserComponent::openMode
+                                   | juce::FileBrowserComponent::canSelectFiles));
+    loadInstrumentChooser->launchAsync (chooserFlags,
+                                        [safeThis, requestId, mode] (const juce::FileChooser& chooser)
     {
         if (safeThis == nullptr || safeThis->webView == nullptr)
             return;
@@ -796,7 +811,37 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
             safeThis->webView->emitEventIfBrowserIsVisible ("instrument_manifest_picked", juce::var (payload.get()));
         };
 
-        const auto file = chooser.getResult();
+        auto file = chooser.getResult();
+        if (mode == "save")
+        {
+            if (file == juce::File {})
+            {
+                emitResult (false, {}, {}, {}, "Save canceled.", false, {});
+                safeThis->loadInstrumentChooser.reset();
+                return;
+            }
+
+            if (file.hasFileExtension (".json") == false
+                && file.hasFileExtension (".smpinst") == false
+                && file.hasFileExtension (".smpinstm") == false)
+            {
+                file = file.withFileExtension (".json");
+            }
+
+            const auto format = file.hasFileExtension ("smpinstm") ? juce::String ("smpinstm")
+                               : (file.hasFileExtension ("smpinst") ? juce::String ("smpinst")
+                                                                     : juce::String ("json"));
+            emitResult (true,
+                        file.getFullPathName(),
+                        file.getFileName(),
+                        {},
+                        {},
+                        false,
+                        format);
+            safeThis->loadInstrumentChooser.reset();
+            return;
+        }
+
         if (! file.existsAsFile())
         {
             emitResult (false, {}, {}, {}, "Load canceled.", false, {});
@@ -1247,6 +1292,7 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
     {
         juce::String relativePath;
         juce::String dataUrl;
+        juce::String sourcePath;
     };
 
     auto emitResult = [this] (bool success,
@@ -1296,7 +1342,8 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
             SaveAsset item;
             item.relativePath = assetObject->getProperty ("path").toString().trim();
             item.dataUrl = assetObject->getProperty ("dataUrl").toString().trim();
-            if (item.relativePath.isEmpty() || item.dataUrl.isEmpty())
+            item.sourcePath = assetObject->getProperty ("sourcePath").toString().trim();
+            if (item.relativePath.isEmpty() || (item.dataUrl.isEmpty() && item.sourcePath.isEmpty()))
                 continue;
             assets.push_back (std::move (item));
         }
@@ -1370,13 +1417,6 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
                 continue;
             }
 
-            juce::MemoryBlock bytes;
-            if (! decodeDataUrlToMemory (asset.dataUrl, bytes) || bytes.getSize() == 0)
-            {
-                ++failedAssets;
-                continue;
-            }
-
             const auto targetFile = baseDir.getChildFile (relativePath);
             const auto parent = targetFile.getParentDirectory();
             if (! parent.isDirectory())
@@ -1389,7 +1429,26 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
                 }
             }
 
-            if (targetFile.replaceWithData (bytes.getData(), bytes.getSize()))
+            bool wroteAsset = false;
+            if (asset.dataUrl.isNotEmpty())
+            {
+                juce::MemoryBlock bytes;
+                if (decodeDataUrlToMemory (asset.dataUrl, bytes) && bytes.getSize() > 0)
+                    wroteAsset = targetFile.replaceWithData (bytes.getData(), bytes.getSize());
+            }
+
+            if (! wroteAsset && juce::File::isAbsolutePath (asset.sourcePath))
+            {
+                const juce::File sourceFile (asset.sourcePath);
+                if (sourceFile.existsAsFile())
+                {
+                    if (targetFile.existsAsFile())
+                        targetFile.deleteFile();
+                    wroteAsset = sourceFile.copyFileTo (targetFile);
+                }
+            }
+
+            if (wroteAsset)
                 ++writtenAssets;
             else
                 ++failedAssets;

@@ -12154,21 +12154,29 @@
       }
     }
 
-    function requestManifestPickFromNative(timeoutMs = 25000) {
+    function requestManifestPickFromNative(options = {}) {
       if (!getNativeBackend()) return Promise.resolve(null);
       const requestId = (Number(state.manifestPickRequestSeq) || 0) + 1;
       state.manifestPickRequestSeq = requestId;
-      const currentPath = getPackManifestFilePath() || getPackManifestBasePath();
+      const timeoutMs = Math.max(1000, Math.round(Number(options?.timeoutMs) || 25000));
+      const currentPath = String(options?.currentPath || getPackManifestFilePath() || getPackManifestBasePath()).trim();
+      const mode = String(options?.mode || "open").trim().toLowerCase() === "save" ? "save" : "open";
+      const defaultName = String(options?.defaultName || "").trim();
       return new Promise((resolve) => {
         const timeoutId = window.setTimeout(() => {
           const pending = state.pendingManifestPickRequests.get(requestId);
           if (!pending) return;
           state.pendingManifestPickRequests.delete(requestId);
           resolve(null);
-        }, Math.max(1000, Math.round(Number(timeoutMs) || 25000)));
+        }, timeoutMs);
 
         state.pendingManifestPickRequests.set(requestId, { resolve, timeoutId });
-        const emitted = emitNativeEvent("pick_instrument_manifest", { requestId, currentPath });
+        const emitted = emitNativeEvent("pick_instrument_manifest", {
+          requestId,
+          currentPath,
+          mode,
+          defaultName
+        });
         if (!emitted) {
           const pending = state.pendingManifestPickRequests.get(requestId);
           if (pending) {
@@ -15221,6 +15229,8 @@
 
     async function ensureSampleDataForSave(entry) {
       if (!entry || !entry.valid) return "";
+      const cachedDataUrl = String(entry.sampleDataUrl || "").trim();
+      if (cachedDataUrl.startsWith("data:")) return cachedDataUrl;
       let sampleUrl = String(entry.sampleUrl || "").trim();
       if (!sampleUrl) {
         sampleUrl = String(await requestSampleDataForEntrySave(entry, 4000) || "").trim();
@@ -15228,6 +15238,14 @@
       }
       if (!sampleUrl) return "";
       return await dataUrlFromAnyUrl(sampleUrl);
+    }
+
+    function buildNativeSaveAsset(path, dataUrl = "", sourcePath = "") {
+      return {
+        path: String(path || "").trim(),
+        dataUrl: String(dataUrl || "").trim(),
+        sourcePath: normalizeManifestPathInput(sourcePath)
+      };
     }
 
     async function saveInstrumentBundleToDisk() {
@@ -15238,6 +15256,21 @@
       saveBtn.classList.add("is-saving");
 
       try {
+        let manifestPath = getPackManifestFilePath();
+        if (!manifestPath) {
+          const instrumentName = String(el.autoInstrument?.value || "Instrument").trim() || "Instrument";
+          const savePick = await requestManifestPickFromNative({
+            mode: "save",
+            defaultName: `${sanitizePathToken(instrumentName, "Instrument")}.json`,
+            timeoutMs: 25000
+          });
+          if (!savePick?.success || !String(savePick.path || "").trim()) {
+            setStatus(el.setupStatus, String(savePick?.message || "Save canceled.").trim() || "Save canceled.", "warn");
+            return;
+          }
+          manifestPath = String(savePick.path || "").trim();
+        }
+
         const manifest = buildManifestSkeleton("smpinst", {
           preserveRuntimePaths: false,
           sampleFolderName: "Audio"
@@ -15265,9 +15298,12 @@
           const fileName = String(entry.fileName || "").trim();
           if (!fileName) continue;
           const dataUrl = await ensureSampleDataForSave(entry);
+          const sourcePath = getEntryManifestAbsolutePath(entry);
           if (!dataUrl) {
-            missingSampleCount += 1;
-            continue;
+            if (!sourcePath) {
+              missingSampleCount += 1;
+              continue;
+            }
           }
           let relPath = `Audio/${fileName}`;
           const mapSetId = String(entry.mapSetId || "").trim();
@@ -15276,7 +15312,7 @@
             if (setFolder) relPath = `${setFolder}/${fileName}`;
           }
           if (!assetsByPath.has(relPath)) {
-            assetsByPath.set(relPath, dataUrl);
+            assetsByPath.set(relPath, buildNativeSaveAsset(relPath, dataUrl, sourcePath));
           }
         }
 
@@ -15288,19 +15324,22 @@
         const wallpaperAssetPath = getWallpaperAssetPath();
         if (wallpaperAssetPath) {
           let wallpaperDataUrl = String(state.wallpaperDataUrl || "").trim();
-          if (!wallpaperDataUrl) {
-            const existingWallpaperPath = getWallpaperManifestAbsolutePath() || normalizeManifestPathInput(state.wallpaperSourcePath);
-            logWallpaperDebug("save-bundle-fetch-data", `existingPath=${JSON.stringify(existingWallpaperPath)}`);
-            wallpaperDataUrl = String(await requestGraphicDataFromNative(existingWallpaperPath, 4000) || "").trim();
+          const wallpaperSourcePath = getWallpaperManifestAbsolutePath() || normalizeManifestPathInput(state.wallpaperSourcePath);
+          if (!wallpaperDataUrl && wallpaperSourcePath) {
+            logWallpaperDebug("save-bundle-fetch-data", `existingPath=${JSON.stringify(wallpaperSourcePath)}`);
+            wallpaperDataUrl = String(await requestGraphicDataFromNative(wallpaperSourcePath, 4000) || "").trim();
           }
-          if (!wallpaperDataUrl) {
+          if (!wallpaperDataUrl && !wallpaperSourcePath) {
             logWallpaperDebug("save-bundle-missing-data");
             setStatus(el.setupStatus, "Save failed: wallpaper image could not be resolved.", "bad");
             return;
           }
-          state.wallpaperDataUrl = wallpaperDataUrl;
+          if (!wallpaperDataUrl && wallpaperSourcePath) {
+            logWallpaperDebug("save-bundle-copy-source", `wallpaperSource=${JSON.stringify(wallpaperSourcePath)}`);
+          }
+          state.wallpaperDataUrl = wallpaperDataUrl || state.wallpaperDataUrl;
           applyWallpaperManifestMetadata(manifest);
-          assetsByPath.set(wallpaperAssetPath, wallpaperDataUrl);
+          assetsByPath.set(wallpaperAssetPath, buildNativeSaveAsset(wallpaperAssetPath, wallpaperDataUrl, wallpaperSourcePath));
           logWallpaperDebug("save-bundle-ready", `manifestGraphics=${JSON.stringify(manifest.graphics)} | manifestWallpaper=${JSON.stringify(manifest.wallpaper)} | assetCount=${assetsByPath.size}`);
         } else {
           applyWallpaperManifestMetadata(manifest);
@@ -15353,13 +15392,12 @@
               new Blob([JSON.stringify(keyswitchManifest, null, 2)], { type: "application/json" })
             ) || "").trim();
             if (dataUrl.startsWith("data:")) {
-              assetsByPath.set(relPath, dataUrl);
+              assetsByPath.set(relPath, buildNativeSaveAsset(relPath, dataUrl, ""));
             }
           } catch {}
         }
 
-        const manifestPath = getPackManifestFilePath();
-        const askForPath = !manifestPath;
+        const askForPath = false;
 
         const manifestJson = JSON.stringify(manifest, null, 2);
         logWallpaperDebug("save-bundle-emit", `manifestGraphics=${JSON.stringify(manifest?.graphics || null)} | manifestHasGraphics=${manifestJson.includes('"graphics"') ? "yes" : "no"} | assetCount=${assetsByPath.size}`);
@@ -15367,7 +15405,7 @@
           manifestJson,
           manifestPath,
           askForPath,
-          assets: Array.from(assetsByPath.entries()).map(([path, dataUrl]) => ({ path, dataUrl }))
+          assets: Array.from(assetsByPath.values())
         });
 
         if (!emitted) {
@@ -15375,7 +15413,7 @@
           return;
         }
 
-        setStatus(el.setupStatus, askForPath ? "Choose where to save instrument JSON..." : "Saving instrument...", "ok");
+        setStatus(el.setupStatus, "Saving instrument...", "ok");
       } catch {
         setStatus(el.setupStatus, "Could not save instrument.", "bad");
       } finally {
