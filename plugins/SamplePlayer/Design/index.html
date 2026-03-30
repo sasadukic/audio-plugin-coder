@@ -5498,6 +5498,52 @@
       return `Graphics/${sanitizePathToken(baseName, "wallpaper")}`;
     }
 
+      function getLegacyWallpaperManifestPath(manifestLike) {
+        return normalizeManifestPathInput(manifestLike?.wallpaper?.path);
+      }
+
+      function applyWallpaperManifestMetadata(manifest, options = {}) {
+        if (!manifest || typeof manifest !== "object") return "";
+        const wallpaperAssetPath = getWallpaperAssetPath();
+        if (!wallpaperAssetPath) {
+          delete manifest.graphics;
+          delete manifest.wallpaper;
+          return "";
+        }
+
+        const graphics = {
+          wallpaperPath: wallpaperAssetPath
+        };
+        if (options.includeDataUrl) {
+          const wallpaperDataUrl = String(options.wallpaperDataUrl || "").trim();
+          if (wallpaperDataUrl) graphics.wallpaperDataUrl = wallpaperDataUrl;
+        }
+        manifest.graphics = graphics;
+        manifest.wallpaper = {
+          enabled: true,
+          path: wallpaperAssetPath,
+          fitMode: "fill",
+          brightness: 1,
+          position: "middle-center"
+        };
+        return wallpaperAssetPath;
+      }
+
+      function logWallpaperDebug(context, extra = "") {
+        const parts = [
+          `wallpaper ${context}`,
+          `asset=${JSON.stringify(getWallpaperAssetPath())}`,
+          `source=${JSON.stringify(normalizeManifestPathInput(state.wallpaperSourcePath))}`,
+          `absolute=${JSON.stringify(getWallpaperManifestAbsolutePath())}`,
+          `file=${JSON.stringify(String(state.wallpaperSourceFileName || "").trim())}`,
+          `dataUrl=${String(state.wallpaperDataUrl || "").trim() ? "yes" : "no"}`,
+          `manifestBase=${JSON.stringify(getPackManifestBasePath())}`
+        ];
+        const details = String(extra || "").trim();
+        if (details) parts.push(details);
+        debugLoadLog(parts.join(" | "));
+      }
+
     function applyPlayerWallpaperVisual(dataUrl = "") {
       const normalized = String(dataUrl || "").trim();
       document.documentElement.style.setProperty(
@@ -5525,9 +5571,11 @@
       const wallpaperAbsolutePath = getWallpaperManifestAbsolutePath();
       if (!wallpaperAbsolutePath) {
         state.wallpaperHydrationTimer = 0;
+        logWallpaperDebug("hydrate-skip-no-absolute");
         applyPlayerWallpaperVisual(state.wallpaperDataUrl);
         return;
       }
+      logWallpaperDebug("hydrate-scheduled", `delayMs=${Math.max(20, Math.round(Number(delayMs) || 60))}`);
       state.wallpaperHydrationTimer = window.setTimeout(() => {
         state.wallpaperHydrationTimer = 0;
         void hydrateWallpaperPreviewFromCurrentSource();
@@ -5537,12 +5585,18 @@
     async function hydrateWallpaperPreviewFromCurrentSource() {
       const absolutePath = getWallpaperManifestAbsolutePath();
       if (!absolutePath) {
+        logWallpaperDebug("hydrate-no-source");
         applyPlayerWallpaperVisual(state.wallpaperDataUrl);
         return "";
       }
+      logWallpaperDebug("hydrate-request", `requestPath=${JSON.stringify(absolutePath)}`);
       const dataUrl = String(await requestGraphicDataFromNative(absolutePath, 3500) || "").trim();
-      if (!dataUrl) return "";
+      if (!dataUrl) {
+        logWallpaperDebug("hydrate-empty-result", `requestPath=${JSON.stringify(absolutePath)}`);
+        return "";
+      }
       state.wallpaperDataUrl = dataUrl;
+      logWallpaperDebug("hydrate-success", `requestPath=${JSON.stringify(absolutePath)}`);
       applyPlayerWallpaperVisual(dataUrl);
       return dataUrl;
     }
@@ -12242,6 +12296,7 @@
       state.wallpaperSourceFileName = normalizedFileName;
       state.wallpaperAssetPath = buildWallpaperAssetPath(normalizedFileName);
       state.wallpaperDataUrl = normalizedDataUrl;
+      logWallpaperDebug("picked", `inputSource=${JSON.stringify(normalizedSourcePath)}`);
       applyPlayerWallpaperVisual(normalizedDataUrl);
       ensureSessionStateWritable("wallpaper-update");
       scheduleSessionStateSave(250);
@@ -15103,12 +15158,7 @@
           })
           .filter((set) => Array.isArray(set.mapping) && set.mapping.length > 0);
       }
-      const wallpaperAssetPath = getWallpaperAssetPath();
-      if (wallpaperAssetPath) {
-        manifest.graphics = {
-          wallpaperPath: wallpaperAssetPath
-        };
-      }
+      applyWallpaperManifestMetadata(manifest);
       return manifest;
     }
 
@@ -15192,6 +15242,7 @@
           preserveRuntimePaths: false,
           sampleFolderName: "Audio"
         });
+        logWallpaperDebug("save-bundle-start", `manifestGraphics=${JSON.stringify(manifest?.graphics || null)}`);
 
         const allEntries = [
           ...state.entries.filter((entry) => entry && entry.valid),
@@ -15239,19 +15290,21 @@
           let wallpaperDataUrl = String(state.wallpaperDataUrl || "").trim();
           if (!wallpaperDataUrl) {
             const existingWallpaperPath = getWallpaperManifestAbsolutePath() || normalizeManifestPathInput(state.wallpaperSourcePath);
+            logWallpaperDebug("save-bundle-fetch-data", `existingPath=${JSON.stringify(existingWallpaperPath)}`);
             wallpaperDataUrl = String(await requestGraphicDataFromNative(existingWallpaperPath, 4000) || "").trim();
           }
           if (!wallpaperDataUrl) {
+            logWallpaperDebug("save-bundle-missing-data");
             setStatus(el.setupStatus, "Save failed: wallpaper image could not be resolved.", "bad");
             return;
           }
           state.wallpaperDataUrl = wallpaperDataUrl;
-          manifest.graphics = {
-            wallpaperPath: wallpaperAssetPath
-          };
+          applyWallpaperManifestMetadata(manifest);
           assetsByPath.set(wallpaperAssetPath, wallpaperDataUrl);
+          logWallpaperDebug("save-bundle-ready", `manifestGraphics=${JSON.stringify(manifest.graphics)} | manifestWallpaper=${JSON.stringify(manifest.wallpaper)} | assetCount=${assetsByPath.size}`);
         } else {
-          delete manifest.graphics;
+          applyWallpaperManifestMetadata(manifest);
+          logWallpaperDebug("save-bundle-no-wallpaper", `assetCount=${assetsByPath.size}`);
         }
 
         const usedKeyswitchManifestPaths = new Set();
@@ -15308,8 +15361,10 @@
         const manifestPath = getPackManifestFilePath();
         const askForPath = !manifestPath;
 
+        const manifestJson = JSON.stringify(manifest, null, 2);
+        logWallpaperDebug("save-bundle-emit", `manifestGraphics=${JSON.stringify(manifest?.graphics || null)} | manifestHasGraphics=${manifestJson.includes('"graphics"') ? "yes" : "no"} | assetCount=${assetsByPath.size}`);
         const emitted = emitNativeEvent("save_instrument_bundle", {
-          manifestJson: JSON.stringify(manifest, null, 2),
+          manifestJson,
           manifestPath,
           askForPath,
           assets: Array.from(assetsByPath.entries()).map(([path, dataUrl]) => ({ path, dataUrl }))
@@ -15337,6 +15392,7 @@
       const message = String(info.message || "").trim();
       const manifestPath = String(info.manifestPath || "").trim();
       const manifestBasePath = String(info.manifestBasePath || "").trim();
+      logWallpaperDebug("save-result", `success=${success ? "yes" : "no"} | manifestPath=${JSON.stringify(manifestPath)} | manifestBase=${JSON.stringify(manifestBasePath)} | message=${JSON.stringify(message)}`);
 
       if (success) {
         if (manifestPath) state.packManifestFilePath = manifestPath;
@@ -15421,10 +15477,7 @@
             setStatus(el.setupStatus, "Monolith save failed: wallpaper image could not be resolved.", "bad");
             return;
           }
-          manifest.graphics = {
-            wallpaperPath: wallpaperAssetPath,
-            wallpaperDataUrl
-          };
+          applyWallpaperManifestMetadata(manifest, { includeDataUrl: true, wallpaperDataUrl });
         }
 
         const monolithJson = JSON.stringify(manifest, null, 2);
@@ -15540,10 +15593,15 @@
       state.baseLoopPlaybackEnabled = data?.settings?.baseLoopPlaybackEnabled !== false;
       state.packManifestFilePath = manifestFilePath;
       state.packManifestBasePath = manifestBasePath;
-      state.wallpaperAssetPath = normalizeManifestPathInput(sessionUiState?.wallpaperAssetPath || data?.graphics?.wallpaperPath);
+      state.wallpaperAssetPath = normalizeManifestPathInput(
+        sessionUiState?.wallpaperAssetPath
+        || data?.graphics?.wallpaperPath
+        || getLegacyWallpaperManifestPath(data)
+      );
       state.wallpaperSourcePath = normalizeManifestPathInput(sessionUiState?.wallpaperSourcePath);
       state.wallpaperSourceFileName = String(sessionUiState?.wallpaperSourceFileName || state.wallpaperAssetPath.split("/").pop() || "").trim();
       state.wallpaperDataUrl = String(data?.graphics?.wallpaperDataUrl || "").trim();
+      debugLoadLog(`wallpaper apply-loaded raw | manifestGraphics=${JSON.stringify(data?.graphics || null)} | manifestWallpaper=${JSON.stringify(data?.wallpaper || null)} | sessionWallpaperAsset=${JSON.stringify(sessionUiState?.wallpaperAssetPath || "")} | sessionWallpaperSource=${JSON.stringify(sessionUiState?.wallpaperSourcePath || "")}`);
       state.nextVirtualOrder = -1;
       state.rrCursor = {};
       state.sessionStateLightweight = false;
@@ -15560,6 +15618,7 @@
       if (!state.wallpaperSourcePath && state.wallpaperAssetPath && manifestBasePath) {
         state.wallpaperSourcePath = resolveManifestAssetPath(manifestBasePath, state.wallpaperAssetPath);
       }
+      logWallpaperDebug("apply-loaded-final", `sourceLabel=${JSON.stringify(sourceLabel)} | manifestFile=${JSON.stringify(manifestFilePath)}`);
       scheduleWallpaperHydration(80);
       const loadedSettings = (data?.settings && typeof data.settings === "object") ? data.settings : null;
       if (el.autoLoop && loadedSettings && Object.prototype.hasOwnProperty.call(loadedSettings, "autoLoopSamples")) {

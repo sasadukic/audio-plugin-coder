@@ -1302,6 +1302,31 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
         }
     }
 
+    {
+        juce::String wallpaperPath;
+        bool hasGraphics = false;
+        if (const auto parsed = juce::JSON::parse (manifestJson); parsed.isObject())
+        {
+            if (const auto* manifestObject = parsed.getDynamicObject())
+            {
+                const auto graphicsVar = manifestObject->getProperty ("graphics");
+                if (graphicsVar.isObject())
+                {
+                    hasGraphics = true;
+                    if (const auto* graphicsObject = graphicsVar.getDynamicObject())
+                        wallpaperPath = graphicsObject->getProperty ("wallpaperPath").toString().trim();
+                }
+            }
+        }
+
+        appendUiDebugLog ("native save_instrument_bundle received | hasGraphics="
+                          + juce::String (hasGraphics ? "yes" : "no")
+                          + " | wallpaperPath=" + wallpaperPath.quoted()
+                          + " | askForPath=" + juce::String (askForPath ? "yes" : "no")
+                          + " | manifestPath=" + manifestPath.quoted()
+                          + " | assetCount=" + juce::String (static_cast<int> (assets.size())));
+    }
+
     const auto writeBundle = [emitResult, manifestJson, assets] (juce::File manifestFile)
     {
         if (manifestFile == juce::File {})
