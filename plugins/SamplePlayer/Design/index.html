@@ -835,6 +835,11 @@
       padding-bottom: 0;
     }
 
+    #panel-setup.active {
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
     .player-stage {
       --player-kb-height: 87px;
       --player-white-key-width: 23px;
@@ -5921,9 +5926,7 @@
     }
 
     function requestHostResizeForActiveTab() {
-      const activeTab = document.querySelector(".tab-btn.active")?.dataset.tab || "player";
-      const targetHeight = activeTab === "setup" ? computeSetupHostHeight() : HOST_PLAYER_FIXED_HEIGHT;
-      emitHostResize(HOST_EDITOR_WIDTH, targetHeight);
+      emitHostResize(HOST_EDITOR_WIDTH, HOST_PLAYER_FIXED_HEIGHT);
     }
 
     function scheduleHostResizeForActiveTab() {
@@ -15662,7 +15665,6 @@
         const activeTab = document.querySelector(".tab-btn.active")?.dataset.tab || "player";
         if (activeTab !== "player") return;
         renderPlayerKeyboard();
-        requestHostResizeForActiveTab();
       };
 
       window.requestAnimationFrame(() => {
