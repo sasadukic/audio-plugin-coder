@@ -51,6 +51,7 @@ private:
     juce::String pendingStartupAutoLoadPath;
     int pendingStartupAutoLoadTicks = 0;
     bool startupAutoLoadTriggered = false;
+    bool pendingStartupAutoLoadRestoreEvent = false;
     juce::uint64 lastPushedHeldMidiMaskLo = 0;
     juce::uint64 lastPushedHeldMidiMaskHi = 0;
     float lastPushedModWheelValue = -1.0f;

@@ -417,9 +417,6 @@ void SamplePlayerAudioProcessorEditor::maybeRunStartupAutoLoad()
     if (startupAutoLoadTriggered || pendingStartupAutoLoadPath.isEmpty())
         return;
 
-    if (webView == nullptr || ! frontendReadyForEvents)
-        return;
-
     if (pendingStartupAutoLoadTicks > 0)
     {
         --pendingStartupAutoLoadTicks;
@@ -452,6 +449,13 @@ void SamplePlayerAudioProcessorEditor::maybeRunStartupAutoLoad()
     else
         audioProcessor.loadManifestDirect (pendingStartupAutoLoadPath);
 
+    if (! frontendReadyForEvents)
+    {
+        pendingStartupAutoLoadRestoreEvent = true;
+        appendUiDebugLog ("startup auto-load waiting for frontend restore | path=" + pendingStartupAutoLoadPath);
+        return;
+    }
+
     auto payloadObject = juce::DynamicObject::Ptr (new juce::DynamicObject());
     payloadObject->setProperty ("lightweight", false);
     payloadObject->setProperty ("full", true);
@@ -481,6 +485,24 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
 
     if (! frontendReadyForEvents)
         return;
+
+    if (pendingStartupAutoLoadRestoreEvent)
+    {
+        pendingStartupAutoLoadRestoreEvent = false;
+
+        auto payloadObject = juce::DynamicObject::Ptr (new juce::DynamicObject());
+        payloadObject->setProperty ("lightweight", false);
+        payloadObject->setProperty ("full", true);
+        const auto currentVersion = audioProcessor.getUiSessionStateLightweightVersion();
+        payloadObject->setProperty ("version", currentVersion);
+        payloadObject->setProperty ("reason", "startup-autoload");
+        webView->emitEventIfBrowserIsVisible ("session_state_changed", juce::var (payloadObject.get()));
+
+        lastPushedLightweightVersion = currentVersion;
+        lastPushedLightweightSessionJson = audioProcessor.getUiSessionStateJson (true);
+
+        appendUiDebugLog ("startup auto-load emitted deferred restore | path=" + pendingStartupAutoLoadPath);
+    }
 
     const int currentLightweightVersion = audioProcessor.getUiSessionStateLightweightVersion();
     if (currentLightweightVersion != lastPushedLightweightVersion)
