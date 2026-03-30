@@ -5917,7 +5917,7 @@
       const setupHeight = setupPaddingTop + setupPaddingBottom + setupContentHeight;
       const shellBorder = 2;
       const target = tabsHeight + setupHeight + shellBorder;
-      return clampHostSize(target, HOST_SETUP_MIN_HEIGHT, HOST_SETUP_MAX_HEIGHT, HOST_PLAYER_FIXED_HEIGHT);
+      return clampHostSize(target, HOST_PLAYER_FIXED_HEIGHT, HOST_SETUP_MAX_HEIGHT, HOST_PLAYER_FIXED_HEIGHT);
     }
 
     function requestHostResizeForActiveTab() {
@@ -15655,6 +15655,22 @@
       el.saveSmpinstBtn.classList.toggle("hidden", tab !== "setup");
     }
 
+    function schedulePlayerTabRefresh() {
+      if (!el.playerStage) return;
+
+      const refresh = () => {
+        const activeTab = document.querySelector(".tab-btn.active")?.dataset.tab || "player";
+        if (activeTab !== "player") return;
+        renderPlayerKeyboard();
+        requestHostResizeForActiveTab();
+      };
+
+      window.requestAnimationFrame(() => {
+        refresh();
+        window.requestAnimationFrame(refresh);
+      });
+    }
+
     function activateTab(tab) {
       el.tabs.forEach((btn) => {
         const target = btn.dataset.tab;
@@ -15673,6 +15689,7 @@
       if (el.playerStrumMainToggle) el.playerStrumMainToggle.style.display = tab === "player" ? "" : "none";
       refreshPlayerParticles();
       scheduleHostResizeForActiveTab();
+      if (tab === "player") schedulePlayerTabRefresh();
     }
 
     function setupTabs() {
