@@ -711,37 +711,38 @@
         );
     }
 
-    .top-right-controls {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .top-right-controls .player-author-display {
+    .player-author-display {
       display: none;
-      flex: 1 1 auto;
+      flex: 0 1 280px;
       min-width: 0;
       max-width: 280px;
-      justify-content: flex-end;
+      margin-left: 8px;
+      justify-content: flex-start;
       align-items: center;
       font-size: 12px;
       letter-spacing: 0.03em;
       line-height: 1;
       color: rgba(var(--line-rgb), 0.68);
-      text-align: right;
+      text-align: left;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       pointer-events: none;
     }
 
-    .top-right-controls .player-author-display.visible {
+    .player-author-display.visible {
       display: inline-flex;
     }
 
-    .tabs.player-topbar-swatch .top-right-controls .player-author-display {
+    .tabs.player-topbar-swatch .player-author-display {
       color: rgba(var(--player-line-rgb), 0.96);
+    }
+
+    .top-right-controls {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .top-right-controls .knob {
@@ -851,10 +852,7 @@
       border-radius: 0;
       position: relative;
       overflow: hidden;
-      background-color: rgb(var(--player-topbar-rgb, 8, 11, 17));
-      background-image: var(--app-background);
-      background-size: cover;
-      background-position: center;
+      background: var(--chrome-surface);
     }
 
     .player-stage::before {
@@ -1240,11 +1238,11 @@
     }
 
     .player-key-white.no-sample {
-      border-right-color: rgba(28, 28, 28, 0.75);
-      border-top-color: rgba(78, 78, 78, 0.88);
-      background: linear-gradient(180deg, #4a4a4a, #303030);
+      border-right-color: rgba(18, 18, 18, 0.82);
+      border-top-color: rgba(62, 62, 62, 0.82);
+      background: linear-gradient(180deg, #3b3b3b, #222222);
       box-shadow:
-        inset 0 6px 10px rgba(0, 0, 0, 0.2);
+        inset 0 6px 10px rgba(0, 0, 0, 0.28);
     }
 
     .player-key-white.no-sample::after {
@@ -1254,20 +1252,20 @@
     }
 
     .player-key-black.no-sample {
-      border-color: rgba(86, 86, 86, 0.22);
-      background: linear-gradient(180deg, #242424, #101010);
+      border-color: rgba(72, 72, 72, 0.18);
+      background: linear-gradient(180deg, #1a1a1a, #070707);
       box-shadow:
-        0 5px 8px rgba(0, 0, 0, 0.4),
-        inset 0 5px 8px rgba(0, 0, 0, 0.48);
+        0 5px 8px rgba(0, 0, 0, 0.48),
+        inset 0 5px 8px rgba(0, 0, 0, 0.58);
       opacity: 1;
     }
 
     .player-key-white.no-sample {
-      opacity: 0.5;
+      opacity: 0.42;
     }
 
     .player-key.no-sample .player-key-label {
-      color: rgba(220, 220, 220, 0.78);
+      color: rgba(210, 210, 210, 0.62);
     }
 
     .player-key:disabled {
@@ -3948,7 +3946,7 @@
         justify-content: flex-end;
       }
 
-      .top-right-controls .player-author-display {
+      .player-author-display {
         max-width: none;
       }
 
@@ -4028,13 +4026,13 @@
           <path d="M748.33-82.5q-5.66-2.17-11-7.5L508-319.33q-5.33-5.34-7.5-11-2.17-5.67-2.17-12.34 0-6.66 2.17-12.33t7.5-11l85-85q5.33-5.33 11-7.5t12.33-2.17q6.67 0 12.34 2.17 5.66 2.17 11 7.5L869-221.67q5.33 5.34 7.5 11 2.17 5.67 2.17 12.34 0 6.66-2.17 12.33t-7.5 11l-85 85q-5.33 5.33-11 7.5t-12.33 2.17q-6.67 0-12.34-2.17Zm12.34-77.5L799-198.33 616.67-380.67l-38.34 38.34L760.67-160ZM185.5-82.33Q179.33-84.67 174-90l-84-84q-5.33-5.33-7.67-11.5Q80-191.67 80-198.33q0-6.67 2.33-12.34 2.34-5.66 7.67-11l220.67-220.66h85L432.33-479 260.67-650.67h-57L80-774.33 183.67-878l123.66 123.67v57L479-525.67 604.33-651l-59-59 56-56h-113L467-787.33 599.67-920 621-898.67v113l56-56 160 160q15.67 15.67 24.33 35.84Q870-625.67 870-603q0 21.33-7.33 41-7.34 19.67-21 35.33l-85-85-56 56L652-604.33 442.33-394.67v84L221.67-90q-5.34 5.33-11 7.67Q205-80 198.33-80q-6.66 0-12.83-2.33ZM198.33-160l190-190v-38.33H350l-190 190L198.33-160Zm0 0L160-198.33l19.67 18.66L198.33-160Zm562.34 0L799-198.33 760.67-160Z"/>
         </svg>
       </button>
+      <div id="playerAuthorDisplay" class="player-author-display" aria-live="polite"></div>
       <button id="saveSmpinstBtn" class="tab-btn icon-tab topbar-save-icon-btn hidden" type="button" aria-label="Save instrument" title="Save instrument">
         <svg viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
           <path d="M840-682v495.33q0 27-19.83 46.84Q800.33-120 773.33-120H186.67q-27 0-46.84-19.83Q120-159.67 120-186.67v-586.66q0-27 19.83-46.84Q159.67-840 186.67-840H682l158 158Zm-66.67 29.33L652.67-773.33h-466v586.66h586.66v-466Zm-216 377.49q32-31.84 32-77.33 0-45.49-31.84-77.49-31.84-32-77.33-32-45.49 0-77.49 31.84-32 31.85-32 77.34t31.84 77.49q31.84 32 77.33 32 45.49 0 77.49-31.85ZM235.33-576H594v-148.67H235.33V-576Zm-48.66-76.67v466-586.66 120.66Z"/>
         </svg>
       </button>
       <div class="top-right-controls">
-        <div id="playerAuthorDisplay" class="player-author-display" aria-live="polite"></div>
         <button id="playerStrumMainToggle" type="button" aria-pressed="false" aria-label="Show strum on main" title="Show Strum On Main">
           <svg class="eye-icon-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12l10-6-10-6z"/></svg>
           <svg class="eye-icon-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12l10-6-10-6z"/></svg>
@@ -15527,9 +15525,9 @@
       const tab = activeTab
         || document.querySelector(".tab-btn.active")?.dataset.tab
         || "player";
-      const author = String(el.autoAuthor?.value || "").trim();
-      const show = tab === "player" && author.length > 0 && !isKeyswitchPackEnabled();
-      el.playerAuthorDisplay.textContent = show ? author : "";
+      const instrumentName = String(el.autoInstrument?.value || "").trim();
+      const show = tab === "player" && instrumentName.length > 0;
+      el.playerAuthorDisplay.textContent = show ? instrumentName : "";
       el.playerAuthorDisplay.classList.toggle("visible", show);
     }
 
@@ -16050,6 +16048,12 @@
           ev.preventDefault();
           normalizeKeyswitchKeyInput(true);
         });
+      }
+
+      if (el.autoInstrument) {
+        const refreshPlayerName = () => updatePlayerAuthorDisplay();
+        el.autoInstrument.addEventListener("input", refreshPlayerName);
+        el.autoInstrument.addEventListener("change", refreshPlayerName);
       }
 
       const applyDestinationFolderName = (folderName) => {
