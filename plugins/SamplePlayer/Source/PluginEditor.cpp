@@ -152,6 +152,10 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
 
     options = options.withNativeIntegrationEnabled()
                      .withKeepPageLoadedWhenBrowserIsHidden()
+                     .withEventListener ("frontend_ready", [&editor] (const juce::var&)
+                     {
+                         editor.frontendReadyForEvents = true;
+                     })
                      .withEventListener ("autosampler_control", [&editor] (const juce::var& payload)
                      {
                          editor.handleAutoSamplerControlEvent (payload);
@@ -373,6 +377,9 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
     // Flush profiler ring buffer to log file periodically
     audioProcessor.perfFlushToFile();
     const auto _afterFlush = juce::Time::getMillisecondCounterHiRes();
+
+    if (! frontendReadyForEvents)
+        return;
 
     const int currentLightweightVersion = audioProcessor.getUiSessionStateLightweightVersion();
     if (currentLightweightVersion != lastPushedLightweightVersion)
