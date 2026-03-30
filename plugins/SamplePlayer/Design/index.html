@@ -4566,7 +4566,6 @@
     const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
     const BLACK_SEMITONES = new Set([1, 3, 6, 8, 10]);
     const AUDIO_REGEX = /\.(wav|aif|aiff|flac|ogg|mp3)$/i;
-    const IMAGE_EXT_REGEX = /\.(png|jpe?g|webp|gif|bmp|svg|avif)$/i;
     const SETUP_COLLAPSE_STATE_KEY = "samplePlayer.setupCollapseState.v1";
     const AUTO_PRESET_STORAGE_KEY = "samplePlayer.autoSamplerPresets.v1";
     const SAME_KEY_RETRIGGER_FADE_SEC = 0;
@@ -5186,6 +5185,22 @@
       applyPackFormatRules(false);
     }
 
+    function stripVisualSaveState(value) {
+      const visualKeyPattern = /^(wallpaper|wallpapers|particle|particles|blur|godray|godrays|god-ray|god-rays|backdrop|theme|visual|swatch|topbar|backgroundImage|appBackground)$/i;
+      if (Array.isArray(value)) {
+        return value.map((item) => stripVisualSaveState(item));
+      }
+      if (!value || typeof value !== "object") {
+        return value;
+      }
+      const stripped = {};
+      Object.entries(value).forEach(([key, entryValue]) => {
+        if (visualKeyPattern.test(String(key || "").trim())) return;
+        stripped[key] = stripVisualSaveState(entryValue);
+      });
+      return stripped;
+    }
+
     function buildAutoControlsSnapshot() {
       const startMidi = normalizeAutoNoteInput(el.autoStart, 36, false);
       const endMidi = normalizeAutoNoteInput(el.autoEnd, 72, false);
@@ -5415,7 +5430,7 @@
         preserveRuntimePaths: true,
         includeEmbeddedSampleData: !!options.includeEmbeddedSampleData
       });
-      return {
+      return stripVisualSaveState({
         version: 1,
         manifest,
         ui: {
@@ -5455,14 +5470,14 @@
           sequencer: buildSequencerSnapshot(),
           strum: buildStrumSnapshot()
         }
-      };
+      });
     }
 
     function buildQuickSessionSnapshotFromManifest(manifest) {
       const safeManifest = (manifest && typeof manifest === "object")
         ? manifest
         : { formatVersion: 1, instrumentName: "Instrument", mapping: [] };
-      return {
+      return stripVisualSaveState({
         version: 1,
         manifest: safeManifest,
         ui: {
@@ -5493,7 +5508,7 @@
           sequencer: buildSequencerSnapshot(),
           strum: buildStrumSnapshot()
         }
-      };
+      });
     }
 
     async function flushSessionStateToNative(force = false, flushOptions = {}) {
@@ -8815,147 +8830,6 @@
       const n = Number(v);
       const fixed = decimals !== null ? n.toFixed(decimals) : (Number.isInteger(n) ? String(n) : n.toFixed(2));
       return unit ? `${fixed} ${unit}` : fixed;
-    }
-
-    function rgbToHsv(r, g, b) {
-      const rn = r / 255;
-      const gn = g / 255;
-      const bn = b / 255;
-      const max = Math.max(rn, gn, bn);
-      const min = Math.min(rn, gn, bn);
-      const delta = max - min;
-      const s = max === 0 ? 0 : delta / max;
-      const v = max;
-      return { s, v };
-    }
-
-    function mixRgb(a, b, ratio = 0.5) {
-      const t = Math.max(0, Math.min(1, Number(ratio) || 0));
-      return [
-        Math.round((a[0] * (1 - t)) + (b[0] * t)),
-        Math.round((a[1] * (1 - t)) + (b[1] * t)),
-        Math.round((a[2] * (1 - t)) + (b[2] * t))
-      ];
-    }
-
-    function luminanceOfRgb(rgb) {
-      return (0.2126 * rgb[0]) + (0.7152 * rgb[1]) + (0.0722 * rgb[2]);
-    }
-
-    function deriveWheelColorFromSwatch(swatch, dark, light) {
-      let wheel = [swatch[0], swatch[1], swatch[2]];
-      const lum = luminanceOfRgb(wheel);
-      if (lum < 95) {
-        wheel = mixRgb(wheel, light, 0.45);
-      } else if (lum > 185) {
-        wheel = mixRgb(wheel, dark, 0.4);
-      }
-
-      const adjustedLum = luminanceOfRgb(wheel);
-      if (adjustedLum < 105) wheel = mixRgb(wheel, [170, 174, 182], 0.35);
-      if (adjustedLum > 180) wheel = mixRgb(wheel, [160, 166, 174], 0.28);
-      return wheel;
-    }
-
-    function extractSwatchFromImageFile(file) {
-      return new Promise((resolve) => {
-        const img = new Image();
-        const objectUrl = URL.createObjectURL(file);
-        img.onload = () => {
-          try {
-            const size = 32;
-            const canvas = document.createElement("canvas");
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext("2d", { willReadFrequently: true });
-            ctx.drawImage(img, 0, 0, size, size);
-            const { data } = ctx.getImageData(0, 0, size, size);
-
-            let rSum = 0;
-            let gSum = 0;
-            let bSum = 0;
-            let weightSum = 0;
-            const pixels = [];
-
-            for (let i = 0; i < data.length; i += 4) {
-              const r = data[i];
-              const g = data[i + 1];
-              const b = data[i + 2];
-              const a = data[i + 3];
-              if (a < 96) continue;
-              const { s, v } = rgbToHsv(r, g, b);
-              const weight = 0.2 + (s * 1.2) + (v * 0.6);
-              rSum += r * weight;
-              gSum += g * weight;
-              bSum += b * weight;
-              weightSum += weight;
-              const luminance = (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
-              pixels.push({ r, g, b, luminance });
-            }
-
-            if (weightSum <= 0 || !pixels.length) {
-              resolve({
-                swatch: [40, 40, 40],
-                dark: [40, 40, 40],
-                light: [150, 150, 150]
-              });
-            } else {
-              const swatch = [
-                Math.round(rSum / weightSum),
-                Math.round(gSum / weightSum),
-                Math.round(bSum / weightSum)
-              ];
-              const sampleCount = Math.max(1, Math.round(pixels.length * 0.18));
-              const darkestPixels = pixels
-                .sort((a, b) => a.luminance - b.luminance)
-                .slice(0, sampleCount);
-              const darkSum = darkestPixels.reduce((acc, px) => {
-                acc.r += px.r;
-                acc.g += px.g;
-                acc.b += px.b;
-                return acc;
-              }, { r: 0, g: 0, b: 0 });
-              const dark = [
-                Math.round(darkSum.r / darkestPixels.length),
-                Math.round(darkSum.g / darkestPixels.length),
-                Math.round(darkSum.b / darkestPixels.length)
-              ];
-              const lightestPixels = pixels
-                .sort((a, b) => b.luminance - a.luminance)
-                .slice(0, sampleCount);
-              const lightSum = lightestPixels.reduce((acc, px) => {
-                acc.r += px.r;
-                acc.g += px.g;
-                acc.b += px.b;
-                return acc;
-              }, { r: 0, g: 0, b: 0 });
-              const light = [
-                Math.round(lightSum.r / lightestPixels.length),
-                Math.round(lightSum.g / lightestPixels.length),
-                Math.round(lightSum.b / lightestPixels.length)
-              ];
-              resolve({ swatch, dark, light });
-            }
-          } catch {
-            resolve({
-              swatch: [40, 40, 40],
-              dark: [40, 40, 40],
-              light: [150, 150, 150]
-            });
-          } finally {
-            URL.revokeObjectURL(objectUrl);
-          }
-        };
-        img.onerror = () => {
-          URL.revokeObjectURL(objectUrl);
-          resolve({
-            swatch: [40, 40, 40],
-            dark: [40, 40, 40],
-            light: [150, 150, 150]
-          });
-        };
-        img.src = objectUrl;
-      });
     }
 
     function updateTopBarTheme(activeTab = null) {
@@ -14894,7 +14768,7 @@
           })
           .filter((set) => Array.isArray(set.mapping) && set.mapping.length > 0);
       }
-      return manifest;
+      return stripVisualSaveState(manifest);
     }
 
     async function exportPack(targetExt = "smpinst") {
@@ -15706,7 +15580,6 @@
       if (el.playerPitchDownToggle) el.playerPitchDownToggle.style.display = tab === "player" ? "" : "none";
       if (el.strumShowOnMainBtn) el.strumShowOnMainBtn.style.display = tab === "player" ? "" : "none";
       if (el.playerStrumMainToggle) el.playerStrumMainToggle.style.display = tab === "player" ? "" : "none";
-      refreshPlayerParticles();
       scheduleHostResizeForActiveTab();
       if (tab === "player") schedulePlayerTabRefresh();
     }
