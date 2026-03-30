@@ -5185,22 +5185,6 @@
       applyPackFormatRules(false);
     }
 
-    function stripVisualSaveState(value) {
-      const visualKeyPattern = /^(wallpaper|wallpapers|particle|particles|blur|godray|godrays|god-ray|god-rays|backdrop|theme|visual|swatch|topbar|backgroundImage|appBackground)$/i;
-      if (Array.isArray(value)) {
-        return value.map((item) => stripVisualSaveState(item));
-      }
-      if (!value || typeof value !== "object") {
-        return value;
-      }
-      const stripped = {};
-      Object.entries(value).forEach(([key, entryValue]) => {
-        if (visualKeyPattern.test(String(key || "").trim())) return;
-        stripped[key] = stripVisualSaveState(entryValue);
-      });
-      return stripped;
-    }
-
     function buildAutoControlsSnapshot() {
       const startMidi = normalizeAutoNoteInput(el.autoStart, 36, false);
       const endMidi = normalizeAutoNoteInput(el.autoEnd, 72, false);
@@ -5430,7 +5414,7 @@
         preserveRuntimePaths: true,
         includeEmbeddedSampleData: !!options.includeEmbeddedSampleData
       });
-      return stripVisualSaveState({
+      return {
         version: 1,
         manifest,
         ui: {
@@ -5470,14 +5454,14 @@
           sequencer: buildSequencerSnapshot(),
           strum: buildStrumSnapshot()
         }
-      });
+      };
     }
 
     function buildQuickSessionSnapshotFromManifest(manifest) {
       const safeManifest = (manifest && typeof manifest === "object")
         ? manifest
         : { formatVersion: 1, instrumentName: "Instrument", mapping: [] };
-      return stripVisualSaveState({
+      return {
         version: 1,
         manifest: safeManifest,
         ui: {
@@ -5508,7 +5492,7 @@
           sequencer: buildSequencerSnapshot(),
           strum: buildStrumSnapshot()
         }
-      });
+      };
     }
 
     async function flushSessionStateToNative(force = false, flushOptions = {}) {
@@ -14768,7 +14752,7 @@
           })
           .filter((set) => Array.isArray(set.mapping) && set.mapping.length > 0);
       }
-      return stripVisualSaveState(manifest);
+      return manifest;
     }
 
     async function exportPack(targetExt = "smpinst") {
