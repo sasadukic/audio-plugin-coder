@@ -64,6 +64,7 @@ private:
     std::unique_ptr<juce::FileChooser> saveInstrumentChooser;
     std::unique_ptr<juce::FileChooser> loadInstrumentChooser;
     std::unique_ptr<juce::FileChooser> audioFileChooser;
+    std::unique_ptr<juce::FileChooser> graphicFileChooser;
     juce::ThreadPool sampleDataRequestPool { 1 };
 
     struct PendingSampleDataEmit
@@ -93,6 +94,7 @@ private:
     void handleAutoSamplerControlEvent (const juce::var& eventPayload);
     void handleDestinationFolderPickEvent (const juce::var& eventPayload);
     void handlePickInstrumentManifestEvent (const juce::var& eventPayload);
+    void handlePickGraphicFileEvent (const juce::var& eventPayload);
     void handleUIResizeEvent (const juce::var& eventPayload);
     void handleSessionStateSetEvent (const juce::var& eventPayload);
     void handleActiveMapSetEvent (const juce::var& eventPayload);
@@ -104,6 +106,7 @@ private:
     void handlePreviewMidiEvent (const juce::var& eventPayload);
     void handlePerformanceWheelSetEvent (const juce::var& eventPayload);
     void handleSaveInstrumentBundleEvent (const juce::var& eventPayload);
+    void handleGraphicDataGetEvent (const juce::var& eventPayload);
     void handleDebugLogEvent (const juce::var& eventPayload);
     void handlePickAudioFilesEvent (const juce::var& eventPayload);
     void handlePickAudioFolderEvent (const juce::var& eventPayload);

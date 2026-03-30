@@ -54,6 +54,30 @@ bool decodeDataUrlToMemory (const juce::String& dataUrl, juce::MemoryBlock& outp
     return juce::Base64::convertFromBase64 (out, payload);
 }
 
+juce::String getMimeTypeForFile (const juce::File& file)
+{
+    const auto ext = file.getFileExtension().toLowerCase();
+    if (ext == ".png")  return "image/png";
+    if (ext == ".jpg" || ext == ".jpeg") return "image/jpeg";
+    if (ext == ".webp") return "image/webp";
+    if (ext == ".gif")  return "image/gif";
+    if (ext == ".svg")  return "image/svg+xml";
+    return "application/octet-stream";
+}
+
+juce::String buildFileDataUrl (const juce::File& file)
+{
+    if (! file.existsAsFile())
+        return {};
+
+    juce::MemoryBlock bytes;
+    if (! file.loadFileAsData (bytes) || bytes.getSize() == 0)
+        return {};
+
+    return "data:" + getMimeTypeForFile (file) + ";base64,"
+         + juce::Base64::toBase64 (bytes.getData(), bytes.getSize());
+}
+
 juce::String sanitizeRelativeAssetPath (const juce::String& rawPath)
 {
     auto path = rawPath.trim().replaceCharacter ('\\', '/');
@@ -168,6 +192,10 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
                      {
                          editor.handlePickInstrumentManifestEvent (payload);
                      })
+                     .withEventListener ("pick_graphic_file", [&editor] (const juce::var& payload)
+                     {
+                         editor.handlePickGraphicFileEvent (payload);
+                     })
                      .withEventListener ("session_state_set", [&editor] (const juce::var& payload)
                      {
                          editor.handleSessionStateSetEvent (payload);
@@ -207,6 +235,10 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
                      .withEventListener ("save_instrument_bundle", [&editor] (const juce::var& payload)
                      {
                          editor.handleSaveInstrumentBundleEvent (payload);
+                     })
+                     .withEventListener ("graphic_data_get", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleGraphicDataGetEvent (payload);
                      })
                      .withEventListener ("debug_log", [&editor] (const juce::var& payload)
                      {
@@ -832,6 +864,93 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
     });
 }
 
+void SamplePlayerAudioProcessorEditor::handlePickGraphicFileEvent (const juce::var& eventPayload)
+{
+    if (! webView)
+        return;
+
+    int requestId = -1;
+    juce::String currentPath;
+
+    if (const auto* object = eventPayload.getDynamicObject())
+    {
+        requestId = static_cast<int> (std::round (double (object->getProperty ("requestId"))));
+        currentPath = object->getProperty ("currentPath").toString().trim();
+    }
+
+    auto emitResult = [this, requestId] (bool success,
+                                         const juce::String& path,
+                                         const juce::String& fileName,
+                                         const juce::String& dataUrl,
+                                         const juce::String& message)
+    {
+        if (! webView)
+            return;
+
+        auto payload = juce::DynamicObject::Ptr (new juce::DynamicObject());
+        payload->setProperty ("requestId", requestId);
+        payload->setProperty ("success", success);
+        payload->setProperty ("path", path);
+        payload->setProperty ("fileName", fileName);
+        payload->setProperty ("dataUrl", dataUrl);
+        payload->setProperty ("message", message);
+        webView->emitEventIfBrowserIsVisible ("native_graphic_file_picked", juce::var (payload.get()));
+    };
+
+    juce::File initialDir = juce::File::getSpecialLocation (juce::File::userDesktopDirectory);
+    if (juce::File::isAbsolutePath (currentPath))
+    {
+        const juce::File currentFile (currentPath);
+        if (currentFile.isDirectory())
+            initialDir = currentFile;
+        else if (currentFile.exists())
+            initialDir = currentFile.getParentDirectory();
+    }
+
+    const auto chooserFlags = juce::FileBrowserComponent::openMode
+                            | juce::FileBrowserComponent::canSelectFiles;
+
+    graphicFileChooser = std::make_unique<juce::FileChooser> (
+        "Select wallpaper image",
+        initialDir,
+        "*.png;*.jpg;*.jpeg;*.webp;*.gif;*.svg",
+        true);
+
+    juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> safeThis (this);
+    graphicFileChooser->launchAsync (chooserFlags, [safeThis, emitResult] (const juce::FileChooser& chooser)
+    {
+        if (safeThis == nullptr)
+            return;
+
+        const auto file = chooser.getResult();
+        if (! file.existsAsFile())
+        {
+            emitResult (false, {}, {}, {}, "Wallpaper selection canceled.");
+            safeThis->graphicFileChooser.reset();
+            return;
+        }
+
+        const auto dataUrl = buildFileDataUrl (file);
+        if (dataUrl.isEmpty())
+        {
+            emitResult (false,
+                        file.getFullPathName(),
+                        file.getFileName(),
+                        {},
+                        "Could not read selected wallpaper file.");
+            safeThis->graphicFileChooser.reset();
+            return;
+        }
+
+        emitResult (true,
+                    file.getFullPathName(),
+                    file.getFileName(),
+                    dataUrl,
+                    {});
+        safeThis->graphicFileChooser.reset();
+    });
+}
+
 void SamplePlayerAudioProcessorEditor::handleUIResizeEvent (const juce::var& eventPayload)
 {
     const auto* object = eventPayload.getDynamicObject();
@@ -1323,6 +1442,41 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
         writeBundle (chooser.getResult());
         safeThis->saveInstrumentChooser.reset();
     });
+}
+
+void SamplePlayerAudioProcessorEditor::handleGraphicDataGetEvent (const juce::var& eventPayload)
+{
+    if (! webView)
+        return;
+
+    int requestId = -1;
+    juce::String path;
+
+    if (const auto* object = eventPayload.getDynamicObject())
+    {
+        requestId = static_cast<int> (std::round (double (object->getProperty ("requestId"))));
+        path = object->getProperty ("path").toString().trim();
+    }
+
+    auto payload = juce::DynamicObject::Ptr (new juce::DynamicObject());
+    payload->setProperty ("requestId", requestId);
+    payload->setProperty ("path", path);
+
+    if (! juce::File::isAbsolutePath (path))
+    {
+        payload->setProperty ("success", false);
+        payload->setProperty ("dataUrl", juce::String());
+        payload->setProperty ("message", "Invalid wallpaper path.");
+        webView->emitEventIfBrowserIsVisible ("graphic_data_payload", juce::var (payload.get()));
+        return;
+    }
+
+    const juce::File file (path);
+    const auto dataUrl = buildFileDataUrl (file);
+    payload->setProperty ("success", dataUrl.isNotEmpty());
+    payload->setProperty ("dataUrl", dataUrl);
+    payload->setProperty ("message", dataUrl.isNotEmpty() ? juce::String() : juce::String ("Could not load wallpaper."));
+    webView->emitEventIfBrowserIsVisible ("graphic_data_payload", juce::var (payload.get()));
 }
 
 void SamplePlayerAudioProcessorEditor::handleDebugLogEvent (const juce::var& eventPayload)

@@ -43,6 +43,7 @@
       --player-press-glow-rgb: 224, 224, 224;
       --player-wheel-rgb: 236, 236, 236;
       --player-wheel-rgb-dark: 216, 216, 216;
+      --player-wallpaper-image: none;
       --player-key-tint-alpha-top: 0;
       --player-key-tint-alpha-bottom: 0;
       --player-key-press-tint-alpha-top: 0;
@@ -429,17 +430,73 @@
 
     /* Player page strum step grid uses the active player color theme */
     .player-strum-step-grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 0;
+      opacity: 1;
+      transition: opacity 220ms ease;
+    }
+
+    .player-strum-overlay {
       position: absolute;
       left: 10px;
       right: 10px;
       bottom: calc(var(--player-kb-height, 87px) + 10px);
       z-index: 10;
       display: grid;
-      grid-template-columns: repeat(8, 1fr);
-      gap: 0;
-      padding: 8px 10px;
+      gap: 8px;
       opacity: 1;
       transition: opacity 220ms ease;
+    }
+
+    .player-strum-overlay.hidden {
+      display: none;
+    }
+
+    .player-strum-overlay.is-idle-dim {
+      opacity: 0.1;
+    }
+
+    .player-strum-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 10px;
+      border: 1px solid rgba(var(--player-line-rgb, 140, 146, 156), 0.28);
+      border-radius: 8px;
+      background: rgba(var(--player-topbar-rgb, 9, 13, 20), 0.72);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(10px) saturate(115%);
+      -webkit-backdrop-filter: blur(10px) saturate(115%);
+    }
+
+    .player-strum-controls .strum-menu-wrap {
+      display: flex;
+      min-width: 0;
+    }
+
+    .player-strum-controls .sample-loop-tool-btn,
+    .player-strum-controls .strum-menu-btn {
+      border-color: rgba(var(--player-line-rgb, 140, 146, 156), 0.34);
+      background: rgba(var(--player-topbar-rgb, 30, 33, 40), 0.88);
+      color: #fff;
+    }
+
+    .player-strum-controls .sample-loop-tool-btn:hover,
+    .player-strum-controls .strum-menu-btn:hover {
+      border-color: rgba(var(--player-bright-rgb, 218, 222, 229), 0.45);
+      background: rgba(var(--player-topbar-rgb, 55, 58, 66), 0.92);
+      color: #fff;
+    }
+
+    .player-strum-controls .sample-loop-tool-btn.active,
+    .player-strum-controls .strum-menu-btn.active {
+      border-color: rgba(var(--player-bright-rgb, 218, 222, 229), 0.56);
+      background: rgba(var(--player-swatch-rgb, 28, 24, 13), 0.72);
+      color: #fff;
     }
 
     .player-strum-step-grid.hidden {
@@ -654,6 +711,24 @@
       color: rgba(var(--player-line-rgb), 0.82);
     }
 
+    .player-tab-swap {
+      position: relative;
+      display: grid;
+      align-items: center;
+      min-width: 83px;
+    }
+
+    .player-tab-swap > * {
+      grid-area: 1 / 1;
+    }
+
+    .player-tab-icons {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      transition: opacity 120ms ease, visibility 120ms ease;
+    }
+
     .tab-btn {
       border: 1px solid rgba(var(--line-rgb), 0.28);
       border-radius: 10px;
@@ -712,11 +787,12 @@
     }
 
     .player-author-display {
-      display: none;
+      display: inline-flex;
       flex: 0 1 280px;
       min-width: 0;
       max-width: 280px;
-      margin-left: 8px;
+      margin-left: 0;
+      padding: 0 8px 0 4px;
       justify-content: flex-start;
       align-items: center;
       font-size: 12px;
@@ -728,14 +804,48 @@
       overflow: hidden;
       text-overflow: ellipsis;
       pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 120ms ease, visibility 120ms ease;
     }
 
     .player-author-display.visible {
-      display: inline-flex;
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .player-author-display .player-instrument-name {
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .player-author-display .player-byline {
+      margin-left: 0.35em;
+      font-weight: 400;
+      opacity: 0.92;
     }
 
     .tabs.player-topbar-swatch .player-author-display {
       color: rgba(var(--player-line-rgb), 0.96);
+    }
+
+    .tabs.player-topbar-swatch .player-tab-swap:not(:hover):not(:focus-within) .player-tab-icons {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .tabs.player-topbar-swatch .player-tab-swap:hover .player-tab-icons,
+    .tabs.player-topbar-swatch .player-tab-swap:focus-within .player-tab-icons {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .tabs.player-topbar-swatch .player-tab-swap:hover .player-author-display,
+    .tabs.player-topbar-swatch .player-tab-swap:focus-within .player-author-display {
+      opacity: 0;
+      visibility: hidden;
     }
 
     .top-right-controls {
@@ -809,6 +919,10 @@
       opacity: 0.3;
     }
 
+    .topbar-wallpaper-icon-btn.is-loading svg {
+      opacity: 0.3;
+    }
+
     .panel {
       display: none;
       flex: 1 1 auto;
@@ -852,7 +966,13 @@
       border-radius: 0;
       position: relative;
       overflow: hidden;
-      background: var(--chrome-surface);
+      background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.04)),
+        var(--player-wallpaper-image),
+        var(--chrome-surface);
+      background-repeat: no-repeat, no-repeat, no-repeat;
+      background-position: center, center, center;
+      background-size: cover, cover, cover;
     }
 
     .player-stage::before {
@@ -4016,20 +4136,29 @@
     </div>
 
     <nav class="tabs">
-      <button class="tab-btn icon-tab active" type="button" data-tab="player" aria-label="Player" title="Player">
-        <svg viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
-          <path d="M186.67-120q-27 0-46.84-19.83Q120-159.67 120-186.67v-586.66q0-26.34 19.83-46.5Q159.67-840 186.67-840h586.66q26.34 0 46.5 20.17Q840-799.67 840-773.33v586.66q0 27-20.17 46.84Q799.67-120 773.33-120H186.67Zm0-66.67h148v-200H318q-14.17 0-23.75-9.58T284.67-420v-353.33h-98v586.66Zm438.66 0h148v-586.66h-98V-420q0 14.17-9.58 23.75T642-386.67h-16.67v200Zm-244 0h197.34v-200H562q-14.17 0-23.75-9.58T528.67-420v-353.33h-97.34V-420q0 14.17-9.58 23.75T398-386.67h-16.67v200Z"/>
-        </svg>
-      </button>
-      <button class="tab-btn icon-tab" type="button" data-tab="setup" aria-label="Setup / Mapping" title="Setup / Mapping">
-        <svg viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
-          <path d="M748.33-82.5q-5.66-2.17-11-7.5L508-319.33q-5.33-5.34-7.5-11-2.17-5.67-2.17-12.34 0-6.66 2.17-12.33t7.5-11l85-85q5.33-5.33 11-7.5t12.33-2.17q6.67 0 12.34 2.17 5.66 2.17 11 7.5L869-221.67q5.33 5.34 7.5 11 2.17 5.67 2.17 12.34 0 6.66-2.17 12.33t-7.5 11l-85 85q-5.33 5.33-11 7.5t-12.33 2.17q-6.67 0-12.34-2.17Zm12.34-77.5L799-198.33 616.67-380.67l-38.34 38.34L760.67-160ZM185.5-82.33Q179.33-84.67 174-90l-84-84q-5.33-5.33-7.67-11.5Q80-191.67 80-198.33q0-6.67 2.33-12.34 2.34-5.66 7.67-11l220.67-220.66h85L432.33-479 260.67-650.67h-57L80-774.33 183.67-878l123.66 123.67v57L479-525.67 604.33-651l-59-59 56-56h-113L467-787.33 599.67-920 621-898.67v113l56-56 160 160q15.67 15.67 24.33 35.84Q870-625.67 870-603q0 21.33-7.33 41-7.34 19.67-21 35.33l-85-85-56 56L652-604.33 442.33-394.67v84L221.67-90q-5.34 5.33-11 7.67Q205-80 198.33-80q-6.66 0-12.83-2.33ZM198.33-160l190-190v-38.33H350l-190 190L198.33-160Zm0 0L160-198.33l19.67 18.66L198.33-160Zm562.34 0L799-198.33 760.67-160Z"/>
-        </svg>
-      </button>
-      <div id="playerAuthorDisplay" class="player-author-display" aria-live="polite"></div>
+      <div class="player-tab-swap">
+        <div class="player-tab-icons">
+          <button class="tab-btn icon-tab active" type="button" data-tab="player" aria-label="Player" title="Player">
+            <svg viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
+              <path d="M186.67-120q-27 0-46.84-19.83Q120-159.67 120-186.67v-586.66q0-26.34 19.83-46.5Q159.67-840 186.67-840h586.66q26.34 0 46.5 20.17Q840-799.67 840-773.33v586.66q0 27-20.17 46.84Q799.67-120 773.33-120H186.67Zm0-66.67h148v-200H318q-14.17 0-23.75-9.58T284.67-420v-353.33h-98v586.66Zm438.66 0h148v-586.66h-98V-420q0 14.17-9.58 23.75T642-386.67h-16.67v200Zm-244 0h197.34v-200H562q-14.17 0-23.75-9.58T528.67-420v-353.33h-97.34V-420q0 14.17-9.58 23.75T398-386.67h-16.67v200Z"/>
+            </svg>
+          </button>
+          <button class="tab-btn icon-tab" type="button" data-tab="setup" aria-label="Setup / Mapping" title="Setup / Mapping">
+            <svg viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
+              <path d="M748.33-82.5q-5.66-2.17-11-7.5L508-319.33q-5.33-5.34-7.5-11-2.17-5.67-2.17-12.34 0-6.66 2.17-12.33t7.5-11l85-85q5.33-5.33 11-7.5t12.33-2.17q6.67 0 12.34 2.17 5.66 2.17 11 7.5L869-221.67q5.33 5.34 7.5 11 2.17 5.67 2.17 12.34 0 6.66-2.17 12.33t-7.5 11l-85 85q-5.33 5.33-11 7.5t-12.33 2.17q-6.67 0-12.34-2.17Zm12.34-77.5L799-198.33 616.67-380.67l-38.34 38.34L760.67-160ZM185.5-82.33Q179.33-84.67 174-90l-84-84q-5.33-5.33-7.67-11.5Q80-191.67 80-198.33q0-6.67 2.33-12.34 2.34-5.66 7.67-11l220.67-220.66h85L432.33-479 260.67-650.67h-57L80-774.33 183.67-878l123.66 123.67v57L479-525.67 604.33-651l-59-59 56-56h-113L467-787.33 599.67-920 621-898.67v113l56-56 160 160q15.67 15.67 24.33 35.84Q870-625.67 870-603q0 21.33-7.33 41-7.34 19.67-21 35.33l-85-85-56 56L652-604.33 442.33-394.67v84L221.67-90q-5.34 5.33-11 7.67Q205-80 198.33-80q-6.66 0-12.83-2.33ZM198.33-160l190-190v-38.33H350l-190 190L198.33-160Zm0 0L160-198.33l19.67 18.66L198.33-160Zm562.34 0L799-198.33 760.67-160Z"/>
+            </svg>
+          </button>
+        </div>
+        <div id="playerAuthorDisplay" class="player-author-display" aria-live="polite"></div>
+      </div>
       <button id="saveSmpinstBtn" class="tab-btn icon-tab topbar-save-icon-btn hidden" type="button" aria-label="Save instrument" title="Save instrument">
         <svg viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
           <path d="M840-682v495.33q0 27-19.83 46.84Q800.33-120 773.33-120H186.67q-27 0-46.84-19.83Q120-159.67 120-186.67v-586.66q0-27 19.83-46.84Q159.67-840 186.67-840H682l158 158Zm-66.67 29.33L652.67-773.33h-466v586.66h586.66v-466Zm-216 377.49q32-31.84 32-77.33 0-45.49-31.84-77.49-31.84-32-77.33-32-45.49 0-77.49 31.84-32 31.85-32 77.34t31.84 77.49q31.84 32 77.33 32 45.49 0 77.49-31.85ZM235.33-576H594v-148.67H235.33V-576Zm-48.66-76.67v466-586.66 120.66Z"/>
+        </svg>
+      </button>
+      <button id="addWallpaperBtn" class="tab-btn icon-tab topbar-wallpaper-icon-btn hidden" type="button" aria-label="Add wallpaper" title="Add wallpaper to player">
+        <svg viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
+          <path d="M440-440H240v-80h200v-200h80v200h200v80H520v200h-80v-200ZM160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160Zm0-80h640v-480H160v480Zm0 0v-480 480Z"/>
         </svg>
       </button>
       <div class="top-right-controls">
@@ -4054,13 +4183,27 @@
     <input id="folderInput" class="hidden" type="file" webkitdirectory directory multiple>
     <input id="packInput" class="hidden" type="file" accept=".smpinst,.smpinstm,.json">
     <input id="keyswitchInput" class="hidden" type="file" accept=".keysw,.json" multiple>
+    <input id="wallpaperInput" class="hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml">
 
     <section id="panel-player" class="panel active">
       <div id="playerStage" class="player-stage">
         <div id="playerEmptyState" class="player-empty">
           <button id="playerLoadInstrumentBtn" class="player-load-btn" type="button" aria-label="Load sample instrument" title="Load sample instrument">+</button>
         </div>
-        <div id="playerStrumStepGrid" class="player-strum-step-grid hidden" aria-label="Player strum sequencer"></div>
+        <div id="playerStrumOverlay" class="player-strum-overlay hidden">
+          <div id="playerStrumControls" class="player-strum-controls">
+            <div class="strum-menu-wrap">
+              <button id="playerStrumSwingBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Swing 0%</button>
+            </div>
+            <div class="strum-menu-wrap">
+              <button id="playerStrumVelHumanBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Velocity Humanization 0%</button>
+            </div>
+            <div class="strum-menu-wrap">
+              <button id="playerStrumTimeHumanBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Timing Humanization 0ms</button>
+            </div>
+          </div>
+          <div id="playerStrumStepGrid" class="player-strum-step-grid hidden" aria-label="Player strum sequencer"></div>
+        </div>
         <div class="player-keyboard-strip" aria-label="Player keyboard">
           <div class="player-wheel-bank" aria-label="Performance wheels">
             <div class="player-wheel-block" data-wheel="expression">
@@ -4472,75 +4615,34 @@
             </div>
           </div>
 
-          <div id="strumSection" class="section collapsible collapsed">
-            <h2 id="strumToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="strumBody">Strum</h2>
-            <div id="strumBody" class="section-body">
-              <div class="btn-row import-pack-controls strum-controls-row">
-                <div class="strum-menu-wrap">
-                  <button id="strumSequencerBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Sequencer 8</button>
-                  <div id="strumSequencerMenu" class="strum-menu hidden" role="menu" aria-label="Strum sequencer steps">
-                    <button class="strum-menu-item" type="button" data-sequencer-steps="0">Off</button>
-                    <button class="strum-menu-item" type="button" data-sequencer-steps="1">1 Step</button>
-                    <button class="strum-menu-item" type="button" data-sequencer-steps="2">2 Steps</button>
-                    <button class="strum-menu-item" type="button" data-sequencer-steps="3">3 Steps</button>
-                    <button class="strum-menu-item" type="button" data-sequencer-steps="4">4 Steps</button>
-                    <button class="strum-menu-item" type="button" data-sequencer-steps="5">5 Steps</button>
-                    <button class="strum-menu-item" type="button" data-sequencer-steps="6">6 Steps</button>
-                    <button class="strum-menu-item" type="button" data-sequencer-steps="7">7 Steps</button>
-                    <button class="strum-menu-item" type="button" data-sequencer-steps="8">8 Steps</button>
-                  </div>
-                </div>
-                <button id="strumDoublingBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Doubling Off</button>
-                <button id="strumShowOnMainBtn" class="sample-loop-tool-btn" type="button" aria-pressed="false">Show on Main</button>
-                <div class="strum-menu-wrap">
-                  <button id="strumRateBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Rate 1/16</button>
-                  <div id="strumRateMenu" class="strum-menu hidden" role="menu" aria-label="Strum rate">
-                    <button class="strum-menu-item" type="button" data-rate-index="0">1/4</button>
-                    <button class="strum-menu-item" type="button" data-rate-index="1">1/8</button>
-                    <button class="strum-menu-item" type="button" data-rate-index="2">1/16</button>
-                    <button class="strum-menu-item" type="button" data-rate-index="3">1/32</button>
-                  </div>
-                </div>
-                <div class="strum-menu-wrap">
-                  <button id="strumSwingBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Swing 0%</button>
-                  <div id="strumSwingMenu" class="strum-menu hidden" role="menu" aria-label="Strum swing">
-                    <button class="strum-menu-item" type="button" data-swing-value="0">0%</button>
-                    <button class="strum-menu-item" type="button" data-swing-value="5">5%</button>
-                    <button class="strum-menu-item" type="button" data-swing-value="10">10%</button>
-                    <button class="strum-menu-item" type="button" data-swing-value="15">15%</button>
-                    <button class="strum-menu-item" type="button" data-swing-value="20">20%</button>
-                  </div>
-                </div>
-                <div class="strum-menu-wrap">
-                  <button id="strumVelHumanBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Velocity Humanization 0%</button>
-                  <div id="strumVelHumanMenu" class="strum-menu hidden" role="menu" aria-label="Strum velocity humanize">
-                    <button class="strum-menu-item" type="button" data-vel-human-value="0">0%</button>
-                    <button class="strum-menu-item" type="button" data-vel-human-value="5">5%</button>
-                    <button class="strum-menu-item" type="button" data-vel-human-value="10">10%</button>
-                    <button class="strum-menu-item" type="button" data-vel-human-value="15">15%</button>
-                    <button class="strum-menu-item" type="button" data-vel-human-value="20">20%</button>
-                  </div>
-                </div>
-                <div class="strum-menu-wrap">
-                  <button id="strumTimeHumanBtn" class="sample-loop-tool-btn strum-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Timing Humanization 0ms</button>
-                  <div id="strumTimeHumanMenu" class="strum-menu hidden" role="menu" aria-label="Strum timing humanize">
-                    <button class="strum-menu-item" type="button" data-time-human-value="0">0ms</button>
-                    <button class="strum-menu-item" type="button" data-time-human-value="2">2ms</button>
-                    <button class="strum-menu-item" type="button" data-time-human-value="4">4ms</button>
-                    <button class="strum-menu-item" type="button" data-time-human-value="6">6ms</button>
-                    <button class="strum-menu-item" type="button" data-time-human-value="8">8ms</button>
-                    <button class="strum-menu-item" type="button" data-time-human-value="10">10ms</button>
-                  </div>
-                </div>
-              </div>
-              <div id="strumStepGrid" class="strum-step-grid hidden" aria-label="Strum sequencer steps"></div>
-              <div id="strumStatus" class="status"></div>
-            </div>
-          </div>
-
         </div>
       </div>
     </section>
+
+  <div id="strumMenusHost" class="hidden" aria-hidden="true">
+    <div id="strumSwingMenu" class="strum-menu hidden" role="menu" aria-label="Strum swing">
+      <button class="strum-menu-item" type="button" data-swing-value="0">0%</button>
+      <button class="strum-menu-item" type="button" data-swing-value="5">5%</button>
+      <button class="strum-menu-item" type="button" data-swing-value="10">10%</button>
+      <button class="strum-menu-item" type="button" data-swing-value="15">15%</button>
+      <button class="strum-menu-item" type="button" data-swing-value="20">20%</button>
+    </div>
+    <div id="strumVelHumanMenu" class="strum-menu hidden" role="menu" aria-label="Strum velocity humanize">
+      <button class="strum-menu-item" type="button" data-vel-human-value="0">0%</button>
+      <button class="strum-menu-item" type="button" data-vel-human-value="5">5%</button>
+      <button class="strum-menu-item" type="button" data-vel-human-value="10">10%</button>
+      <button class="strum-menu-item" type="button" data-vel-human-value="15">15%</button>
+      <button class="strum-menu-item" type="button" data-vel-human-value="20">20%</button>
+    </div>
+    <div id="strumTimeHumanMenu" class="strum-menu hidden" role="menu" aria-label="Strum timing humanize">
+      <button class="strum-menu-item" type="button" data-time-human-value="0">0ms</button>
+      <button class="strum-menu-item" type="button" data-time-human-value="2">2ms</button>
+      <button class="strum-menu-item" type="button" data-time-human-value="4">4ms</button>
+      <button class="strum-menu-item" type="button" data-time-human-value="6">6ms</button>
+      <button class="strum-menu-item" type="button" data-time-human-value="8">8ms</button>
+      <button class="strum-menu-item" type="button" data-time-human-value="10">10ms</button>
+    </div>
+  </div>
 
   </main>
 
@@ -4698,6 +4800,15 @@
       pendingSampleDataRequests: new Map(),
       manifestPickRequestSeq: 0,
       pendingManifestPickRequests: new Map(),
+      graphicPickRequestSeq: 0,
+      pendingGraphicPickRequests: new Map(),
+      graphicDataRequestSeq: 0,
+      pendingGraphicDataRequests: new Map(),
+      wallpaperAssetPath: "",
+      wallpaperSourcePath: "",
+      wallpaperSourceFileName: "",
+      wallpaperDataUrl: "",
+      wallpaperHydrationTimer: 0,
       entrySampleHydrationPromises: new Map(),
       autoRenderRaf: 0,
       sessionBridgeRetryTimer: 0,
@@ -4780,19 +4891,27 @@
       strumEnableBtn: document.getElementById("strumEnableBtn"),
       strumSequencerBtn: document.getElementById("strumSequencerBtn"),
       strumSequencerMenu: document.getElementById("strumSequencerMenu"),
+      playerStrumOverlay: document.getElementById("playerStrumOverlay"),
+      playerStrumControls: document.getElementById("playerStrumControls"),
+      playerStrumSequencerBtn: document.getElementById("playerStrumSequencerBtn"),
       strumDoublingBtn: document.getElementById("strumDoublingBtn"),
+      playerStrumDoublingBtn: document.getElementById("playerStrumDoublingBtn"),
       strumShowOnMainBtn: document.getElementById("strumShowOnMainBtn"),
       playerStrumMainToggle: document.getElementById("playerStrumMainToggle"),
       doublingToggle: document.getElementById("doublingToggle"),
       playerPitchDownToggle: document.getElementById("playerPitchDownToggle"),
       strumRateBtn: document.getElementById("strumRateBtn"),
       strumRateMenu: document.getElementById("strumRateMenu"),
+      playerStrumRateBtn: document.getElementById("playerStrumRateBtn"),
       strumSwingBtn: document.getElementById("strumSwingBtn"),
       strumSwingMenu: document.getElementById("strumSwingMenu"),
+      playerStrumSwingBtn: document.getElementById("playerStrumSwingBtn"),
       strumVelHumanBtn: document.getElementById("strumVelHumanBtn"),
       strumVelHumanMenu: document.getElementById("strumVelHumanMenu"),
+      playerStrumVelHumanBtn: document.getElementById("playerStrumVelHumanBtn"),
       strumTimeHumanBtn: document.getElementById("strumTimeHumanBtn"),
       strumTimeHumanMenu: document.getElementById("strumTimeHumanMenu"),
+      playerStrumTimeHumanBtn: document.getElementById("playerStrumTimeHumanBtn"),
       strumStepGrid: document.getElementById("strumStepGrid"),
       playerStrumStepGrid: document.getElementById("playerStrumStepGrid"),
       strumStatus: document.getElementById("strumStatus"),
@@ -4807,6 +4926,7 @@
       clearInstrumentBtn: document.getElementById("clearInstrumentBtn"),
       importKeyswitchesBtn: document.getElementById("importKeyswitchesBtn"),
       saveSmpinstBtn: document.getElementById("saveSmpinstBtn"),
+      addWallpaperBtn: document.getElementById("addWallpaperBtn"),
       loadPackBtn: document.getElementById("loadPackBtn"),
       packBtn: document.getElementById("packBtn"),
       openSummaryBtn: document.getElementById("openSummaryBtn"),
@@ -4816,6 +4936,7 @@
       folderInput: document.getElementById("folderInput"),
       packInput: document.getElementById("packInput"),
       keyswitchInput: document.getElementById("keyswitchInput"),
+      wallpaperInput: document.getElementById("wallpaperInput"),
       velocityXfadeToggle: document.getElementById("velocityXfadeToggle"),
       setupStatus: document.getElementById("setupStatus"),
       importLog: document.getElementById("importLog"),
@@ -5360,6 +5481,72 @@
       }
     }
 
+    function getWallpaperAssetPath() {
+      return normalizeManifestPathInput(state.wallpaperAssetPath);
+    }
+
+    function getWallpaperManifestAbsolutePath() {
+      const assetPath = getWallpaperAssetPath();
+      if (!assetPath) return "";
+      if (isAbsolutePathLike(assetPath)) return assetPath;
+      return resolveManifestAssetPath(getPackManifestBasePath(), assetPath);
+    }
+
+    function buildWallpaperAssetPath(fileName) {
+      const baseName = String(fileName || "").trim();
+      if (!baseName) return "";
+      return `Graphics/${sanitizePathToken(baseName, "wallpaper")}`;
+    }
+
+    function applyPlayerWallpaperVisual(dataUrl = "") {
+      const normalized = String(dataUrl || "").trim();
+      document.documentElement.style.setProperty(
+        "--player-wallpaper-image",
+        normalized ? `url("${normalized.replace(/"/g, "\\\"")}")` : "none"
+      );
+    }
+
+    function clearPlayerWallpaperState() {
+      if (state.wallpaperHydrationTimer) {
+        window.clearTimeout(state.wallpaperHydrationTimer);
+        state.wallpaperHydrationTimer = 0;
+      }
+      state.wallpaperAssetPath = "";
+      state.wallpaperSourcePath = "";
+      state.wallpaperSourceFileName = "";
+      state.wallpaperDataUrl = "";
+      applyPlayerWallpaperVisual("");
+    }
+
+    function scheduleWallpaperHydration(delayMs = 60) {
+      if (state.wallpaperHydrationTimer) {
+        window.clearTimeout(state.wallpaperHydrationTimer);
+      }
+      const wallpaperAbsolutePath = getWallpaperManifestAbsolutePath();
+      if (!wallpaperAbsolutePath) {
+        state.wallpaperHydrationTimer = 0;
+        applyPlayerWallpaperVisual(state.wallpaperDataUrl);
+        return;
+      }
+      state.wallpaperHydrationTimer = window.setTimeout(() => {
+        state.wallpaperHydrationTimer = 0;
+        void hydrateWallpaperPreviewFromCurrentSource();
+      }, Math.max(20, Math.round(Number(delayMs) || 60)));
+    }
+
+    async function hydrateWallpaperPreviewFromCurrentSource() {
+      const absolutePath = getWallpaperManifestAbsolutePath();
+      if (!absolutePath) {
+        applyPlayerWallpaperVisual(state.wallpaperDataUrl);
+        return "";
+      }
+      const dataUrl = String(await requestGraphicDataFromNative(absolutePath, 3500) || "").trim();
+      if (!dataUrl) return "";
+      state.wallpaperDataUrl = dataUrl;
+      applyPlayerWallpaperVisual(dataUrl);
+      return dataUrl;
+    }
+
     function applyAutoControlsSnapshot(snapshot) {
       if (!snapshot || typeof snapshot !== "object") return;
       if (el.autoStart && snapshot.startNote) el.autoStart.value = String(snapshot.startNote);
@@ -5454,7 +5641,10 @@
           playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
           auto: buildAutoControlsSnapshot(),
           sequencer: buildSequencerSnapshot(),
-          strum: buildStrumSnapshot()
+          strum: buildStrumSnapshot(),
+          wallpaperAssetPath: getWallpaperAssetPath(),
+          wallpaperSourcePath: normalizeManifestPathInput(state.wallpaperSourcePath),
+          wallpaperSourceFileName: String(state.wallpaperSourceFileName || "").trim()
         }
       };
     }
@@ -5492,7 +5682,10 @@
           playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
           auto: buildAutoControlsSnapshot(),
           sequencer: buildSequencerSnapshot(),
-          strum: buildStrumSnapshot()
+          strum: buildStrumSnapshot(),
+          wallpaperAssetPath: getWallpaperAssetPath(),
+          wallpaperSourcePath: normalizeManifestPathInput(state.wallpaperSourcePath),
+          wallpaperSourceFileName: String(state.wallpaperSourceFileName || "").trim()
         }
       };
     }
@@ -5568,6 +5761,8 @@
           state.strumTimingHumanizeMs,
           state.sequencerHostTriggerEnabled,
           state.sequencerDoubling,
+          getWallpaperAssetPath(),
+          normalizeManifestPathInput(state.wallpaperSourcePath),
           JSON.stringify(state.manualRootRanges || {}),
           JSON.stringify(state.velocityCrossfadeByRoot || {}),
           JSON.stringify(state.sequencerSteps),
@@ -5843,6 +6038,10 @@
         state.baseLoopPlaybackEnabled = ui.baseLoopPlaybackEnabled !== false;
         state.packManifestFilePath = String(ui.manifestFilePath || "").trim();
         state.packManifestBasePath = String(ui.manifestBasePath || "").trim();
+        state.wallpaperAssetPath = normalizeManifestPathInput(ui.wallpaperAssetPath || state.wallpaperAssetPath);
+        state.wallpaperSourcePath = normalizeManifestPathInput(ui.wallpaperSourcePath || state.wallpaperSourcePath);
+        state.wallpaperSourceFileName = String(ui.wallpaperSourceFileName || state.wallpaperSourceFileName || "").trim();
+        scheduleWallpaperHydration(80);
         updatePerformanceWheelVisuals();
 
         const restoredSetStates = Array.isArray(ui.keyswitchSets) ? ui.keyswitchSets : [];
@@ -6804,6 +7003,12 @@
         const manifestPickToken = backend.addEventListener("instrument_manifest_picked", (payload) => {
           handleInstrumentManifestPickedPayload(payload);
         });
+        const graphicPickToken = backend.addEventListener("native_graphic_file_picked", (payload) => {
+          handleNativeGraphicFilePickedPayload(payload);
+        });
+        const graphicDataToken = backend.addEventListener("graphic_data_payload", (payload) => {
+          handleGraphicDataPayload(payload);
+        });
         const saveResultToken = backend.addEventListener("instrument_save_result", (payload) => {
           handleInstrumentSaveResult(payload);
         });
@@ -6813,7 +7018,7 @@
         const nativeAudioPickToken = backend.addEventListener("native_audio_files_picked", (payload) => {
           handleNativePickedAudioFiles(payload);
         });
-        state.nativeSessionListeners = [stateToken, statePayloadToken, sampleDataToken, manifestPickToken, saveResultToken, midiActivityToken, nativeAudioPickToken];
+        state.nativeSessionListeners = [stateToken, statePayloadToken, sampleDataToken, manifestPickToken, graphicPickToken, graphicDataToken, saveResultToken, midiActivityToken, nativeAudioPickToken];
       } catch {
         state.nativeSessionListeners = [];
         debugLoadLog("restore bridge failed | listener registration");
@@ -7832,10 +8037,12 @@
       renderStrumStepGridInto(el.strumStepGrid);
       if (el.playerStrumStepGrid) {
         if (state.strumShowOnMain) {
+          if (el.playerStrumOverlay) el.playerStrumOverlay.classList.remove("hidden");
           renderStrumStepGridInto(el.playerStrumStepGrid);
         } else {
           el.playerStrumStepGrid.innerHTML = "";
           el.playerStrumStepGrid.classList.add("hidden");
+          if (el.playerStrumOverlay) el.playerStrumOverlay.classList.add("hidden");
         }
       }
     }
@@ -7848,28 +8055,32 @@
         el.strumEnableBtn.classList.toggle("active", on);
       }
 
-      if (el.strumSequencerBtn) {
-        const stepCount = getStrumVisibleStepCount();
-        el.strumSequencerBtn.textContent = stepCount <= 0 ? "Sequencer Off" : `Sequencer ${stepCount}`;
-        el.strumSequencerBtn.setAttribute("aria-pressed", stepCount > 0 ? "true" : "false");
-        el.strumSequencerBtn.classList.toggle("active", stepCount > 0);
+      const stepCount = getStrumVisibleStepCount();
+      [el.strumSequencerBtn, el.playerStrumSequencerBtn].forEach((button) => {
+        if (!button) return;
+        button.textContent = stepCount <= 0 ? "Sequencer Off" : `Sequencer ${stepCount}`;
+        button.setAttribute("aria-pressed", stepCount > 0 ? "true" : "false");
+        button.classList.toggle("active", stepCount > 0);
         if (el.strumSequencerMenu) {
           const isOpen = !el.strumSequencerMenu.classList.contains("hidden");
-          el.strumSequencerBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
-          Array.from(el.strumSequencerMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
-            const rawSteps = Number(item.dataset.sequencerSteps);
-            const steps = Number.isFinite(rawSteps) ? Math.max(0, Math.min(8, Math.round(rawSteps))) : 8;
-            item.classList.toggle("active", steps === stepCount);
-          });
+          button.setAttribute("aria-expanded", isOpen ? "true" : "false");
         }
+      });
+      if (el.strumSequencerMenu) {
+        Array.from(el.strumSequencerMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
+          const rawSteps = Number(item.dataset.sequencerSteps);
+          const steps = Number.isFinite(rawSteps) ? Math.max(0, Math.min(8, Math.round(rawSteps))) : 8;
+          item.classList.toggle("active", steps === stepCount);
+        });
       }
 
-      if (el.strumDoublingBtn) {
-        const on = !!state.strumDoubling;
-        el.strumDoublingBtn.textContent = on ? "Doubling On" : "Doubling Off";
-        el.strumDoublingBtn.setAttribute("aria-pressed", on ? "true" : "false");
-        el.strumDoublingBtn.classList.toggle("active", on);
-      }
+      const doublingOn = !!state.strumDoubling;
+      [el.strumDoublingBtn, el.playerStrumDoublingBtn].forEach((button) => {
+        if (!button) return;
+        button.textContent = doublingOn ? "Doubling On" : "Doubling Off";
+        button.setAttribute("aria-pressed", doublingOn ? "true" : "false");
+        button.classList.toggle("active", doublingOn);
+      });
 
       if (el.strumShowOnMainBtn) {
         el.strumShowOnMainBtn.setAttribute("aria-pressed", state.strumShowOnMain ? "true" : "false");
@@ -7878,56 +8089,68 @@
         el.strumShowOnMainBtn.style.display = activeTab === 'player' ? '' : 'none';
       }
 
-      if (el.strumRateBtn) {
-        const idx = Math.max(0, Math.min(3, Number(state.strumRateIndex) || 0));
-        el.strumRateBtn.textContent = `Rate ${STRUM_RATE_LABELS[idx]}`;
+      const idx = Math.max(0, Math.min(3, Number(state.strumRateIndex) || 0));
+      [el.strumRateBtn, el.playerStrumRateBtn].forEach((button) => {
+        if (!button) return;
+        button.textContent = `Rate ${STRUM_RATE_LABELS[idx]}`;
         if (el.strumRateMenu) {
           const isOpen = !el.strumRateMenu.classList.contains("hidden");
-          el.strumRateBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
-          const items = Array.from(el.strumRateMenu.querySelectorAll(".strum-menu-item"));
-          items.forEach((item, itemIndex) => {
-            item.classList.toggle("active", itemIndex === idx);
-          });
+          button.setAttribute("aria-expanded", isOpen ? "true" : "false");
         }
+      });
+      if (el.strumRateMenu) {
+        const items = Array.from(el.strumRateMenu.querySelectorAll(".strum-menu-item"));
+        items.forEach((item, itemIndex) => {
+          item.classList.toggle("active", itemIndex === idx);
+        });
       }
 
       const swing = Math.max(0, Math.min(20, Number(state.strumSwingPercent) || 0));
-      if (el.strumSwingBtn) {
-        el.strumSwingBtn.textContent = `Swing ${swing}%`;
+      [el.strumSwingBtn, el.playerStrumSwingBtn].forEach((button) => {
+        if (!button) return;
+        button.textContent = `Swing ${swing}%`;
         if (el.strumSwingMenu) {
           const isOpen = !el.strumSwingMenu.classList.contains("hidden");
-          el.strumSwingBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
-          Array.from(el.strumSwingMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
-            const val = Math.max(0, Math.min(20, Number(item.dataset.swingValue) || 0));
-            item.classList.toggle("active", val === swing);
-          });
+          button.setAttribute("aria-expanded", isOpen ? "true" : "false");
         }
+      });
+      if (el.strumSwingMenu) {
+        Array.from(el.strumSwingMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
+          const val = Math.max(0, Math.min(20, Number(item.dataset.swingValue) || 0));
+          item.classList.toggle("active", val === swing);
+        });
       }
 
       const velHum = Math.max(0, Math.min(20, Number(state.strumVelocityHumanizePercent) || 0));
-      if (el.strumVelHumanBtn) {
-        el.strumVelHumanBtn.textContent = `Velocity Humanization ${velHum}%`;
+      [el.strumVelHumanBtn, el.playerStrumVelHumanBtn].forEach((button) => {
+        if (!button) return;
+        button.textContent = `Velocity Humanization ${velHum}%`;
         if (el.strumVelHumanMenu) {
           const isOpen = !el.strumVelHumanMenu.classList.contains("hidden");
-          el.strumVelHumanBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
-          Array.from(el.strumVelHumanMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
-            const val = Math.max(0, Math.min(20, Number(item.dataset.velHumanValue) || 0));
-            item.classList.toggle("active", val === velHum);
-          });
+          button.setAttribute("aria-expanded", isOpen ? "true" : "false");
         }
+      });
+      if (el.strumVelHumanMenu) {
+        Array.from(el.strumVelHumanMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
+          const val = Math.max(0, Math.min(20, Number(item.dataset.velHumanValue) || 0));
+          item.classList.toggle("active", val === velHum);
+        });
       }
 
       const timeHum = Math.max(0, Math.min(10, Number(state.strumTimingHumanizeMs) || 0));
-      if (el.strumTimeHumanBtn) {
-        el.strumTimeHumanBtn.textContent = `Timing Humanization ${timeHum}ms`;
+      [el.strumTimeHumanBtn, el.playerStrumTimeHumanBtn].forEach((button) => {
+        if (!button) return;
+        button.textContent = `Timing Humanization ${timeHum}ms`;
         if (el.strumTimeHumanMenu) {
           const isOpen = !el.strumTimeHumanMenu.classList.contains("hidden");
-          el.strumTimeHumanBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
-          Array.from(el.strumTimeHumanMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
-            const val = Math.max(0, Math.min(10, Number(item.dataset.timeHumanValue) || 0));
-            item.classList.toggle("active", val === timeHum);
-          });
+          button.setAttribute("aria-expanded", isOpen ? "true" : "false");
         }
+      });
+      if (el.strumTimeHumanMenu) {
+        Array.from(el.strumTimeHumanMenu.querySelectorAll(".strum-menu-item")).forEach((item) => {
+          const val = Math.max(0, Math.min(10, Number(item.dataset.timeHumanValue) || 0));
+          item.classList.toggle("active", val === timeHum);
+        });
       }
 
       renderStrumStepGrid();
@@ -7977,25 +8200,28 @@
 
     function schedulePlayerStrumIdleDim() {
       clearPlayerStrumIdleTimer();
-      if (!el.playerStrumStepGrid) return;
+      if (!el.playerStrumOverlay) return;
       if (!state.strumShowOnMain || !state.strumEnabled || getStrumVisibleStepCount() <= 0) {
-        el.playerStrumStepGrid.classList.remove("is-idle-dim");
+        el.playerStrumOverlay.classList.remove("is-idle-dim");
+        if (el.playerStrumStepGrid) el.playerStrumStepGrid.classList.remove("is-idle-dim");
         return;
       }
       playerStrumIdleTimer = window.setTimeout(() => {
-        if (!el.playerStrumStepGrid) return;
-        el.playerStrumStepGrid.classList.add("is-idle-dim");
+        if (!el.playerStrumOverlay) return;
+        el.playerStrumOverlay.classList.add("is-idle-dim");
+        if (el.playerStrumStepGrid) el.playerStrumStepGrid.classList.remove("is-idle-dim");
       }, 3000);
     }
 
     function wakePlayerStrumGrid() {
-      if (!el.playerStrumStepGrid) return;
+      if (!el.playerStrumOverlay) return;
       clearPlayerStrumIdleTimer();
-      el.playerStrumStepGrid.classList.remove("is-idle-dim");
+      el.playerStrumOverlay.classList.remove("is-idle-dim");
+      if (el.playerStrumStepGrid) el.playerStrumStepGrid.classList.remove("is-idle-dim");
     }
 
     function syncPlayerStrumIdleState() {
-      if (!el.playerStrumStepGrid) return;
+      if (!el.playerStrumOverlay) return;
       if (!state.strumShowOnMain || !state.strumEnabled || getStrumVisibleStepCount() <= 0) {
         wakePlayerStrumGrid();
         return;
@@ -8028,11 +8254,13 @@
     }
 
     function syncStrumDoublingBtn() {
-      if (!el.strumDoublingBtn) return;
       const on = !!state.strumDoubling;
-      el.strumDoublingBtn.textContent = on ? "Doubling On" : "Doubling Off";
-      el.strumDoublingBtn.setAttribute("aria-pressed", on ? "true" : "false");
-      el.strumDoublingBtn.classList.toggle("active", on);
+      [el.strumDoublingBtn, el.playerStrumDoublingBtn].forEach((button) => {
+        if (!button) return;
+        button.textContent = on ? "Doubling On" : "Doubling Off";
+        button.setAttribute("aria-pressed", on ? "true" : "false");
+        button.classList.toggle("active", on);
+      });
     }
 
     function setupStrum() {
@@ -8195,10 +8423,15 @@
         ];
         const buttons = [
           el.strumSequencerBtn,
+          el.playerStrumSequencerBtn,
           el.strumRateBtn,
+          el.playerStrumRateBtn,
           el.strumSwingBtn,
+          el.playerStrumSwingBtn,
           el.strumVelHumanBtn,
+          el.playerStrumVelHumanBtn,
           el.strumTimeHumanBtn,
+          el.playerStrumTimeHumanBtn,
           ...Array.from(document.querySelectorAll(".strum-step-rate-btn")),
           ...Array.from(document.querySelectorAll(".strum-step-keyswitch-btn"))
         ];
@@ -8217,16 +8450,19 @@
         });
       };
 
-      const setupStrumMenu = (btn, menu, itemSelector, onSelect) => {
-        if (!btn || !menu) return;
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const open = !menu.classList.contains("hidden");
-          closeStrumMenus();
-          if (!open) {
-            positionStrumMenuAt(btn, menu);
-            btn.setAttribute("aria-expanded", "true");
-          }
+      const setupStrumMenu = (buttons, menu, itemSelector, onSelect) => {
+        const buttonList = Array.isArray(buttons) ? buttons.filter(Boolean) : [buttons].filter(Boolean);
+        if (!buttonList.length || !menu) return;
+        buttonList.forEach((button) => {
+          button.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const open = !menu.classList.contains("hidden");
+            closeStrumMenus();
+            if (!open) {
+              positionStrumMenuAt(button, menu);
+              button.setAttribute("aria-expanded", "true");
+            }
+          });
         });
 
         Array.from(menu.querySelectorAll(itemSelector)).forEach((item) => {
@@ -8261,8 +8497,8 @@
         });
       }
 
-      if (el.strumSequencerBtn) {
-        setupStrumMenu(el.strumSequencerBtn, el.strumSequencerMenu, ".strum-menu-item", (item) => {
+      if (el.strumSequencerBtn || el.playerStrumSequencerBtn) {
+        setupStrumMenu([el.strumSequencerBtn, el.playerStrumSequencerBtn], el.strumSequencerMenu, ".strum-menu-item", (item) => {
           const rawSteps = Number(item.dataset.sequencerSteps);
           state.strumSequencerSteps = Number.isFinite(rawSteps) ? Math.max(0, Math.min(8, Math.round(rawSteps))) : 8;
           state.strumSequencerMode = state.strumSequencerSteps <= 0 ? 0 : (state.strumSequencerSteps <= 4 ? 1 : 2);
@@ -8270,15 +8506,15 @@
         });
       }
 
-      if (el.strumDoublingBtn) {
-        el.strumDoublingBtn.addEventListener("click", () => {
+      [el.strumDoublingBtn, el.playerStrumDoublingBtn].filter(Boolean).forEach((button) => {
+        button.addEventListener("click", () => {
           state.strumDoubling = !state.strumDoubling;
           syncDoublingToggle();
           syncStrumDoublingBtn();
           emitStrumSettings();
           scheduleSessionStateSave(220);
         });
-      }
+      });
 
       if (el.doublingToggle) {
         el.doublingToggle.addEventListener("click", () => {
@@ -8321,17 +8557,17 @@
         });
       }
 
-      if (el.playerStrumStepGrid) {
-        el.playerStrumStepGrid.addEventListener("mouseenter", () => {
+      if (el.playerStrumOverlay) {
+        el.playerStrumOverlay.addEventListener("mouseenter", () => {
           wakePlayerStrumGrid();
         });
-        el.playerStrumStepGrid.addEventListener("mouseleave", () => {
+        el.playerStrumOverlay.addEventListener("mouseleave", () => {
           schedulePlayerStrumIdleDim();
         });
-        el.playerStrumStepGrid.addEventListener("focusin", () => {
+        el.playerStrumOverlay.addEventListener("focusin", () => {
           wakePlayerStrumGrid();
         });
-        el.playerStrumStepGrid.addEventListener("focusout", () => {
+        el.playerStrumOverlay.addEventListener("focusout", () => {
           schedulePlayerStrumIdleDim();
         });
       }
@@ -8342,28 +8578,30 @@
           el.strumShowOnMainBtn.setAttribute("aria-pressed", state.strumShowOnMain ? "true" : "false");
           el.strumShowOnMainBtn.classList.toggle("active", state.strumShowOnMain);
           if (state.strumShowOnMain) {
+            if (el.playerStrumOverlay) el.playerStrumOverlay.classList.remove("hidden");
             renderStrumStepGridInto(el.playerStrumStepGrid);
           } else if (el.playerStrumStepGrid) {
             el.playerStrumStepGrid.innerHTML = "";
             el.playerStrumStepGrid.classList.add("hidden");
+            if (el.playerStrumOverlay) el.playerStrumOverlay.classList.add("hidden");
           }
           scheduleSessionStateSave(220);
         });
       }
 
-      setupStrumMenu(el.strumRateBtn, el.strumRateMenu, ".strum-menu-item", (item) => {
+      setupStrumMenu([el.strumRateBtn, el.playerStrumRateBtn], el.strumRateMenu, ".strum-menu-item", (item) => {
         state.strumRateIndex = Math.max(0, Math.min(3, Number(item.dataset.rateIndex) || 0));
       });
 
-      setupStrumMenu(el.strumSwingBtn, el.strumSwingMenu, ".strum-menu-item", (item) => {
+      setupStrumMenu([el.strumSwingBtn, el.playerStrumSwingBtn], el.strumSwingMenu, ".strum-menu-item", (item) => {
         state.strumSwingPercent = Math.max(0, Math.min(20, Number(item.dataset.swingValue) || 0));
       });
 
-      setupStrumMenu(el.strumVelHumanBtn, el.strumVelHumanMenu, ".strum-menu-item", (item) => {
+      setupStrumMenu([el.strumVelHumanBtn, el.playerStrumVelHumanBtn], el.strumVelHumanMenu, ".strum-menu-item", (item) => {
         state.strumVelocityHumanizePercent = Math.max(0, Math.min(20, Number(item.dataset.velHumanValue) || 0));
       });
 
-      setupStrumMenu(el.strumTimeHumanBtn, el.strumTimeHumanMenu, ".strum-menu-item", (item) => {
+      setupStrumMenu([el.strumTimeHumanBtn, el.playerStrumTimeHumanBtn], el.strumTimeHumanMenu, ".strum-menu-item", (item) => {
         state.strumTimingHumanizeMs = Math.max(0, Math.min(10, Number(item.dataset.timeHumanValue) || 0));
       });
 
@@ -8823,8 +9061,13 @@
 
     function updateTopBarTheme(activeTab = null) {
       if (!el.tabsBar) return;
-      void activeTab;
+      const tab = activeTab
+        || document.querySelector(".tab-btn.active")?.dataset.tab
+        || "player";
       el.tabsBar.classList.remove("player-topbar-swatch");
+      if (tab === "player") {
+        el.tabsBar.classList.add("player-topbar-swatch");
+      }
     }
 
     let playerControlsHideTimer = 0;
@@ -11904,6 +12147,106 @@
       });
     }
 
+    function requestGraphicPickFromNative(timeoutMs = 25000) {
+      if (!getNativeBackend()) return Promise.resolve(null);
+      const requestId = (Number(state.graphicPickRequestSeq) || 0) + 1;
+      state.graphicPickRequestSeq = requestId;
+      return new Promise((resolve) => {
+        const timeoutId = window.setTimeout(() => {
+          const pending = state.pendingGraphicPickRequests.get(requestId);
+          if (!pending) return;
+          state.pendingGraphicPickRequests.delete(requestId);
+          resolve(null);
+        }, Math.max(1000, Math.round(Number(timeoutMs) || 25000)));
+
+        state.pendingGraphicPickRequests.set(requestId, { resolve, timeoutId });
+        const emitted = emitNativeEvent("pick_graphic_file", {
+          requestId,
+          currentPath: state.wallpaperSourcePath || getWallpaperManifestAbsolutePath() || getPackManifestBasePath()
+        });
+        if (!emitted) {
+          const pending = state.pendingGraphicPickRequests.get(requestId);
+          if (pending) {
+            window.clearTimeout(pending.timeoutId);
+            state.pendingGraphicPickRequests.delete(requestId);
+          }
+          resolve(null);
+        }
+      });
+    }
+
+    function handleNativeGraphicFilePickedPayload(payload) {
+      const info = (payload && typeof payload === "object" && !Array.isArray(payload))
+        ? payload
+        : null;
+      const requestId = Math.round(Number(info?.requestId));
+      if (!Number.isFinite(requestId)) return;
+      const pending = state.pendingGraphicPickRequests.get(requestId);
+      if (!pending) return;
+      state.pendingGraphicPickRequests.delete(requestId);
+      window.clearTimeout(pending.timeoutId);
+      pending.resolve({
+        success: !!info?.success,
+        path: String(info?.path || "").trim(),
+        fileName: String(info?.fileName || "").trim(),
+        dataUrl: String(info?.dataUrl || "").trim(),
+        message: String(info?.message || "").trim()
+      });
+    }
+
+    function requestGraphicDataFromNative(path, timeoutMs = 4000) {
+      const normalizedPath = normalizeManifestPathInput(path);
+      if (!normalizedPath || !getNativeBackend()) return Promise.resolve("");
+      const requestId = (Number(state.graphicDataRequestSeq) || 0) + 1;
+      state.graphicDataRequestSeq = requestId;
+      return new Promise((resolve) => {
+        const timeoutId = window.setTimeout(() => {
+          const pending = state.pendingGraphicDataRequests.get(requestId);
+          if (!pending) return;
+          state.pendingGraphicDataRequests.delete(requestId);
+          resolve("");
+        }, Math.max(800, Math.round(Number(timeoutMs) || 4000)));
+
+        state.pendingGraphicDataRequests.set(requestId, { resolve, timeoutId, path: normalizedPath });
+        const emitted = emitNativeEvent("graphic_data_get", { requestId, path: normalizedPath });
+        if (!emitted) {
+          const pending = state.pendingGraphicDataRequests.get(requestId);
+          if (pending) {
+            window.clearTimeout(pending.timeoutId);
+            state.pendingGraphicDataRequests.delete(requestId);
+          }
+          resolve("");
+        }
+      });
+    }
+
+    function handleGraphicDataPayload(payload) {
+      const info = (payload && typeof payload === "object" && !Array.isArray(payload))
+        ? payload
+        : null;
+      const requestId = Math.round(Number(info?.requestId));
+      if (!Number.isFinite(requestId)) return;
+      const pending = state.pendingGraphicDataRequests.get(requestId);
+      if (!pending) return;
+      state.pendingGraphicDataRequests.delete(requestId);
+      window.clearTimeout(pending.timeoutId);
+      const dataUrl = info?.success ? String(info?.dataUrl || "").trim() : "";
+      pending.resolve(dataUrl);
+    }
+
+    function applyPickedWallpaper({ sourcePath = "", fileName = "", dataUrl = "" } = {}) {
+      const normalizedSourcePath = normalizeManifestPathInput(sourcePath);
+      const normalizedFileName = String(fileName || "").trim() || normalizedSourcePath.split("/").pop() || "wallpaper";
+      const normalizedDataUrl = String(dataUrl || "").trim();
+      state.wallpaperSourcePath = normalizedSourcePath;
+      state.wallpaperSourceFileName = normalizedFileName;
+      state.wallpaperAssetPath = buildWallpaperAssetPath(normalizedFileName);
+      state.wallpaperDataUrl = normalizedDataUrl;
+      applyPlayerWallpaperVisual(normalizedDataUrl);
+      ensureSessionStateWritable("wallpaper-update");
+      scheduleSessionStateSave(250);
+    }
+
     function getEntryManifestAbsolutePathCandidates(entry) {
       if (!entry) return [];
       const relativePath = String(entry.manifestPath || "").trim();
@@ -14625,9 +14968,12 @@
       state.waveformCache.clear();
       state.pendingSampleDataRequests.clear();
       state.pendingManifestPickRequests.clear();
+      state.pendingGraphicPickRequests.clear();
+      state.pendingGraphicDataRequests.clear();
       state.entrySampleHydrationPromises.clear();
       state.velocityCrossfadeByRoot = {};
       state.velocityCrossfadePercent = 0;
+      clearPlayerWallpaperState();
       closeSampleEditor();
       renderSetup();
       updatePlayerEmptyState();
@@ -14757,6 +15103,12 @@
           })
           .filter((set) => Array.isArray(set.mapping) && set.mapping.length > 0);
       }
+      const wallpaperAssetPath = getWallpaperAssetPath();
+      if (wallpaperAssetPath) {
+        manifest.graphics = {
+          wallpaperPath: wallpaperAssetPath
+        };
+      }
       return manifest;
     }
 
@@ -14778,6 +15130,7 @@
       try {
         // Strict relative-path JSON manifests only (no embedded data URLs).
         const manifest = buildManifestSkeleton(ext, { preserveRuntimePaths: false });
+        delete manifest.graphics;
         const defaultBase = (manifest.instrumentName || "instrument").replace(/[^a-z0-9_-]+/gi, "_");
         let base = defaultBase || "instrument";
         if (ext === "keysw") {
@@ -14882,6 +15235,21 @@
           return;
         }
 
+        const wallpaperAssetPath = getWallpaperAssetPath();
+        if (wallpaperAssetPath) {
+          let wallpaperDataUrl = String(state.wallpaperDataUrl || "").trim();
+          if (!wallpaperDataUrl) {
+            const existingWallpaperPath = getWallpaperManifestAbsolutePath() || normalizeManifestPathInput(state.wallpaperSourcePath);
+            wallpaperDataUrl = String(await requestGraphicDataFromNative(existingWallpaperPath, 4000) || "").trim();
+          }
+          if (!wallpaperDataUrl) {
+            setStatus(el.setupStatus, "Save failed: wallpaper image could not be resolved.", "bad");
+            return;
+          }
+          state.wallpaperDataUrl = wallpaperDataUrl;
+          assetsByPath.set(wallpaperAssetPath, wallpaperDataUrl);
+        }
+
         const usedKeyswitchManifestPaths = new Set();
         for (let i = 0; i < (state.keyswitchSets || []).length; i += 1) {
           const set = state.keyswitchSets[i];
@@ -14969,6 +15337,11 @@
       if (success) {
         if (manifestPath) state.packManifestFilePath = manifestPath;
         if (manifestBasePath) state.packManifestBasePath = manifestBasePath;
+        const wallpaperAssetPath = getWallpaperAssetPath();
+        if (wallpaperAssetPath && manifestBasePath) {
+          state.wallpaperSourcePath = resolveManifestAssetPath(manifestBasePath, wallpaperAssetPath);
+          scheduleWallpaperHydration(40);
+        }
         setStatus(el.setupStatus, message || "Instrument saved.", "ok");
         scheduleSessionStateSave(250);
       } else {
@@ -15031,6 +15404,23 @@
         if (missingSampleCount > 0) {
           setStatus(el.setupStatus, `Monolith save failed: ${missingSampleCount} sample(s) could not be resolved.`, "bad");
           return;
+        }
+
+        const wallpaperAssetPath = getWallpaperAssetPath();
+        if (wallpaperAssetPath) {
+          let wallpaperDataUrl = String(state.wallpaperDataUrl || "").trim();
+          if (!wallpaperDataUrl) {
+            const existingWallpaperPath = getWallpaperManifestAbsolutePath() || normalizeManifestPathInput(state.wallpaperSourcePath);
+            wallpaperDataUrl = String(await requestGraphicDataFromNative(existingWallpaperPath, 4000) || "").trim();
+          }
+          if (!wallpaperDataUrl) {
+            setStatus(el.setupStatus, "Monolith save failed: wallpaper image could not be resolved.", "bad");
+            return;
+          }
+          manifest.graphics = {
+            wallpaperPath: wallpaperAssetPath,
+            wallpaperDataUrl
+          };
         }
 
         const monolithJson = JSON.stringify(manifest, null, 2);
@@ -15146,6 +15536,10 @@
       state.baseLoopPlaybackEnabled = data?.settings?.baseLoopPlaybackEnabled !== false;
       state.packManifestFilePath = manifestFilePath;
       state.packManifestBasePath = manifestBasePath;
+      state.wallpaperAssetPath = normalizeManifestPathInput(sessionUiState?.wallpaperAssetPath || data?.graphics?.wallpaperPath);
+      state.wallpaperSourcePath = normalizeManifestPathInput(sessionUiState?.wallpaperSourcePath);
+      state.wallpaperSourceFileName = String(sessionUiState?.wallpaperSourceFileName || state.wallpaperAssetPath.split("/").pop() || "").trim();
+      state.wallpaperDataUrl = String(data?.graphics?.wallpaperDataUrl || "").trim();
       state.nextVirtualOrder = -1;
       state.rrCursor = {};
       state.sessionStateLightweight = false;
@@ -15159,6 +15553,10 @@
       if (el.autoInstrument && typeof data?.instrumentName === "string") {
         el.autoInstrument.value = data.instrumentName.trim();
       }
+      if (!state.wallpaperSourcePath && state.wallpaperAssetPath && manifestBasePath) {
+        state.wallpaperSourcePath = resolveManifestAssetPath(manifestBasePath, state.wallpaperAssetPath);
+      }
+      scheduleWallpaperHydration(80);
       const loadedSettings = (data?.settings && typeof data.settings === "object") ? data.settings : null;
       if (el.autoLoop && loadedSettings && Object.prototype.hasOwnProperty.call(loadedSettings, "autoLoopSamples")) {
         el.autoLoop.checked = !!loadedSettings.autoLoopSamples;
@@ -15526,17 +15924,31 @@
         || document.querySelector(".tab-btn.active")?.dataset.tab
         || "player";
       const instrumentName = String(el.autoInstrument?.value || "").trim();
+      const authorName = String(el.autoAuthor?.value || "").trim();
       const show = tab === "player" && instrumentName.length > 0;
-      el.playerAuthorDisplay.textContent = show ? instrumentName : "";
+      el.playerAuthorDisplay.replaceChildren();
+      if (show) {
+        const instrumentSpan = document.createElement("span");
+        instrumentSpan.className = "player-instrument-name";
+        instrumentSpan.textContent = instrumentName;
+        el.playerAuthorDisplay.appendChild(instrumentSpan);
+        if (authorName.length > 0) {
+          const bylineSpan = document.createElement("span");
+          bylineSpan.className = "player-byline";
+          bylineSpan.textContent = `by ${authorName}`;
+          el.playerAuthorDisplay.appendChild(bylineSpan);
+        }
+      }
       el.playerAuthorDisplay.classList.toggle("visible", show);
     }
 
     function updateSaveButtonVisibility(activeTab = null) {
-      if (!el.saveSmpinstBtn) return;
+      if (!el.saveSmpinstBtn && !el.addWallpaperBtn) return;
       const tab = activeTab
         || document.querySelector(".tab-btn.active")?.dataset.tab
         || "player";
-      el.saveSmpinstBtn.classList.toggle("hidden", tab !== "setup");
+      if (el.saveSmpinstBtn) el.saveSmpinstBtn.classList.toggle("hidden", tab !== "setup");
+      if (el.addWallpaperBtn) el.addWallpaperBtn.classList.toggle("hidden", tab !== "setup");
     }
 
     function schedulePlayerTabRefresh() {
@@ -15712,6 +16124,29 @@
           void saveInstrumentBundleToDisk();
         });
       }
+      if (el.addWallpaperBtn) {
+        el.addWallpaperBtn.addEventListener("click", async () => {
+          if (el.addWallpaperBtn.disabled) return;
+          el.addWallpaperBtn.disabled = true;
+          el.addWallpaperBtn.classList.add("is-loading");
+          try {
+            if (getNativeBackend()) {
+              const picked = await requestGraphicPickFromNative();
+              if (picked?.success && picked?.path) {
+                applyPickedWallpaper(picked);
+                setStatus(el.setupStatus, "Wallpaper selected for player.", "ok");
+              } else if (picked?.message) {
+                setStatus(el.setupStatus, picked.message, "warn");
+              }
+            } else if (el.wallpaperInput) {
+              el.wallpaperInput.click();
+            }
+          } finally {
+            el.addWallpaperBtn.disabled = false;
+            el.addWallpaperBtn.classList.remove("is-loading");
+          }
+        });
+      }
       const triggerLoadInstrument = () => {
         if (getNativeBackend()) {
           void pickAndLoadPackViaNative();
@@ -15765,6 +16200,25 @@
           const files = Array.from(ev.target.files || []);
           files.forEach((file) => importKeyswitchPack(file));
           el.keyswitchInput.value = "";
+        });
+      }
+
+      if (el.wallpaperInput) {
+        el.wallpaperInput.addEventListener("change", async (ev) => {
+          const [file] = Array.from(ev.target.files || []);
+          el.wallpaperInput.value = "";
+          if (!file) return;
+          const dataUrl = String(await readFileAsDataUrl(file) || "").trim();
+          if (!dataUrl) {
+            setStatus(el.setupStatus, "Could not read wallpaper image.", "bad");
+            return;
+          }
+          applyPickedWallpaper({
+            sourcePath: file.name,
+            fileName: file.name,
+            dataUrl
+          });
+          setStatus(el.setupStatus, "Wallpaper selected for player.", "ok");
         });
       }
 
