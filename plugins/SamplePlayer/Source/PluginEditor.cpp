@@ -417,7 +417,7 @@ void SamplePlayerAudioProcessorEditor::maybeRunStartupAutoLoad()
     if (startupAutoLoadTriggered || pendingStartupAutoLoadPath.isEmpty())
         return;
 
-    if (webView == nullptr || ! webView->isReadyForEvents() || ! frontendReadyForEvents)
+    if (webView == nullptr || ! frontendReadyForEvents)
         return;
 
     if (pendingStartupAutoLoadTicks > 0)
@@ -479,7 +479,7 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
 
     maybeRunStartupAutoLoad();
 
-    if (! webView->isReadyForEvents() || ! frontendReadyForEvents)
+    if (! frontendReadyForEvents)
         return;
 
     const int currentLightweightVersion = audioProcessor.getUiSessionStateLightweightVersion();
