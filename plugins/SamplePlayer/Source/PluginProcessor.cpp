@@ -5634,9 +5634,8 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
 
     if (! suppressMonoCut)
     {
-        // Enforce strict mono-per-key retrigger behavior (channel-agnostic): any
-        // previous voice on the same key is hard-cut immediately, independent of
-        // ADSR release time.
+        const bool useRetriggerFadeTail = forcedMapSetSlot >= 0;
+
         for (auto& existing : voices)
         {
             if (! existing.active)
@@ -5644,6 +5643,9 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
 
             if (existing.midiNote != midiNoteNumber)
                 continue;
+
+            if (useRetriggerFadeTail)
+                startStealTailFromVoice (existing, strumRetriggerFadeOutMs);
 
             existing = VoiceState {};
         }
@@ -5844,7 +5846,7 @@ SamplePlayerAudioProcessor::VoiceState* SamplePlayerAudioProcessor::stealOldestV
     return oldest;
 }
 
-void SamplePlayerAudioProcessor::startStealTailFromVoice (const VoiceState& sourceVoice)
+void SamplePlayerAudioProcessor::startStealTailFromVoice (const VoiceState& sourceVoice, float fadeOutMs)
 {
     if (! sourceVoice.active || sourceVoice.zone == nullptr)
         return;
@@ -5859,7 +5861,7 @@ void SamplePlayerAudioProcessor::startStealTailFromVoice (const VoiceState& sour
     tailVoice->decaySamplesRemaining = 0;
     tailVoice->decayDelta = 0.0f;
 
-    const int fadeSamples = juce::jmax (1, msToSamples (currentSampleRate, voiceStealFadeOutMs));
+    const int fadeSamples = juce::jmax (1, msToSamples (currentSampleRate, fadeOutMs));
     const auto startEnvelope = juce::jmax (0.0f, tailVoice->envelopeGain);
     tailVoice->releaseSamplesRemaining = fadeSamples;
     tailVoice->releaseDelta = juce::jmax (0.000001f,

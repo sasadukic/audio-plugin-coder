@@ -327,7 +327,7 @@ private:
     VoiceState* findFreeVoice();
     VoiceState* findFreeStealTailVoice();
     VoiceState* stealOldestVoice();
-    void startStealTailFromVoice (const VoiceState& sourceVoice);
+    void startStealTailFromVoice (const VoiceState& sourceVoice, float fadeOutMs = voiceStealFadeOutMs);
     void setMidiHeldState (int midiNote, bool held) noexcept;
 
     std::shared_ptr<const SampleZone> pickZoneForNote (int midiNoteNumber,
@@ -425,9 +425,10 @@ private:
     };
 
     static constexpr int maxPlayableVoices = 32;
-    static constexpr int maxStealTailVoices = 4;
+    static constexpr int maxStealTailVoices = 12;
     static constexpr int maxVoices = maxPlayableVoices + maxStealTailVoices;
     static constexpr float voiceStealFadeOutMs = 10.0f;
+    static constexpr float strumRetriggerFadeOutMs = 50.0f;
     static constexpr std::size_t maxDecodedEmbeddedAudioCacheBytes = static_cast<std::size_t> (128 * 1024 * 1024);
 
     juce::AudioFormatManager formatManager;
