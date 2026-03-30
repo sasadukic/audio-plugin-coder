@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cstdio>
 #include <cstdint>
 #include <limits>
 #include <map>
@@ -41,6 +42,16 @@ void writeLoadDebugLog (const juce::String& message)
     if (! kEnableLoadDebugLogging)
         return;
 
+    const auto timestamp = juce::Time::getCurrentTime().toString (true, true, true, true);
+    juce::String line;
+    line << timestamp
+         << " | "
+         << message
+         << "\n";
+
+    std::fputs (line.toRawUTF8(), stderr);
+    std::fflush (stderr);
+
     const auto logFile = getLoadDebugLogFile();
     const auto parent = logFile.getParentDirectory();
 
@@ -48,7 +59,18 @@ void writeLoadDebugLog (const juce::String& message)
     {
         const auto createResult = parent.createDirectory();
         if (createResult.failed())
+        {
+            juce::String errorLine;
+            errorLine << timestamp
+                      << " | load_debug_log create directory failed | path="
+                      << parent.getFullPathName()
+                      << " | error="
+                      << createResult.getErrorMessage()
+                      << "\n";
+            std::fputs (errorLine.toRawUTF8(), stderr);
+            std::fflush (stderr);
             return;
+        }
     }
 
     if (logFile.existsAsFile() && logFile.getSize() > kLoadDebugMaxFileBytes)
@@ -59,12 +81,6 @@ void writeLoadDebugLog (const juce::String& message)
                 << " ===\n";
         logFile.replaceWithText (trimmed, false, false, "\n");
     }
-
-    juce::String line;
-    line << juce::Time::getCurrentTime().toString (true, true, true, true)
-         << " | "
-         << message
-         << "\n";
 
     logFile.appendText (line, false, false, "\n");
 }
