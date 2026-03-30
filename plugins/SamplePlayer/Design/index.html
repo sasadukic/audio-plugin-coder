@@ -12035,7 +12035,9 @@
         path: String(info?.path || "").trim(),
         fileName: String(info?.fileName || "").trim(),
         text: String(info?.text || ""),
-        message: String(info?.message || "").trim()
+        message: String(info?.message || "").trim(),
+        nativeLoaded: !!info?.nativeLoaded,
+        format: String(info?.format || "").trim().toLowerCase()
       });
     }
 
@@ -15461,8 +15463,25 @@
         }
         return true;
       }
-      setLoadingOverlay(4, "Loading .smpinst...");
+      const pickedFormat = String(picked.format || "").trim().toLowerCase();
+      const isNativeMonolith = !!picked.nativeLoaded || pickedFormat === "smpinstm";
+      setLoadingOverlay(4, isNativeMonolith ? "Loading monolith..." : "Loading .smpinst...");
       debugLoadLog(`loadPack native pick | file=${picked.fileName} | path=${picked.path}`);
+
+      if (isNativeMonolith) {
+        state.manualPackLoadSeq = Math.max(1, Math.round(Number(state.manualPackLoadSeq) || 0) + 1);
+        state.sessionStateRestoreAttempted = false;
+        state.sessionStateRestored = false;
+        state.sessionStateHydrationRequested = false;
+        state.lastSessionPayloadSig = "";
+        await fetchNativeSessionStateSnapshot({
+          full: false,
+          reason: "native-monolith-pick",
+          allowBridgeFallback: true
+        });
+        return true;
+      }
+
       await loadPackFromText(String(picked.text || ""), {
         sourceLabel: picked.fileName || "",
         manifestFilePath: picked.path || ""

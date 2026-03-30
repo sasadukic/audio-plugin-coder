@@ -738,7 +738,9 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
                                                  const juce::String& path,
                                                  const juce::String& fileName,
                                                  const juce::String& text,
-                                                 const juce::String& message)
+                                                 const juce::String& message,
+                                                 bool nativeLoaded,
+                                                 const juce::String& format)
         {
             if (safeThis == nullptr || safeThis->webView == nullptr)
                 return;
@@ -750,13 +752,34 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
             payload->setProperty ("fileName", fileName);
             payload->setProperty ("text", text);
             payload->setProperty ("message", message);
+            payload->setProperty ("nativeLoaded", nativeLoaded);
+            payload->setProperty ("format", format);
             safeThis->webView->emitEventIfBrowserIsVisible ("instrument_manifest_picked", juce::var (payload.get()));
         };
 
         const auto file = chooser.getResult();
         if (! file.existsAsFile())
         {
-            emitResult (false, {}, {}, {}, "Load canceled.");
+            emitResult (false, {}, {}, {}, "Load canceled.", false, {});
+            safeThis->loadInstrumentChooser.reset();
+            return;
+        }
+
+        const bool isMonolith = file.hasFileExtension ("smpinstm");
+        const auto format = isMonolith ? juce::String ("smpinstm")
+                                       : (file.hasFileExtension ("smpinst") ? juce::String ("smpinst")
+                                                                            : juce::String ("json"));
+
+        if (isMonolith)
+        {
+            safeThis->audioProcessor.loadMonolithDirect (file.getFullPathName());
+            emitResult (true,
+                        file.getFullPathName(),
+                        file.getFileName(),
+                        {},
+                        {},
+                        true,
+                        format);
             safeThis->loadInstrumentChooser.reset();
             return;
         }
@@ -768,7 +791,9 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
                         file.getFullPathName(),
                         file.getFileName(),
                         {},
-                        "Could not read selected file.");
+                        "Could not read selected file.",
+                        false,
+                        format);
             safeThis->loadInstrumentChooser.reset();
             return;
         }
@@ -777,10 +802,9 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
                     file.getFullPathName(),
                     file.getFileName(),
                     text,
-                    {});
-
-        if (file.hasFileExtension ("smpinstm"))
-            safeThis->audioProcessor.loadMonolithDirect (file.getFullPathName());
+                    {},
+                    false,
+                    format);
 
         safeThis->loadInstrumentChooser.reset();
     });

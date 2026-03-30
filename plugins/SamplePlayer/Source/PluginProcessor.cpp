@@ -1989,7 +1989,28 @@ void SamplePlayerAudioProcessor::loadMonolithDirect (const juce::String& filePat
         rootObj->setProperty ("ui", juce::var (uiObj));
         juce::var fullSessionVar (rootObj);
 
+        const auto fullSessionJson = juce::JSON::toString (fullSessionVar, false);
+
         syncSampleSetFromSessionStateJson (fullSessionVar, 0, requestId);
+
+        // Publish the native-loaded monolith into the same session snapshot
+        // cache the frontend already fetches, so the UI can refresh without
+        // re-reading and re-parsing the monolith through the webview bridge.
+        {
+            const juce::ScopedLock lock (uiSessionStateLock);
+            if (requestId == sessionStateSyncRequestId.load (std::memory_order_relaxed))
+            {
+                uiSessionStateJson = fullSessionJson;
+
+                LightweightStripStats stripStats;
+                auto lightweightJson = makeLightweightSessionStateJson (fullSessionJson, &stripStats);
+                if (lightweightJson.isEmpty())
+                    lightweightJson = fullSessionJson;
+
+                uiSessionStateLightweightJson = lightweightJson;
+                uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
+            }
+        }
 
         // Decode complete — build lightweight cache from any deferred JS state.
         monolithDecodeInProgress.store (false, std::memory_order_release);
