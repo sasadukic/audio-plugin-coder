@@ -5871,7 +5871,7 @@ void SamplePlayerAudioProcessor::startStealTailFromVoice (const VoiceState& sour
 std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioProcessor::pickZoneForNote (int midiNoteNumber,
                                                                                                               int velocity127,
                                                                                                               bool* usedModwheelLayerSelection,
-                                                                                                              int /*rrOffset*/,
+                                                                                                              int rrOffset,
                                                                                                               const SampleZone* excludedZone,
                                                                                                               int forcedMapSetSlot)
 {
@@ -6020,6 +6020,33 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     };
 
     const juce::uint64 excludedChoiceId = excludedZone != nullptr ? zoneChoiceId (*excludedZone) : 0;
+
+    if (forcedMapSetSlot >= 0)
+    {
+        auto& rrCounter = roundRobinCounters[rrKey];
+        int chosenIndex = poolSize > 0
+            ? ((rrCounter + juce::jmax (0, rrOffset)) % poolSize)
+            : 0;
+
+        if (excludedChoiceId != 0 && poolSize > 1)
+        {
+            for (int attempt = 0; attempt < poolSize; ++attempt)
+            {
+                const int candidateIndex = (chosenIndex + attempt) % poolSize;
+                const auto& candidate = candidatePool->at (static_cast<size_t> (candidateIndex));
+                if (candidate != nullptr && zoneChoiceId (*candidate) != excludedChoiceId)
+                {
+                    chosenIndex = candidateIndex;
+                    break;
+                }
+            }
+        }
+
+        if (excludedZone == nullptr)
+            rrCounter = (rrCounter + 1) % 8192;
+
+        return candidatePool->at (static_cast<size_t> (chosenIndex));
+    }
 
     // Random RR selection with last-2 exclusion.
     // Rule: never repeat the last 2 played indices (when pool is large enough).
