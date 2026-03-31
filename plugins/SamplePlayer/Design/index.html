@@ -6235,6 +6235,63 @@
       debugLoadLog(`session edit mode | promote to full | reason=${reason}`);
     }
 
+    function buildUiSessionStateSnapshot(options = {}) {
+      const includeKeyswitchSets = options.includeKeyswitchSets !== false;
+      const manifestFilePath = Object.prototype.hasOwnProperty.call(options, "manifestFilePath")
+        ? String(options.manifestFilePath || "").trim()
+        : getPackManifestFilePath();
+      const manifestBasePath = Object.prototype.hasOwnProperty.call(options, "manifestBasePath")
+        ? normalizeDestinationFolderPath(options.manifestBasePath)
+        : getPackManifestBasePath();
+
+      return {
+        setupOctaveStart: Math.max(0, Math.min(120, Math.round(Number(state.setupOctaveStart) || 48))),
+        activeMapSetId: String(state.activeMapSetId || "base"),
+        mapMatrix: {
+          interval: clampMapMatrixInterval(state.mapMatrixInterval),
+          velocityLayers: clampMapMatrixVelocityLayers(state.mapMatrixVelocityLayers),
+          rrColumns: clampMapMatrixRrColumns(state.mapMatrixRrColumns),
+          splitEnabled: !!state.mapMatrixSplitEnabled,
+          autoFillRr: state.mapMatrixAutoFillRr !== false
+        },
+        baseLoopPlaybackEnabled: state.baseLoopPlaybackEnabled !== false,
+        manifestFilePath,
+        manifestBasePath,
+        manualRootRanges: cloneManualRangesObject(state.manualRootRanges),
+        keyswitchSets: includeKeyswitchSets
+          ? (state.keyswitchSets || []).map((set, index) => ({
+              id: String(set?.id || ""),
+              name: String(set?.name || ""),
+              key: String(set?.key || ""),
+              keyMidi: Number.isFinite(set?.keyMidi) ? Math.round(set.keyMidi) : null,
+              loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
+              playbackMode: resolveKeyswitchPlaybackMode(set),
+              openStringMidis: getNormalizedKeyswitchSetOpenStringMidis(set),
+              index,
+              active: String(state.activeMapSetId || "") === String(set?.id || ""),
+              manualRanges: cloneManualRangesObject(set?.manualRanges)
+            }))
+          : [],
+        velocityCrossfadeByRoot: { ...(state.velocityCrossfadeByRoot || {}) },
+        loopCrossfadeMs: clampLoopCrossfadeMs(state.loopCrossfadeMs),
+        allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
+        autoRR: !!state.autoRR,
+        autoGainCrossfade: !!state.autoGainCrossfade,
+        modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
+        expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
+        pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
+        playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
+        playerOpenStringMidis: normalizeOpenStringMidiList(state.playerOpenStringMidis),
+        ampEnvelope: buildAmpEnvelopeSnapshot(),
+        auto: buildAutoControlsSnapshot(),
+        sequencer: buildSequencerSnapshot(),
+        strum: buildStrumSnapshot(),
+        wallpaperAssetPath: getWallpaperAssetPath(),
+        wallpaperSourcePath: normalizeManifestPathInput(state.wallpaperSourcePath),
+        wallpaperSourceFileName: String(state.wallpaperSourceFileName || "").trim()
+      };
+    }
+
     async function buildSessionStateSnapshot(options = {}) {
       ensurePackManifestBasePathHint();
       if (options.force) {
@@ -6249,50 +6306,7 @@
       return {
         version: 1,
         manifest,
-        ui: {
-          setupOctaveStart: Math.max(0, Math.min(120, Math.round(Number(state.setupOctaveStart) || 48))),
-          activeMapSetId: String(state.activeMapSetId || "base"),
-          mapMatrix: {
-            interval: clampMapMatrixInterval(state.mapMatrixInterval),
-            velocityLayers: clampMapMatrixVelocityLayers(state.mapMatrixVelocityLayers),
-            rrColumns: clampMapMatrixRrColumns(state.mapMatrixRrColumns),
-            splitEnabled: !!state.mapMatrixSplitEnabled,
-            autoFillRr: state.mapMatrixAutoFillRr !== false
-          },
-          baseLoopPlaybackEnabled: state.baseLoopPlaybackEnabled !== false,
-          manifestFilePath: getPackManifestFilePath(),
-          manifestBasePath: getPackManifestBasePath(),
-          manualRootRanges: cloneManualRangesObject(state.manualRootRanges),
-          keyswitchSets: (state.keyswitchSets || []).map((set, index) => ({
-            id: String(set?.id || ""),
-            name: String(set?.name || ""),
-            key: String(set?.key || ""),
-            keyMidi: Number.isFinite(set?.keyMidi) ? Math.round(set.keyMidi) : null,
-            loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
-            playbackMode: resolveKeyswitchPlaybackMode(set),
-            openStringMidis: getNormalizedKeyswitchSetOpenStringMidis(set),
-            index,
-            active: String(state.activeMapSetId || "") === String(set?.id || ""),
-            manualRanges: cloneManualRangesObject(set?.manualRanges)
-          })),
-          velocityCrossfadeByRoot: { ...(state.velocityCrossfadeByRoot || {}) },
-          loopCrossfadeMs: clampLoopCrossfadeMs(state.loopCrossfadeMs),
-          allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
-          autoRR: !!state.autoRR,
-          autoGainCrossfade: !!state.autoGainCrossfade,
-          modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
-          expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
-          pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
-          playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
-          playerOpenStringMidis: normalizeOpenStringMidiList(state.playerOpenStringMidis),
-          ampEnvelope: buildAmpEnvelopeSnapshot(),
-          auto: buildAutoControlsSnapshot(),
-          sequencer: buildSequencerSnapshot(),
-          strum: buildStrumSnapshot(),
-          wallpaperAssetPath: getWallpaperAssetPath(),
-          wallpaperSourcePath: normalizeManifestPathInput(state.wallpaperSourcePath),
-          wallpaperSourceFileName: String(state.wallpaperSourceFileName || "").trim()
-        }
+        ui: buildUiSessionStateSnapshot({ includeKeyswitchSets: true })
       };
     }
 
@@ -6303,39 +6317,7 @@
       return {
         version: 1,
         manifest: safeManifest,
-        ui: {
-          setupOctaveStart: Math.max(0, Math.min(120, Math.round(Number(state.setupOctaveStart) || 48))),
-          activeMapSetId: String(state.activeMapSetId || "base"),
-          mapMatrix: {
-            interval: clampMapMatrixInterval(state.mapMatrixInterval),
-            velocityLayers: clampMapMatrixVelocityLayers(state.mapMatrixVelocityLayers),
-            rrColumns: clampMapMatrixRrColumns(state.mapMatrixRrColumns),
-            splitEnabled: !!state.mapMatrixSplitEnabled,
-            autoFillRr: state.mapMatrixAutoFillRr !== false
-          },
-          baseLoopPlaybackEnabled: state.baseLoopPlaybackEnabled !== false,
-          manifestFilePath: getPackManifestFilePath(),
-          manifestBasePath: getPackManifestBasePath(),
-          manualRootRanges: cloneManualRangesObject(state.manualRootRanges),
-          keyswitchSets: [],
-          velocityCrossfadeByRoot: { ...(state.velocityCrossfadeByRoot || {}) },
-          loopCrossfadeMs: clampLoopCrossfadeMs(state.loopCrossfadeMs),
-          allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
-          autoRR: !!state.autoRR,
-          autoGainCrossfade: !!state.autoGainCrossfade,
-          modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
-          expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
-          pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
-          playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
-          playerOpenStringMidis: normalizeOpenStringMidiList(state.playerOpenStringMidis),
-          ampEnvelope: buildAmpEnvelopeSnapshot(),
-          auto: buildAutoControlsSnapshot(),
-          sequencer: buildSequencerSnapshot(),
-          strum: buildStrumSnapshot(),
-          wallpaperAssetPath: getWallpaperAssetPath(),
-          wallpaperSourcePath: normalizeManifestPathInput(state.wallpaperSourcePath),
-          wallpaperSourceFileName: String(state.wallpaperSourceFileName || "").trim()
-        }
+        ui: buildUiSessionStateSnapshot({ includeKeyswitchSets: false })
       };
     }
 
@@ -16041,6 +16023,11 @@
           })
           .filter((set) => Array.isArray(set.mapping) && set.mapping.length > 0);
       }
+      manifest.ui = buildUiSessionStateSnapshot({
+        includeKeyswitchSets: normalizedExt !== "keysw",
+        manifestFilePath: options.manifestFilePath,
+        manifestBasePath: options.manifestBasePath
+      });
       applyWallpaperManifestMetadata(manifest);
       return manifest;
     }
@@ -16148,7 +16135,9 @@
 
         const manifest = buildManifestSkeleton("smpinst", {
           preserveRuntimePaths: false,
-          sampleFolderName: "Audio"
+          sampleFolderName: "Audio",
+          manifestFilePath: manifestPath,
+          manifestBasePath: destinationFolder
         });
         logWallpaperDebug("save-bundle-start", `manifestGraphics=${JSON.stringify(manifest?.graphics || null)}`);
 
@@ -16386,9 +16375,12 @@
       const manifestBasePath = String(options?.manifestBasePath || "").trim();
       const silentStatus = !!options?.silentStatus;
       const hydrateManifestSamples = options?.hydrateManifestSamples !== false;
+      const embeddedUiState = (data?.ui && typeof data.ui === "object")
+        ? data.ui
+        : null;
       const sessionUiState = (options?.sessionUiState && typeof options.sessionUiState === "object")
         ? options.sessionUiState
-        : null;
+        : embeddedUiState;
       const resolvedManifestFilePath = manifestFilePath || String(sessionUiState?.manifestFilePath || "").trim();
       const resolvedManifestBasePath = normalizeDestinationFolderPath(
         manifestBasePath
