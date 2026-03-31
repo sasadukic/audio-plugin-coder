@@ -1176,148 +1176,12 @@
       transition: opacity 220ms ease;
     }
 
-    .player-wheel-bank {
-      position: relative;
-      z-index: 4;
-      flex: 0 0 58px;
-      width: 58px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 0 4px;
-      border-right: 1px solid rgba(var(--player-line-rgb), 0.44);
-      background:
-        linear-gradient(
-          180deg,
-          rgba(42, 42, 42, 0.95),
-          rgba(28, 28, 28, 0.98)
-        );
-      box-shadow:
-        inset -1px 0 0 rgba(0, 0, 0, 0.35),
-        inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    }
-
-    .player-wheel-block {
-      flex: 1 1 0;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 0;
-    }
-
-    .player-wheel-slot {
-      position: relative;
-      width: 18px;
-      height: 66px;
-      border-radius: 4px;
-      border: 1px solid rgba(137, 143, 153, 0.34);
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.26)),
-        linear-gradient(180deg, rgba(8, 11, 16, 0.96), rgba(6, 8, 12, 0.98));
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.04),
-        inset 0 -10px 14px rgba(0, 0, 0, 0.46);
-      overflow: hidden;
-      cursor: ns-resize;
-      touch-action: none;
-    }
-
-    .player-wheel-slot.dragging {
-      border-color: rgba(var(--player-bright-rgb), 0.52);
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.06),
-        inset 0 -10px 14px rgba(0, 0, 0, 0.46),
-        0 0 0 1px rgba(var(--player-bright-rgb), 0.18);
-    }
-
-    .player-wheel-core {
-      position: absolute;
-      inset: 2px;
-      border-radius: 3px;
-      border: 1px solid rgba(0, 0, 0, 0.34);
-      background:
-        linear-gradient(
-          90deg,
-          rgba(0, 0, 0, 0.3),
-          rgba(255, 255, 255, 0.13) 30%,
-          rgba(255, 255, 255, 0.07) 54%,
-          rgba(0, 0, 0, 0.22)
-        ),
-        linear-gradient(
-          180deg,
-          rgba(var(--player-wheel-rgb), 0.98),
-          rgba(var(--player-wheel-rgb-dark), 0.98)
-        );
-      box-shadow:
-        inset 0 8px 9px rgba(0, 0, 0, 0.2),
-        inset 0 -10px 12px rgba(0, 0, 0, 0.28);
-      overflow: hidden;
-    }
-
-    .player-wheel-tape {
-      position: absolute;
-      left: -1px;
-      right: -1px;
-      top: -58px;
-      height: 178px;
-      opacity: 0.28;
-      background:
-        repeating-linear-gradient(
-          to bottom,
-          rgba(0, 0, 0, 0.25) 0px,
-          rgba(0, 0, 0, 0.25) 3px,
-          rgba(255, 255, 255, 0.08) 3px,
-          rgba(255, 255, 255, 0.08) 5px,
-          rgba(0, 0, 0, 0) 12px,
-          rgba(0, 0, 0, 0) 16px
-        );
-      transform: translateY(0);
-      will-change: transform;
-      pointer-events: none;
-    }
-
-    .player-wheel-ridges {
-      position: absolute;
-      inset: 0;
-      opacity: 0.6;
-      pointer-events: none;
-      background:
-        repeating-linear-gradient(
-          to bottom,
-          rgba(0, 0, 0, 0.2) 0px,
-          rgba(0, 0, 0, 0.2) 2px,
-          rgba(255, 255, 255, 0.09) 2px,
-          rgba(255, 255, 255, 0.09) 4px,
-          rgba(0, 0, 0, 0) 8px,
-          rgba(0, 0, 0, 0) 12px
-        );
-    }
-
-    .player-wheel-marker {
-      position: absolute;
-      left: 2px;
-      right: 2px;
-      top: 50%;
-      height: 1px;
-      transform: translateY(-50%);
-      border-radius: 1px;
-      background: rgba(var(--player-line-rgb), 0.4);
-      pointer-events: none;
-    }
-
-    .player-wheel-slot.pitch .player-wheel-marker {
-      background: rgba(var(--player-bright-rgb), 0.62);
-    }
-
     .player-keyboard-viewport {
       position: relative;
       z-index: 2;
       flex: 1 1 auto;
       min-width: 0;
-      width: auto;
+      width: 100%;
       height: 100%;
       overflow-x: hidden;
       overflow-y: hidden;
@@ -4558,26 +4422,6 @@
           <div id="playerStrumStepGrid" class="player-strum-step-grid hidden" aria-label="Player strum sequencer"></div>
         </div>
         <div class="player-keyboard-strip" aria-label="Player keyboard">
-          <div class="player-wheel-bank" aria-label="Performance wheels">
-            <div class="player-wheel-block" data-wheel="expression">
-              <div id="playerPitchWheelSlot" class="player-wheel-slot pitch" role="slider" aria-label="Expression wheel" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
-                <div class="player-wheel-core">
-                  <div id="playerPitchWheelTape" class="player-wheel-tape"></div>
-                  <div class="player-wheel-ridges"></div>
-                </div>
-                <div class="player-wheel-marker"></div>
-              </div>
-            </div>
-            <div class="player-wheel-block" data-wheel="mod">
-              <div id="playerModWheelSlot" class="player-wheel-slot mod" role="slider" aria-label="Mod wheel" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
-                <div class="player-wheel-core">
-                  <div id="playerModWheelTape" class="player-wheel-tape"></div>
-                  <div class="player-wheel-ridges"></div>
-                </div>
-                <div class="player-wheel-marker"></div>
-              </div>
-            </div>
-          </div>
           <div id="playerKeyboardViewport" class="player-keyboard-viewport">
             <div id="playerKeyboard" class="player-keyboard">
               <div id="playerKeyboardWhites" class="player-keys-whites"></div>
