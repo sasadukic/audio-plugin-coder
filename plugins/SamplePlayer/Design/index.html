@@ -4393,8 +4393,8 @@
     <section id="panel-setup" class="panel">
       <div class="setup-layout">
         <div class="setup-wide">
-          <div id="autoSamplerSection" class="section collapsible collapsed">
-            <h2 id="autoSamplerToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="autoSamplerBody">Auto Sampler</h2>
+          <div id="autoSamplerSection" class="section">
+            <h2 id="autoSamplerToggle">Auto Sampler</h2>
             <div id="autoSamplerBody" class="section-body auto-layout">
               <div class="section">
                 <div class="field-grid auto-meta-grid">
@@ -4588,8 +4588,8 @@
             </div>
           </div>
 
-          <div id="keyboardMapSection" class="section setup-map-wide collapsible collapsed">
-            <h2 id="keyboardMapToggle" class="setup-map-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="keyboardMapBody">Keyboard Map</h2>
+          <div id="keyboardMapSection" class="section setup-map-wide">
+            <h2 id="keyboardMapToggle" class="setup-map-toggle">Keyboard Map</h2>
             <div id="keyboardMapBody" class="section-body">
               <div id="keyswitchMapToolbar" class="keyswitch-map-toolbar">
                 <div class="keyswitch-map-import-controls">
@@ -4634,7 +4634,7 @@
               </div>
               <div id="setupStatus" class="status"></div>
               <div class="map-shell">
-              <div id="sampleEditor" class="sample-editor hidden">
+              <div id="sampleEditor" class="sample-editor">
                 <div class="sample-waveform-box">
                   <div class="sample-controls-bar">
                     <div class="sample-loop-tools">
@@ -4657,7 +4657,6 @@
                         <div id="sampleFineTunePointer" class="sample-finetune-pointer"></div>
                       </div>
                     </div>
-                    <button id="sampleEditorClose" class="sample-editor-close" type="button" aria-label="Close sample editor">x</button>
                   </div>
                   <div class="sample-waveform-info">
                     <button id="sampleNavPrev" class="sample-nav-btn" type="button" aria-label="Previous sample">&lt;</button>
@@ -5079,8 +5078,8 @@
 
     function getDefaultSetupCollapseState() {
       return {
-        autoSampler: true,
-        keyboardMap: true,
+        autoSampler: false,
+        keyboardMap: false,
         modulation: true,
         strum: true
       };
@@ -11407,7 +11406,7 @@
 
     function updateSampleGainLine(entry = getMapEntryByOrder(state.selectedMapEntryOrder)) {
       if (!el.sampleGainLine || !el.sampleGainReadout) return;
-      if (!entry || el.sampleEditor.classList.contains("hidden")) {
+      if (!entry) {
         el.sampleGainLine.classList.add("hidden");
         return;
       }
@@ -11892,7 +11891,7 @@
 
     function updateLoopHandles() {
       const entry = getMapEntryByOrder(state.selectedMapEntryOrder);
-      if (!entry || el.sampleEditor.classList.contains("hidden")) {
+      if (!entry) {
         if (el.sampleWaveformContent) {
           el.sampleWaveformContent.classList.remove("loop-markers-dim");
           el.sampleWaveformContent.classList.remove("loop-handles-locked");
@@ -12032,7 +12031,7 @@
         stopWaveformPlayhead();
         return;
       }
-      if (state.selectedMapEntryOrder !== entry.order || el.sampleEditor.classList.contains("hidden")) {
+      if (state.selectedMapEntryOrder !== entry.order) {
         return;
       }
 
@@ -12066,7 +12065,6 @@
         if (!session) return;
         if (
           session.entryOrder !== state.selectedMapEntryOrder
-          || el.sampleEditor.classList.contains("hidden")
           || session.ctx !== ctx
         ) {
           stopWaveformPlayhead();
@@ -12109,11 +12107,15 @@
       updateSampleGainLine(null);
       state.waveformRequestId += 1;
       state.waveformZoom = 1;
-      el.sampleEditor.classList.add("hidden");
+      el.sampleEditorTitle.textContent = "No sample selected";
+      el.sampleEditorMeta.textContent = "";
       el.sampleWaveformViewport.scrollLeft = 0;
+      drawWaveformMessage("Select a sample to edit.");
       updateWaveformScrollControl();
       syncSelectedMapSampleBox();
       updateWaveformZoomButtons();
+      el.sampleNavPrev.disabled = true;
+      el.sampleNavNext.disabled = true;
       updateFineTuneKnob(null);
       updateLoopHandles();
       updateLoopToolButtons();
@@ -12535,7 +12537,7 @@
       if (typeof pending.resolve === "function") pending.resolve(dataUrl);
       if (pending.forSave) return;
 
-      if (state.selectedMapEntryOrder === entry.order || !el.sampleEditor.classList.contains("hidden")) {
+      if (state.selectedMapEntryOrder === entry.order) {
         void openSampleEditor(entry);
       }
     }
@@ -12906,7 +12908,10 @@
       state.waveformZoom = 1;
       state.waveformRequestId += 1;
       const requestId = state.waveformRequestId;
-      el.sampleEditor.classList.remove("hidden");
+      const entries = getActiveMapEntries().filter((item) => item && item.valid);
+      const entryIndex = entries.findIndex((item) => item.order === entry.order);
+      el.sampleNavPrev.disabled = entryIndex <= 0;
+      el.sampleNavNext.disabled = entryIndex < 0 || entryIndex >= entries.length - 1;
       syncVelocityCrossfadeControl(entry);
       updateSampleGainLine(entry);
       el.sampleEditorTitle.textContent = entry.fileName;
@@ -14089,7 +14094,7 @@
 
         const segments = [];
         let stopAt = now;
-        const trackSegmentsForPlayhead = state.selectedMapEntryOrder === entry.order && !el.sampleEditor.classList.contains("hidden");
+        const trackSegmentsForPlayhead = state.selectedMapEntryOrder === entry.order;
         const sampleStartSec = Math.max(0, Math.min(
           Math.max(0, audioBuffer.duration - 0.002),
           clamp01(entry.sampleStartNorm ?? 0) * audioBuffer.duration
@@ -14561,7 +14566,7 @@
       el.octaveUpBtn.addEventListener("click", (ev) => {
         shiftKeyboardMapRange(1, ev.shiftKey ? 12 : 1);
       });
-      el.sampleEditorClose.addEventListener("click", closeSampleEditor);
+      el.sampleEditorClose?.addEventListener("click", closeSampleEditor);
       el.sampleNavPrev.addEventListener("click", () => navigateSampleEditor(-1));
       el.sampleNavNext.addEventListener("click", () => navigateSampleEditor(1));
       setupWaveformPan();
@@ -14724,7 +14729,7 @@
       });
 
       window.addEventListener("resize", () => {
-        if (!el.sampleEditor.classList.contains("hidden")) redrawSelectedWaveform();
+        if (getMapEntryByOrder(state.selectedMapEntryOrder)) redrawSelectedWaveform();
       });
 
       updateWaveformZoomButtons();
@@ -17170,12 +17175,11 @@
       setupNativeAutoSamplerBridge();
       setupTabs();
       updateSaveButtonVisibility();
-      setupAutoSamplerCollapse();
-      setupKeyboardMapCollapse();
       setupModulationCollapse();
       setupStrumCollapse();
-      setAutoSamplerCollapsed(collapseState.autoSampler);
-      setKeyboardMapCollapsed(collapseState.keyboardMap);
+      closeSampleEditor();
+      setAutoSamplerCollapsed(false);
+      setKeyboardMapCollapsed(false);
       setModulationCollapsed(collapseState.modulation);
       setStrumCollapsed(collapseState.strum || getStrumVisibleStepCount() <= 0);
       setupKnobs();
