@@ -267,6 +267,30 @@
       background: var(--accent-surface);
     }
 
+    .strum-menu.player-strum-menu {
+      background: linear-gradient(180deg, rgba(var(--player-topbar-rgb, 12, 17, 26), 0.96), rgba(var(--player-topbar-rgb, 12, 17, 26), 0.88));
+      border-color: rgba(var(--player-line-rgb, 140, 146, 156), 0.38);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.48);
+      backdrop-filter: blur(10px) saturate(115%);
+      -webkit-backdrop-filter: blur(10px) saturate(115%);
+    }
+
+    .strum-menu.player-strum-menu .strum-menu-item {
+      color: #fff;
+    }
+
+    .strum-menu.player-strum-menu .strum-menu-item:hover {
+      background: rgba(var(--player-swatch-rgb, 55, 58, 66), 0.8);
+      border-color: rgba(var(--player-line-rgb, 140, 146, 156), 0.45);
+      color: #fff;
+    }
+
+    .strum-menu.player-strum-menu .strum-menu-item.active {
+      border-color: rgba(var(--player-bright-rgb, 218, 222, 229), 0.6);
+      color: #fff;
+      background: rgba(var(--player-swatch-rgb, 28, 24, 13), 0.7);
+    }
+
     .strum-step-grid {
       margin-top: 8px;
       display: grid;
@@ -8506,6 +8530,18 @@
       syncPlayerPitchDownToggle();
       syncPlayerPitchDownToggle();
 
+      const isPlayerStrumThemeActive = () => !!String(state.wallpaperDataUrl || "").trim();
+
+      const shouldUsePlayerStrumMenuTheme = (button) => {
+        if (!isPlayerStrumThemeActive() || !(button instanceof Element)) return false;
+        return !!button.closest("#playerStrumOverlay");
+      };
+
+      const setStrumMenuTheme = (menu, button) => {
+        if (!menu) return;
+        menu.classList.toggle("player-strum-menu", shouldUsePlayerStrumMenuTheme(button));
+      };
+
       // Floating strum rate overlay — lives on document.body to avoid overflow clipping
       const strumRateOverlay = document.createElement("div");
       strumRateOverlay.className = "strum-menu hidden";
@@ -8526,6 +8562,7 @@
         ensureStrumStepPattern();
         const step = normalizeStrumStep(state.strumStepPattern[stepIndex]);
         strumRateOverlay.innerHTML = "";
+        setStrumMenuTheme(strumRateOverlay, btn);
         STRUM_STEP_RATE_LABELS.forEach((label, rateIdx) => {
           const item = document.createElement("button");
           item.className = "strum-menu-item strum-step-rate-item";
@@ -8558,6 +8595,7 @@
         const keyswitchOptions = getStrumKeyswitchOptions();
         const step = normalizeStrumStep(state.strumStepPattern[stepIndex]);
         strumKeyswitchOverlay.innerHTML = "";
+        setStrumMenuTheme(strumKeyswitchOverlay, btn);
         keyswitchOptions.forEach((option) => {
           const item = document.createElement("button");
           item.className = "strum-menu-item strum-step-keyswitch-item";
@@ -8643,9 +8681,11 @@
 
       const closeStrumMenus = () => {
         strumRateOverlay.classList.add("hidden");
+        strumRateOverlay.classList.remove("player-strum-menu");
         strumRateOverlay.innerHTML = "";
         strumRateOverlayStepIndex = -1;
         strumKeyswitchOverlay.classList.add("hidden");
+        strumKeyswitchOverlay.classList.remove("player-strum-menu");
         strumKeyswitchOverlay.innerHTML = "";
         strumKeyswitchOverlayStepIndex = -1;
         const menus = [
@@ -8674,6 +8714,7 @@
         menus.forEach((menu) => {
           if (menu) {
             menu.classList.add("hidden");
+            menu.classList.remove("player-strum-menu");
             menu.style.top = "";
             menu.style.left = "";
             menu.style.right = "";
@@ -8695,6 +8736,7 @@
             const open = !menu.classList.contains("hidden");
             closeStrumMenus();
             if (!open) {
+              setStrumMenuTheme(menu, button);
               positionStrumMenuAt(button, menu);
               button.setAttribute("aria-expanded", "true");
             }
