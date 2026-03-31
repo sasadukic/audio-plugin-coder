@@ -608,7 +608,7 @@
 
     .player-strum-step-grid .strum-step-velocity-fill {
       width: 100%;
-      background: linear-gradient(180deg, rgba(var(--player-wheel-rgb, 236, 239, 244), 0.95), rgba(var(--player-bright-rgb, 218, 222, 229), 0.88));
+      background: linear-gradient(180deg, rgba(var(--player-wheel-rgb, 236, 239, 244), 0.98), rgba(var(--player-topbar-rgb, 40, 45, 54), 0.9));
     }
 
     .player-strum-step-grid .strum-step-rest-label {
@@ -1032,10 +1032,6 @@
     #doublingToggle.active .dbl-icon-off { display: none; }
     #doublingToggle.active .dbl-icon-on  { display: block; }
 
-    .topbar-save-icon-btn.is-saving svg {
-      opacity: 0.3;
-    }
-
     .topbar-wallpaper-icon-btn.is-loading svg {
       opacity: 0.3;
     }
@@ -1064,6 +1060,7 @@
     }
 
     #panel-setup {
+      padding: 8px 10px 0;
       padding-bottom: 0;
     }
 
@@ -1670,7 +1667,7 @@
     .setup-layout,
     .auto-layout {
       display: grid;
-      gap: 14px;
+      gap: 10px;
       grid-template-columns: 1.25fr 1fr;
     }
 
@@ -1692,7 +1689,7 @@
     }
 
     .setup-map-wide h2 {
-      padding: 0 6px;
+      padding: 0 4px;
     }
 
     #keyboardMapBody {
@@ -2206,12 +2203,33 @@
 
     .field-grid {
       display: grid;
-      gap: 10px;
+      gap: 8px;
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .auto-meta-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .auto-author-field .auto-author-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .auto-author-field .auto-author-row input {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .auto-save-btn {
+      flex: 0 0 auto;
+      min-width: 72px;
+    }
+
+    .auto-save-btn.is-saving {
+      opacity: 0.65;
     }
 
     .auto-range-grid {
@@ -2224,15 +2242,15 @@
     }
 
     .auto-stack-grid {
-      --auto-label-width: 116px;
+      --auto-label-width: 104px;
       grid-template-columns: 1fr;
-      gap: 8px;
+      gap: 6px;
     }
 
     .auto-stack-split {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
+      gap: 8px;
       align-items: start;
     }
 
@@ -2243,7 +2261,7 @@
       grid-template-columns: var(--auto-label-width) auto;
       align-items: center;
       justify-content: flex-start;
-      column-gap: 8px;
+      column-gap: 6px;
     }
 
     .auto-stack-grid > .field.note-inline label,
@@ -2267,7 +2285,7 @@
     .auto-sampler-columns {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
+      gap: 10px;
       align-items: start;
     }
 
@@ -2278,7 +2296,7 @@
 
     .auto-sampler-right {
       display: grid;
-      gap: 10px;
+      gap: 8px;
       align-content: start;
     }
 
@@ -2286,7 +2304,7 @@
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      gap: 6px;
+      gap: 5px;
     }
 
     .auto-ms-field label {
@@ -2319,7 +2337,7 @@
       margin-top: -2px;
       padding-top: 2px;
       display: grid;
-      gap: 8px;
+      gap: 6px;
     }
 
     .auto-loop-options > .field {
@@ -2327,7 +2345,7 @@
       grid-template-columns: var(--auto-label-width) auto;
       align-items: center;
       justify-content: flex-start;
-      column-gap: 8px;
+      column-gap: 6px;
     }
 
     .auto-loop-options > .field > label {
@@ -2359,7 +2377,7 @@
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      gap: 8px;
+      gap: 6px;
       min-height: 22px;
     }
 
@@ -2887,7 +2905,7 @@
     .map-shell {
       --map-col-gap: 2px;
       border: 1px solid rgba(var(--line-rgb), 0.24);
-      border-radius: 8px;
+      border-radius: 6px;
       background: rgba(var(--surface-deep-rgb), 0.36);
       overflow: hidden;
     }
@@ -2895,15 +2913,15 @@
     .keyswitch-map-toolbar {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin: 0 0 6px;
+      gap: 6px;
+      margin: 0 0 4px;
       flex-wrap: wrap;
     }
 
     .keyswitch-map-import-controls {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       flex-wrap: wrap;
       margin-right: 0;
     }
@@ -2919,7 +2937,44 @@
     .keyswitch-map-matrix-row {
       display: flex;
       align-items: center;
+      margin: 0 0 4px;
+    }
+
+    #panel-setup .section + .section {
+      margin-top: 10px;
+    }
+
+    #panel-setup .section h2 {
       margin: 0 0 6px;
+    }
+
+    #panel-setup .section.collapsible > h2 {
+      min-height: 20px;
+      padding: 0 4px;
+    }
+
+    #panel-setup input[type="text"],
+    #panel-setup select {
+      border-radius: 6px;
+      padding: 6px 7px;
+      font-size: 11px;
+    }
+
+    #panel-setup .field label {
+      margin-bottom: 4px;
+    }
+
+    #panel-setup .field.note-inline .note-input,
+    #panel-setup .auto-ms-field .ms-input,
+    #panel-setup .auto-loop-value-wrap .ms-input,
+    #panel-setup .keyswitch-map-matrix-input {
+      padding-top: 5px;
+      padding-bottom: 5px;
+    }
+
+    #panel-setup .interval-stepper {
+      min-height: 26px;
+      border-radius: 6px;
     }
 
     .keyswitch-map-matrix-label {
@@ -4250,11 +4305,6 @@
         </div>
         <div id="playerAuthorDisplay" class="player-author-display" aria-live="polite"></div>
       </div>
-      <button id="saveSmpinstBtn" class="tab-btn icon-tab topbar-save-icon-btn hidden" type="button" aria-label="Save instrument" title="Save instrument">
-        <svg viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
-          <path d="M840-682v495.33q0 27-19.83 46.84Q800.33-120 773.33-120H186.67q-27 0-46.84-19.83Q120-159.67 120-186.67v-586.66q0-27 19.83-46.84Q159.67-840 186.67-840H682l158 158Zm-66.67 29.33L652.67-773.33h-466v586.66h586.66v-466Zm-216 377.49q32-31.84 32-77.33 0-45.49-31.84-77.49-31.84-32-77.33-32-45.49 0-77.49 31.84-32 31.85-32 77.34t31.84 77.49q31.84 32 77.33 32 45.49 0 77.49-31.85ZM235.33-576H594v-148.67H235.33V-576Zm-48.66-76.67v466-586.66 120.66Z"/>
-        </svg>
-      </button>
       <button id="addWallpaperBtn" class="tab-btn icon-tab topbar-wallpaper-icon-btn hidden" type="button" aria-label="Add wallpaper" title="Add wallpaper to player">
         <svg viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
           <path d="M440-440H240v-80h200v-200h80v200h200v80H520v200h-80v-200ZM160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160Zm0-80h640v-480H160v480Zm0 0v-480 480Z"/>
@@ -4357,9 +4407,12 @@
                     <label id="autoInstrumentLabel" for="autoInstrument">Instrument Name</label>
                     <input id="autoInstrument" type="text" value="MyInstrument">
                   </div>
-                  <div class="field">
+                  <div class="field auto-author-field">
                     <label id="autoAuthorLabel" for="autoAuthor">Author</label>
-                    <input id="autoAuthor" type="text" value="">
+                    <div class="auto-author-row">
+                      <input id="autoAuthor" type="text" value="">
+                      <button id="saveSmpinstBtn" class="sample-loop-tool-btn auto-save-btn hidden" type="button">Save</button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4826,6 +4879,8 @@
       pendingSampleDataRequests: new Map(),
       manifestPickRequestSeq: 0,
       pendingManifestPickRequests: new Map(),
+      destinationFolderRequestSeq: 0,
+      pendingDestinationFolderRequests: new Map(),
       graphicPickRequestSeq: 0,
       pendingGraphicPickRequests: new Map(),
       graphicDataRequestSeq: 0,
@@ -6773,11 +6828,25 @@
 
     function handleNativeDestinationFolderSelected(payload) {
       const info = (payload && typeof payload === "object") ? payload : {};
-      const path = String(info.path || "").trim();
-      if (!path || !el.autoDestination) return;
-      el.autoDestination.value = path;
-      renderAuto();
-      scheduleSessionStateSave(250);
+      const path = applyAutoDestinationPath(info.path || "");
+      if (!path) return;
+
+      const requestId = Math.round(Number(info.requestId));
+      if (Number.isFinite(requestId) && state.pendingDestinationFolderRequests.has(requestId)) {
+        const pending = state.pendingDestinationFolderRequests.get(requestId);
+        state.pendingDestinationFolderRequests.delete(requestId);
+        window.clearTimeout(pending.timeoutId);
+        pending.resolve(path);
+        return;
+      }
+
+      const firstPending = state.pendingDestinationFolderRequests.entries().next();
+      if (!firstPending.done) {
+        const [pendingId, pending] = firstPending.value;
+        state.pendingDestinationFolderRequests.delete(pendingId);
+        window.clearTimeout(pending.timeoutId);
+        pending.resolve(path);
+      }
     }
 
     function appendNativeAutoSamplerTake(payload) {
@@ -12505,6 +12574,36 @@
       });
     }
 
+    function requestDestinationFolderFromNative(options = {}) {
+      if (!getNativeBackend()) return Promise.resolve("");
+      const requestId = (Number(state.destinationFolderRequestSeq) || 0) + 1;
+      state.destinationFolderRequestSeq = requestId;
+      const timeoutMs = Math.max(1000, Math.round(Number(options?.timeoutMs) || 25000));
+      const currentPath = normalizeManifestPathInput(options?.currentPath || el.autoDestination?.value || "");
+      return new Promise((resolve) => {
+        const timeoutId = window.setTimeout(() => {
+          const pending = state.pendingDestinationFolderRequests.get(requestId);
+          if (!pending) return;
+          state.pendingDestinationFolderRequests.delete(requestId);
+          resolve("");
+        }, timeoutMs);
+
+        state.pendingDestinationFolderRequests.set(requestId, { resolve, timeoutId });
+        const emitted = emitNativeEvent("pick_destination_folder", {
+          requestId,
+          currentPath
+        });
+        if (!emitted) {
+          const pending = state.pendingDestinationFolderRequests.get(requestId);
+          if (pending) {
+            window.clearTimeout(pending.timeoutId);
+            state.pendingDestinationFolderRequests.delete(requestId);
+          }
+          resolve("");
+        }
+      });
+    }
+
     function handleInstrumentManifestPickedPayload(payload) {
       const info = (payload && typeof payload === "object" && !Array.isArray(payload))
         ? payload
@@ -15210,6 +15309,7 @@
       state.waveformCache.clear();
       state.pendingSampleDataRequests.clear();
       state.pendingManifestPickRequests.clear();
+      state.pendingDestinationFolderRequests.clear();
       state.pendingGraphicPickRequests.clear();
       state.pendingGraphicDataRequests.clear();
       state.entrySampleHydrationPromises.clear();
@@ -15277,6 +15377,65 @@
         .replace(/_+/g, "_")
         .replace(/^_+|_+$/g, "");
       return cleaned || String(fallback || "item");
+    }
+
+    function normalizeDestinationFolderPath(pathLike) {
+      return String(pathLike || "").trim().replace(/\\/g, "/").replace(/\/+$/, "");
+    }
+
+    function applyAutoDestinationPath(pathLike) {
+      const normalized = normalizeDestinationFolderPath(pathLike);
+      if (!normalized || !el.autoDestination) return "";
+      if (el.autoDestination.value !== normalized) {
+        el.autoDestination.value = normalized;
+      }
+      renderAuto();
+      scheduleSessionStateSave(250);
+      return normalized;
+    }
+
+    async function requestAutoDestinationFolder(options = {}) {
+      const currentPath = normalizeDestinationFolderPath(options?.currentPath || el.autoDestination?.value || "");
+
+      if (getNativeBackend()) {
+        return requestDestinationFolderFromNative({ currentPath, timeoutMs: options?.timeoutMs });
+      }
+
+      if (typeof window.showDirectoryPicker === "function") {
+        try {
+          const handle = await window.showDirectoryPicker();
+          const folderName = String(handle?.name || "").trim();
+          if (!folderName) return "";
+          const merged = mergeFolderNameIntoPath(currentPath, folderName);
+          return applyAutoDestinationPath(merged || folderName);
+        } catch {
+          // fall through to input-based directory picker
+        }
+      }
+
+      if (!el.autoDestinationPicker) return "";
+
+      const requestId = (Number(state.destinationFolderRequestSeq) || 0) + 1;
+      state.destinationFolderRequestSeq = requestId;
+      const timeoutMs = Math.max(1000, Math.round(Number(options?.timeoutMs) || 25000));
+
+      return new Promise((resolve) => {
+        const timeoutId = window.setTimeout(() => {
+          const pending = state.pendingDestinationFolderRequests.get(requestId);
+          if (!pending) return;
+          state.pendingDestinationFolderRequests.delete(requestId);
+          resolve("");
+        }, timeoutMs);
+
+        state.pendingDestinationFolderRequests.set(requestId, { resolve, timeoutId });
+        el.autoDestinationPicker.click();
+      });
+    }
+
+    async function ensureAutoDestinationFolder(options = {}) {
+      const existing = normalizeDestinationFolderPath(el.autoDestination?.value || "");
+      if (existing) return existing;
+      return requestAutoDestinationFolder(options);
     }
 
     function buildKeyswitchSampleFolder(baseSampleFolder, keyswitchName, keyswitchKey, fallbackToken = "keyswitch") {
@@ -15436,20 +15595,18 @@
       saveBtn.classList.add("is-saving");
 
       try {
-        let manifestPath = getPackManifestFilePath();
-        if (!manifestPath) {
-          const instrumentName = String(el.autoInstrument?.value || "Instrument").trim() || "Instrument";
-          const savePick = await requestManifestPickFromNative({
-            mode: "save",
-            defaultName: `${sanitizePathToken(instrumentName, "Instrument")}.json`,
-            timeoutMs: 25000
-          });
-          if (!savePick?.success || !String(savePick.path || "").trim()) {
-            setStatus(el.setupStatus, String(savePick?.message || "Save canceled.").trim() || "Save canceled.", "warn");
-            return;
-          }
-          manifestPath = String(savePick.path || "").trim();
+        const instrumentName = String(el.autoInstrument?.value || "Instrument").trim() || "Instrument";
+        const destinationFolder = await ensureAutoDestinationFolder({ timeoutMs: 25000 });
+        if (!destinationFolder) {
+          setStatus(el.setupStatus, "Choose a destination folder before saving the instrument.", "warn");
+          return;
         }
+
+        const existingManifestPath = normalizeManifestPathInput(getPackManifestFilePath());
+        const existingManifestBasePath = normalizeDestinationFolderPath(getPackManifestBasePath());
+        const manifestPath = existingManifestPath && existingManifestBasePath === destinationFolder
+          ? existingManifestPath
+          : `${destinationFolder}/${sanitizePathToken(instrumentName, "Instrument")}.json`;
 
         const manifest = buildManifestSkeleton("smpinst", {
           preserveRuntimePaths: false,
@@ -15616,6 +15773,9 @@
       if (success) {
         if (manifestPath) state.packManifestFilePath = manifestPath;
         if (manifestBasePath) state.packManifestBasePath = manifestBasePath;
+        if (manifestBasePath && el.autoDestination) {
+          el.autoDestination.value = normalizeDestinationFolderPath(manifestBasePath);
+        }
         const wallpaperAssetPath = getWallpaperAssetPath();
         if (wallpaperAssetPath && manifestBasePath) {
           state.wallpaperSourcePath = resolveManifestAssetPath(manifestBasePath, wallpaperAssetPath);
@@ -16797,29 +16957,13 @@
         if (!el.autoDestination) return;
         const merged = mergeFolderNameIntoPath(el.autoDestination.value, folderName);
         if (merged && merged !== el.autoDestination.value) {
-          el.autoDestination.value = merged;
-          renderAuto();
+          return applyAutoDestinationPath(merged);
         }
+        return normalizeDestinationFolderPath(el.autoDestination.value);
       };
 
       const openDestinationFolderPicker = async () => {
-        if (getNativeBackend()) {
-          const requested = emitNativeEvent("pick_destination_folder", {
-            currentPath: String(el.autoDestination?.value || "").trim()
-          });
-          if (requested) return;
-        }
-
-        if (typeof window.showDirectoryPicker === "function") {
-          try {
-            const handle = await window.showDirectoryPicker();
-            if (handle && handle.name) applyDestinationFolderName(handle.name);
-            return;
-          } catch {
-            // fall through to input-based directory picker
-          }
-        }
-        if (el.autoDestinationPicker) el.autoDestinationPicker.click();
+        return requestAutoDestinationFolder();
       };
 
       if (el.autoDestination) {
@@ -16855,10 +16999,17 @@
           }
 
           if (resolvedAbsolute) {
-            el.autoDestination.value = resolvedAbsolute;
-            renderAuto();
+            applyAutoDestinationPath(resolvedAbsolute);
           } else {
             applyDestinationFolderName(folderName);
+          }
+
+          const firstPending = state.pendingDestinationFolderRequests.entries().next();
+          if (!firstPending.done) {
+            const [pendingId, pending] = firstPending.value;
+            state.pendingDestinationFolderRequests.delete(pendingId);
+            window.clearTimeout(pending.timeoutId);
+            pending.resolve(normalizeDestinationFolderPath(el.autoDestination?.value || ""));
           }
           el.autoDestinationPicker.value = "";
         });
