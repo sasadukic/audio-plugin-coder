@@ -5602,6 +5602,23 @@
       return setOpenStringColorsByMidiForSet(nextColorMap, setId);
     }
 
+    function setOpenStringColorForSelection(rgbText = "", setId = state.activeMapSetId, extraMidis = []) {
+      const normalizedRgb = normalizeRgbText(rgbText);
+      const selectedMidis = [
+        ...getOpenStringMidisForSet(setId),
+        ...normalizeOpenStringMidiList(extraMidis)
+      ];
+      const uniqueMidis = Array.from(new Set(selectedMidis));
+      if (!uniqueMidis.length) {
+        return setOpenStringColorsByMidiForSet({}, setId);
+      }
+      const nextColorMap = {};
+      uniqueMidis.forEach((midi) => {
+        if (normalizedRgb) nextColorMap[String(midi)] = normalizedRgb;
+      });
+      return setOpenStringColorsByMidiForSet(nextColorMap, setId);
+    }
+
     function isAmpEnvelopeParam(param) {
       return param === "ampAttack"
         || param === "ampDecay"
@@ -15544,7 +15561,8 @@
         if (item.dataset.action === "open-string-color") {
           openStringOnPlayer(state.keyContextMenuTargetMidi, {
             forceOn: true,
-            color: item.dataset.color
+            color: item.dataset.color,
+            applyColorToSelection: true
           });
           return;
         }
@@ -17191,21 +17209,24 @@
       const clampedMidi = Math.max(PLAYER_KB_START_MIDI, Math.min(PLAYER_KB_END_MIDI, normalizedMidi));
       const forceOn = options?.forceOn === true;
       const forceOff = options?.forceOff === true;
+      const applyColorToSelection = options?.applyColorToSelection === true;
       const requestedColor = normalizeRgbText(options?.color);
       const selectedMidis = getOpenStringMidisForSet();
       const alreadySelected = selectedMidis.includes(clampedMidi);
       const shouldEnable = forceOn ? true : (forceOff ? false : !alreadySelected);
+      const nextSelectedMidis = shouldEnable
+        ? [...selectedMidis.filter((value) => value !== clampedMidi), clampedMidi]
+        : selectedMidis.filter((value) => value !== clampedMidi);
       setOpenStringMidisForSet(
-        shouldEnable
-          ? [...selectedMidis.filter((value) => value !== clampedMidi), clampedMidi]
-          : selectedMidis.filter((value) => value !== clampedMidi)
+        nextSelectedMidis
       );
       if (shouldEnable) {
         const fallbackColor = requestedColor
           || getOpenStringColorForMidi(clampedMidi)
           || normalizeRgbText(state.wallpaperOpenStringPalette[0])
           || normalizeRgbText(getComputedStyle(document.documentElement).getPropertyValue("--player-wallpaper-open-string-rgb"), "224, 224, 224");
-        setOpenStringColorForMidi(clampedMidi, fallbackColor);
+        if (applyColorToSelection) setOpenStringColorForSelection(fallbackColor, state.activeMapSetId, nextSelectedMidis);
+        else setOpenStringColorForMidi(clampedMidi, fallbackColor);
       } else {
         setOpenStringColorForMidi(clampedMidi, "");
       }
