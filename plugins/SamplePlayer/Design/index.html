@@ -375,12 +375,7 @@
 
     .strum-step-velocity-fill {
       width: 100%;
-      background: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.98),
-        rgba(var(--player-wheel-rgb, 236, 236, 236), 0.94) 38%,
-        rgba(var(--player-topbar-rgb, 40, 40, 40), 0.92)
-      );
+      background: #fff;
     }
 
     .strum-step-rest-label {
@@ -614,12 +609,7 @@
 
     .player-strum-step-grid .strum-step-velocity-fill {
       width: 100%;
-      background: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.98),
-        rgba(var(--player-wheel-rgb, 236, 236, 236), 0.94) 38%,
-        rgba(var(--player-topbar-rgb, 40, 40, 40), 0.92)
-      );
+      background: #fff;
     }
 
     .player-strum-step-grid .strum-step-rest-label {
@@ -6338,6 +6328,7 @@
           pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
           playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
           playerOpenStringMidis: normalizeOpenStringMidiList(state.playerOpenStringMidis),
+          ampEnvelope: buildAmpEnvelopeSnapshot(),
           auto: buildAutoControlsSnapshot(),
           sequencer: buildSequencerSnapshot(),
           strum: buildStrumSnapshot(),
@@ -6388,6 +6379,8 @@
           }
         }
 
+        const ampEnvelopeSnapshot = buildAmpEnvelopeSnapshot();
+
         const hashSig = [
           state.setupOctaveStart,
           state.activeMapSetId,
@@ -6405,6 +6398,10 @@
           state.modWheelValue,
           state.expressionValue,
           state.pitchBendValue,
+          ampEnvelopeSnapshot.attackMs,
+          ampEnvelopeSnapshot.decayMs,
+          ampEnvelopeSnapshot.sustainPercent,
+          ampEnvelopeSnapshot.releaseMs,
           state.playerPitchDownOctaves,
           normalizeOpenStringMidiList(state.playerOpenStringMidis).join(","),
           ksSets.map((set) => getNormalizedKeyswitchSetOpenStringMidis(set).join(",")).join("|"),
@@ -9100,6 +9097,7 @@
         const stepIndex = Math.round(Number(item.dataset.stepIndex));
         if (!Number.isFinite(stepIndex) || stepIndex < 0 || stepIndex >= 8) return;
         const rateIndex = Math.max(0, Math.min(4, Number(item.dataset.stepRateIndex) || 0));
+        ensureSessionStateWritable("strum-step-rate");
         ensureStrumStepPattern();
         const normalizedStep = normalizeStrumStep(state.strumStepPattern[stepIndex]);
         state.strumStepPattern[stepIndex] = { ...normalizedStep, rateIndex };
@@ -9115,6 +9113,7 @@
         const stepIndex = Math.round(Number(item.dataset.stepIndex));
         if (!Number.isFinite(stepIndex) || stepIndex < 0 || stepIndex >= 8) return;
         const keyswitchSetId = String(item.dataset.stepKeyswitchId || "").trim();
+        ensureSessionStateWritable("strum-step-keyswitch");
         ensureStrumStepPattern();
         const normalizedStep = normalizeStrumStep(state.strumStepPattern[stepIndex]);
         state.strumStepPattern[stepIndex] = {
@@ -9198,7 +9197,7 @@
         });
       };
 
-      const setupStrumMenu = (buttons, menu, itemSelector, onSelect) => {
+      const setupStrumMenu = (buttons, menu, itemSelector, onSelect, saveReason = "strum-menu-edit") => {
         const buttonList = Array.isArray(buttons) ? buttons.filter(Boolean) : [buttons].filter(Boolean);
         if (!buttonList.length || !menu) return;
         buttonList.forEach((button) => {
@@ -9217,6 +9216,7 @@
         Array.from(menu.querySelectorAll(itemSelector)).forEach((item) => {
           item.addEventListener("click", (ev) => {
             ev.stopPropagation();
+            ensureSessionStateWritable(saveReason);
             onSelect(item);
             updateStrumUi();
             emitStrumSettings();
@@ -9232,6 +9232,7 @@
 
       if (el.strumEnableBtn) {
         el.strumEnableBtn.addEventListener("click", () => {
+          ensureSessionStateWritable("strum-enable-toggle");
           state.strumEnabled = !state.strumEnabled;
           if (state.strumEnabled && getStrumVisibleStepCount() <= 0) {
             state.strumSequencerSteps = 4;
@@ -9252,11 +9253,12 @@
           state.strumSequencerSteps = Number.isFinite(rawSteps) ? Math.max(0, Math.min(8, Math.round(rawSteps))) : 8;
           state.strumSequencerMode = state.strumSequencerSteps <= 0 ? 0 : (state.strumSequencerSteps <= 4 ? 1 : 2);
           state.strumEnabled = state.strumSequencerSteps > 0;
-        });
+        }, "strum-sequencer-steps");
       }
 
       [el.strumDoublingBtn, el.playerStrumDoublingBtn].filter(Boolean).forEach((button) => {
         button.addEventListener("click", () => {
+          ensureSessionStateWritable("strum-doubling-toggle");
           state.strumDoubling = !state.strumDoubling;
           syncDoublingToggle();
           syncStrumDoublingBtn();
@@ -9267,6 +9269,7 @@
 
       if (el.doublingToggle) {
         el.doublingToggle.addEventListener("click", () => {
+          ensureSessionStateWritable("player-doubling-toggle");
           state.strumDoubling = !state.strumDoubling;
           syncDoublingToggle();
           syncStrumDoublingBtn();
@@ -9288,6 +9291,7 @@
 
       if (el.playerStrumMainToggle) {
         el.playerStrumMainToggle.addEventListener("click", () => {
+          ensureSessionStateWritable("player-strum-main-toggle");
           const isOn = !!state.strumShowOnMain && !!state.strumEnabled && getStrumVisibleStepCount() > 0;
           if (isOn) {
             state.strumShowOnMain = false;
@@ -9325,6 +9329,7 @@
 
       if (el.strumShowOnMainBtn) {
         el.strumShowOnMainBtn.addEventListener("click", () => {
+          ensureSessionStateWritable("strum-show-on-main");
           state.strumShowOnMain = !state.strumShowOnMain;
           el.strumShowOnMainBtn.setAttribute("aria-pressed", state.strumShowOnMain ? "true" : "false");
           el.strumShowOnMainBtn.classList.toggle("active", state.strumShowOnMain);
@@ -9342,19 +9347,19 @@
 
       setupStrumMenu([el.strumRateBtn, el.playerStrumRateBtn], el.strumRateMenu, ".strum-menu-item", (item) => {
         state.strumRateIndex = Math.max(0, Math.min(3, Number(item.dataset.rateIndex) || 0));
-      });
+      }, "strum-rate");
 
       setupStrumMenu([el.strumSwingBtn, el.playerStrumSwingBtn], el.strumSwingMenu, ".strum-menu-item", (item) => {
         state.strumSwingPercent = Math.max(0, Math.min(20, Number(item.dataset.swingValue) || 0));
-      });
+      }, "strum-swing");
 
       setupStrumMenu([el.strumVelHumanBtn, el.playerStrumVelHumanBtn], el.strumVelHumanMenu, ".strum-menu-item", (item) => {
         state.strumVelocityHumanizePercent = Math.max(0, Math.min(20, Number(item.dataset.velHumanValue) || 0));
-      });
+      }, "strum-velocity-humanize");
 
       setupStrumMenu([el.strumTimeHumanBtn, el.playerStrumTimeHumanBtn], el.strumTimeHumanMenu, ".strum-menu-item", (item) => {
         state.strumTimingHumanizeMs = Math.max(0, Math.min(10, Number(item.dataset.timeHumanValue) || 0));
-      });
+      }, "strum-timing-humanize");
 
       if (el.strumStepGrid || el.playerStrumStepGrid) {
         const applyVelocityFromPointer = (stepIndex, barIndex, clientY, capturedRect) => {
@@ -9408,6 +9413,7 @@
             if (!Number.isFinite(stepIndex)) return;
             if (!Number.isFinite(barIndex)) return;
             ev.preventDefault();
+            ensureSessionStateWritable("strum-step-velocity");
             const capturedRect = velocityBtn.getBoundingClientRect();
             const vel = applyVelocityFromPointer(stepIndex, barIndex, ev.clientY, capturedRect);
             if (vel >= 0) updateBarFillVisual(stepIndex, barIndex, vel);
@@ -9439,6 +9445,7 @@
               const action = gapBtn.dataset.gapAction;
               const gapAfterStep = Number(gapBtn.dataset.gapAfterStep);
               if (!Number.isFinite(gapAfterStep)) return;
+              ensureSessionStateWritable("strum-step-count");
               ensureStrumStepPattern();
               let newStepCount = getStrumVisibleStepCount();
               if (action === "remove") {
@@ -9464,6 +9471,7 @@
               const activeStepCount = getStrumVisibleStepCount();
               if (stepIndex >= activeStepCount) return;
               const rateIndex = Math.max(0, Math.min(4, Number(rateItem.dataset.stepRateIndex) || 0));
+              ensureSessionStateWritable("strum-step-rate");
               ensureStrumStepPattern();
               const normalizedStep = normalizeStrumStep(state.strumStepPattern[stepIndex]);
               state.strumStepPattern[stepIndex] = {
@@ -9501,6 +9509,7 @@
               const activeStepCount = getStrumVisibleStepCount();
               if (stepIndex >= activeStepCount) return;
               const keyswitchSetId = String(keyswitchItem.dataset.stepKeyswitchId || "").trim();
+              ensureSessionStateWritable("strum-step-keyswitch");
               ensureStrumStepPattern();
               const normalizedStep = normalizeStrumStep(state.strumStepPattern[stepIndex]);
               state.strumStepPattern[stepIndex] = {
@@ -10265,6 +10274,8 @@
         const param = String(node.dataset.param || "").trim();
         if (!isAmpEnvelopeParam(param)) return;
         node.addEventListener("knobchange", () => {
+          if (state.sessionStateRestoreInProgress) return;
+          ensureSessionStateWritable("amp-envelope");
           emitAmpEnvelopeToNative();
           scheduleSessionStateSave(120);
         });
