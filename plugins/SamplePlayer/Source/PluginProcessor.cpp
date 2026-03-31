@@ -2150,6 +2150,7 @@ juce::var buildDirectLoadSessionSnapshot (const juce::var& manifest,
                 uiKs->setProperty ("key", ksObj->getProperty ("key"));
                 uiKs->setProperty ("keyMidi", ksObj->getProperty ("keyMidi"));
                 uiKs->setProperty ("loopPlaybackEnabled", ksObj->getProperty ("loopPlaybackEnabled"));
+                uiKs->setProperty ("openStringMidis", ksObj->getProperty ("openStringMidis"));
                 uiKs->setProperty ("playbackMode",
                                    resolveKeyswitchOneShotPlayback (keyswitchName,
                                                                     ksObj->getProperty ("playbackMode").toString())

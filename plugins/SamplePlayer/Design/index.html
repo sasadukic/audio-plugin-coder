@@ -5575,6 +5575,40 @@
       return unique;
     }
 
+    function getNormalizedKeyswitchSetOpenStringMidis(set) {
+      if (!set || typeof set !== "object") return [];
+      const normalized = normalizeOpenStringMidiList(set.openStringMidis);
+      if (!Array.isArray(set.openStringMidis)
+        || set.openStringMidis.length !== normalized.length
+        || normalized.some((midi, index) => midi !== set.openStringMidis[index])) {
+        set.openStringMidis = normalized;
+      }
+      return normalized;
+    }
+
+    function getOpenStringOwnerSet(setId = state.activeMapSetId) {
+      const keyswitchSets = Array.isArray(state.keyswitchSets) ? state.keyswitchSets : [];
+      if (!keyswitchSets.length) return null;
+      return getKeyswitchSetById(setId) || keyswitchSets[0] || null;
+    }
+
+    function getOpenStringMidisForSet(setId = state.activeMapSetId) {
+      const ownerSet = getOpenStringOwnerSet(setId);
+      if (ownerSet) return getNormalizedKeyswitchSetOpenStringMidis(ownerSet);
+      return normalizeOpenStringMidiList(state.playerOpenStringMidis);
+    }
+
+    function setOpenStringMidisForSet(values, setId = state.activeMapSetId) {
+      const normalized = normalizeOpenStringMidiList(values);
+      const ownerSet = getOpenStringOwnerSet(setId);
+      if (ownerSet) {
+        ownerSet.openStringMidis = normalized;
+        return normalized;
+      }
+      state.playerOpenStringMidis = normalized;
+      return normalized;
+    }
+
     function isAmpEnvelopeParam(param) {
       return param === "ampAttack"
         || param === "ampDecay"
@@ -6225,6 +6259,7 @@
             keyMidi: Number.isFinite(set?.keyMidi) ? Math.round(set.keyMidi) : null,
             loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
             playbackMode: resolveKeyswitchPlaybackMode(set),
+            openStringMidis: getNormalizedKeyswitchSetOpenStringMidis(set),
             index,
             active: String(state.activeMapSetId || "") === String(set?.id || ""),
             manualRanges: cloneManualRangesObject(set?.manualRanges)
@@ -6351,6 +6386,7 @@
           state.pitchBendValue,
           state.playerPitchDownOctaves,
           normalizeOpenStringMidiList(state.playerOpenStringMidis).join(","),
+          ksSets.map((set) => getNormalizedKeyswitchSetOpenStringMidis(set).join(",")).join("|"),
           baseEntries.length,
           ksSets.length,
           state.strumEnabled,
@@ -6673,6 +6709,10 @@
             matched.manualRanges
           );
           matched.loopPlaybackEnabled = snapshotSet?.loopPlaybackEnabled !== false;
+          matched.openStringMidis = normalizeOpenStringMidiList(
+            snapshotSet?.openStringMidis
+            ?? matched?.openStringMidis
+          );
           matched.playbackMode = normalizeKeyswitchTriggerModeName(restoredName) !== "manual"
             ? "oneshot"
             : normalizeKeyswitchPlaybackMode(snapshotSet?.playbackMode || matched.playbackMode);
@@ -9758,6 +9798,10 @@
             playbackMode: normalizeKeyswitchTriggerModeName(setName) !== "manual"
               ? "oneshot"
               : normalizeKeyswitchPlaybackMode(data?.playbackMode),
+            openStringMidis: normalizeOpenStringMidiList(
+              data?.openStringMidis
+              ?? data?.settings?.openStringMidis
+            ),
             sourceFile: file.name,
             sourcePath: sourceFilePath,
             manifestBasePath: importedManifestBasePath,
@@ -13775,7 +13819,7 @@
         }
       });
       const openStringMidis = new Set(
-        (Array.isArray(state.playerOpenStringMidis) ? state.playerOpenStringMidis : [])
+        getOpenStringMidisForSet()
           .map((midi) => Math.round(Number(midi)))
           .filter((midi) => Number.isFinite(midi))
           .map((midi) => Math.max(PLAYER_KB_START_MIDI, Math.min(PLAYER_KB_END_MIDI, midi)))
@@ -14841,6 +14885,7 @@
             keyMidi: normalized.keyMidi,
             loopPlaybackEnabled: true,
             playbackMode: normalizeKeyswitchTriggerModeName(name) !== "manual" ? "oneshot" : "spread",
+            openStringMidis: [],
             sourceFile: "",
             sourcePath: "",
             manifestBasePath: "",
@@ -15926,6 +15971,7 @@
         const keyInfo = normalizeKeyswitchKey(el.autoAuthor?.value || "", 12);
         manifest.packType = "keyswitch";
         manifest.keyswitchKey = keyInfo.key;
+        manifest.settings.openStringMidis = getOpenStringMidisForSet(state.activeMapSetId);
         manifest.mapping = buildManifestMapping(state.entries, {
           preserveRuntimePaths,
           includeEmbeddedSampleData,
@@ -15944,6 +15990,7 @@
               keyswitchKey: setKey,
               loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
               playbackMode: resolveKeyswitchPlaybackMode(set),
+              openStringMidis: getNormalizedKeyswitchSetOpenStringMidis(set),
               manualRanges: cloneManualRangesObject(set?.manualRanges),
               mapping: buildManifestMapping(Array.isArray(set?.entries) ? set.entries : [], {
                 preserveRuntimePaths,
@@ -16339,6 +16386,10 @@
       let nextOrder = baseEntries.length;
       const importedKeyswitchSets = [];
       const keyswitchSetRecords = Array.isArray(data?.keyswitchSets) ? data.keyswitchSets : [];
+      const legacyGlobalOpenStringMidis = normalizeOpenStringMidiList(
+        sessionUiState?.playerOpenStringMidis
+        ?? data?.settings?.openStringMidis
+      );
       keyswitchSetRecords.forEach((rawSet, index) => {
         const sessionUiSet = (sessionUiKeyswitchSets && typeof sessionUiKeyswitchSets[index] === "object")
           ? sessionUiKeyswitchSets[index]
@@ -16367,6 +16418,11 @@
           playbackMode: normalizeKeyswitchTriggerModeName(importedSetName) !== "manual"
             ? "oneshot"
             : normalizeKeyswitchPlaybackMode(sessionUiSet?.playbackMode || rawSet?.playbackMode),
+          openStringMidis: normalizeOpenStringMidiList(
+            sessionUiSet?.openStringMidis
+            ?? rawSet?.openStringMidis
+            ?? (index === 0 ? legacyGlobalOpenStringMidis : [])
+          ),
           sourceFile: sourceLabel,
           entries: setEntries,
           manualRanges: resolveLoadedManualRanges(
@@ -16392,10 +16448,7 @@
       state.baseLoopPlaybackEnabled = data?.settings?.baseLoopPlaybackEnabled !== false;
       state.packManifestFilePath = resolvedManifestFilePath;
       state.packManifestBasePath = resolvedManifestBasePath;
-      state.playerOpenStringMidis = normalizeOpenStringMidiList(
-        sessionUiState?.playerOpenStringMidis
-        ?? data?.settings?.openStringMidis
-      );
+      state.playerOpenStringMidis = importedKeyswitchSets.length > 0 ? [] : legacyGlobalOpenStringMidis;
       state.wallpaperAssetPath = normalizeManifestPathInput(
         sessionUiState?.wallpaperAssetPath
         || data?.graphics?.wallpaperPath
@@ -16822,11 +16875,13 @@
       const normalizedMidi = Math.round(Number(midi));
       if (!Number.isFinite(normalizedMidi)) return;
       const clampedMidi = Math.max(PLAYER_KB_START_MIDI, Math.min(PLAYER_KB_END_MIDI, normalizedMidi));
-      const selectedMidis = normalizeOpenStringMidiList(state.playerOpenStringMidis);
+      const selectedMidis = getOpenStringMidisForSet();
       const alreadySelected = selectedMidis.includes(clampedMidi);
-      state.playerOpenStringMidis = alreadySelected
-        ? selectedMidis.filter((value) => value !== clampedMidi)
-        : [...selectedMidis.filter((value) => value !== clampedMidi), clampedMidi];
+      setOpenStringMidisForSet(
+        alreadySelected
+          ? selectedMidis.filter((value) => value !== clampedMidi)
+          : [...selectedMidis.filter((value) => value !== clampedMidi), clampedMidi]
+      );
       scheduleSessionStateSave(250);
       activateTab("player");
       renderPlayerKeyboard();
