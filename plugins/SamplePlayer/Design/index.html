@@ -1459,12 +1459,26 @@
         0 0 14px rgba(var(--player-wallpaper-dominant-rgb), 0.28);
     }
 
+    .player-key-white.is-open-string {
+      border-right-color: rgba(156, 156, 156, 0.14);
+      border-top-color: rgba(156, 156, 156, 0.14);
+      background: linear-gradient(180deg, #343434, #181818);
+      box-shadow:
+        0 6px 10px rgba(0, 0, 0, 0.42),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        inset 0 -5px 8px rgba(0, 0, 0, 0.54);
+    }
+
+    .player-key-white.is-open-string::after {
+      opacity: 0;
+    }
+
     .player-key-white .player-key-open-string-overlay {
       background:
         linear-gradient(
           180deg,
-          rgba(var(--player-wallpaper-dominant-rgb), 0.82),
-          rgba(var(--player-wallpaper-dominant-rgb), 0.58)
+          rgba(var(--player-wallpaper-dominant-rgb), 0.76),
+          rgba(var(--player-wallpaper-dominant-rgb), 0.52)
         );
     }
 
@@ -1475,6 +1489,13 @@
           rgba(var(--player-wallpaper-dominant-rgb), 0.76),
           rgba(var(--player-wallpaper-dominant-rgb), 0.52)
         );
+    }
+
+    .player-key-white.is-open-string .player-key-label,
+    .player-key-white.is-open-string.c-note .player-key-label,
+    .player-key-white.is-open-string.c-note.has-sample .player-key-label {
+      color: rgba(220, 220, 220, 0.72);
+      text-shadow: none;
     }
 
     .player-key-white.c-note .player-key-label {
@@ -1560,11 +1581,37 @@
         0 0 4px rgba(198, 198, 198, 0.16);
     }
 
+    .player-key-white.is-open-string.is-down {
+      transform: translateY(2px);
+      filter: brightness(0.93) contrast(1.06);
+      background:
+        linear-gradient(
+          180deg,
+          rgba(var(--player-swatch-rgb), var(--player-key-press-black-alpha-top)),
+          rgba(var(--player-swatch-rgb), var(--player-key-press-black-alpha-bottom))
+        ),
+        linear-gradient(180deg, #383838, #141414);
+      border-right-color: rgba(176, 176, 176, 0.3);
+      border-top-color: rgba(176, 176, 176, 0.3);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.03),
+        inset 0 -6px 8px rgba(0, 0, 0, 0.62),
+        0 0 0 1px rgba(184, 184, 184, 0.12),
+        0 0 5px rgba(170, 170, 170, 0.12);
+    }
+
     .player-key-white.is-down::before {
       opacity: 0.16;
       background:
         radial-gradient(circle at 50% 70%, rgba(232, 232, 232, 0.22), rgba(232, 232, 232, 0) 68%),
         linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+    }
+
+    .player-key-white.is-open-string.is-down::before {
+      opacity: 0.2;
+      background:
+        radial-gradient(circle at 50% 62%, rgba(210, 210, 210, 0.22), rgba(210, 210, 210, 0) 70%),
+        linear-gradient(180deg, rgba(198, 198, 198, 0.08), rgba(198, 198, 198, 0));
     }
 
     .player-key-black.is-down {
@@ -13704,6 +13751,7 @@
 
       function decorateOpenStringPlayerKey(keyNode, midi) {
         if (!openStringMidis.has(midi)) return;
+        keyNode.classList.add("is-open-string");
         const overlay = document.createElement("span");
         overlay.className = "player-key-open-string-overlay";
         overlay.setAttribute("aria-hidden", "true");
