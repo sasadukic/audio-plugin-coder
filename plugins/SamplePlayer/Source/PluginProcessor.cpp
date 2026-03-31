@@ -2025,6 +2025,9 @@ juce::var buildDirectLoadSessionSnapshot (const juce::var& manifest,
     {
         const auto loopPlaybackEnabledVar = manifestRoot->getProperty ("settings").getProperty ("baseLoopPlaybackEnabled", true);
         uiObj->setProperty ("baseLoopPlaybackEnabled", loopPlaybackEnabledVar);
+        const auto openStringMidisVar = manifestRoot->getProperty ("settings").getProperty ("openStringMidis", {});
+        if (! openStringMidisVar.isVoid())
+            uiObj->setProperty ("playerOpenStringMidis", openStringMidisVar);
 
         if (auto* manifestKsSets = manifestRoot->getProperty ("keyswitchSets").getArray())
         {

@@ -1351,6 +1351,7 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
     auto manifestJson = object->getProperty ("manifestJson").toString();
     auto manifestPath = object->getProperty ("manifestPath").toString().trim();
     const bool askForPath = static_cast<bool> (object->getProperty ("askForPath"));
+    const bool overwriteExisting = static_cast<bool> (object->getProperty ("overwriteExisting"));
 
     if (manifestJson.trim().isEmpty())
     {
@@ -1399,6 +1400,7 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
                           + juce::String (hasGraphics ? "yes" : "no")
                           + " | wallpaperPath=" + wallpaperPath.quoted()
                           + " | askForPath=" + juce::String (askForPath ? "yes" : "no")
+                          + " | overwriteExisting=" + juce::String (overwriteExisting ? "yes" : "no")
                           + " | manifestPath=" + manifestPath.quoted()
                           + " | assetCount=" + juce::String (static_cast<int> (assets.size())));
     }
@@ -1471,9 +1473,16 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
                 const juce::File sourceFile (asset.sourcePath);
                 if (sourceFile.existsAsFile())
                 {
-                    if (targetFile.existsAsFile())
-                        targetFile.deleteFile();
-                    wroteAsset = sourceFile.copyFileTo (targetFile);
+                    if (sourceFile == targetFile)
+                    {
+                        wroteAsset = true;
+                    }
+                    else
+                    {
+                        if (targetFile.existsAsFile())
+                            targetFile.deleteFile();
+                        wroteAsset = sourceFile.copyFileTo (targetFile);
+                    }
                 }
             }
 
