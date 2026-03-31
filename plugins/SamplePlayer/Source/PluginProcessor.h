@@ -210,6 +210,8 @@ private:
         std::unordered_map<std::string, int> mapSetSlotById;
         std::unordered_map<int, bool> loopPlaybackBySlot;
         std::unordered_map<int, bool> oneShotPlaybackBySlot;
+        std::vector<int> noteOnTriggerSlots;
+        std::vector<int> noteOffTriggerSlots;
         std::array<int, 128> keyswitchSlotByMidi {};
         bool hasKeyswitchSets = false;
     };
@@ -298,6 +300,12 @@ private:
     void finishPresetLoadTrace (const juce::String& stage, const juce::String& outcome);
 
     void handleMidiMessage (const juce::MidiMessage& message, const BlockSettings& settings, bool previewMessage = false);
+    void triggerAuxiliaryKeyswitchSlots (bool triggerOnNoteOn,
+                                         int midiChannel,
+                                         int midiNoteNumber,
+                                         float velocity,
+                                         const BlockSettings& settings,
+                                         int primarySlotToSkip = -1);
     void startVoiceForNote (int midiChannel, int midiNoteNumber, float velocity, const BlockSettings& settings);
     std::shared_ptr<const SampleZone> startVoiceForNoteInternal (int midiChannel,
                                                                  int midiNoteNumber,
@@ -420,6 +428,7 @@ private:
     std::array<VoiceState, maxVoices> voices;
     uint64_t voiceAgeCounter = 0;
     std::array<int, 128> midiNoteOnCounts {};
+    std::array<int, 128> midiNoteLastVelocity127 {};
     std::atomic<juce::uint64> midiHeldMaskLo { 0 };
     std::atomic<juce::uint64> midiHeldMaskHi { 0 };
     std::unordered_map<int, int> roundRobinCounters;

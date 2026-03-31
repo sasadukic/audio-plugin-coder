@@ -259,6 +259,32 @@ juce::String normalizeKeyswitchPlaybackMode (juce::String value)
     return value == "oneshot" ? juce::String ("oneshot") : juce::String ("spread");
 }
 
+enum class KeyswitchTriggerMode
+{
+    manual,
+    noteOn,
+    noteOff
+};
+
+KeyswitchTriggerMode getKeyswitchTriggerModeFromName (juce::String value)
+{
+    value = value.trim().toLowerCase().removeCharacters (" _-");
+
+    if (value == "on" || value == "noteon" || value == "keyon")
+        return KeyswitchTriggerMode::noteOn;
+
+    if (value == "off" || value == "noteoff" || value == "keyoff")
+        return KeyswitchTriggerMode::noteOff;
+
+    return KeyswitchTriggerMode::manual;
+}
+
+bool resolveKeyswitchOneShotPlayback (const juce::String& name, const juce::String& playbackMode)
+{
+    return getKeyswitchTriggerModeFromName (name) != KeyswitchTriggerMode::manual
+        || normalizeKeyswitchPlaybackMode (playbackMode) == "oneshot";
+}
+
 bool decodeDataUrlAudioToMemory (const juce::String& dataUrl, juce::MemoryBlock& output)
 {
     const auto trimmed = dataUrl.trim();
@@ -2116,14 +2142,19 @@ juce::var buildDirectLoadSessionSnapshot (const juce::var& manifest,
                     continue;
 
                 auto* uiKs = new juce::DynamicObject();
+                const auto keyswitchName = ksObj->getProperty ("name").toString().trim();
                 uiKs->setProperty ("id", ksObj->hasProperty ("id")
                     ? ksObj->getProperty ("id")
                     : juce::var ("keyswitch_" + juce::String (i + 1)));
-                uiKs->setProperty ("name", ksObj->getProperty ("name"));
+                uiKs->setProperty ("name", keyswitchName);
                 uiKs->setProperty ("key", ksObj->getProperty ("key"));
                 uiKs->setProperty ("keyMidi", ksObj->getProperty ("keyMidi"));
                 uiKs->setProperty ("loopPlaybackEnabled", ksObj->getProperty ("loopPlaybackEnabled"));
-                uiKs->setProperty ("playbackMode", ksObj->getProperty ("playbackMode"));
+                uiKs->setProperty ("playbackMode",
+                                   resolveKeyswitchOneShotPlayback (keyswitchName,
+                                                                    ksObj->getProperty ("playbackMode").toString())
+                                       ? juce::var ("oneshot")
+                                       : juce::var ("spread"));
                 uiKs->setProperty ("active", i == 0);
                 uiKs->setProperty ("index", i);
                 const auto manualRangesVar = pickManualRangesVar (
@@ -3152,9 +3183,11 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     struct UiKeyswitchState
     {
         juce::String id;
+        juce::String name;
         int keyMidi = -1;
         bool loopPlaybackEnabled = true;
         bool oneShotPlayback = false;
+        KeyswitchTriggerMode triggerMode = KeyswitchTriggerMode::manual;
         juce::var manualRangesVar;
     };
 
@@ -3242,11 +3275,14 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
 
                 UiKeyswitchState state;
                 state.id = setObject->getProperty ("id").toString().trim();
+                state.name = setObject->getProperty ("name").toString().trim();
                 state.manualRangesVar = setObject->getProperty ("manualRanges");
                 const auto loopPlaybackEnabledVar = setObject->getProperty ("loopPlaybackEnabled");
                 if (! loopPlaybackEnabledVar.isVoid())
                     state.loopPlaybackEnabled = static_cast<bool> (loopPlaybackEnabledVar);
-                state.oneShotPlayback = normalizeKeyswitchPlaybackMode (setObject->getProperty ("playbackMode").toString()) == "oneshot";
+                state.triggerMode = getKeyswitchTriggerModeFromName (state.name);
+                state.oneShotPlayback = resolveKeyswitchOneShotPlayback (state.name,
+                                                                        setObject->getProperty ("playbackMode").toString());
 
                 const auto keyMidiVar = setObject->getProperty ("keyMidi");
                 if (! keyMidiVar.isVoid())
@@ -3282,10 +3318,12 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     struct MapSetDescriptor
     {
         juce::String id = "base";
+        juce::String name;
         int slot = 0;
         int keyswitchMidi = -1;
         bool loopPlaybackEnabled = true;
         bool oneShotPlayback = false;
+        KeyswitchTriggerMode triggerMode = KeyswitchTriggerMode::manual;
         juce::var manualRangesVar;
         const juce::Array<juce::var>* mappingArray = nullptr;
     };
@@ -3296,6 +3334,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     {
         MapSetDescriptor baseSet;
         baseSet.id = "base";
+        baseSet.name = "base";
         baseSet.slot = 0;
         baseSet.keyswitchMidi = -1;
         baseSet.loopPlaybackEnabled = baseLoopPlaybackEnabled;
@@ -3323,9 +3362,12 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
             MapSetDescriptor set;
             set.slot = i + 1;
             set.id = "keyswitch_" + juce::String (i + 1);
+            set.name = keyswitchObject->getProperty ("name").toString().trim();
             set.keyswitchMidi = -1;
             set.loopPlaybackEnabled = baseLoopPlaybackEnabled;
-            set.oneShotPlayback = normalizeKeyswitchPlaybackMode (keyswitchObject->getProperty ("playbackMode").toString()) == "oneshot";
+            set.triggerMode = getKeyswitchTriggerModeFromName (set.name);
+            set.oneShotPlayback = resolveKeyswitchOneShotPlayback (set.name,
+                                                                  keyswitchObject->getProperty ("playbackMode").toString());
             set.manualRangesVar = pickManualRangesVar (
                 juce::var {},
                 keyswitchObject->getProperty ("manualRanges"),
@@ -3337,9 +3379,12 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                 const auto& uiState = uiKeyswitchStates[static_cast<size_t> (i)];
                 if (uiState.id.isNotEmpty())
                     set.id = uiState.id;
+                if (uiState.name.isNotEmpty())
+                    set.name = uiState.name;
                 set.keyswitchMidi = uiState.keyMidi;
                 set.loopPlaybackEnabled = uiState.loopPlaybackEnabled;
                 set.oneShotPlayback = uiState.oneShotPlayback;
+                set.triggerMode = uiState.triggerMode;
                 set.manualRangesVar = pickManualRangesVar (
                     uiState.manualRangesVar,
                     keyswitchObject->getProperty ("manualRanges"),
@@ -3758,6 +3803,10 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         newSampleSet->mapSetSlotById[mapSet.id.toStdString()] = mapSet.slot;
         newSampleSet->loopPlaybackBySlot[mapSet.slot] = mapSet.loopPlaybackEnabled;
         newSampleSet->oneShotPlaybackBySlot[mapSet.slot] = mapSet.oneShotPlayback;
+        if (mapSet.triggerMode == KeyswitchTriggerMode::noteOn)
+            newSampleSet->noteOnTriggerSlots.push_back (mapSet.slot);
+        else if (mapSet.triggerMode == KeyswitchTriggerMode::noteOff)
+            newSampleSet->noteOffTriggerSlots.push_back (mapSet.slot);
         if (mapSet.keyswitchMidi >= 0 && mapSet.keyswitchMidi <= 127)
         {
             newSampleSet->keyswitchSlotByMidi[static_cast<size_t> (mapSet.keyswitchMidi)] = mapSet.slot;
@@ -5515,6 +5564,8 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
     if (message.isNoteOn())
     {
         const int note = juce::jlimit (0, 127, message.getNoteNumber());
+        const int noteVelocity127 = juce::jlimit (1, 127,
+                                                  static_cast<int> (std::round (message.getFloatVelocity() * 127.0f)));
         const auto sampleSet = std::atomic_load (&currentSampleSet);
         const int activeSlot = juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
 
@@ -5525,6 +5576,7 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
             {
                 auto& noteOnCount = midiNoteOnCounts[static_cast<size_t> (note)];
                 noteOnCount = juce::jmin (1024, noteOnCount + 1);
+                midiNoteLastVelocity127[static_cast<size_t> (note)] = noteVelocity127;
                 setMidiHeldState (note, true);
                 activeMapSetSlot.store (keyswitchSlot, std::memory_order_relaxed);
                 pendingActiveMapSetSlotFromMidi.store (keyswitchSlot, std::memory_order_relaxed);
@@ -5728,6 +5780,14 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                                                nullptr,
                                                stepPlaybackSlot);
                 }
+
+                midiNoteLastVelocity127[static_cast<size_t> (playedNote)] = velocity127;
+                triggerAuxiliaryKeyswitchSlots (true,
+                                                message.getChannel(),
+                                                playedNote,
+                                                velocity01,
+                                                stepSettings,
+                                                stepPlaybackSlot);
                 return true;
             };
 
@@ -5766,6 +5826,7 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
 
         auto& noteOnCount = midiNoteOnCounts[static_cast<size_t> (note)];
         noteOnCount = juce::jmin (1024, noteOnCount + 1);
+        midiNoteLastVelocity127[static_cast<size_t> (note)] = noteVelocity127;
         setMidiHeldState (note, true);
 
         {
@@ -5782,6 +5843,13 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                 startVoiceForNote (message.getChannel(), note, message.getFloatVelocity(), settings);
             }
         }
+
+        triggerAuxiliaryKeyswitchSlots (true,
+                                        message.getChannel(),
+                                        note,
+                                        message.getFloatVelocity(),
+                                        settings,
+                                        activeSlot);
         return;
     }
 
@@ -5809,7 +5877,16 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
                     --playedDepth;
                 setMidiHeldState (playedNote, playedDepth > 0);
                 if (playedDepth <= 0)
+                {
                     releaseVoicesForNote (message.getChannel(), playedNote, true, settings);
+                    const int releaseVelocity127 = juce::jmax (1, midiNoteLastVelocity127[static_cast<size_t> (playedNote)]);
+                    triggerAuxiliaryKeyswitchSlots (false,
+                                                    message.getChannel(),
+                                                    playedNote,
+                                                    static_cast<float> (releaseVelocity127) / 127.0f,
+                                                    settings,
+                                                    -1);
+                }
                 return true;
             };
 
@@ -5847,6 +5924,13 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
             return;
 
         releaseVoicesForNote (message.getChannel(), note, true, settings);
+        const int releaseVelocity127 = juce::jmax (1, midiNoteLastVelocity127[static_cast<size_t> (note)]);
+        triggerAuxiliaryKeyswitchSlots (false,
+                                        message.getChannel(),
+                                        note,
+                                        static_cast<float> (releaseVelocity127) / 127.0f,
+                                        settings,
+                                        -1);
         return;
     }
 
@@ -5913,6 +5997,48 @@ void SamplePlayerAudioProcessor::startVoiceForNote (int midiChannel,
                                                      const BlockSettings& settings)
 {
     startVoiceForNoteInternal (midiChannel, midiNoteNumber, velocity, settings, false, 0.0f, 0);
+}
+
+void SamplePlayerAudioProcessor::triggerAuxiliaryKeyswitchSlots (bool triggerOnNoteOn,
+                                                                 int midiChannel,
+                                                                 int midiNoteNumber,
+                                                                 float velocity,
+                                                                 const BlockSettings& settings,
+                                                                 int primarySlotToSkip)
+{
+    const auto sampleSet = std::atomic_load (&currentSampleSet);
+    if (sampleSet == nullptr || sampleSet->zones.empty())
+        return;
+
+    const auto& triggerSlots = triggerOnNoteOn ? sampleSet->noteOnTriggerSlots
+                                               : sampleSet->noteOffTriggerSlots;
+    if (triggerSlots.empty())
+        return;
+
+    const float safeVelocity = juce::jlimit (1.0f / 127.0f, 1.0f, velocity);
+
+    for (const auto slot : triggerSlots)
+    {
+        if (slot < 0 || slot == primarySlotToSkip)
+            continue;
+
+        BlockSettings slotSettings = settings;
+        if (const auto loopIt = sampleSet->loopPlaybackBySlot.find (slot);
+            loopIt != sampleSet->loopPlaybackBySlot.end())
+        {
+            slotSettings.loopEnabled = loopIt->second;
+        }
+
+        startVoiceForNoteInternal (midiChannel,
+                                   midiNoteNumber,
+                                   safeVelocity,
+                                   slotSettings,
+                                   true,
+                                   0.0f,
+                                   0,
+                                   nullptr,
+                                   slot);
+    }
 }
 
 std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioProcessor::startVoiceForNoteInternal (int midiChannel,
@@ -6109,6 +6235,7 @@ void SamplePlayerAudioProcessor::stopAllVoices()
         voice = VoiceState {};
 
     midiNoteOnCounts.fill (0);
+    midiNoteLastVelocity127.fill (0);
     midiHeldMaskLo.store (0, std::memory_order_relaxed);
     midiHeldMaskHi.store (0, std::memory_order_relaxed);
 }

@@ -6224,7 +6224,7 @@
             key: String(set?.key || ""),
             keyMidi: Number.isFinite(set?.keyMidi) ? Math.round(set.keyMidi) : null,
             loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
-            playbackMode: normalizeKeyswitchPlaybackMode(set?.playbackMode),
+            playbackMode: resolveKeyswitchPlaybackMode(set),
             index,
             active: String(state.activeMapSetId || "") === String(set?.id || ""),
             manualRanges: cloneManualRangesObject(set?.manualRanges)
@@ -6667,12 +6667,15 @@
         restoredSetStates.forEach((snapshotSet) => {
           const matched = matchRestoredKeyswitchSet(snapshotSet);
           if (!matched) return;
+          const restoredName = String(snapshotSet?.name || matched?.name || "");
           matched.manualRanges = resolveLoadedManualRanges(
             snapshotSet?.manualRanges,
             matched.manualRanges
           );
           matched.loopPlaybackEnabled = snapshotSet?.loopPlaybackEnabled !== false;
-          matched.playbackMode = normalizeKeyswitchPlaybackMode(snapshotSet?.playbackMode || matched.playbackMode);
+          matched.playbackMode = normalizeKeyswitchTriggerModeName(restoredName) !== "manual"
+            ? "oneshot"
+            : normalizeKeyswitchPlaybackMode(snapshotSet?.playbackMode || matched.playbackMode);
         });
 
         const activeSetSnapshot = restoredSetStates.find((item) => !!item?.active);
@@ -7920,8 +7923,25 @@
       return String(value || "").trim().toLowerCase() === "oneshot" ? "oneshot" : "spread";
     }
 
+    function normalizeKeyswitchTriggerModeName(name) {
+      const normalized = String(name || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+      if (normalized === "on" || normalized === "noteon" || normalized === "keyon") return "on";
+      if (normalized === "off" || normalized === "noteoff" || normalized === "keyoff") return "off";
+      return "manual";
+    }
+
+    function getKeyswitchTriggerMode(set) {
+      return normalizeKeyswitchTriggerModeName(set?.name);
+    }
+
+    function resolveKeyswitchPlaybackMode(set) {
+      return getKeyswitchTriggerMode(set) === "manual"
+        ? normalizeKeyswitchPlaybackMode(set?.playbackMode)
+        : "oneshot";
+    }
+
     function isKeyswitchPlaybackModeOneShot(set) {
-      return normalizeKeyswitchPlaybackMode(set?.playbackMode) === "oneshot";
+      return resolveKeyswitchPlaybackMode(set) === "oneshot";
     }
 
     function normalizeSequencerStep(step) {
@@ -9468,15 +9488,20 @@
         : "One-shot playback enabled";
     }
 
-    function updateKeyswitchPlaybackModeButton(mode) {
+    function updateKeyswitchPlaybackModeButton(set) {
       if (!el.keyswitchMapPlaybackModeBtn) return;
-      const normalizedMode = normalizeKeyswitchPlaybackMode(mode);
+      const normalizedMode = resolveKeyswitchPlaybackMode(set);
       const isOneShot = normalizedMode === "oneshot";
+      const triggerMode = getKeyswitchTriggerMode(set);
       el.keyswitchMapPlaybackModeBtn.textContent = isOneShot ? "AnyKey" : "Range";
       el.keyswitchMapPlaybackModeBtn.setAttribute("aria-pressed", isOneShot ? "true" : "false");
       el.keyswitchMapPlaybackModeBtn.classList.toggle("oneshot", isOneShot);
       el.keyswitchMapPlaybackModeBtn.title = isOneShot
-        ? "Any played key triggers this keyswitch set without pitch tracking"
+        ? (triggerMode === "on"
+            ? "This keyswitch auto-triggers on note press and always uses AnyKey playback"
+            : triggerMode === "off"
+              ? "This keyswitch auto-triggers on note release and always uses AnyKey playback"
+              : "Any played key triggers this keyswitch set without pitch tracking")
         : "Samples in this keyswitch set follow their keyboard ranges";
     }
 
@@ -9520,7 +9545,7 @@
       }
       if (el.keyswitchMapNormalizeBtn) el.keyswitchMapNormalizeBtn.classList.toggle("hidden", !showLoopEditor);
       syncLoopOneshotWithAutoLoopSamples({ shouldRender: false, persist: false });
-      updateKeyswitchPlaybackModeButton(activeKeyswitchSet?.playbackMode);
+      updateKeyswitchPlaybackModeButton(activeKeyswitchSet);
       if (!activeKeyswitchSet) {
         const duplicates = getDuplicateKeyswitchNotes();
         if (duplicates.length > 0) {
@@ -9558,10 +9583,17 @@
       const activeKeyswitchSet = getKeyswitchSetById(state.activeMapSetId);
       if (!activeKeyswitchSet) return false;
       ensureSessionStateWritable("keyswitch-playback-mode");
+      if (getKeyswitchTriggerMode(activeKeyswitchSet) !== "manual") {
+        activeKeyswitchSet.playbackMode = "oneshot";
+        updateKeyswitchPlaybackModeButton(activeKeyswitchSet);
+        scheduleSessionStateSave(350);
+        void flushSessionStateToNative(false);
+        return true;
+      }
       activeKeyswitchSet.playbackMode = isKeyswitchPlaybackModeOneShot(activeKeyswitchSet)
         ? "spread"
         : "oneshot";
-      updateKeyswitchPlaybackModeButton(activeKeyswitchSet.playbackMode);
+      updateKeyswitchPlaybackModeButton(activeKeyswitchSet);
       if (shouldRender) {
         renderKeyboardMap(undefined, true);
         renderPlayerKeyboard();
@@ -9716,13 +9748,16 @@
             || ""
           ).trim();
           const normalizedKey = normalizeKeyswitchKey(rawKey, suggestUnusedKeyswitchMidi());
+          const setName = String(data?.instrumentName || stripFileExtension(file.name) || "Keyswitch").trim();
           const set = {
             id: `ks_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-            name: String(data?.instrumentName || stripFileExtension(file.name) || "Keyswitch").trim(),
+            name: setName,
             key: normalizedKey.key,
             keyMidi: normalizedKey.keyMidi,
             loopPlaybackEnabled: data?.loopPlaybackEnabled !== false,
-            playbackMode: normalizeKeyswitchPlaybackMode(data?.playbackMode),
+            playbackMode: normalizeKeyswitchTriggerModeName(setName) !== "manual"
+              ? "oneshot"
+              : normalizeKeyswitchPlaybackMode(data?.playbackMode),
             sourceFile: file.name,
             sourcePath: sourceFilePath,
             manifestBasePath: importedManifestBasePath,
@@ -14805,7 +14840,7 @@
             key: normalized.key,
             keyMidi: normalized.keyMidi,
             loopPlaybackEnabled: true,
-            playbackMode: "spread",
+            playbackMode: normalizeKeyswitchTriggerModeName(name) !== "manual" ? "oneshot" : "spread",
             sourceFile: "",
             sourcePath: "",
             manifestBasePath: "",
@@ -15908,7 +15943,7 @@
               name: setName,
               keyswitchKey: setKey,
               loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
-              playbackMode: normalizeKeyswitchPlaybackMode(set?.playbackMode),
+              playbackMode: resolveKeyswitchPlaybackMode(set),
               manualRanges: cloneManualRangesObject(set?.manualRanges),
               mapping: buildManifestMapping(Array.isArray(set?.entries) ? set.entries : [], {
                 preserveRuntimePaths,
@@ -16319,16 +16354,19 @@
         const keyInfo = normalizeKeyswitchKey(keySource, 12);
         const sessionSetId = String(sessionUiSet?.id || "").trim();
         const sessionSetName = String(sessionUiSet?.name || "").trim();
+        const importedSetName = sessionSetName || String(rawSet?.name || rawSet?.instrumentName || `Keyswitch ${index + 1}`).trim() || `Keyswitch ${index + 1}`;
         const sessionLoopPlayback = sessionUiSet && Object.prototype.hasOwnProperty.call(sessionUiSet, "loopPlaybackEnabled")
           ? (sessionUiSet.loopPlaybackEnabled !== false)
           : null;
         importedKeyswitchSets.push({
           id: sessionSetId || `ks_loaded_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 6)}`,
-          name: sessionSetName || String(rawSet?.name || rawSet?.instrumentName || `Keyswitch ${index + 1}`).trim() || `Keyswitch ${index + 1}`,
+          name: importedSetName,
           key: keyInfo.key,
           keyMidi: keyInfo.keyMidi,
           loopPlaybackEnabled: sessionLoopPlayback === null ? (rawSet?.loopPlaybackEnabled !== false) : sessionLoopPlayback,
-          playbackMode: normalizeKeyswitchPlaybackMode(sessionUiSet?.playbackMode || rawSet?.playbackMode),
+          playbackMode: normalizeKeyswitchTriggerModeName(importedSetName) !== "manual"
+            ? "oneshot"
+            : normalizeKeyswitchPlaybackMode(sessionUiSet?.playbackMode || rawSet?.playbackMode),
           sourceFile: sourceLabel,
           entries: setEntries,
           manualRanges: resolveLoadedManualRanges(
