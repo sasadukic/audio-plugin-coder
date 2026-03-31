@@ -5464,6 +5464,24 @@
       return result;
     }
 
+    function resolveLoadedManualRanges(...sources) {
+      let fallback = {};
+      let hasFallback = false;
+      sources.forEach((source) => {
+        const cloned = cloneManualRangesObject(source);
+        if (Object.keys(cloned).length > 0) {
+          fallback = cloned;
+          hasFallback = true;
+          return;
+        }
+        if (!hasFallback) {
+          fallback = cloned;
+          hasFallback = true;
+        }
+      });
+      return fallback;
+    }
+
     function getAutoPackChecksSnapshot() {
       return { smpinst: true };
     }
@@ -6561,9 +6579,9 @@
         state.mapMatrixRrCursor = {};
         state.mapMatrixPaintActive = false;
         state.mapMatrixLastPaintCellKey = "";
-        state.manualRootRanges = cloneManualRangesObject(
-          ui.manualRootRanges
-          || state.manualRootRanges
+        state.manualRootRanges = resolveLoadedManualRanges(
+          ui.manualRootRanges,
+          state.manualRootRanges
         );
         state.velocityCrossfadeByRoot = (ui.velocityCrossfadeByRoot && typeof ui.velocityCrossfadeByRoot === "object")
           ? { ...ui.velocityCrossfadeByRoot }
@@ -6602,7 +6620,10 @@
         restoredSetStates.forEach((snapshotSet) => {
           const matched = matchRestoredKeyswitchSet(snapshotSet);
           if (!matched) return;
-          matched.manualRanges = cloneManualRangesObject(snapshotSet.manualRanges);
+          matched.manualRanges = resolveLoadedManualRanges(
+            snapshotSet?.manualRanges,
+            matched.manualRanges
+          );
           matched.loopPlaybackEnabled = snapshotSet?.loopPlaybackEnabled !== false;
           matched.playbackMode = normalizeKeyswitchPlaybackMode(snapshotSet?.playbackMode || matched.playbackMode);
         });
@@ -16262,10 +16283,10 @@
           playbackMode: normalizeKeyswitchPlaybackMode(sessionUiSet?.playbackMode || rawSet?.playbackMode),
           sourceFile: sourceLabel,
           entries: setEntries,
-          manualRanges: cloneManualRangesObject(
-            sessionUiSet?.manualRanges
-            || rawSet?.manualRanges
-            || extractManualRangesFromManifestMapping(rawSet?.mapping)
+          manualRanges: resolveLoadedManualRanges(
+            sessionUiSet?.manualRanges,
+            rawSet?.manualRanges,
+            extractManualRangesFromManifestMapping(rawSet?.mapping)
           )
         });
         const createdSet = importedKeyswitchSets[importedKeyswitchSets.length - 1];
@@ -16276,10 +16297,10 @@
 
       state.entries = baseEntries;
       state.keyswitchSets = importedKeyswitchSets;
-      state.manualRootRanges = cloneManualRangesObject(
-        sessionUiState?.manualRootRanges
-        || data?.settings?.manualRootRanges
-        || extractManualRangesFromManifestMapping(data?.mapping)
+      state.manualRootRanges = resolveLoadedManualRanges(
+        sessionUiState?.manualRootRanges,
+        data?.settings?.manualRootRanges,
+        extractManualRangesFromManifestMapping(data?.mapping)
       );
       state.activeMapSetId = importedKeyswitchSets.length > 0 ? importedKeyswitchSets[0].id : "base";
       state.baseLoopPlaybackEnabled = data?.settings?.baseLoopPlaybackEnabled !== false;

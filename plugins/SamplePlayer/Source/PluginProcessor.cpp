@@ -2007,6 +2007,77 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
 
 namespace
 {
+bool manualRangesVarHasEntries (const juce::var& value)
+{
+    const auto* object = value.getDynamicObject();
+    if (object == nullptr)
+        return false;
+
+    const auto& properties = object->getProperties();
+    for (int i = 0; i < properties.size(); ++i)
+    {
+        const auto* rangeObject = properties.getValueAt (i).getDynamicObject();
+        if (rangeObject == nullptr)
+            continue;
+
+        if (! rangeObject->getProperty ("low").isVoid()
+            || ! rangeObject->getProperty ("high").isVoid())
+            return true;
+    }
+
+    return false;
+}
+
+juce::var buildManualRangesVarFromMapping (const juce::Array<juce::var>* mappingArray)
+{
+    if (mappingArray == nullptr || mappingArray->isEmpty())
+        return juce::var {};
+
+    auto* manualRangesObject = new juce::DynamicObject();
+
+    for (const auto& bucketVar : *mappingArray)
+    {
+        const auto* bucketObject = bucketVar.getDynamicObject();
+        if (bucketObject == nullptr)
+            continue;
+
+        const int rootMidi = varToInt (bucketObject->getProperty ("rootMidiNote"), -1);
+        const int lowNote = varToInt (bucketObject->getProperty ("lowNote"), -1);
+        const int highNote = varToInt (bucketObject->getProperty ("highNote"), -1);
+
+        if (! juce::isPositiveAndBelow (rootMidi, 128)
+            || ! juce::isPositiveAndBelow (lowNote, 128)
+            || ! juce::isPositiveAndBelow (highNote, 128))
+            continue;
+
+        auto* rangeObject = new juce::DynamicObject();
+        rangeObject->setProperty ("low", lowNote);
+        rangeObject->setProperty ("high", highNote);
+        manualRangesObject->setProperty (juce::String (rootMidi), juce::var (rangeObject));
+    }
+
+    if (manualRangesObject->getProperties().size() == 0)
+    {
+        delete manualRangesObject;
+        return juce::var {};
+    }
+
+    return juce::var (manualRangesObject);
+}
+
+juce::var pickManualRangesVar (const juce::var& preferred,
+                               const juce::var& fallback,
+                               const juce::Array<juce::var>* mappingArray)
+{
+    if (manualRangesVarHasEntries (preferred))
+        return preferred;
+
+    if (manualRangesVarHasEntries (fallback))
+        return fallback;
+
+    return buildManualRangesVarFromMapping (mappingArray);
+}
+
 juce::var buildDirectLoadSessionSnapshot (const juce::var& manifest,
                                           const juce::String& filePath,
                                           const juce::String& manifestBasePath)
@@ -2025,6 +2096,12 @@ juce::var buildDirectLoadSessionSnapshot (const juce::var& manifest,
     {
         const auto loopPlaybackEnabledVar = manifestRoot->getProperty ("settings").getProperty ("baseLoopPlaybackEnabled", true);
         uiObj->setProperty ("baseLoopPlaybackEnabled", loopPlaybackEnabledVar);
+        const auto baseManualRangesVar = pickManualRangesVar (
+            manifestRoot->getProperty ("settings").getProperty ("manualRootRanges", juce::var {}),
+            juce::var {},
+            manifestRoot->getProperty ("mapping").getArray());
+        if (manualRangesVarHasEntries (baseManualRangesVar))
+            uiObj->setProperty ("manualRootRanges", baseManualRangesVar);
         const auto openStringMidisVar = manifestRoot->getProperty ("settings").getProperty ("openStringMidis", {});
         if (! openStringMidisVar.isVoid())
             uiObj->setProperty ("playerOpenStringMidis", openStringMidisVar);
@@ -2049,6 +2126,12 @@ juce::var buildDirectLoadSessionSnapshot (const juce::var& manifest,
                 uiKs->setProperty ("playbackMode", ksObj->getProperty ("playbackMode"));
                 uiKs->setProperty ("active", i == 0);
                 uiKs->setProperty ("index", i);
+                const auto manualRangesVar = pickManualRangesVar (
+                    ksObj->getProperty ("manualRanges"),
+                    juce::var {},
+                    ksObj->getProperty ("mapping").getArray());
+                if (manualRangesVarHasEntries (manualRangesVar))
+                    uiKs->setProperty ("manualRanges", manualRangesVar);
                 uiKsSets.add (juce::var (uiKs));
             }
 
@@ -3217,7 +3300,10 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         baseSet.keyswitchMidi = -1;
         baseSet.loopPlaybackEnabled = baseLoopPlaybackEnabled;
         baseSet.oneShotPlayback = false;
-        baseSet.manualRangesVar = baseManualRangesVar;
+        baseSet.manualRangesVar = pickManualRangesVar (
+            baseManualRangesVar,
+            manifestObject->getProperty ("settings").getProperty ("manualRootRanges", juce::var {}),
+            baseMappingArray);
         baseSet.mappingArray = baseMappingArray;
         mapSets.push_back (baseSet);
     }
@@ -3240,7 +3326,10 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
             set.keyswitchMidi = -1;
             set.loopPlaybackEnabled = baseLoopPlaybackEnabled;
             set.oneShotPlayback = normalizeKeyswitchPlaybackMode (keyswitchObject->getProperty ("playbackMode").toString()) == "oneshot";
-            set.manualRangesVar = juce::var {};
+            set.manualRangesVar = pickManualRangesVar (
+                juce::var {},
+                keyswitchObject->getProperty ("manualRanges"),
+                mappingArray);
             set.mappingArray = mappingArray;
 
             if (juce::isPositiveAndBelow (i, static_cast<int> (uiKeyswitchStates.size())))
@@ -3251,7 +3340,10 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                 set.keyswitchMidi = uiState.keyMidi;
                 set.loopPlaybackEnabled = uiState.loopPlaybackEnabled;
                 set.oneShotPlayback = uiState.oneShotPlayback;
-                set.manualRangesVar = uiState.manualRangesVar;
+                set.manualRangesVar = pickManualRangesVar (
+                    uiState.manualRangesVar,
+                    keyswitchObject->getProperty ("manualRanges"),
+                    mappingArray);
             }
 
             if (set.keyswitchMidi < 0)
