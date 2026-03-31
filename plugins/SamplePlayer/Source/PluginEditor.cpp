@@ -232,6 +232,10 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
                      {
                          editor.handlePerformanceWheelSetEvent (payload);
                      })
+                     .withEventListener ("amp_envelope_set", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleAmpEnvelopeSetEvent (payload);
+                     })
                      .withEventListener ("save_instrument_bundle", [&editor] (const juce::var& payload)
                      {
                          editor.handleSaveInstrumentBundleEvent (payload);
@@ -1280,6 +1284,31 @@ void SamplePlayerAudioProcessorEditor::handlePerformanceWheelSetEvent (const juc
     }
 
     parameter->setValueNotifyingHost (value);
+}
+
+void SamplePlayerAudioProcessorEditor::handleAmpEnvelopeSetEvent (const juce::var& eventPayload)
+{
+    const auto* object = eventPayload.getDynamicObject();
+    if (object == nullptr)
+        return;
+
+    const auto applyParam = [this] (const juce::String& paramId, float plainValue)
+    {
+        auto* parameter = dynamic_cast<juce::RangedAudioParameter*> (audioProcessor.parameters.getParameter (paramId));
+        if (parameter == nullptr)
+            return;
+
+        const auto value01 = juce::jlimit (0.0f, 1.0f, parameter->convertTo0to1 (plainValue));
+        if (std::abs (parameter->getValue() - value01) <= 0.000001f)
+            return;
+
+        parameter->setValueNotifyingHost (value01);
+    };
+
+    applyParam ("attackMs", static_cast<float> (juce::jmax (0.0, double (object->getProperty ("attackMs")))));
+    applyParam ("decayMs", static_cast<float> (juce::jmax (0.0, double (object->getProperty ("decayMs")))));
+    applyParam ("sustain", static_cast<float> (juce::jlimit (0.0, 1.0, double (object->getProperty ("sustainPercent")) / 100.0)));
+    applyParam ("releaseMs", static_cast<float> (juce::jmax (0.0, double (object->getProperty ("releaseMs")))));
 }
 
 void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const juce::var& eventPayload)

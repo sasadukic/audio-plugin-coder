@@ -253,6 +253,12 @@ double varToDouble (const juce::var& value, double fallback = 0.0)
     return fallback;
 }
 
+juce::String normalizeKeyswitchPlaybackMode (juce::String value)
+{
+    value = value.trim().toLowerCase();
+    return value == "oneshot" ? juce::String ("oneshot") : juce::String ("spread");
+}
+
 bool decodeDataUrlAudioToMemory (const juce::String& dataUrl, juce::MemoryBlock& output)
 {
     const auto trimmed = dataUrl.trim();
@@ -622,50 +628,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout SamplePlayerAudioProcessor::
         [] (float value, int)
         {
             return juce::String (value, 1) + " ms";
-        }));
-
-    layout.add (std::make_unique<juce::AudioParameterBool> (
-        juce::ParameterID { "filterEnabled", 1 },
-        "Filter Enable",
-        false));
-
-    layout.add (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "filterCutoff", 1 },
-        "Filter Cutoff",
-        juce::NormalisableRange<float> (20.0f, 20000.0f, 1.0f, 0.25f),
-        20000.0f,
-        juce::String(),
-        juce::AudioProcessorParameter::genericParameter,
-        [] (float value, int)
-        {
-            if (value >= 1000.0f)
-                return juce::String (value / 1000.0f, 2) + " kHz";
-
-            return juce::String (value, 0) + " Hz";
-        }));
-
-    layout.add (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "filterResonance", 1 },
-        "Filter Resonance",
-        juce::NormalisableRange<float> (0.0f, 0.99f, 0.001f),
-        0.1f,
-        juce::String(),
-        juce::AudioProcessorParameter::genericParameter,
-        [] (float value, int)
-        {
-            return juce::String (value, 2);
-        }));
-
-    layout.add (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "filterEnvAmount", 1 },
-        "Filter Env",
-        juce::NormalisableRange<float> (-4.0f, 4.0f, 0.01f),
-        0.0f,
-        juce::String(),
-        juce::AudioProcessorParameter::genericParameter,
-        [] (float value, int)
-        {
-            return juce::String (value, 2) + " oct";
         }));
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
@@ -1823,6 +1785,10 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
     float parsedModwheelValue01 = modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed);
     uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
     float parsedExpressionValue01 = expressionControllerValue01.load (std::memory_order_relaxed);
+    float parsedAttackMs = parameters.getRawParameterValue ("attackMs")->load();
+    float parsedDecayMs = parameters.getRawParameterValue ("decayMs")->load();
+    float parsedSustainLevel = parameters.getRawParameterValue ("sustain")->load();
+    float parsedReleaseMs = parameters.getRawParameterValue ("releaseMs")->load();
     if (normalizedJson.isNotEmpty())
     {
         const auto parsedForPitch = juce::JSON::parse (normalizedJson);
@@ -1838,12 +1804,43 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
                 parsedExpressionValue01 = juce::jlimit (0.0f, 1.0f,
                     static_cast<float> (varToDouble (uiObject->getProperty ("expressionValue"),
                                                      static_cast<double> (parsedExpressionValue01))));
+                if (const auto* ampObject = uiObject->getProperty ("ampEnvelope").getDynamicObject())
+                {
+                    parsedAttackMs = juce::jmax (0.0f,
+                        static_cast<float> (varToDouble (ampObject->getProperty ("attackMs"), parsedAttackMs)));
+                    parsedDecayMs = juce::jmax (0.0f,
+                        static_cast<float> (varToDouble (ampObject->getProperty ("decayMs"), parsedDecayMs)));
+                    parsedSustainLevel = juce::jlimit (0.0f, 1.0f,
+                        static_cast<float> (varToDouble (ampObject->getProperty ("sustainPercent"),
+                                                         static_cast<double> (parsedSustainLevel * 100.0f)) / 100.0));
+                    parsedReleaseMs = juce::jmax (0.0f,
+                        static_cast<float> (varToDouble (ampObject->getProperty ("releaseMs"), parsedReleaseMs)));
+                }
             }
         }
     }
     playerPitchDownOctaves.store (parsedPitchDownOctaves, std::memory_order_relaxed);
     modwheelVelocityLayerControlValue01.store (parsedModwheelValue01, std::memory_order_relaxed);
     expressionControllerValue01.store (parsedExpressionValue01, std::memory_order_relaxed);
+
+    const auto applyParamFromPlainValue = [this] (const juce::String& paramId, float plainValue)
+    {
+        auto* parameter = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (paramId));
+        if (parameter == nullptr)
+            return;
+
+        const auto value01 = juce::jlimit (0.0f, 1.0f, parameter->convertTo0to1 (plainValue));
+        if (std::abs (parameter->getValue() - value01) <= 0.000001f)
+            return;
+
+        parameter->setValueNotifyingHost (value01);
+    };
+
+    applyParamFromPlainValue ("attackMs", parsedAttackMs);
+    applyParamFromPlainValue ("decayMs", parsedDecayMs);
+    applyParamFromPlainValue ("sustain", parsedSustainLevel);
+    applyParamFromPlainValue ("releaseMs", parsedReleaseMs);
+
     if (auto* modParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kModWheelParamId)))
         modParam->setValue (juce::jlimit (0.0f, 1.0f, parsedModwheelValue01));
     if (auto* expressionParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kExpressionParamId)))
@@ -2046,6 +2043,7 @@ juce::var buildDirectLoadSessionSnapshot (const juce::var& manifest,
                 uiKs->setProperty ("key", ksObj->getProperty ("key"));
                 uiKs->setProperty ("keyMidi", ksObj->getProperty ("keyMidi"));
                 uiKs->setProperty ("loopPlaybackEnabled", ksObj->getProperty ("loopPlaybackEnabled"));
+                uiKs->setProperty ("playbackMode", ksObj->getProperty ("playbackMode"));
                 uiKs->setProperty ("active", i == 0);
                 uiKs->setProperty ("index", i);
                 uiKsSets.add (juce::var (uiKs));
@@ -3070,6 +3068,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         juce::String id;
         int keyMidi = -1;
         bool loopPlaybackEnabled = true;
+        bool oneShotPlayback = false;
         juce::var manualRangesVar;
     };
 
@@ -3161,6 +3160,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                 const auto loopPlaybackEnabledVar = setObject->getProperty ("loopPlaybackEnabled");
                 if (! loopPlaybackEnabledVar.isVoid())
                     state.loopPlaybackEnabled = static_cast<bool> (loopPlaybackEnabledVar);
+                state.oneShotPlayback = normalizeKeyswitchPlaybackMode (setObject->getProperty ("playbackMode").toString()) == "oneshot";
 
                 const auto keyMidiVar = setObject->getProperty ("keyMidi");
                 if (! keyMidiVar.isVoid())
@@ -3199,6 +3199,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         int slot = 0;
         int keyswitchMidi = -1;
         bool loopPlaybackEnabled = true;
+        bool oneShotPlayback = false;
         juce::var manualRangesVar;
         const juce::Array<juce::var>* mappingArray = nullptr;
     };
@@ -3212,6 +3213,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         baseSet.slot = 0;
         baseSet.keyswitchMidi = -1;
         baseSet.loopPlaybackEnabled = baseLoopPlaybackEnabled;
+        baseSet.oneShotPlayback = false;
         baseSet.manualRangesVar = baseManualRangesVar;
         baseSet.mappingArray = baseMappingArray;
         mapSets.push_back (baseSet);
@@ -3234,6 +3236,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
             set.id = "keyswitch_" + juce::String (i + 1);
             set.keyswitchMidi = -1;
             set.loopPlaybackEnabled = baseLoopPlaybackEnabled;
+            set.oneShotPlayback = normalizeKeyswitchPlaybackMode (keyswitchObject->getProperty ("playbackMode").toString()) == "oneshot";
             set.manualRangesVar = juce::var {};
             set.mappingArray = mappingArray;
 
@@ -3244,6 +3247,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                     set.id = uiState.id;
                 set.keyswitchMidi = uiState.keyMidi;
                 set.loopPlaybackEnabled = uiState.loopPlaybackEnabled;
+                set.oneShotPlayback = uiState.oneShotPlayback;
                 set.manualRangesVar = uiState.manualRangesVar;
             }
 
@@ -3399,6 +3403,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         hashMix (hash, static_cast<juce::uint64> ((mapSet.slot + 1) * 97));
         hashMix (hash, static_cast<juce::uint64> (mapSet.id.hashCode64()));
         hashMix (hash, static_cast<juce::uint64> (mapSet.loopPlaybackEnabled ? 1 : 0));
+        hashMix (hash, static_cast<juce::uint64> (mapSet.oneShotPlayback ? 1 : 0));
         hashMix (hash, static_cast<juce::uint64> (juce::jmax (0, mapSet.keyswitchMidi + 1)));
 
         auto& slotRoots = rootsBySlot[mapSet.slot];
@@ -3657,6 +3662,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     {
         newSampleSet->mapSetSlotById[mapSet.id.toStdString()] = mapSet.slot;
         newSampleSet->loopPlaybackBySlot[mapSet.slot] = mapSet.loopPlaybackEnabled;
+        newSampleSet->oneShotPlaybackBySlot[mapSet.slot] = mapSet.oneShotPlayback;
         if (mapSet.keyswitchMidi >= 0 && mapSet.keyswitchMidi <= 127)
         {
             newSampleSet->keyswitchSlotByMidi[static_cast<size_t> (mapSet.keyswitchMidi)] = mapSet.slot;
@@ -5878,7 +5884,18 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     voice->velocityGain = ignoreMidiVelocity ? 1.0f : (velocity127 * velocityScale);
     voice->age = ++voiceAgeCounter;
 
-    const auto semitoneOffset = static_cast<double> (midiNoteNumber - voice->zone->metadata.rootNote);
+    bool oneShotPlayback = false;
+    if (const auto sampleSet = std::atomic_load (&currentSampleSet); sampleSet != nullptr)
+    {
+        if (const auto it = sampleSet->oneShotPlaybackBySlot.find (voice->zone->metadata.mapSetSlot);
+            it != sampleSet->oneShotPlaybackBySlot.end())
+        {
+            oneShotPlayback = it->second;
+        }
+    }
+
+    const int playbackNote = oneShotPlayback ? voice->zone->metadata.rootNote : midiNoteNumber;
+    const auto semitoneOffset = static_cast<double> (playbackNote - voice->zone->metadata.rootNote);
     const auto pitch = std::pow (2.0, semitoneOffset / 12.0);
     const auto sampleRateRatio = voice->zone->sourceSampleRate / juce::jmax (1.0, currentSampleRate);
     const int pitchDownOctaves = juce::jlimit (0, 2, playerPitchDownOctaves.load (std::memory_order_relaxed));
@@ -5917,9 +5934,6 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     {
         voice->envelopeGain = voice->sustainLevel;
     }
-
-    for (auto& filterState : voice->filterStates)
-        filterState.reset();
 
     return selectedZone;
 }
@@ -6092,6 +6106,12 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     const int activeSlot = forcedMapSetSlot >= 0
         ? forcedMapSetSlot
         : juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
+    const bool oneShotPlayback = [&sampleSet, activeSlot]() -> bool
+    {
+        if (const auto it = sampleSet->oneShotPlaybackBySlot.find (activeSlot); it != sampleSet->oneShotPlaybackBySlot.end())
+            return it->second;
+        return false;
+    }();
 
     std::vector<std::shared_ptr<const SampleZone>> noteAndVelocityMatches;
     std::vector<std::shared_ptr<const SampleZone>> noteOnlyMatches;
@@ -6102,7 +6122,7 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
         if (m.mapSetSlot != activeSlot)
             continue;
 
-        if (midiNoteNumber < m.lowNote || midiNoteNumber > m.highNote)
+        if (! oneShotPlayback && (midiNoteNumber < m.lowNote || midiNoteNumber > m.highNote))
             continue;
 
         noteOnlyMatches.push_back (zone);
@@ -6153,7 +6173,7 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     // find zones sharing the closest root and pitch-shift to it.  This ensures
     // stretched key ranges always sound even when explicit low/high metadata
     // is missing, stale, or computed differently than the UI display.
-    if (candidatePool->empty())
+    if (! oneShotPlayback && candidatePool->empty())
     {
         int nearestRoot = -1;
         int nearestDistance = 999;
@@ -6214,7 +6234,7 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
         return a->sourceFile.getFileName() < b->sourceFile.getFileName();
     });
 
-    const int rrKey = (activeSlot << 8) | juce::jlimit (0, 127, midiNoteNumber);
+    const int rrKey = (activeSlot << 8) | (oneShotPlayback ? 255 : juce::jlimit (0, 127, midiNoteNumber));
     const auto poolSize = static_cast<int> (candidatePool->size());
     const auto zoneChoiceId = [] (const SampleZone& zone) -> juce::uint64
     {
@@ -6425,11 +6445,6 @@ SamplePlayerAudioProcessor::BlockSettings SamplePlayerAudioProcessor::getBlockSe
     if (settings.loopEndPercent <= settings.loopStartPercent + 0.1f)
         settings.loopEndPercent = juce::jmin (100.0f, settings.loopStartPercent + 0.1f);
 
-    settings.filterEnabled = parameters.getRawParameterValue ("filterEnabled")->load() >= 0.5f;
-    settings.filterCutoffHz = juce::jlimit (20.0f, 20000.0f, parameters.getRawParameterValue ("filterCutoff")->load());
-    settings.filterResonance = juce::jlimit (0.0f, 0.99f, parameters.getRawParameterValue ("filterResonance")->load());
-    settings.filterEnvelopeAmountOctaves = juce::jlimit (-4.0f, 4.0f, parameters.getRawParameterValue ("filterEnvAmount")->load());
-
     return settings;
 }
 
@@ -6592,8 +6607,6 @@ void SamplePlayerAudioProcessor::renderSingleVoice (VoiceState& voice,
                         sampleValue = (tailSample * tailGain) + (headSample * headGain);
                     }
                 }
-
-                sampleValue = processVoiceFilterSample (voice, channel, sampleValue, settings);
                 float panGain = 1.0f;
                 if (channel == 0)
                     panGain = voice.panGains[0];
@@ -6614,39 +6627,6 @@ void SamplePlayerAudioProcessor::renderSingleVoice (VoiceState& voice,
             voice.active = false;
         }
     }
-}
-
-float SamplePlayerAudioProcessor::processVoiceFilterSample (VoiceState& voice,
-                                                             int channel,
-                                                             float inputSample,
-                                                             const BlockSettings& settings) const
-{
-    if (! settings.filterEnabled)
-        return inputSample;
-
-    if (channel < 0 || channel >= static_cast<int> (voice.filterStates.size()))
-        return inputSample;
-
-    auto& filter = voice.filterStates[static_cast<size_t> (channel)];
-
-    const auto envelope = juce::jlimit (0.0f, 1.0f, voice.envelopeGain);
-    const auto cutoffWithEnvelope = settings.filterCutoffHz
-                                  * std::pow (2.0f, settings.filterEnvelopeAmountOctaves * envelope);
-
-    const auto maxCutoff = juce::jmax (40.0f, static_cast<float> (currentSampleRate * 0.49));
-    const auto cutoff = juce::jlimit (20.0f, maxCutoff, cutoffWithEnvelope);
-
-    const auto resonance = juce::jlimit (0.0f, 0.99f, settings.filterResonance);
-    const auto damping = juce::jlimit (0.05f, 1.0f, 1.0f - resonance * 0.95f);
-
-    auto f = 2.0f * std::sin (juce::MathConstants<float>::pi * cutoff / static_cast<float> (currentSampleRate));
-    f = juce::jlimit (0.001f, 1.9f, f);
-
-    filter.low += f * filter.band;
-    const auto high = inputSample - filter.low - damping * filter.band;
-    filter.band += f * high;
-
-    return filter.low;
 }
 
 float SamplePlayerAudioProcessor::readSampleLinear (const SampleZone& zone, int channel, double samplePosition)

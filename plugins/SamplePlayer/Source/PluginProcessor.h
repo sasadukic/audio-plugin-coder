@@ -209,6 +209,7 @@ private:
         juce::String summary;
         std::unordered_map<std::string, int> mapSetSlotById;
         std::unordered_map<int, bool> loopPlaybackBySlot;
+        std::unordered_map<int, bool> oneShotPlaybackBySlot;
         std::array<int, 128> keyswitchSlotByMidi {};
         bool hasKeyswitchSets = false;
     };
@@ -223,18 +224,6 @@ private:
 
     struct VoiceState
     {
-        struct FilterState
-        {
-            float low = 0.0f;
-            float band = 0.0f;
-
-            void reset()
-            {
-                low = 0.0f;
-                band = 0.0f;
-            }
-        };
-
         bool active = false;
         int midiNote = -1;
         int midiChannel = 1;
@@ -256,8 +245,6 @@ private:
 
         int releaseSamplesRemaining = 0;
         float releaseDelta = 0.0f;
-
-        std::array<FilterState, 2> filterStates {};
 
         float pan = 0.0f;
         std::array<float, 2> panGains { 0.70710677f, 0.70710677f };
@@ -284,11 +271,6 @@ private:
         float loopStartPercent = 5.0f;
         float loopEndPercent = 95.0f;
         float loopCrossfadeMs = 15.0f;
-
-        bool filterEnabled = false;
-        float filterCutoffHz = 20000.0f;
-        float filterResonance = 0.1f;
-        float filterEnvelopeAmountOctaves = 0.0f;
     };
 
     struct LoopSettings
@@ -353,11 +335,6 @@ private:
                             int startSample,
                             int numSamples,
                             const BlockSettings& settings);
-
-    float processVoiceFilterSample (VoiceState& voice,
-                                    int channel,
-                                    float inputSample,
-                                    const BlockSettings& settings) const;
 
     static float readSampleLinear (const SampleZone& zone, int channel, double samplePosition);
     static void wrapLoopPosition (double& position, const LoopSettings& loop);

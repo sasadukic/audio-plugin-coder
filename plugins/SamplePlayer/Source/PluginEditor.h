@@ -105,6 +105,7 @@ private:
     void handleSampleDataGetEvent (const juce::var& eventPayload);
     void handlePreviewMidiEvent (const juce::var& eventPayload);
     void handlePerformanceWheelSetEvent (const juce::var& eventPayload);
+    void handleAmpEnvelopeSetEvent (const juce::var& eventPayload);
     void handleSaveInstrumentBundleEvent (const juce::var& eventPayload);
     void handleGraphicDataGetEvent (const juce::var& eventPayload);
     void handleDebugLogEvent (const juce::var& eventPayload);

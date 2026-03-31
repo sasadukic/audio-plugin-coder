@@ -700,6 +700,30 @@
       color: rgba(var(--player-line-rgb), 0.96);
     }
 
+    .tabs.wallpaper-icon-swatch .tab-btn[data-tab="player"],
+    .tabs.wallpaper-icon-swatch .tab-btn[data-tab="setup"] {
+      border-color: rgba(var(--player-line-rgb), 0.34);
+      background:
+        linear-gradient(
+          180deg,
+          rgba(var(--player-topbar-rgb), 0.94),
+          rgba(var(--player-topbar-rgb), 0.8)
+        );
+      color: rgba(var(--player-line-rgb), 0.88);
+    }
+
+    .tabs.wallpaper-icon-swatch .tab-btn[data-tab="player"].active,
+    .tabs.wallpaper-icon-swatch .tab-btn[data-tab="setup"].active {
+      color: rgba(var(--player-line-rgb), 0.96);
+      border-color: rgba(var(--player-line-rgb), 0.96);
+      background:
+        linear-gradient(
+          180deg,
+          rgba(var(--player-swatch-rgb), 0.98),
+          rgba(var(--player-swatch-rgb), 0.68)
+        );
+    }
+
     .tabs.player-topbar-swatch .tab-btn:not(.active) {
       border-color: rgba(var(--player-line-rgb), 0.34);
       background:
@@ -853,6 +877,75 @@
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+
+    .player-adsr-strip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      height: 22px;
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    .player-adsr-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      writing-mode: vertical-lr;
+      direction: rtl;
+      width: 2px;
+      min-width: 2px;
+      height: 17px;
+      margin: 0;
+      background: transparent;
+      cursor: ns-resize;
+      opacity: 0.86;
+      transition: opacity 120ms ease;
+      border: 0;
+      border-radius: 0;
+    }
+
+    .player-adsr-slider:hover,
+    .player-adsr-slider:focus-visible {
+      opacity: 1;
+    }
+
+    .player-adsr-slider:focus-visible {
+      outline: none;
+    }
+
+    .player-adsr-slider::-webkit-slider-runnable-track {
+      width: 2px;
+      border-radius: 0;
+      background: rgba(var(--line-rgb), 0.72);
+      border: 0;
+    }
+
+    .player-adsr-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 2px;
+      height: 2px;
+      border-radius: 0;
+      border: 0;
+      background: rgba(var(--player-bright-rgb), 0.92);
+      box-shadow: none;
+    }
+
+    .player-adsr-slider::-moz-range-track {
+      width: 2px;
+      border-radius: 0;
+      background: rgba(var(--line-rgb), 0.72);
+      border: 0;
+    }
+
+    .player-adsr-slider::-moz-range-thumb {
+      width: 2px;
+      height: 2px;
+      border-radius: 0;
+      border: 0;
+      background: rgba(var(--player-bright-rgb), 0.92);
+      box-shadow: none;
     }
 
     .top-right-controls .knob {
@@ -1592,21 +1685,6 @@
       margin-top: 10px;
     }
 
-    .modulation-filter-layout {
-      display: flex;
-      align-items: flex-start;
-      justify-content: flex-start;
-      gap: 12px;
-      flex-wrap: nowrap;
-    }
-
-    .modulation-filter-main {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 6px;
-    }
-
     .modulation-group-title {
       margin: 0 0 6px;
       font-size: 10px;
@@ -1635,18 +1713,15 @@
       margin-left: 0;
     }
 
-    .modulation-filter-main .modulation-group-title,
     .modulation-inline-envelope .modulation-group-title {
       margin: 0;
     }
 
-    .modulation-filter-main .modulation-knob-row,
     .modulation-inline-envelope .modulation-knob-row {
       flex-wrap: nowrap;
       gap: 10px;
     }
 
-    .modulation-filter-main .modulation-knob-row .knob,
     .modulation-inline-envelope .modulation-knob-row .knob {
       padding: 4px;
       width: 60px;
@@ -4162,6 +4237,12 @@
         </svg>
       </button>
       <div class="top-right-controls">
+        <div class="player-adsr-strip" aria-label="Amp envelope quick controls" title="Amp envelope quick controls">
+          <input class="player-adsr-slider" type="range" min="0" max="5000" step="1" value="10" data-param="ampAttack" aria-label="Attack" title="Attack">
+          <input class="player-adsr-slider" type="range" min="0" max="5000" step="1" value="120" data-param="ampDecay" aria-label="Decay" title="Decay">
+          <input class="player-adsr-slider" type="range" min="0" max="100" step="1" value="100" data-param="ampSustain" aria-label="Sustain" title="Sustain">
+          <input class="player-adsr-slider" type="range" min="0" max="5000" step="1" value="2000" data-param="ampRelease" aria-label="Release" title="Release">
+        </div>
         <button id="playerStrumMainToggle" type="button" aria-pressed="false" aria-label="Show strum on main" title="Show Strum On Main">
           <svg class="eye-icon-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12l10-6-10-6z"/></svg>
           <svg class="eye-icon-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12l10-6-10-6z"/></svg>
@@ -4455,6 +4536,7 @@
                 <div class="keyswitch-map-main-controls">
                   <select id="keyswitchMapSelect" class="keyswitch-map-select" aria-label="Select keyswitch set"></select>
                   <button id="keyswitchMapNormalizeBtn" class="keyswitch-map-normalize-btn hidden" type="button" title="Normalize all samples to peak level">Normalize</button>
+                  <button id="keyswitchMapPlaybackModeBtn" class="keyswitch-map-loop-btn hidden" type="button" aria-pressed="false" title="Samples follow their keyboard ranges">Range</button>
                   <div id="keyswitchMapLoopWrap" class="keyswitch-map-loop-wrap hidden">
                     <button id="keyswitchMapLoopModeBtn" class="keyswitch-map-loop-btn" type="button" aria-pressed="true" title="Loop playback enabled">Loop</button>
                     <input id="keyswitchMapLoopToggle" type="checkbox" checked>
@@ -4536,55 +4618,9 @@
           </div>
 
           <div id="modulationSection" class="section collapsible collapsed">
-            <h2 id="modulationToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="modulationBody">Filter and amp</h2>
+            <h2 id="modulationToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="modulationBody">Amp envelope</h2>
             <div id="modulationBody" class="section-body">
               <div class="modulation-group">
-                <div class="modulation-filter-layout">
-                  <div class="modulation-filter-main">
-                    <div class="modulation-group-title">Filter</div>
-                    <div class="modulation-knob-row">
-                      <div class="knob knob-mini" data-param="filterCutoff" data-min="20" data-max="20000" data-step="10" data-value="20000" data-unit="Hz" data-tooltip-value="true">
-                        <div class="knob-face"><div class="knob-pointer"></div></div>
-                        <div class="knob-label">Cutoff</div>
-                        <div class="knob-value"></div>
-                      </div>
-                      <div class="knob knob-mini tooltip-right" data-param="filterResonance" data-min="0.1" data-max="12" data-step="0.1" data-value="0.1" data-unit="Q" data-decimals="1" data-tooltip-value="true">
-                        <div class="knob-face"><div class="knob-pointer"></div></div>
-                        <div class="knob-label">Resonance</div>
-                        <div class="knob-value"></div>
-                      </div>
-                      <div class="knob knob-mini tooltip-right" data-param="filterEnvAmount" data-min="0" data-max="100" data-step="1" data-value="0" data-unit="%" data-tooltip-value="true">
-                        <div class="knob-face"><div class="knob-pointer"></div></div>
-                        <div class="knob-label">Envelope</div>
-                        <div class="knob-value"></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="modulation-inline-envelope">
-                    <div class="modulation-group-title">Filter Envelope</div>
-                    <div class="modulation-knob-row">
-                      <div class="knob knob-mini" data-param="filterEnvAttack" data-min="0" data-max="5000" data-step="1" data-value="10" data-unit="ms" data-tooltip-value="true">
-                        <div class="knob-face"><div class="knob-pointer"></div></div>
-                        <div class="knob-label">Attack</div>
-                        <div class="knob-value"></div>
-                      </div>
-                      <div class="knob knob-mini" data-param="filterEnvDecay" data-min="0" data-max="5000" data-step="1" data-value="180" data-unit="ms" data-tooltip-value="true">
-                        <div class="knob-face"><div class="knob-pointer"></div></div>
-                        <div class="knob-label">Decay</div>
-                        <div class="knob-value"></div>
-                      </div>
-                      <div class="knob knob-mini" data-param="filterEnvSustain" data-min="0" data-max="100" data-step="1" data-value="0" data-unit="%" data-tooltip-value="true">
-                        <div class="knob-face"><div class="knob-pointer"></div></div>
-                        <div class="knob-label">Sustain</div>
-                        <div class="knob-value"></div>
-                      </div>
-                      <div class="knob knob-mini" data-param="filterEnvRelease" data-min="0" data-max="5000" data-step="1" data-value="320" data-unit="ms" data-tooltip-value="true">
-                        <div class="knob-face"><div class="knob-pointer"></div></div>
-                        <div class="knob-label">Release</div>
-                        <div class="knob-value"></div>
-                      </div>
-                    </div>
-                  </div>
                   <div class="modulation-inline-envelope">
                     <div class="modulation-group-title">Amp Envelope</div>
                     <div class="modulation-knob-row">
@@ -4610,7 +4646,6 @@
                       </div>
                     </div>
                   </div>
-                </div>
               </div>
             </div>
           </div>
@@ -4808,6 +4843,7 @@
       wallpaperSourcePath: "",
       wallpaperSourceFileName: "",
       wallpaperDataUrl: "",
+      wallpaperThemeRequestId: 0,
       wallpaperHydrationTimer: 0,
       entrySampleHydrationPromises: new Map(),
       autoRenderRaf: 0,
@@ -4850,6 +4886,7 @@
       mapMatrixSplitBtn: document.getElementById("mapMatrixSplitBtn"),
       keyswitchMapSelect: document.getElementById("keyswitchMapSelect"),
       keyswitchMapNormalizeBtn: document.getElementById("keyswitchMapNormalizeBtn"),
+      keyswitchMapPlaybackModeBtn: document.getElementById("keyswitchMapPlaybackModeBtn"),
       keyswitchMapLoopWrap: document.getElementById("keyswitchMapLoopWrap"),
       keyswitchMapLoopModeBtn: document.getElementById("keyswitchMapLoopModeBtn"),
       keyswitchMapLoopToggle: document.getElementById("keyswitchMapLoopToggle"),
@@ -5333,6 +5370,45 @@
       };
     }
 
+    function isAmpEnvelopeParam(param) {
+      return param === "ampAttack"
+        || param === "ampDecay"
+        || param === "ampSustain"
+        || param === "ampRelease";
+    }
+
+    function buildAmpEnvelopeSnapshot() {
+      return {
+        attackMs: Math.max(0, getKnobNumericValue("ampAttack", 10)),
+        decayMs: Math.max(0, getKnobNumericValue("ampDecay", 120)),
+        sustainPercent: Math.max(0, Math.min(100, getKnobNumericValue("ampSustain", 100))),
+        releaseMs: Math.max(0, getKnobNumericValue("ampRelease", 2000))
+      };
+    }
+
+    function emitAmpEnvelopeToNative() {
+      if (state.sessionStateRestoreInProgress) return false;
+      if (!getNativeBackend()) return false;
+      return emitNativeEvent("amp_envelope_set", buildAmpEnvelopeSnapshot());
+    }
+
+    function applyAmpEnvelopeSnapshot(snapshot) {
+      const source = (snapshot && typeof snapshot === "object") ? snapshot : {};
+      const nextValues = [
+        ["ampAttack", Number(source.attackMs)],
+        ["ampDecay", Number(source.decayMs)],
+        ["ampSustain", Number(source.sustainPercent)],
+        ["ampRelease", Number(source.releaseMs)]
+      ];
+
+      nextValues.forEach(([param, value]) => {
+        if (!Number.isFinite(value)) return;
+        const knob = state.knobs[param];
+        if (!knob || typeof knob.set !== "function") return;
+        knob.set(value, true);
+      });
+    }
+
     function getPackManifestBasePath() {
       const path = String(state.packManifestBasePath || "").trim();
       if (!path) return "";
@@ -5544,12 +5620,106 @@
         debugLoadLog(parts.join(" | "));
       }
 
+    function applyPlayerWallpaperBackdropRgb(rgbText = "") {
+      const normalized = String(rgbText || "").trim();
+      if (!normalized) {
+        document.documentElement.style.setProperty("--player-swatch-rgb", "40, 40, 40");
+        document.documentElement.style.setProperty("--player-topbar-rgb", "40, 40, 40");
+      } else {
+        document.documentElement.style.setProperty("--player-swatch-rgb", normalized);
+        document.documentElement.style.setProperty("--player-topbar-rgb", normalized);
+      }
+      updateTopBarTheme();
+    }
+
+    function sampleDarkestWallpaperRgb(dataUrl) {
+      return new Promise((resolve) => {
+        const normalized = String(dataUrl || "").trim();
+        if (!normalized) {
+          resolve("");
+          return;
+        }
+
+        const image = new Image();
+        image.decoding = "async";
+        image.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            const width = Math.max(8, Math.min(32, image.naturalWidth || image.width || 1));
+            const height = Math.max(8, Math.min(32, image.naturalHeight || image.height || 1));
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            if (!ctx) {
+              resolve("");
+              return;
+            }
+
+            ctx.drawImage(image, 0, 0, width, height);
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const pixels = [];
+            for (let index = 0; index < imageData.data.length; index += 4) {
+              const alpha = Number(imageData.data[index + 3] || 0) / 255;
+              if (alpha < 0.35) continue;
+              const red = Number(imageData.data[index] || 0);
+              const green = Number(imageData.data[index + 1] || 0);
+              const blue = Number(imageData.data[index + 2] || 0);
+              const luminance = (0.2126 * red) + (0.7152 * green) + (0.0722 * blue);
+              pixels.push({ red, green, blue, luminance });
+            }
+
+            if (!pixels.length) {
+              resolve("");
+              return;
+            }
+
+            pixels.sort((left, right) => left.luminance - right.luminance);
+            const darkestCount = Math.max(12, Math.min(pixels.length, Math.round(pixels.length * 0.1)));
+            const darkestPixels = pixels.slice(0, darkestCount);
+            const totals = darkestPixels.reduce((acc, pixel) => {
+              acc.red += pixel.red;
+              acc.green += pixel.green;
+              acc.blue += pixel.blue;
+              return acc;
+            }, { red: 0, green: 0, blue: 0 });
+
+            const clampChannel = (value) => Math.max(0, Math.min(255, Math.round(value)));
+            resolve([
+              clampChannel(totals.red / darkestPixels.length),
+              clampChannel(totals.green / darkestPixels.length),
+              clampChannel(totals.blue / darkestPixels.length)
+            ].join(", "));
+          } catch {
+            resolve("");
+          }
+        };
+        image.onerror = () => resolve("");
+        image.src = normalized;
+      });
+    }
+
+    async function applyWallpaperBackdropTheme(dataUrl = "") {
+      const normalized = String(dataUrl || "").trim();
+      const requestId = (state.wallpaperThemeRequestId || 0) + 1;
+      state.wallpaperThemeRequestId = requestId;
+
+      if (!normalized) {
+        applyPlayerWallpaperBackdropRgb("");
+        return;
+      }
+
+      const darkestRgb = await sampleDarkestWallpaperRgb(normalized);
+      if (state.wallpaperThemeRequestId !== requestId) return;
+      applyPlayerWallpaperBackdropRgb(darkestRgb || "40, 40, 40");
+    }
+
     function applyPlayerWallpaperVisual(dataUrl = "") {
       const normalized = String(dataUrl || "").trim();
       document.documentElement.style.setProperty(
         "--player-wallpaper-image",
         normalized ? `url("${normalized.replace(/"/g, "\\\"")}")` : "none"
       );
+      void applyWallpaperBackdropTheme(normalized);
     }
 
     function clearPlayerWallpaperState() {
@@ -5680,6 +5850,7 @@
             key: String(set?.key || ""),
             keyMidi: Number.isFinite(set?.keyMidi) ? Math.round(set.keyMidi) : null,
             loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
+            playbackMode: normalizeKeyswitchPlaybackMode(set?.playbackMode),
             index,
             active: String(state.activeMapSetId || "") === String(set?.id || ""),
             manualRanges: cloneManualRangesObject(set?.manualRanges)
@@ -5693,6 +5864,7 @@
           expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
           pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
           playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
+          ampEnvelope: buildAmpEnvelopeSnapshot(),
           auto: buildAutoControlsSnapshot(),
           sequencer: buildSequencerSnapshot(),
           strum: buildStrumSnapshot(),
@@ -6097,6 +6269,7 @@
         state.wallpaperSourceFileName = String(ui.wallpaperSourceFileName || state.wallpaperSourceFileName || "").trim();
         scheduleWallpaperHydration(80);
         updatePerformanceWheelVisuals();
+        applyAmpEnvelopeSnapshot(ui.ampEnvelope || {});
 
         const restoredSetStates = Array.isArray(ui.keyswitchSets) ? ui.keyswitchSets : [];
         restoredSetStates.forEach((snapshotSet) => {
@@ -6104,6 +6277,7 @@
           if (!matched) return;
           matched.manualRanges = cloneManualRangesObject(snapshotSet.manualRanges);
           matched.loopPlaybackEnabled = snapshotSet?.loopPlaybackEnabled !== false;
+          matched.playbackMode = normalizeKeyswitchPlaybackMode(snapshotSet?.playbackMode || matched.playbackMode);
         });
 
         const activeSetSnapshot = restoredSetStates.find((item) => !!item?.active);
@@ -7330,6 +7504,14 @@
       if (!value) return "";
       const sets = Array.isArray(state.keyswitchSets) ? state.keyswitchSets : [];
       return sets.some((set) => String(set?.id || "") === value) ? value : "";
+    }
+
+    function normalizeKeyswitchPlaybackMode(value) {
+      return String(value || "").trim().toLowerCase() === "oneshot" ? "oneshot" : "spread";
+    }
+
+    function isKeyswitchPlaybackModeOneShot(set) {
+      return normalizeKeyswitchPlaybackMode(set?.playbackMode) === "oneshot";
     }
 
     function normalizeSequencerStep(step) {
@@ -8858,6 +9040,18 @@
         : "One-shot playback enabled";
     }
 
+    function updateKeyswitchPlaybackModeButton(mode) {
+      if (!el.keyswitchMapPlaybackModeBtn) return;
+      const normalizedMode = normalizeKeyswitchPlaybackMode(mode);
+      const isOneShot = normalizedMode === "oneshot";
+      el.keyswitchMapPlaybackModeBtn.textContent = isOneShot ? "AnyKey" : "Range";
+      el.keyswitchMapPlaybackModeBtn.setAttribute("aria-pressed", isOneShot ? "true" : "false");
+      el.keyswitchMapPlaybackModeBtn.classList.toggle("oneshot", isOneShot);
+      el.keyswitchMapPlaybackModeBtn.title = isOneShot
+        ? "Any played key triggers this keyswitch set without pitch tracking"
+        : "Samples in this keyswitch set follow their keyboard ranges";
+    }
+
     function syncLoopOneshotWithAutoLoopSamples(options = {}) {
       const shouldRender = !!options.shouldRender;
       const shouldPersist = !!options.persist;
@@ -8891,9 +9085,14 @@
       const activeMapSet = getActiveMapSet();
       const activeKeyswitchSet = getKeyswitchSetById(state.activeMapSetId);
       const showLoopEditor = !!activeMapSet;
+      const showPlaybackModeEditor = !!activeKeyswitchSet;
       if (el.keyswitchMapLoopWrap) el.keyswitchMapLoopWrap.classList.toggle("hidden", !showLoopEditor);
+      if (el.keyswitchMapPlaybackModeBtn) {
+        el.keyswitchMapPlaybackModeBtn.classList.toggle("hidden", !showPlaybackModeEditor);
+      }
       if (el.keyswitchMapNormalizeBtn) el.keyswitchMapNormalizeBtn.classList.toggle("hidden", !showLoopEditor);
       syncLoopOneshotWithAutoLoopSamples({ shouldRender: false, persist: false });
+      updateKeyswitchPlaybackModeButton(activeKeyswitchSet?.playbackMode);
       if (!activeKeyswitchSet) {
         const duplicates = getDuplicateKeyswitchNotes();
         if (duplicates.length > 0) {
@@ -8924,6 +9123,23 @@
       }
       updateAutoLoopDetailsVisibility(false);
       syncLoopOneshotWithAutoLoopSamples({ shouldRender, persist: true });
+      return true;
+    }
+
+    function toggleActiveKeyswitchPlaybackMode(shouldRender = true) {
+      const activeKeyswitchSet = getKeyswitchSetById(state.activeMapSetId);
+      if (!activeKeyswitchSet) return false;
+      ensureSessionStateWritable("keyswitch-playback-mode");
+      activeKeyswitchSet.playbackMode = isKeyswitchPlaybackModeOneShot(activeKeyswitchSet)
+        ? "spread"
+        : "oneshot";
+      updateKeyswitchPlaybackModeButton(activeKeyswitchSet.playbackMode);
+      if (shouldRender) {
+        renderKeyboardMap(undefined, true);
+        renderPlayerKeyboard();
+      }
+      scheduleSessionStateSave(350);
+      void flushSessionStateToNative(false);
       return true;
     }
 
@@ -9078,6 +9294,7 @@
             key: normalizedKey.key,
             keyMidi: normalizedKey.keyMidi,
             loopPlaybackEnabled: data?.loopPlaybackEnabled !== false,
+            playbackMode: normalizeKeyswitchPlaybackMode(data?.playbackMode),
             sourceFile: file.name,
             sourcePath: sourceFilePath,
             manifestBasePath: importedManifestBasePath,
@@ -9119,6 +9336,7 @@
         || document.querySelector(".tab-btn.active")?.dataset.tab
         || "player";
       el.tabsBar.classList.remove("player-topbar-swatch");
+      el.tabsBar.classList.toggle("wallpaper-icon-swatch", !!String(state.wallpaperDataUrl || "").trim());
       if (tab === "player") {
         el.tabsBar.classList.add("player-topbar-swatch");
       }
@@ -9428,6 +9646,97 @@
       });
     }
 
+    function setupPlayerAdsrSliders() {
+      const sliderNodes = Array.from(document.querySelectorAll(".player-adsr-slider[data-param]"));
+      if (!sliderNodes.length) return;
+
+      sliderNodes.forEach((node) => {
+        const param = node.dataset.param || "";
+        if (!param) return;
+
+        const parsedMin = Number(node.min);
+        const parsedMax = Number(node.max);
+        const parsedStep = Number(node.step);
+        const min = Number.isFinite(parsedMin) ? parsedMin : 0;
+        const max = Number.isFinite(parsedMax) ? parsedMax : 1;
+        const step = Number.isFinite(parsedStep) && parsedStep > 0 ? parsedStep : 1;
+
+        const clampSliderValue = (value) => {
+          const safe = Number.isFinite(value) ? value : min;
+          const snapped = min + (Math.round((safe - min) / step) * step);
+          return Math.min(max, Math.max(min, snapped));
+        };
+
+        const setSliderValue = (value, options = {}) => {
+          const nextValue = clampSliderValue(value);
+          node.value = String(nextValue);
+          if (options.applyToKnob !== false) {
+            const knob = state.knobs[param];
+            if (knob && typeof knob.set === "function") knob.set(nextValue);
+          }
+          return nextValue;
+        };
+
+        const syncFromKnob = () => {
+          const knob = state.knobs[param];
+          if (!knob || typeof knob.get !== "function") return;
+          const nextValue = Number(knob.get());
+          if (!Number.isFinite(nextValue)) return;
+          setSliderValue(nextValue, { applyToKnob: false });
+        };
+
+        node.addEventListener("input", () => {
+          setSliderValue(Number(node.value));
+          pulsePlayerControlsVisibility();
+        });
+        node.addEventListener("change", () => setSliderValue(Number(node.value)));
+        node.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          beginPlayerControlsDrag();
+          pulsePlayerControlsVisibility();
+
+          const range = Math.max(step, max - min);
+          const precisionDivisor = event.shiftKey ? 560 : 320;
+          const unitsPerPixel = Math.max(step, range / precisionDivisor);
+          const startY = event.clientY;
+          const startValue = Number(node.value);
+
+          const move = (moveEvent) => {
+            const delta = startY - moveEvent.clientY;
+            setSliderValue(startValue + (delta * unitsPerPixel));
+            pulsePlayerControlsVisibility();
+          };
+
+          const release = () => {
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", release);
+            window.removeEventListener("pointercancel", release);
+            endPlayerControlsDrag();
+          };
+
+          window.addEventListener("pointermove", move);
+          window.addEventListener("pointerup", release);
+          window.addEventListener("pointercancel", release);
+        });
+        node.addEventListener("keydown", () => pulsePlayerControlsVisibility());
+
+        const knobNode = document.querySelector(`.knob[data-param="${param}"]`);
+        if (knobNode) knobNode.addEventListener("knobchange", syncFromKnob);
+        syncFromKnob();
+      });
+    }
+
+    function setupAmpEnvelopeBridge() {
+      document.querySelectorAll(".knob[data-param]").forEach((node) => {
+        const param = String(node.dataset.param || "").trim();
+        if (!isAmpEnvelopeParam(param)) return;
+        node.addEventListener("knobchange", () => {
+          emitAmpEnvelopeToNative();
+          scheduleSessionStateSave(120);
+        });
+      });
+    }
+
     function readFileAsDataUrl(fileLike) {
       return new Promise((resolve, reject) => {
         if (!(fileLike instanceof Blob)) {
@@ -9510,8 +9819,7 @@
     }
 
     function resetPlayerVisualTheme() {
-      document.documentElement.style.setProperty("--player-swatch-rgb", "40, 40, 40");
-      document.documentElement.style.setProperty("--player-topbar-rgb", "40, 40, 40");
+      applyPlayerWallpaperBackdropRgb("");
       document.documentElement.style.setProperty("--player-line-rgb", "150, 150, 150");
       document.documentElement.style.setProperty("--player-bright-rgb", "224, 224, 224");
       document.documentElement.style.setProperty("--player-press-glow-rgb", "224, 224, 224");
@@ -13307,137 +13615,14 @@
       const decaySec = Math.max(0, getKnobNumericValue("ampDecay", 120) / 1000);
       const sustainLevel = clamp01(getKnobNumericValue("ampSustain", 100) / 100);
       const releaseSec = Math.max(0.005, getKnobNumericValue("ampRelease", 2000) / 1000);
-      const cutoffHz = Math.max(20, getKnobNumericValue("filterCutoff", 20000));
-      const resonance = Math.max(0.1, getKnobNumericValue("filterResonance", 0.1));
-      const filterEnvAmount = clamp01(getKnobNumericValue("filterEnvAmount", 0) / 100);
-      const filterEnvAttackSec = Math.max(0, getKnobNumericValue("filterEnvAttack", 10) / 1000);
-      const filterEnvDecaySec = Math.max(0, getKnobNumericValue("filterEnvDecay", 180) / 1000);
-      const filterEnvSustainLevel = clamp01(getKnobNumericValue("filterEnvSustain", 0) / 100);
-      const filterEnvReleaseSec = Math.max(0.005, getKnobNumericValue("filterEnvRelease", 320) / 1000);
       const outputGain = Math.max(0, dbToGain(getKnobNumericValue("gain", 0)));
       return {
         attackSec,
         decaySec,
         sustainLevel,
         releaseSec,
-        cutoffHz,
-        resonance,
-        filterEnvAmount,
-        filterEnvAttackSec,
-        filterEnvDecaySec,
-        filterEnvSustainLevel,
-        filterEnvReleaseSec,
         outputGain
       };
-    }
-
-    function createLadderFilterChain(ctx, cutoffHz, resonance) {
-      const nyquist = Math.max(120, (ctx.sampleRate * 0.5) - 100);
-      const cutoff = Math.max(20, Math.min(nyquist, Number(cutoffHz) || 12000));
-      const res = Math.max(0.1, Math.min(12, Number(resonance) || 0.7));
-      const stages = Array.from({ length: 4 }, () => ctx.createBiquadFilter());
-      stages.forEach((stage) => {
-        stage.type = "lowpass";
-        stage.frequency.setValueAtTime(cutoff, ctx.currentTime);
-      });
-      stages[0].Q.setValueAtTime(Math.max(0.0001, 0.22 + (res * 0.18)), ctx.currentTime);
-      stages[1].Q.setValueAtTime(Math.max(0.0001, 0.30 + (res * 0.26)), ctx.currentTime);
-      stages[2].Q.setValueAtTime(Math.max(0.0001, 0.38 + (res * 0.34)), ctx.currentTime);
-      stages[3].Q.setValueAtTime(Math.max(0.0001, 0.45 + (res * 0.46)), ctx.currentTime);
-
-      for (let i = 0; i < stages.length - 1; i += 1) {
-        stages[i].connect(stages[i + 1]);
-      }
-      return {
-        input: stages[0],
-        output: stages[stages.length - 1],
-        stages,
-        baseCutoffHz: cutoff
-      };
-    }
-
-    function clampFilterCutoffForContext(ctx, cutoffHz) {
-      const nyquist = Math.max(120, ((ctx?.sampleRate || 44100) * 0.5) - 100);
-      return Math.max(20, Math.min(nyquist, Number(cutoffHz) || 12000));
-    }
-
-    function scheduleFilterEnvelope(stages, now, releaseAnchor, settings) {
-      if (!Array.isArray(stages) || !stages.length) return now;
-      const ctx = stages[0]?.context;
-      if (!ctx) return now;
-
-      const base = clampFilterCutoffForContext(ctx, settings.cutoffHz);
-      const amount = clamp01(Number(settings.filterEnvAmount) || 0);
-      const attackSec = Math.max(0, Number(settings.filterEnvAttackSec) || 0);
-      const decaySec = Math.max(0, Number(settings.filterEnvDecaySec) || 0);
-      const sustainLevel = clamp01(Number(settings.filterEnvSustainLevel));
-      const releaseSec = Math.max(0.005, Number(settings.filterEnvReleaseSec) || 0.005);
-      const peak = clampFilterCutoffForContext(ctx, base + ((clampFilterCutoffForContext(ctx, ctx.sampleRate * 0.5) - base) * amount));
-      const sustain = clampFilterCutoffForContext(ctx, base + ((peak - base) * sustainLevel));
-
-      const attackEnd = now + Math.max(0.0001, attackSec);
-      const decayEnd = attackEnd + Math.max(0.0001, decaySec);
-      const releaseStart = Math.max(decayEnd, Number(releaseAnchor) || decayEnd);
-      const releaseEnd = releaseStart + releaseSec;
-
-      stages.forEach((stage) => {
-        const param = stage.frequency;
-        param.cancelScheduledValues(now);
-        param.setValueAtTime(base, now);
-        if (attackSec > 0.0005) param.linearRampToValueAtTime(peak, attackEnd);
-        else param.setValueAtTime(peak, attackEnd);
-        if (decaySec > 0.0005) param.linearRampToValueAtTime(sustain, decayEnd);
-        else param.setValueAtTime(sustain, decayEnd);
-        param.setValueAtTime(sustain, releaseStart);
-        param.linearRampToValueAtTime(base, releaseEnd);
-      });
-
-      return releaseEnd;
-    }
-
-    function scheduleHeldFilterEnvelope(stages, now, settings) {
-      if (!Array.isArray(stages) || !stages.length) return;
-      const ctx = stages[0]?.context;
-      if (!ctx) return;
-
-      const base = clampFilterCutoffForContext(ctx, settings.cutoffHz);
-      const amount = clamp01(Number(settings.filterEnvAmount) || 0);
-      const attackSec = Math.max(0, Number(settings.filterEnvAttackSec) || 0);
-      const decaySec = Math.max(0, Number(settings.filterEnvDecaySec) || 0);
-      const sustainLevel = clamp01(Number(settings.filterEnvSustainLevel));
-      const peak = clampFilterCutoffForContext(ctx, base + ((clampFilterCutoffForContext(ctx, ctx.sampleRate * 0.5) - base) * amount));
-      const sustain = clampFilterCutoffForContext(ctx, base + ((peak - base) * sustainLevel));
-      const attackEnd = now + Math.max(0.0001, attackSec);
-      const decayEnd = attackEnd + Math.max(0.0001, decaySec);
-
-      stages.forEach((stage) => {
-        const param = stage.frequency;
-        param.cancelScheduledValues(now);
-        param.setValueAtTime(base, now);
-        if (attackSec > 0.0005) param.linearRampToValueAtTime(peak, attackEnd);
-        else param.setValueAtTime(peak, attackEnd);
-        if (decaySec > 0.0005) param.linearRampToValueAtTime(sustain, decayEnd);
-        else param.setValueAtTime(sustain, decayEnd);
-        param.setValueAtTime(sustain, decayEnd + 0.0005);
-      });
-    }
-
-    function scheduleFilterEnvelopeRelease(stages, now, settings) {
-      if (!Array.isArray(stages) || !stages.length) return;
-      const ctx = stages[0]?.context;
-      if (!ctx) return;
-
-      const base = clampFilterCutoffForContext(ctx, settings.cutoffHz);
-      const releaseSec = Math.max(0.005, Number(settings.filterEnvReleaseSec) || 0.005);
-      const releaseEnd = now + releaseSec;
-
-      stages.forEach((stage) => {
-        const param = stage.frequency;
-        const current = clampFilterCutoffForContext(ctx, Number(param.value) || base);
-        param.cancelScheduledValues(now);
-        param.setValueAtTime(current, now);
-        param.linearRampToValueAtTime(base, releaseEnd);
-      });
     }
 
     function scheduleAmpEnvelope(param, now, releaseAnchor, settings, peakGain) {
@@ -13618,7 +13803,6 @@
         });
       }
       try { voice.voiceInput.disconnect(); } catch {}
-      try { voice.filterOutput.disconnect(); } catch {}
       try { voice.ampEnvelope.disconnect(); } catch {}
     }
 
@@ -13646,14 +13830,6 @@
           }
         } catch {
           // gain schedule may be stale
-        }
-      }
-
-      if (!hardCut && Array.isArray(voice.filterStages) && voice.filterStages.length && voice.voiceSettings) {
-        try {
-          scheduleFilterEnvelopeRelease(voice.filterStages, now, voice.voiceSettings);
-        } catch {
-          // filter schedule may be stale
         }
       }
 
@@ -13780,10 +13956,8 @@
         const now = ctx.currentTime + startDelaySec;
 
         const voiceInput = ctx.createGain();
-        const filter = createLadderFilterChain(ctx, voiceSettings.cutoffHz, voiceSettings.resonance);
         const ampEnvelope = ctx.createGain();
-        voiceInput.connect(filter.input);
-        filter.output.connect(ampEnvelope);
+        voiceInput.connect(ampEnvelope);
         ampEnvelope.connect(ctx.destination);
 
         const voiceId = (state.previewVoiceId += 1);
@@ -13792,9 +13966,6 @@
           keyMidi: playedMidi,
           ctx,
           voiceInput,
-          filterOutput: filter.output,
-          filterStages: filter.stages,
-          filterBaseCutoffHz: filter.baseCutoffHz,
           ampEnvelope,
           voiceSettings,
           sources: [],
@@ -13885,7 +14056,6 @@
             voiceSettings,
             peakGain
           );
-          scheduleHeldFilterEnvelope(filter.stages, now, voiceSettings);
 
           if (trackSegmentsForPlayhead && segments.length) {
             const previewStopForPlayhead = now + 12;
@@ -13921,13 +14091,7 @@
           voiceSettings,
           peakGain
         );
-        const filterReleaseEnd = scheduleFilterEnvelope(
-          filter.stages,
-          now,
-          stopAt,
-          voiceSettings
-        );
-        const releaseEnd = Math.max(ampReleaseEnd, filterReleaseEnd);
+        const releaseEnd = ampReleaseEnd;
 
         if (trackSegmentsForPlayhead && segments.length) {
           startWaveformPlayhead(entry, ctx, audioBuffer.duration, segments, stopAt);
@@ -14160,6 +14324,7 @@
             key: normalized.key,
             keyMidi: normalized.keyMidi,
             loopPlaybackEnabled: true,
+            playbackMode: "spread",
             sourceFile: "",
             sourcePath: "",
             manifestBasePath: "",
@@ -14211,6 +14376,11 @@
         el.keyswitchMapLoopModeBtn.addEventListener("click", () => {
           el.keyswitchMapLoopToggle.checked = !el.keyswitchMapLoopToggle.checked;
           applyActiveKeyswitchSetLoopToggle(true);
+        });
+      }
+      if (el.keyswitchMapPlaybackModeBtn) {
+        el.keyswitchMapPlaybackModeBtn.addEventListener("click", () => {
+          toggleActiveKeyswitchPlaybackMode(true);
         });
       }
       if (el.mapMatrixIntervalInput) {
@@ -15157,6 +15327,7 @@
               name: setName,
               keyswitchKey: setKey,
               loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
+              playbackMode: normalizeKeyswitchPlaybackMode(set?.playbackMode),
               mapping: buildManifestMapping(Array.isArray(set?.entries) ? set.entries : [], {
                 preserveRuntimePaths,
                 includeEmbeddedSampleData,
@@ -15366,6 +15537,7 @@
             instrumentName: setName,
             keyswitchKey: setKey,
             loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
+            playbackMode: normalizeKeyswitchPlaybackMode(set?.playbackMode),
             createdUtc: new Date().toISOString(),
             settings: {
               ...(manifest?.settings && typeof manifest.settings === "object" ? manifest.settings : {})
@@ -15614,6 +15786,7 @@
           key: keyInfo.key,
           keyMidi: keyInfo.keyMidi,
           loopPlaybackEnabled: sessionLoopPlayback === null ? (rawSet?.loopPlaybackEnabled !== false) : sessionLoopPlayback,
+          playbackMode: normalizeKeyswitchPlaybackMode(sessionUiSet?.playbackMode || rawSet?.playbackMode),
           sourceFile: sourceLabel,
           entries: setEntries,
           manualRanges: cloneManualRangesObject(sessionUiSet?.manualRanges)
@@ -16846,6 +17019,8 @@
       setModulationCollapsed(collapseState.modulation);
       setStrumCollapsed(collapseState.strum || getStrumVisibleStepCount() <= 0);
       setupKnobs();
+      setupAmpEnvelopeBridge();
+      setupPlayerAdsrSliders();
       setupPlayerControlsVisibility();
       setupPerformanceWheels();
       setupPlayerKeyboardSizing();
