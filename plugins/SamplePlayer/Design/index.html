@@ -901,6 +901,13 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      opacity: 0.1;
+      transition: opacity 180ms ease;
+    }
+
+    .top-right-controls:hover,
+    .top-right-controls:focus-within {
+      opacity: 1;
     }
 
     .player-adsr-strip {
@@ -923,15 +930,8 @@
       margin: 0;
       background: transparent;
       cursor: ns-resize;
-      opacity: 0.86;
-      transition: opacity 120ms ease;
       border: 0;
       border-radius: 0;
-    }
-
-    .player-adsr-slider:hover,
-    .player-adsr-slider:focus-visible {
-      opacity: 1;
     }
 
     .player-adsr-slider:focus-visible {
@@ -4638,39 +4638,6 @@
                 <div id="mapKeyContextMenu" class="map-key-context-menu"></div>
               </div>
             </div>
-            </div>
-          </div>
-
-          <div id="modulationSection" class="section collapsible collapsed">
-            <h2 id="modulationToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="modulationBody">Amp envelope</h2>
-            <div id="modulationBody" class="section-body">
-              <div class="modulation-group">
-                  <div class="modulation-inline-envelope">
-                    <div class="modulation-group-title">Amp Envelope</div>
-                    <div class="modulation-knob-row">
-                      <div class="knob knob-mini" data-param="ampAttack" data-min="0" data-max="5000" data-step="1" data-value="10" data-unit="ms" data-tooltip-value="true">
-                        <div class="knob-face"><div class="knob-pointer"></div></div>
-                        <div class="knob-label">Attack</div>
-                        <div class="knob-value"></div>
-                      </div>
-                      <div class="knob knob-mini" data-param="ampDecay" data-min="0" data-max="5000" data-step="1" data-value="120" data-unit="ms" data-tooltip-value="true">
-                        <div class="knob-face"><div class="knob-pointer"></div></div>
-                        <div class="knob-label">Decay</div>
-                        <div class="knob-value"></div>
-                      </div>
-                      <div class="knob knob-mini" data-param="ampSustain" data-min="0" data-max="100" data-step="1" data-value="100" data-unit="%" data-tooltip-value="true">
-                        <div class="knob-face"><div class="knob-pointer"></div></div>
-                        <div class="knob-label">Sustain</div>
-                        <div class="knob-value"></div>
-                      </div>
-                      <div class="knob knob-mini" data-param="ampRelease" data-min="0" data-max="5000" data-step="1" data-value="2000" data-unit="ms" data-tooltip-value="true">
-                        <div class="knob-face"><div class="knob-pointer"></div></div>
-                        <div class="knob-label">Release</div>
-                        <div class="knob-value"></div>
-                      </div>
-                    </div>
-                  </div>
-              </div>
             </div>
           </div>
 
