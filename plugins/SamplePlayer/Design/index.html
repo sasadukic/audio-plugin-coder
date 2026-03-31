@@ -1331,8 +1331,8 @@
       z-index: 1;
       opacity: 0.96;
       box-shadow:
-        inset 0 0 0 1px rgba(var(--player-wallpaper-open-string-rgb), 0.84),
-        0 0 14px rgba(var(--player-wallpaper-open-string-rgb), 0.28);
+        inset 0 0 0 1px rgba(var(--player-open-string-rgb, var(--player-wallpaper-open-string-rgb)), 0.84),
+        0 0 14px rgba(var(--player-open-string-rgb, var(--player-wallpaper-open-string-rgb)), 0.28);
     }
 
     .player-key-white.is-open-string {
@@ -1353,8 +1353,8 @@
       background:
         linear-gradient(
           180deg,
-          rgba(var(--player-wallpaper-open-string-rgb), 0.76),
-          rgba(var(--player-wallpaper-open-string-rgb), 0.52)
+          rgba(var(--player-open-string-rgb, var(--player-wallpaper-open-string-rgb)), 0.76),
+          rgba(var(--player-open-string-rgb, var(--player-wallpaper-open-string-rgb)), 0.52)
         );
     }
 
@@ -1362,8 +1362,8 @@
       background:
         linear-gradient(
           180deg,
-          rgba(var(--player-wallpaper-open-string-rgb), 0.76),
-          rgba(var(--player-wallpaper-open-string-rgb), 0.52)
+          rgba(var(--player-open-string-rgb, var(--player-wallpaper-open-string-rgb)), 0.76),
+          rgba(var(--player-open-string-rgb, var(--player-wallpaper-open-string-rgb)), 0.52)
         );
     }
 
@@ -4257,9 +4257,41 @@
       white-space: nowrap;
     }
 
+    .map-key-context-menu-item.active {
+      background: rgba(80, 140, 255, 0.18);
+      color: #fff;
+    }
+
     .map-key-context-menu-item:hover {
       background: rgba(80, 140, 255, 0.25);
       color: #fff;
+    }
+
+    .map-key-context-menu-label {
+      padding: 7px 14px 4px;
+      color: rgba(224, 224, 224, 0.56);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .map-key-context-menu-color-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .map-key-context-menu-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.22),
+        0 0 0 1px rgba(0, 0, 0, 0.18);
+      background: rgb(var(--context-menu-swatch-rgb, 224, 224, 224));
     }
 
     .hidden {
@@ -4820,6 +4852,7 @@
       keyContextMenuTargetMidi: null,
       keyContextMenuTargetLayer: null,
       playerOpenStringMidis: [],
+      playerOpenStringColorsByMidi: {},
       sequencerHostTriggerEnabled: false,
       sequencerCurrentStep: -1,
       sequencerSteps: Array.from({ length: SEQUENCER_STEP_COUNT }, () => ({
@@ -4903,6 +4936,7 @@
       wallpaperDataUrl: "",
       wallpaperThemeRequestId: 0,
       wallpaperDominantRgb: "224, 224, 224",
+      wallpaperOpenStringPalette: [],
       wallpaperHydrationTimer: 0,
       entrySampleHydrationPromises: new Map(),
       autoRenderRaf: 0,
@@ -5443,6 +5477,44 @@
       return unique;
     }
 
+    function normalizeRgbText(value, fallback = "") {
+      const raw = String(value || "").trim();
+      if (!raw) return String(fallback || "").trim();
+      const parts = raw.split(",").map((part) => Number(part.trim()));
+      if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) {
+        return String(fallback || "").trim();
+      }
+      return parts
+        .map((part) => Math.max(0, Math.min(255, Math.round(part))))
+        .join(", ");
+    }
+
+    function normalizeOpenStringColorMap(values, allowedMidis = null) {
+      const source = (values && typeof values === "object") ? values : {};
+      const allowed = Array.isArray(allowedMidis)
+        ? new Set(normalizeOpenStringMidiList(allowedMidis).map((midi) => String(midi)))
+        : null;
+      const normalized = {};
+      Object.entries(source).forEach(([midiKey, rgbValue]) => {
+        const parsedMidi = Math.round(Number(midiKey));
+        if (!Number.isFinite(parsedMidi)) return;
+        const clampedMidi = Math.max(PLAYER_KB_START_MIDI, Math.min(PLAYER_KB_END_MIDI, parsedMidi));
+        if (allowed && !allowed.has(String(clampedMidi))) return;
+        const normalizedRgb = normalizeRgbText(rgbValue);
+        if (!normalizedRgb) return;
+        normalized[String(clampedMidi)] = normalizedRgb;
+      });
+      return normalized;
+    }
+
+    function serializeOpenStringColorMap(values, allowedMidis = null) {
+      const normalized = normalizeOpenStringColorMap(values, allowedMidis);
+      return Object.keys(normalized)
+        .sort((left, right) => Number(left) - Number(right))
+        .map((midiKey) => `${midiKey}:${normalized[midiKey]}`)
+        .join("|");
+    }
+
     function getNormalizedKeyswitchSetOpenStringMidis(set) {
       if (!set || typeof set !== "object") return [];
       const normalized = normalizeOpenStringMidiList(set.openStringMidis);
@@ -5451,6 +5523,14 @@
         || normalized.some((midi, index) => midi !== set.openStringMidis[index])) {
         set.openStringMidis = normalized;
       }
+      return normalized;
+    }
+
+    function getNormalizedKeyswitchSetOpenStringColorsByMidi(set) {
+      if (!set || typeof set !== "object") return {};
+      const openStringMidis = getNormalizedKeyswitchSetOpenStringMidis(set);
+      const normalized = normalizeOpenStringColorMap(set.openStringColorsByMidi, openStringMidis);
+      set.openStringColorsByMidi = normalized;
       return normalized;
     }
 
@@ -5471,10 +5551,55 @@
       const ownerSet = getOpenStringOwnerSet(setId);
       if (ownerSet) {
         ownerSet.openStringMidis = normalized;
+        ownerSet.openStringColorsByMidi = normalizeOpenStringColorMap(ownerSet.openStringColorsByMidi, normalized);
         return normalized;
       }
       state.playerOpenStringMidis = normalized;
+      state.playerOpenStringColorsByMidi = normalizeOpenStringColorMap(state.playerOpenStringColorsByMidi, normalized);
       return normalized;
+    }
+
+    function getOpenStringColorsByMidiForSet(setId = state.activeMapSetId) {
+      const ownerSet = getOpenStringOwnerSet(setId);
+      if (ownerSet) return getNormalizedKeyswitchSetOpenStringColorsByMidi(ownerSet);
+      state.playerOpenStringColorsByMidi = normalizeOpenStringColorMap(
+        state.playerOpenStringColorsByMidi,
+        state.playerOpenStringMidis
+      );
+      return state.playerOpenStringColorsByMidi;
+    }
+
+    function setOpenStringColorsByMidiForSet(values, setId = state.activeMapSetId) {
+      const allowedMidis = getOpenStringMidisForSet(setId);
+      const normalized = normalizeOpenStringColorMap(values, allowedMidis);
+      const ownerSet = getOpenStringOwnerSet(setId);
+      if (ownerSet) {
+        ownerSet.openStringColorsByMidi = normalized;
+        return normalized;
+      }
+      state.playerOpenStringColorsByMidi = normalized;
+      return normalized;
+    }
+
+    function getOpenStringColorForMidi(midi, setId = state.activeMapSetId) {
+      const normalizedMidi = Math.round(Number(midi));
+      if (!Number.isFinite(normalizedMidi)) return "";
+      const clampedMidi = Math.max(PLAYER_KB_START_MIDI, Math.min(PLAYER_KB_END_MIDI, normalizedMidi));
+      const colorMap = getOpenStringColorsByMidiForSet(setId);
+      return normalizeRgbText(colorMap[String(clampedMidi)]);
+    }
+
+    function setOpenStringColorForMidi(midi, rgbText = "", setId = state.activeMapSetId) {
+      const normalizedMidi = Math.round(Number(midi));
+      if (!Number.isFinite(normalizedMidi)) return getOpenStringColorsByMidiForSet(setId);
+      const clampedMidi = Math.max(PLAYER_KB_START_MIDI, Math.min(PLAYER_KB_END_MIDI, normalizedMidi));
+      const nextColorMap = {
+        ...getOpenStringColorsByMidiForSet(setId)
+      };
+      const normalizedRgb = normalizeRgbText(rgbText);
+      if (normalizedRgb) nextColorMap[String(clampedMidi)] = normalizedRgb;
+      else delete nextColorMap[String(clampedMidi)];
+      return setOpenStringColorsByMidiForSet(nextColorMap, setId);
     }
 
     function isAmpEnvelopeParam(param) {
@@ -5750,6 +5875,203 @@
       document.documentElement.style.setProperty("--player-wallpaper-open-string-rgb", normalized);
     }
 
+    function getDefaultWallpaperOpenStringPalette() {
+      return [
+        "224, 224, 224",
+        "255, 126, 88",
+        "88, 196, 255"
+      ];
+    }
+
+    function setWallpaperOpenStringPalette(values = []) {
+      const unique = [];
+      const pushUnique = (rgbText) => {
+        const normalized = normalizeRgbText(rgbText);
+        if (!normalized || unique.includes(normalized)) return;
+        unique.push(normalized);
+      };
+      (Array.isArray(values) ? values : []).forEach(pushUnique);
+      getDefaultWallpaperOpenStringPalette().forEach(pushUnique);
+      state.wallpaperOpenStringPalette = unique.slice(0, 3);
+      return state.wallpaperOpenStringPalette;
+    }
+
+    function rgbToHsl(red, green, blue) {
+      const r = Math.max(0, Math.min(255, Number(red) || 0)) / 255;
+      const g = Math.max(0, Math.min(255, Number(green) || 0)) / 255;
+      const b = Math.max(0, Math.min(255, Number(blue) || 0)) / 255;
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      let hue = 0;
+      let saturation = 0;
+      const lightness = (max + min) / 2;
+
+      if (max !== min) {
+        const delta = max - min;
+        saturation = lightness > 0.5
+          ? delta / (2 - max - min)
+          : delta / (max + min);
+        switch (max) {
+          case r:
+            hue = ((g - b) / delta) + (g < b ? 6 : 0);
+            break;
+          case g:
+            hue = ((b - r) / delta) + 2;
+            break;
+          default:
+            hue = ((r - g) / delta) + 4;
+            break;
+        }
+        hue /= 6;
+      }
+
+      return { hue, saturation, lightness };
+    }
+
+    function hslToRgb(hue, saturation, lightness) {
+      const clampUnit = (value) => Math.max(0, Math.min(1, Number(value) || 0));
+      const h = clampUnit(hue);
+      const s = clampUnit(saturation);
+      const l = clampUnit(lightness);
+      if (s <= 0) {
+        const gray = Math.round(l * 255);
+        return { red: gray, green: gray, blue: gray };
+      }
+
+      const hueToRgb = (p, q, t) => {
+        let value = t;
+        if (value < 0) value += 1;
+        if (value > 1) value -= 1;
+        if (value < (1 / 6)) return p + ((q - p) * 6 * value);
+        if (value < 0.5) return q;
+        if (value < (2 / 3)) return p + ((q - p) * ((2 / 3) - value) * 6);
+        return p;
+      };
+
+      const q = l < 0.5 ? l * (1 + s) : l + s - (l * s);
+      const p = (2 * l) - q;
+      return {
+        red: Math.round(hueToRgb(p, q, h + (1 / 3)) * 255),
+        green: Math.round(hueToRgb(p, q, h) * 255),
+        blue: Math.round(hueToRgb(p, q, h - (1 / 3)) * 255)
+      };
+    }
+
+    function normalizeOpenStringPaletteRgb(red, green, blue) {
+      const { hue, saturation, lightness } = rgbToHsl(red, green, blue);
+      const tuned = hslToRgb(
+        hue,
+        Math.max(0.58, Math.min(0.94, saturation)),
+        Math.max(0.42, Math.min(0.6, lightness))
+      );
+      return normalizeRgbText(`${tuned.red}, ${tuned.green}, ${tuned.blue}`);
+    }
+
+    function sampleWallpaperOpenStringPalette(dataUrl, count = 3) {
+      return new Promise((resolve) => {
+        const normalized = String(dataUrl || "").trim();
+        if (!normalized) {
+          resolve(setWallpaperOpenStringPalette([]).slice(0, count));
+          return;
+        }
+
+        const image = new Image();
+        image.decoding = "async";
+        image.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            const width = Math.max(16, Math.min(48, image.naturalWidth || image.width || 1));
+            const height = Math.max(16, Math.min(48, image.naturalHeight || image.height || 1));
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            if (!ctx) {
+              resolve(setWallpaperOpenStringPalette([]).slice(0, count));
+              return;
+            }
+
+            ctx.drawImage(image, 0, 0, width, height);
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const buckets = new Map();
+
+            for (let index = 0; index < imageData.data.length; index += 4) {
+              const alpha = Number(imageData.data[index + 3] || 0) / 255;
+              if (alpha < 0.42) continue;
+              const red = Number(imageData.data[index] || 0);
+              const green = Number(imageData.data[index + 1] || 0);
+              const blue = Number(imageData.data[index + 2] || 0);
+              const hsl = rgbToHsl(red, green, blue);
+              if (hsl.saturation < 0.18) continue;
+              const bucketRed = Math.round(red / 24) * 24;
+              const bucketGreen = Math.round(green / 24) * 24;
+              const bucketBlue = Math.round(blue / 24) * 24;
+              const key = `${bucketRed},${bucketGreen},${bucketBlue}`;
+              const current = buckets.get(key) || {
+                red: 0,
+                green: 0,
+                blue: 0,
+                hueTotal: 0,
+                saturationTotal: 0,
+                lightnessTotal: 0,
+                count: 0
+              };
+              current.red += red;
+              current.green += green;
+              current.blue += blue;
+              current.hueTotal += hsl.hue;
+              current.saturationTotal += hsl.saturation;
+              current.lightnessTotal += hsl.lightness;
+              current.count += 1;
+              buckets.set(key, current);
+            }
+
+            const candidates = Array.from(buckets.values())
+              .filter((bucket) => bucket.count > 0)
+              .map((bucket) => {
+                const avgRed = bucket.red / bucket.count;
+                const avgGreen = bucket.green / bucket.count;
+                const avgBlue = bucket.blue / bucket.count;
+                const avgHue = bucket.hueTotal / bucket.count;
+                const avgSaturation = bucket.saturationTotal / bucket.count;
+                const avgLightness = bucket.lightnessTotal / bucket.count;
+                const visibility = 1 - Math.min(1, Math.abs(avgLightness - 0.52) * 1.9);
+                return {
+                  hue: avgHue,
+                  saturation: avgSaturation,
+                  lightness: avgLightness,
+                  rgb: normalizeOpenStringPaletteRgb(avgRed, avgGreen, avgBlue),
+                  score: (avgSaturation * 8) + (visibility * 2.2) + Math.min(1.4, bucket.count / 6)
+                };
+              })
+              .filter((candidate) => !!candidate.rgb)
+              .sort((left, right) => right.score - left.score);
+
+            const palette = [];
+            candidates.forEach((candidate) => {
+              if (palette.length >= count) return;
+              const isDistinct = palette.every((selected) => {
+                const hueDistance = Math.min(
+                  Math.abs(candidate.hue - selected.hue),
+                  1 - Math.abs(candidate.hue - selected.hue)
+                );
+                const rgbA = candidate.rgb.split(",").map((part) => Number(part.trim()) || 0);
+                const rgbB = selected.rgb.split(",").map((part) => Number(part.trim()) || 0);
+                const rgbDistance = Math.abs(rgbA[0] - rgbB[0]) + Math.abs(rgbA[1] - rgbB[1]) + Math.abs(rgbA[2] - rgbB[2]);
+                return hueDistance > 0.06 || rgbDistance > 84;
+              });
+              if (isDistinct) palette.push(candidate);
+            });
+
+            resolve(setWallpaperOpenStringPalette(palette.map((candidate) => candidate.rgb)).slice(0, count));
+          } catch {
+            resolve(setWallpaperOpenStringPalette([]).slice(0, count));
+          }
+        };
+        image.onerror = () => resolve(setWallpaperOpenStringPalette([]).slice(0, count));
+        image.src = normalized;
+      });
+    }
+
     function sampleDarkestWallpaperRgb(dataUrl) {
       return new Promise((resolve) => {
         const normalized = String(dataUrl || "").trim();
@@ -5969,173 +6291,8 @@
     }
 
     function sampleMostSaturatedWallpaperRgb(dataUrl) {
-      return new Promise((resolve) => {
-        const normalized = String(dataUrl || "").trim();
-        if (!normalized) {
-          resolve("");
-          return;
-        }
-
-        const rgbToHsl = (red, green, blue) => {
-          const r = Math.max(0, Math.min(255, Number(red) || 0)) / 255;
-          const g = Math.max(0, Math.min(255, Number(green) || 0)) / 255;
-          const b = Math.max(0, Math.min(255, Number(blue) || 0)) / 255;
-          const max = Math.max(r, g, b);
-          const min = Math.min(r, g, b);
-          let hue = 0;
-          let saturation = 0;
-          const lightness = (max + min) / 2;
-
-          if (max !== min) {
-            const delta = max - min;
-            saturation = lightness > 0.5
-              ? delta / (2 - max - min)
-              : delta / (max + min);
-            switch (max) {
-              case r:
-                hue = ((g - b) / delta) + (g < b ? 6 : 0);
-                break;
-              case g:
-                hue = ((b - r) / delta) + 2;
-                break;
-              default:
-                hue = ((r - g) / delta) + 4;
-                break;
-            }
-            hue /= 6;
-          }
-
-          return { hue, saturation, lightness };
-        };
-
-        const hslToRgb = (hue, saturation, lightness) => {
-          const clampUnit = (value) => Math.max(0, Math.min(1, Number(value) || 0));
-          const h = clampUnit(hue);
-          const s = clampUnit(saturation);
-          const l = clampUnit(lightness);
-          if (s <= 0) {
-            const gray = Math.round(l * 255);
-            return { red: gray, green: gray, blue: gray };
-          }
-
-          const hueToRgb = (p, q, t) => {
-            let value = t;
-            if (value < 0) value += 1;
-            if (value > 1) value -= 1;
-            if (value < (1 / 6)) return p + ((q - p) * 6 * value);
-            if (value < 0.5) return q;
-            if (value < (2 / 3)) return p + ((q - p) * ((2 / 3) - value) * 6);
-            return p;
-          };
-
-          const q = l < 0.5 ? l * (1 + s) : l + s - (l * s);
-          const p = (2 * l) - q;
-          return {
-            red: Math.round(hueToRgb(p, q, h + (1 / 3)) * 255),
-            green: Math.round(hueToRgb(p, q, h) * 255),
-            blue: Math.round(hueToRgb(p, q, h - (1 / 3)) * 255)
-          };
-        };
-
-        const normalizeOpenStringRgb = (red, green, blue) => {
-          const { hue, saturation, lightness } = rgbToHsl(red, green, blue);
-          const tunedSaturation = Math.max(0.56, Math.min(0.9, saturation));
-          const tunedLightness = Math.max(0.42, Math.min(0.6, lightness));
-          return hslToRgb(hue, tunedSaturation, tunedLightness);
-        };
-
-        const image = new Image();
-        image.decoding = "async";
-        image.onload = () => {
-          try {
-            const canvas = document.createElement("canvas");
-            const width = Math.max(12, Math.min(40, image.naturalWidth || image.width || 1));
-            const height = Math.max(12, Math.min(40, image.naturalHeight || image.height || 1));
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext("2d", { willReadFrequently: true });
-            if (!ctx) {
-              resolve("");
-              return;
-            }
-
-            ctx.drawImage(image, 0, 0, width, height);
-            const imageData = ctx.getImageData(0, 0, width, height);
-            const buckets = new Map();
-
-            for (let index = 0; index < imageData.data.length; index += 4) {
-              const alpha = Number(imageData.data[index + 3] || 0) / 255;
-              if (alpha < 0.4) continue;
-              const red = Number(imageData.data[index] || 0);
-              const green = Number(imageData.data[index + 1] || 0);
-              const blue = Number(imageData.data[index + 2] || 0);
-              const { saturation, lightness } = rgbToHsl(red, green, blue);
-              const bucketRed = Math.round(red / 32) * 32;
-              const bucketGreen = Math.round(green / 32) * 32;
-              const bucketBlue = Math.round(blue / 32) * 32;
-              const key = `${bucketRed},${bucketGreen},${bucketBlue}`;
-              const current = buckets.get(key) || {
-                red: 0,
-                green: 0,
-                blue: 0,
-                saturationTotal: 0,
-                lightnessTotal: 0,
-                count: 0
-              };
-              current.red += red;
-              current.green += green;
-              current.blue += blue;
-              current.saturationTotal += saturation;
-              current.lightnessTotal += lightness;
-              current.count += 1;
-              buckets.set(key, current);
-            }
-
-            if (!buckets.size) {
-              resolve("");
-              return;
-            }
-
-            let mostSaturated = null;
-            buckets.forEach((bucket) => {
-              if (!bucket.count) return;
-              const avgSaturation = bucket.saturationTotal / bucket.count;
-              const avgLightness = bucket.lightnessTotal / bucket.count;
-              const visibility = 1 - Math.min(1, Math.abs(avgLightness - 0.52) * 2);
-              const score = (avgSaturation * 6) + (visibility * 1.5) + Math.min(1.2, bucket.count / 6);
-              if (!mostSaturated || score > mostSaturated.score) {
-                mostSaturated = {
-                  red: bucket.red / bucket.count,
-                  green: bucket.green / bucket.count,
-                  blue: bucket.blue / bucket.count,
-                  score
-                };
-              }
-            });
-
-            if (!mostSaturated) {
-              resolve("");
-              return;
-            }
-
-            const clampChannel = (value) => Math.max(0, Math.min(255, Math.round(value)));
-            const normalizedSaturated = normalizeOpenStringRgb(
-              mostSaturated.red,
-              mostSaturated.green,
-              mostSaturated.blue
-            );
-            resolve([
-              clampChannel(normalizedSaturated.red),
-              clampChannel(normalizedSaturated.green),
-              clampChannel(normalizedSaturated.blue)
-            ].join(", "));
-          } catch {
-            resolve("");
-          }
-        };
-        image.onerror = () => resolve("");
-        image.src = normalized;
-      });
+      return sampleWallpaperOpenStringPalette(dataUrl, 3)
+        .then((palette) => normalizeRgbText(Array.isArray(palette) ? palette[0] : ""));
     }
 
     async function applyWallpaperBackdropTheme(dataUrl = "") {
@@ -6144,21 +6301,23 @@
       state.wallpaperThemeRequestId = requestId;
 
       if (!normalized) {
+        setWallpaperOpenStringPalette([]);
         applyPlayerWallpaperBackdropRgb("");
         applyPlayerWallpaperDominantRgb("");
         applyPlayerWallpaperOpenStringRgb("");
         return;
       }
 
-      const [darkestRgb, dominantRgb, saturatedRgb] = await Promise.all([
+      const [darkestRgb, dominantRgb, saturatedPalette] = await Promise.all([
         sampleDarkestWallpaperRgb(normalized),
         sampleDominantWallpaperRgb(normalized),
-        sampleMostSaturatedWallpaperRgb(normalized)
+        sampleWallpaperOpenStringPalette(normalized, 3)
       ]);
       if (state.wallpaperThemeRequestId !== requestId) return;
+      const palette = setWallpaperOpenStringPalette(saturatedPalette);
       applyPlayerWallpaperBackdropRgb(darkestRgb || "40, 40, 40");
       applyPlayerWallpaperDominantRgb(dominantRgb || darkestRgb || "224, 224, 224");
-      applyPlayerWallpaperOpenStringRgb(saturatedRgb || dominantRgb || darkestRgb || "224, 224, 224");
+      applyPlayerWallpaperOpenStringRgb(palette[0] || dominantRgb || darkestRgb || "224, 224, 224");
     }
 
     function applyPlayerWallpaperVisual(dataUrl = "") {
@@ -6302,6 +6461,7 @@
               loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
               playbackMode: resolveKeyswitchPlaybackMode(set),
               openStringMidis: getNormalizedKeyswitchSetOpenStringMidis(set),
+              openStringColorsByMidi: getNormalizedKeyswitchSetOpenStringColorsByMidi(set),
               index,
               active: String(state.activeMapSetId || "") === String(set?.id || ""),
               manualRanges: cloneManualRangesObject(set?.manualRanges)
@@ -6317,6 +6477,10 @@
         pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
         playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
         playerOpenStringMidis: normalizeOpenStringMidiList(state.playerOpenStringMidis),
+        playerOpenStringColorsByMidi: normalizeOpenStringColorMap(
+          state.playerOpenStringColorsByMidi,
+          state.playerOpenStringMidis
+        ),
         ampEnvelope: buildAmpEnvelopeSnapshot(),
         auto: buildAutoControlsSnapshot(),
         sequencer: buildSequencerSnapshot(),
@@ -6421,7 +6585,9 @@
           ampEnvelopeSnapshot.releaseMs,
           state.playerPitchDownOctaves,
           normalizeOpenStringMidiList(state.playerOpenStringMidis).join(","),
+          serializeOpenStringColorMap(state.playerOpenStringColorsByMidi, state.playerOpenStringMidis),
           ksSets.map((set) => getNormalizedKeyswitchSetOpenStringMidis(set).join(",")).join("|"),
+          ksSets.map((set) => serializeOpenStringColorMap(set?.openStringColorsByMidi, getNormalizedKeyswitchSetOpenStringMidis(set))).join("|"),
           baseEntries.length,
           ksSets.length,
           state.strumEnabled,
@@ -6715,6 +6881,9 @@
         state.playerOpenStringMidis = Object.prototype.hasOwnProperty.call(ui, "playerOpenStringMidis")
           ? normalizeOpenStringMidiList(ui.playerOpenStringMidis)
           : normalizeOpenStringMidiList(state.playerOpenStringMidis);
+        state.playerOpenStringColorsByMidi = Object.prototype.hasOwnProperty.call(ui, "playerOpenStringColorsByMidi")
+          ? normalizeOpenStringColorMap(ui.playerOpenStringColorsByMidi, state.playerOpenStringMidis)
+          : normalizeOpenStringColorMap(state.playerOpenStringColorsByMidi, state.playerOpenStringMidis);
         state.baseLoopPlaybackEnabled = ui.baseLoopPlaybackEnabled !== false;
         state.packManifestFilePath = String(
           ui.manifestFilePath
@@ -6747,6 +6916,11 @@
           matched.openStringMidis = normalizeOpenStringMidiList(
             snapshotSet?.openStringMidis
             ?? matched?.openStringMidis
+          );
+          matched.openStringColorsByMidi = normalizeOpenStringColorMap(
+            snapshotSet?.openStringColorsByMidi
+            ?? matched?.openStringColorsByMidi,
+            matched.openStringMidis
           );
           matched.playbackMode = normalizeKeyswitchTriggerModeName(restoredName) !== "manual"
             ? "oneshot"
@@ -9854,6 +10028,14 @@
             openStringMidis: normalizeOpenStringMidiList(
               data?.openStringMidis
               ?? data?.settings?.openStringMidis
+            ),
+            openStringColorsByMidi: normalizeOpenStringColorMap(
+              data?.openStringColorsByMidi
+              ?? data?.settings?.openStringColorsByMidi,
+              normalizeOpenStringMidiList(
+                data?.openStringMidis
+                ?? data?.settings?.openStringMidis
+              )
             ),
             sourceFile: file.name,
             sourcePath: sourceFilePath,
@@ -13879,6 +14061,7 @@
           .filter((midi) => Number.isFinite(midi))
           .map((midi) => Math.max(PLAYER_KB_START_MIDI, Math.min(PLAYER_KB_END_MIDI, midi)))
       );
+      const openStringColorsByMidi = getOpenStringColorsByMidiForSet();
       const openStringScrollMidi = openStringMidis.size
         ? Array.from(openStringMidis).at(-1)
         : null;
@@ -13886,6 +14069,10 @@
       function decorateOpenStringPlayerKey(keyNode, midi) {
         if (!openStringMidis.has(midi)) return;
         keyNode.classList.add("is-open-string");
+        const openStringColor = normalizeRgbText(openStringColorsByMidi[String(midi)]);
+        if (openStringColor) {
+          keyNode.style.setProperty("--player-open-string-rgb", openStringColor);
+        }
         const overlay = document.createElement("span");
         overlay.className = "player-key-open-string-overlay";
         overlay.setAttribute("aria-hidden", "true");
@@ -14942,6 +15129,7 @@
             loopPlaybackEnabled: true,
             playbackMode: normalizeKeyswitchTriggerModeName(name) !== "manual" ? "oneshot" : "spread",
             openStringMidis: [],
+            openStringColorsByMidi: {},
             sourceFile: "",
             sourcePath: "",
             manifestBasePath: "",
@@ -15266,12 +15454,45 @@
 
       const buildKeyContextMenuItems = () => {
         const menu = el.mapKeyContextMenu;
+        const targetMidi = Math.max(
+          PLAYER_KB_START_MIDI,
+          Math.min(PLAYER_KB_END_MIDI, Math.round(Number(state.keyContextMenuTargetMidi) || 0))
+        );
+        const selectedMidis = getOpenStringMidisForSet();
+        const isOpenString = selectedMidis.includes(targetMidi);
+        const selectedColor = normalizeRgbText(getOpenStringColorForMidi(targetMidi));
+        const availablePalette = (state.wallpaperOpenStringPalette.length
+          ? state.wallpaperOpenStringPalette
+          : [normalizeRgbText(getComputedStyle(document.documentElement).getPropertyValue("--player-wallpaper-open-string-rgb"), "224, 224, 224")]
+        ).filter(Boolean).slice(0, 3);
         menu.textContent = "";
         const openStringItem = document.createElement("div");
         openStringItem.className = "map-key-context-menu-item";
         openStringItem.dataset.action = "open-string";
-        openStringItem.textContent = "Open string";
+        openStringItem.textContent = isOpenString ? "Remove open string" : "Mark as open string";
+        openStringItem.classList.toggle("active", isOpenString);
         menu.appendChild(openStringItem);
+        if (availablePalette.length) {
+          const colorLabel = document.createElement("div");
+          colorLabel.className = "map-key-context-menu-label";
+          colorLabel.textContent = "Open string color";
+          menu.appendChild(colorLabel);
+          availablePalette.forEach((rgbText, index) => {
+            const item = document.createElement("div");
+            item.className = "map-key-context-menu-item map-key-context-menu-color-item";
+            item.dataset.action = "open-string-color";
+            item.dataset.color = rgbText;
+            item.classList.toggle("active", isOpenString && normalizeRgbText(rgbText) === selectedColor);
+            const swatch = document.createElement("span");
+            swatch.className = "map-key-context-menu-swatch";
+            swatch.style.setProperty("--context-menu-swatch-rgb", rgbText);
+            const label = document.createElement("span");
+            label.textContent = `Wallpaper color ${index + 1}`;
+            item.appendChild(swatch);
+            item.appendChild(label);
+            menu.appendChild(item);
+          });
+        }
         if (state.mapMatrixSplitEnabled && state.mapMatrixVelocityLayers > 1) {
           const layers = clampMapMatrixVelocityLayers(state.mapMatrixVelocityLayers);
           for (let v = 1; v <= layers; v++) {
@@ -15318,6 +15539,13 @@
         hideKeyContextMenu();
         if (item.dataset.action === "open-string") {
           openStringOnPlayer(state.keyContextMenuTargetMidi);
+          return;
+        }
+        if (item.dataset.action === "open-string-color") {
+          openStringOnPlayer(state.keyContextMenuTargetMidi, {
+            forceOn: true,
+            color: item.dataset.color
+          });
           return;
         }
         if (item.dataset.action === "load-samples") {
@@ -15821,6 +16049,7 @@
       state.packManifestFilePath = "";
       state.packManifestBasePath = "";
       state.playerOpenStringMidis = [];
+      state.playerOpenStringColorsByMidi = {};
       state.nextVirtualOrder = -1;
       state.packLoaded = false;
       state.lastFlushedJsonHash = "";
@@ -16013,7 +16242,8 @@
           autoNormalizeRecorded: !!el.autoNormalizeRecorded?.checked,
           baseLoopPlaybackEnabled: state.baseLoopPlaybackEnabled !== false,
           manualRootRanges: cloneManualRangesObject(state.manualRootRanges),
-          openStringMidis: normalizeOpenStringMidiList(state.playerOpenStringMidis)
+          openStringMidis: normalizeOpenStringMidiList(state.playerOpenStringMidis),
+          openStringColorsByMidi: normalizeOpenStringColorMap(state.playerOpenStringColorsByMidi, state.playerOpenStringMidis)
         },
         mapping: buildManifestMapping(state.entries, {
           preserveRuntimePaths,
@@ -16028,6 +16258,7 @@
         manifest.packType = "keyswitch";
         manifest.keyswitchKey = keyInfo.key;
         manifest.settings.openStringMidis = getOpenStringMidisForSet(state.activeMapSetId);
+        manifest.settings.openStringColorsByMidi = getOpenStringColorsByMidiForSet(state.activeMapSetId);
         manifest.mapping = buildManifestMapping(state.entries, {
           preserveRuntimePaths,
           includeEmbeddedSampleData,
@@ -16047,6 +16278,7 @@
               loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
               playbackMode: resolveKeyswitchPlaybackMode(set),
               openStringMidis: getNormalizedKeyswitchSetOpenStringMidis(set),
+              openStringColorsByMidi: getNormalizedKeyswitchSetOpenStringColorsByMidi(set),
               manualRanges: cloneManualRangesObject(set?.manualRanges),
               mapping: buildManifestMapping(Array.isArray(set?.entries) ? set.entries : [], {
                 preserveRuntimePaths,
@@ -16489,6 +16721,15 @@
             ?? rawSet?.openStringMidis
             ?? (index === 0 ? legacyGlobalOpenStringMidis : [])
           ),
+          openStringColorsByMidi: normalizeOpenStringColorMap(
+            sessionUiSet?.openStringColorsByMidi
+            ?? rawSet?.openStringColorsByMidi,
+            normalizeOpenStringMidiList(
+              sessionUiSet?.openStringMidis
+              ?? rawSet?.openStringMidis
+              ?? (index === 0 ? legacyGlobalOpenStringMidis : [])
+            )
+          ),
           sourceFile: sourceLabel,
           entries: setEntries,
           manualRanges: resolveLoadedManualRanges(
@@ -16515,6 +16756,13 @@
       state.packManifestFilePath = resolvedManifestFilePath;
       state.packManifestBasePath = resolvedManifestBasePath;
       state.playerOpenStringMidis = importedKeyswitchSets.length > 0 ? [] : legacyGlobalOpenStringMidis;
+      state.playerOpenStringColorsByMidi = importedKeyswitchSets.length > 0
+        ? {}
+        : normalizeOpenStringColorMap(
+            sessionUiState?.playerOpenStringColorsByMidi
+            ?? data?.settings?.openStringColorsByMidi,
+            legacyGlobalOpenStringMidis
+          );
       state.wallpaperAssetPath = normalizeManifestPathInput(
         sessionUiState?.wallpaperAssetPath
         || data?.graphics?.wallpaperPath
@@ -16937,21 +17185,34 @@
       });
     }
 
-    function openStringOnPlayer(midi) {
+    function openStringOnPlayer(midi, options = {}) {
       const normalizedMidi = Math.round(Number(midi));
       if (!Number.isFinite(normalizedMidi)) return;
       const clampedMidi = Math.max(PLAYER_KB_START_MIDI, Math.min(PLAYER_KB_END_MIDI, normalizedMidi));
+      const forceOn = options?.forceOn === true;
+      const forceOff = options?.forceOff === true;
+      const requestedColor = normalizeRgbText(options?.color);
       const selectedMidis = getOpenStringMidisForSet();
       const alreadySelected = selectedMidis.includes(clampedMidi);
+      const shouldEnable = forceOn ? true : (forceOff ? false : !alreadySelected);
       setOpenStringMidisForSet(
-        alreadySelected
-          ? selectedMidis.filter((value) => value !== clampedMidi)
-          : [...selectedMidis.filter((value) => value !== clampedMidi), clampedMidi]
+        shouldEnable
+          ? [...selectedMidis.filter((value) => value !== clampedMidi), clampedMidi]
+          : selectedMidis.filter((value) => value !== clampedMidi)
       );
+      if (shouldEnable) {
+        const fallbackColor = requestedColor
+          || getOpenStringColorForMidi(clampedMidi)
+          || normalizeRgbText(state.wallpaperOpenStringPalette[0])
+          || normalizeRgbText(getComputedStyle(document.documentElement).getPropertyValue("--player-wallpaper-open-string-rgb"), "224, 224, 224");
+        setOpenStringColorForMidi(clampedMidi, fallbackColor);
+      } else {
+        setOpenStringColorForMidi(clampedMidi, "");
+      }
       scheduleSessionStateSave(250);
       activateTab("player");
       renderPlayerKeyboard();
-      if (!alreadySelected) {
+      if (shouldEnable && !alreadySelected) {
         focusPlayerKeyMidi(clampedMidi);
       }
     }
