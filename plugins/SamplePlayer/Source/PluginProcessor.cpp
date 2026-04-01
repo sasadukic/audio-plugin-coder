@@ -7219,7 +7219,7 @@ float SamplePlayerAudioProcessor::getRealtimeVelocityLayerGain (const VoiceState
     return computeVelocityCrossfadeBlendState (rootIt->second,
                                                voice.zone->metadata.velocityLayer,
                                                selectionVelocity,
-                                               30,
+                                               50,
                                                jitterSigned).gain;
 }
 
@@ -7250,7 +7250,7 @@ double SamplePlayerAudioProcessor::getRealtimeVelocityLayerDelaySourceSamples (c
     const auto blendState = computeVelocityCrossfadeBlendState (rootIt->second,
                                                                 voice.zone->metadata.velocityLayer,
                                                                 selectionVelocity,
-                                                                30,
+                                                                50,
                                                                 jitterSigned);
 
     if (currentSampleRate <= 0.0)

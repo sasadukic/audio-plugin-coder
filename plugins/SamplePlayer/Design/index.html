@@ -4587,7 +4587,7 @@
                         <div id="sampleLoopXfadePointer" class="sample-finetune-pointer sample-loop-xfade-pointer"></div>
                       </div>
                     </div>
-                    <label class="sample-velocity-toggle" title="Velocity crossfade 30%" aria-label="Velocity crossfade 30%">
+                    <label class="sample-velocity-toggle" title="Velocity crossfade 50%" aria-label="Velocity crossfade 50%">
                       <input id="velocityXfadeToggle" type="checkbox">
                       <span class="sample-velocity-toggle-mark">✓</span>
                     </label>
@@ -11609,7 +11609,7 @@
     }
 
     function clampVelocityCrossfadePercent(v) {
-      return Number(v) > 0 ? 30 : 0;
+      return Number(v) > 0 ? 50 : 0;
     }
 
     function clampSampleGainDb(v) {
@@ -12103,10 +12103,10 @@
 
     function getVelocityCrossfadePercentForRoot(rootMidi) {
       if (!Number.isFinite(rootMidi)) return 0;
-      if (isAutoModwheelVelocityControlActiveForRoot(rootMidi)) return 30;
+      if (isAutoModwheelVelocityControlActiveForRoot(rootMidi)) return 50;
       const key = String(Math.round(rootMidi));
       if (Object.prototype.hasOwnProperty.call(state.velocityCrossfadeByRoot, key)) {
-        return Number(state.velocityCrossfadeByRoot[key]) > 0 ? 30 : 0;
+        return Number(state.velocityCrossfadeByRoot[key]) > 0 ? 50 : 0;
       }
       return 0;
     }
@@ -12154,7 +12154,7 @@
 
     function applyModwheelVelocityCrossfadeLink() {
       if (!isAutoModwheelVelocityControlEnabled()) return;
-      const applied = setVelocityCrossfadePercentForAllRoots(30);
+      const applied = setVelocityCrossfadePercentForAllRoots(50);
       if (el.velocityXfadeToggle) {
         el.velocityXfadeToggle.checked = applied > 0;
       }
@@ -17831,7 +17831,7 @@
             el.velocityXfadeToggle.checked = true;
             return;
           }
-          const normalized = el.velocityXfadeToggle.checked ? 30 : 0;
+          const normalized = el.velocityXfadeToggle.checked ? 50 : 0;
           const selectedEntry = getMapEntryByOrder(state.selectedMapEntryOrder);
           if (!selectedEntry) {
             syncVelocityCrossfadeControl(null);
