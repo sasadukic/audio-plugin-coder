@@ -11147,6 +11147,21 @@
       return cleaned || String(fallback || "sample");
     }
 
+    function getMappedImportFileNamePrefixes() {
+      const prefixes = [];
+      const instrumentName = String(el.autoInstrument?.value || "").trim() || "Instrument";
+      prefixes.push(instrumentName);
+
+      const activeMapSet = getActiveMapSet();
+      if (activeMapSet && activeMapSet.id !== "base") {
+        const activeKeyswitchSet = getKeyswitchSetById(activeMapSet.id);
+        const keyswitchName = String(activeKeyswitchSet?.name || "").trim() || "Keyswitch";
+        prefixes.push(keyswitchName);
+      }
+
+      return prefixes;
+    }
+
     function buildMappedImportFileName(options, existingFileNames = null) {
       const source = (options && typeof options === "object") ? options : {};
       const root = Math.max(0, Math.min(127, Math.round(Number(source.rootMidi) || 0)));
@@ -11155,6 +11170,7 @@
       const rrIndex = Number.isFinite(rrIndexValue) && rrIndexValue > 0 ? rrIndexValue : null;
       const extension = getImportedSampleFileExtension(source.originalName, ".wav");
       const stemParts = [
+        ...getMappedImportFileNamePrefixes(),
         `${midiToNote(root)}_V${velocityLayer}`
       ];
       if (rrIndex !== null) stemParts.push(`RR${rrIndex}`);
