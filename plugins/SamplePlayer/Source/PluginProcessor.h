@@ -356,6 +356,7 @@ private:
     BlockSettings getBlockSettingsSnapshot() const;
     LoopSettings buildLoopSettingsForZone (const SampleZone& zone, const BlockSettings& settings) const;
     float getRealtimeVelocityLayerGain (const VoiceState& voice, const SampleSet& sampleSet) const;
+    double getRealtimeVelocityLayerDelaySourceSamples (const VoiceState& voice, const SampleSet& sampleSet) const;
 
     void renderVoices (juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples, const BlockSettings& settings);
     void renderSingleVoice (VoiceState& voice,

@@ -223,20 +223,48 @@ int velocityToLayerFromVelocity (int velocity127, int totalLayers)
     return 1 + ((v0 * safeLayers) / 128);
 }
 
-float computeVelocityCrossfadeGain (const std::vector<int>& layers,
-                                    int currentVelocityLayer,
-                                    int selectionVelocity,
-                                    int crossfadePercent)
+struct VelocityLayerBlendState
 {
+    float gain = 1.0f;
+    double delaySec = 0.0;
+};
+
+double computeVelocityLayerBlendJitter (juce::uint64 age, int velocityLayer, int roundRobinIndex)
+{
+    const auto seed = age
+                    ^ (static_cast<juce::uint64> (velocityLayer) << 17)
+                    ^ (static_cast<juce::uint64> (roundRobinIndex) << 33);
+    const auto hashed = (seed * 0x9E3779B97F4A7C15ULL) ^ (seed >> 23);
+    const auto normalized = static_cast<double> (hashed & 0xffffULL) / 65535.0;
+    return (normalized * 2.0) - 1.0;
+}
+
+VelocityLayerBlendState computeVelocityCrossfadeBlendState (const std::vector<int>& layers,
+                                                            int currentVelocityLayer,
+                                                            int selectionVelocity,
+                                                            int crossfadePercent,
+                                                            double jitterSigned)
+{
+    VelocityLayerBlendState state {};
+
     if (layers.empty())
-        return 0.0f;
+    {
+        state.gain = 0.0f;
+        return state;
+    }
 
     if (layers.size() == 1)
-        return layers.front() == currentVelocityLayer ? 1.0f : 0.0f;
+    {
+        state.gain = layers.front() == currentVelocityLayer ? 1.0f : 0.0f;
+        return state;
+    }
 
     const auto layerIt = std::find (layers.begin(), layers.end(), currentVelocityLayer);
     if (layerIt == layers.end())
-        return 0.0f;
+    {
+        state.gain = 0.0f;
+        return state;
+    }
 
     const int layerCount = static_cast<int> (layers.size());
     const int velocity127 = juce::jlimit (1, 127, selectionVelocity);
@@ -245,7 +273,10 @@ float computeVelocityCrossfadeGain (const std::vector<int>& layers,
     const float xfadePct = juce::jlimit (0.0f, 0.5f, static_cast<float> (crossfadePercent) / 100.0f);
 
     if (xfadePct <= 0.0001f)
-        return layers[static_cast<size_t> (baseIndex)] == currentVelocityLayer ? 1.0f : 0.0f;
+    {
+        state.gain = layers[static_cast<size_t> (baseIndex)] == currentVelocityLayer ? 1.0f : 0.0f;
+        return state;
+    }
 
     const float layerRange = 127.0f / static_cast<float> (layerCount);
     const float halfWidth = juce::jmax (0.5f, layerRange * xfadePct * 0.5f);
@@ -264,17 +295,36 @@ float computeVelocityCrossfadeGain (const std::vector<int>& layers,
         const float t = juce::jlimit (0.0f, 1.0f,
                                       (static_cast<float> (velocity127) - zoneStart)
                                           / juce::jmax (0.0001f, zoneEnd - zoneStart));
+        const float lowerGain = juce::jmax (0.0f, 1.0f - t);
+        const float upperGain = juce::jmax (0.0f, t);
         const int lowerLayer = layers[static_cast<size_t> (split - 1)];
         const int upperLayer = layers[static_cast<size_t> (split)];
 
+        const float blendCenterWeight = 1.0f - std::abs ((t * 2.0f) - 1.0f);
+        const double baseDelaySec = 0.00045 + (static_cast<double> (blendCenterWeight) * 0.00035);
+        const double jitterSec = jitterSigned * 0.00006;
+        const double delaySec = juce::jlimit (0.0002, 0.0012, baseDelaySec + jitterSec);
+
         if (currentVelocityLayer == lowerLayer)
-            return juce::jmax (0.0f, 1.0f - t);
+        {
+            state.gain = lowerGain;
+            state.delaySec = lowerGain <= upperGain ? delaySec : 0.0;
+            return state;
+        }
+
         if (currentVelocityLayer == upperLayer)
-            return juce::jmax (0.0f, t);
-        return 0.0f;
+        {
+            state.gain = upperGain;
+            state.delaySec = upperGain < lowerGain ? delaySec : 0.0;
+            return state;
+        }
+
+        state.gain = 0.0f;
+        return state;
     }
 
-    return layers[static_cast<size_t> (baseIndex)] == currentVelocityLayer ? 1.0f : 0.0f;
+    state.gain = layers[static_cast<size_t> (baseIndex)] == currentVelocityLayer ? 1.0f : 0.0f;
+    return state;
 }
 
 int varToInt (const juce::var& value, int fallback = 0)
@@ -7017,6 +7067,7 @@ void SamplePlayerAudioProcessor::renderSingleVoice (VoiceState& voice,
     const int zoneLength = zone.audio.getNumSamples();
     float mapSetGainLinear = 1.0f;
     float velocityLayerGain = 1.0f;
+    double velocityLayerDelaySourceSamples = 0.0;
     if (const auto sampleSet = std::atomic_load (&currentSampleSet); sampleSet != nullptr)
     {
         if (const auto gainIt = sampleSet->gainLinearBySlot.find (zone.metadata.mapSetSlot);
@@ -7026,6 +7077,7 @@ void SamplePlayerAudioProcessor::renderSingleVoice (VoiceState& voice,
         }
 
         velocityLayerGain = getRealtimeVelocityLayerGain (voice, *sampleSet);
+        velocityLayerDelaySourceSamples = getRealtimeVelocityLayerDelaySourceSamples (voice, *sampleSet);
     }
 
     for (int i = 0; i < numSamples; ++i)
@@ -7089,35 +7141,41 @@ void SamplePlayerAudioProcessor::renderSingleVoice (VoiceState& voice,
 
         if (amp > 0.0f)
         {
-            for (int channel = 0; channel < outputBuffer.getNumChannels(); ++channel)
+            const double renderPosition = voice.position - velocityLayerDelaySourceSamples;
+
+            if (renderPosition >= 0.0)
             {
-                const int sourceChannel = juce::jmin (channel, zone.audio.getNumChannels() - 1);
-                float sampleValue = readSampleLinear (zone, sourceChannel, voice.position);
-
-                if (loop.enabled && loop.crossfadeSamples > 0)
+                for (int channel = 0; channel < outputBuffer.getNumChannels(); ++channel)
                 {
-                    const double crossfadeStart = static_cast<double> (loop.endSample - loop.crossfadeSamples);
+                    const int sourceChannel = juce::jmin (channel, zone.audio.getNumChannels() - 1);
+                    float sampleValue = readSampleLinear (zone, sourceChannel, renderPosition);
 
-                    if (voice.position >= crossfadeStart)
+                    if (loop.enabled && loop.crossfadeSamples > 0)
                     {
-                        const double crossfadePosition = voice.position - crossfadeStart;
-                        const double crossfadeT = crossfadePosition / static_cast<double> (loop.crossfadeSamples);
-                        const double wrappedPosition = static_cast<double> (loop.startSample) + crossfadePosition;
+                        const double crossfadeStart = static_cast<double> (loop.endSample - loop.crossfadeSamples);
 
-                        const auto tailSample = sampleValue;
-                        const auto headSample = readSampleLinear (zone, sourceChannel, wrappedPosition);
-                        const auto t = juce::jlimit (0.0, 1.0, crossfadeT);
-                        const auto tailGain = static_cast<float> (std::cos (t * juce::MathConstants<double>::halfPi));
-                        const auto headGain = static_cast<float> (std::sin (t * juce::MathConstants<double>::halfPi));
-                        sampleValue = (tailSample * tailGain) + (headSample * headGain);
+                        if (renderPosition >= crossfadeStart)
+                        {
+                            const double crossfadePosition = renderPosition - crossfadeStart;
+                            const double crossfadeT = crossfadePosition / static_cast<double> (loop.crossfadeSamples);
+                            const double wrappedPosition = static_cast<double> (loop.startSample) + crossfadePosition;
+
+                            const auto tailSample = sampleValue;
+                            const auto headSample = readSampleLinear (zone, sourceChannel, wrappedPosition);
+                            const auto t = juce::jlimit (0.0, 1.0, crossfadeT);
+                            const auto tailGain = static_cast<float> (std::cos (t * juce::MathConstants<double>::halfPi));
+                            const auto headGain = static_cast<float> (std::sin (t * juce::MathConstants<double>::halfPi));
+                            sampleValue = (tailSample * tailGain) + (headSample * headGain);
+                        }
                     }
+
+                    float panGain = 1.0f;
+                    if (channel == 0)
+                        panGain = voice.panGains[0];
+                    else if (channel == 1)
+                        panGain = voice.panGains[1];
+                    outputBuffer.addSample (channel, startSample + i, sampleValue * amp * panGain);
                 }
-                float panGain = 1.0f;
-                if (channel == 0)
-                    panGain = voice.panGains[0];
-                else if (channel == 1)
-                    panGain = voice.panGains[1];
-                outputBuffer.addSample (channel, startSample + i, sampleValue * amp * panGain);
             }
         }
 
@@ -7155,10 +7213,50 @@ float SamplePlayerAudioProcessor::getRealtimeVelocityLayerGain (const VoiceState
                                           modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed));
     const int selectionVelocity = juce::jlimit (1, 127,
                                                 1 + static_cast<int> (std::round (modwheel01 * 126.0f)));
-    return computeVelocityCrossfadeGain (rootIt->second,
-                                         voice.zone->metadata.velocityLayer,
-                                         selectionVelocity,
-                                         30);
+    const double jitterSigned = computeVelocityLayerBlendJitter (voice.age,
+                                                                 voice.zone->metadata.velocityLayer,
+                                                                 voice.zone->metadata.roundRobinIndex);
+    return computeVelocityCrossfadeBlendState (rootIt->second,
+                                               voice.zone->metadata.velocityLayer,
+                                               selectionVelocity,
+                                               30,
+                                               jitterSigned).gain;
+}
+
+double SamplePlayerAudioProcessor::getRealtimeVelocityLayerDelaySourceSamples (const VoiceState& voice,
+                                                                               const SampleSet& sampleSet) const
+{
+    if (voice.zone == nullptr)
+        return 0.0;
+
+    if (! modwheelVelocityLayerControlEnabled.load (std::memory_order_relaxed))
+        return 0.0;
+
+    const auto slotIt = sampleSet.velocityLayersBySlotRoot.find (voice.zone->metadata.mapSetSlot);
+    if (slotIt == sampleSet.velocityLayersBySlotRoot.end())
+        return 0.0;
+
+    const auto rootIt = slotIt->second.find (voice.zone->metadata.rootNote);
+    if (rootIt == slotIt->second.end() || rootIt->second.size() <= 1)
+        return 0.0;
+
+    const auto modwheel01 = juce::jlimit (0.0f, 1.0f,
+                                          modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed));
+    const int selectionVelocity = juce::jlimit (1, 127,
+                                                1 + static_cast<int> (std::round (modwheel01 * 126.0f)));
+    const double jitterSigned = computeVelocityLayerBlendJitter (voice.age,
+                                                                 voice.zone->metadata.velocityLayer,
+                                                                 voice.zone->metadata.roundRobinIndex);
+    const auto blendState = computeVelocityCrossfadeBlendState (rootIt->second,
+                                                                voice.zone->metadata.velocityLayer,
+                                                                selectionVelocity,
+                                                                30,
+                                                                jitterSigned);
+
+    if (currentSampleRate <= 0.0)
+        return 0.0;
+
+    return blendState.delaySec * currentSampleRate;
 }
 
 float SamplePlayerAudioProcessor::readSampleLinear (const SampleZone& zone, int channel, double samplePosition)
