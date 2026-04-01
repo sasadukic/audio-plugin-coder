@@ -16386,6 +16386,39 @@
       scheduleSessionStateSave(250);
     }
 
+    function clearActiveKeyswitchSet() {
+      const activeSet = getKeyswitchSetById(state.activeMapSetId);
+      if (!activeSet) return false;
+
+      stopAllPreviewVoices();
+      state.entrySampleHydrationPromises.clear();
+
+      const setEntries = Array.isArray(activeSet.entries) ? activeSet.entries : [];
+      setEntries.forEach((entry) => {
+        const sampleUrl = String(entry?.sampleUrl || "");
+        if (sampleUrl.startsWith("blob:")) {
+          try { URL.revokeObjectURL(sampleUrl); } catch {}
+        }
+        if (sampleUrl) state.waveformCache.delete(sampleUrl);
+      });
+
+      const removedSetName = String(activeSet.name || activeSet.key || "Keyswitch").trim() || "Keyswitch";
+      state.keyswitchSets = (state.keyswitchSets || []).filter((set) => String(set?.id || "") !== activeSet.id);
+
+      const nextActiveId = state.keyswitchSets[0]?.id || "base";
+      closeSampleEditor();
+      state.mapMatrixRrCursor = {};
+      state.mapMatrixPaintActive = false;
+      state.mapMatrixLastPaintCellKey = "";
+      setActiveMapSet(nextActiveId, true);
+      updatePlayerEmptyState();
+      syncAllKnobValues();
+      setStatus(el.setupStatus, `Cleared keyswitch "${removedSetName}".`, "ok");
+      scheduleSessionStateSave(250);
+      void flushSessionStateToNative(false);
+      return true;
+    }
+
     function buildManifestMapping(entries, options = {}) {
       const preserveRuntimePaths = !!options.preserveRuntimePaths;
       const includeEmbeddedSampleData = !!options.includeEmbeddedSampleData;
@@ -17772,7 +17805,10 @@
         }
         el.folderInput.click();
       });
-      el.clearInstrumentBtn.addEventListener("click", clearInstrument);
+      el.clearInstrumentBtn.addEventListener("click", () => {
+        if (clearActiveKeyswitchSet()) return;
+        clearInstrument();
+      });
       if (el.saveSmpinstBtn) {
         el.saveSmpinstBtn.addEventListener("click", () => {
           void saveInstrumentBundleToDisk();
