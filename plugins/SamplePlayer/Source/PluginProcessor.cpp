@@ -223,6 +223,60 @@ int velocityToLayerFromVelocity (int velocity127, int totalLayers)
     return 1 + ((v0 * safeLayers) / 128);
 }
 
+float computeVelocityCrossfadeGain (const std::vector<int>& layers,
+                                    int currentVelocityLayer,
+                                    int selectionVelocity,
+                                    int crossfadePercent)
+{
+    if (layers.empty())
+        return 0.0f;
+
+    if (layers.size() == 1)
+        return layers.front() == currentVelocityLayer ? 1.0f : 0.0f;
+
+    const auto layerIt = std::find (layers.begin(), layers.end(), currentVelocityLayer);
+    if (layerIt == layers.end())
+        return 0.0f;
+
+    const int layerCount = static_cast<int> (layers.size());
+    const int velocity127 = juce::jlimit (1, 127, selectionVelocity);
+    const int baseIndex = juce::jmin (layerCount - 1,
+                                      ((velocity127 - 1) * layerCount) / 127);
+    const float xfadePct = juce::jlimit (0.0f, 0.5f, static_cast<float> (crossfadePercent) / 100.0f);
+
+    if (xfadePct <= 0.0001f)
+        return layers[static_cast<size_t> (baseIndex)] == currentVelocityLayer ? 1.0f : 0.0f;
+
+    const float layerRange = 127.0f / static_cast<float> (layerCount);
+    const float halfWidth = juce::jmax (0.5f, layerRange * xfadePct * 0.5f);
+
+    for (int split = 1; split < layerCount; ++split)
+    {
+        const float splitVelocity = static_cast<float> (std::ceil ((static_cast<float> (split) * 127.0f)
+                                                                   / static_cast<float> (layerCount))) + 1.0f;
+        const float center = splitVelocity - 0.5f;
+        const float zoneStart = center - halfWidth;
+        const float zoneEnd = center + halfWidth;
+
+        if (static_cast<float> (velocity127) < zoneStart || static_cast<float> (velocity127) > zoneEnd)
+            continue;
+
+        const float t = juce::jlimit (0.0f, 1.0f,
+                                      (static_cast<float> (velocity127) - zoneStart)
+                                          / juce::jmax (0.0001f, zoneEnd - zoneStart));
+        const int lowerLayer = layers[static_cast<size_t> (split - 1)];
+        const int upperLayer = layers[static_cast<size_t> (split)];
+
+        if (currentVelocityLayer == lowerLayer)
+            return juce::jmax (0.0f, 1.0f - t);
+        if (currentVelocityLayer == upperLayer)
+            return juce::jmax (0.0f, t);
+        return 0.0f;
+    }
+
+    return layers[static_cast<size_t> (baseIndex)] == currentVelocityLayer ? 1.0f : 0.0f;
+}
+
 int varToInt (const juce::var& value, int fallback = 0)
 {
     if (value.isInt() || value.isInt64() || value.isDouble() || value.isBool())
@@ -3855,6 +3909,17 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     auto newSampleSet = std::make_shared<SampleSet>();
     newSampleSet->keyswitchSlotByMidi.fill (-1);
     newSampleSet->zones.reserve (variants.size());
+    newSampleSet->velocityLayersBySlotRoot = layersBySlotRoot;
+    for (auto& [slot, roots] : newSampleSet->velocityLayersBySlotRoot)
+    {
+        juce::ignoreUnused (slot);
+        for (auto& [rootNote, layers] : roots)
+        {
+            juce::ignoreUnused (rootNote);
+            std::sort (layers.begin(), layers.end());
+            layers.erase (std::unique (layers.begin(), layers.end()), layers.end());
+        }
+    }
     for (const auto& mapSet : mapSets)
     {
         newSampleSet->mapSetSlotById[mapSet.id.toStdString()] = mapSet.slot;
@@ -4448,6 +4513,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
             }
         }
 
+        metadata.velocityLayer = descriptor.velocityLayer;
         metadata.roundRobinIndex = descriptor.rrIndex;
         metadata.mapSetSlot = descriptor.mapSetSlot;
         zone->metadata = sanitizeZoneMetadata (metadata);
@@ -5484,6 +5550,7 @@ SamplePlayerAudioProcessor::ZoneMetadata SamplePlayerAudioProcessor::sanitizeZon
     if (metadata.lowVelocity > metadata.highVelocity)
         std::swap (metadata.lowVelocity, metadata.highVelocity);
 
+    metadata.velocityLayer = juce::jlimit (1, 5, metadata.velocityLayer);
     metadata.roundRobinIndex = juce::jmax (1, metadata.roundRobinIndex);
     metadata.mapSetSlot = juce::jmax (0, metadata.mapSetSlot);
 
@@ -5497,6 +5564,7 @@ bool SamplePlayerAudioProcessor::zoneMetadataEquals (const ZoneMetadata& a, cons
         && a.highNote == b.highNote
         && a.lowVelocity == b.lowVelocity
         && a.highVelocity == b.highVelocity
+        && a.velocityLayer == b.velocityLayer
         && a.roundRobinIndex == b.roundRobinIndex;
 }
 
@@ -6056,7 +6124,181 @@ void SamplePlayerAudioProcessor::startVoiceForNote (int midiChannel,
                                                      float velocity,
                                                      const BlockSettings& settings)
 {
-    startVoiceForNoteInternal (midiChannel, midiNoteNumber, velocity, settings, false, 0.0f, 0);
+    const int velocity127 = juce::jlimit (1, 127, static_cast<int> (std::round (velocity * 127.0f)));
+    bool usedModwheelLayerSelection = false;
+    auto zone = pickZoneForNote (midiNoteNumber,
+                                 velocity127,
+                                 &usedModwheelLayerSelection,
+                                 0,
+                                 nullptr,
+                                 -1);
+    if (zone == nullptr)
+        return;
+
+    const auto sampleSet = std::atomic_load (&currentSampleSet);
+    std::vector<int> velocityLayers;
+    bool useRealtimeLayerBlend = false;
+
+    if (sampleSet != nullptr && modwheelVelocityLayerControlEnabled.load (std::memory_order_relaxed))
+    {
+        if (const auto slotIt = sampleSet->velocityLayersBySlotRoot.find (zone->metadata.mapSetSlot);
+            slotIt != sampleSet->velocityLayersBySlotRoot.end())
+        {
+            if (const auto rootIt = slotIt->second.find (zone->metadata.rootNote);
+                rootIt != slotIt->second.end() && rootIt->second.size() > 1)
+            {
+                velocityLayers = rootIt->second;
+                useRealtimeLayerBlend = true;
+            }
+        }
+    }
+
+    startVoiceFromZone (midiChannel,
+                        midiNoteNumber,
+                        velocity,
+                        settings,
+                        zone,
+                        false,
+                        false,
+                        useRealtimeLayerBlend,
+                        usedModwheelLayerSelection,
+                        0.0f);
+
+    if (! useRealtimeLayerBlend)
+        return;
+
+    const int preferredRoundRobinIndex = zone->metadata.roundRobinIndex;
+    for (const auto layer : velocityLayers)
+    {
+        if (layer == zone->metadata.velocityLayer)
+            continue;
+
+        auto layerZone = pickZoneForRootLayer (midiNoteNumber,
+                                               zone->metadata.rootNote,
+                                               layer,
+                                               preferredRoundRobinIndex,
+                                               zone->metadata.mapSetSlot);
+        if (layerZone == nullptr)
+            continue;
+
+        startVoiceFromZone (midiChannel,
+                            midiNoteNumber,
+                            velocity,
+                            settings,
+                            layerZone,
+                            true,
+                            false,
+                            true,
+                            true,
+                            0.0f);
+    }
+}
+
+std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioProcessor::startVoiceFromZone (int midiChannel,
+                                                                                                                int midiNoteNumber,
+                                                                                                                float velocity,
+                                                                                                                const BlockSettings& settings,
+                                                                                                                std::shared_ptr<const SampleZone> selectedZone,
+                                                                                                                bool suppressMonoCut,
+                                                                                                                bool useRetriggerFadeTail,
+                                                                                                                bool ignoreMonoNoteDedupeForVoice,
+                                                                                                                bool usedModwheelLayerSelection,
+                                                                                                                float pan)
+{
+    const int velocity127 = juce::jlimit (1, 127, static_cast<int> (std::round (velocity * 127.0f)));
+
+    if (selectedZone == nullptr)
+        return {};
+
+    if (! suppressMonoCut)
+    {
+        for (auto& existing : voices)
+        {
+            if (! existing.active)
+                continue;
+
+            if (existing.midiNote != midiNoteNumber)
+                continue;
+
+            if (useRetriggerFadeTail)
+                startStealTailFromVoice (existing, strumRetriggerFadeOutMs);
+
+            existing = VoiceState {};
+        }
+    }
+
+    auto* voice = findFreeVoice();
+    if (voice == nullptr)
+    {
+        voice = stealOldestVoice();
+        if (voice != nullptr)
+            startStealTailFromVoice (*voice);
+    }
+
+    if (voice == nullptr)
+        return {};
+
+    *voice = VoiceState {};
+    voice->active = true;
+    voice->midiNote = midiNoteNumber;
+    voice->midiChannel = midiChannel;
+    voice->zone = selectedZone;
+    voice->position = 0.0;
+    const bool ignoreMidiVelocity = usedModwheelLayerSelection && settings.loopEnabled;
+    voice->velocityGain = ignoreMidiVelocity ? 1.0f : (velocity127 * velocityScale);
+    voice->age = ++voiceAgeCounter;
+
+    bool oneShotPlayback = false;
+    if (const auto sampleSet = std::atomic_load (&currentSampleSet); sampleSet != nullptr)
+    {
+        if (const auto it = sampleSet->oneShotPlaybackBySlot.find (voice->zone->metadata.mapSetSlot);
+            it != sampleSet->oneShotPlaybackBySlot.end())
+        {
+            oneShotPlayback = it->second;
+        }
+    }
+
+    const int playbackNote = oneShotPlayback ? voice->zone->metadata.rootNote : midiNoteNumber;
+    const auto semitoneOffset = static_cast<double> (playbackNote - voice->zone->metadata.rootNote);
+    const auto pitch = std::pow (2.0, semitoneOffset / 12.0);
+    const auto sampleRateRatio = voice->zone->sourceSampleRate / juce::jmax (1.0, currentSampleRate);
+    const int pitchDownOctaves = juce::jlimit (0, 2, playerPitchDownOctaves.load (std::memory_order_relaxed));
+    const auto octaveDownRatio = std::pow (2.0, -static_cast<double> (pitchDownOctaves));
+
+    voice->pitchRatio = juce::jmax (0.0001, sampleRateRatio * pitch * octaveDownRatio);
+
+    voice->sustainLevel = juce::jlimit (0.0f, 1.0f, settings.sustainLevel);
+    voice->pan = juce::jlimit (-1.0f, 1.0f, pan);
+    const float leftGain = std::sqrt (0.5f * (1.0f - voice->pan));
+    const float rightGain = std::sqrt (0.5f * (1.0f + voice->pan));
+    voice->panGains = { leftGain, rightGain };
+    voice->ignoreMonoNoteDedupe = ignoreMonoNoteDedupeForVoice || suppressMonoCut;
+
+    if (pan < -0.5f)
+        voice->delaySamplesRemaining = msToSamples (currentSampleRate, 10.0f);
+
+    voice->attackSamplesRemaining = msToSamples (currentSampleRate, settings.attackMs);
+    if (voice->attackSamplesRemaining > 0)
+    {
+        voice->envelopeGain = 0.0f;
+        voice->attackDelta = 1.0f / static_cast<float> (voice->attackSamplesRemaining);
+    }
+    else
+    {
+        voice->envelopeGain = 1.0f;
+    }
+
+    voice->decaySamplesRemaining = msToSamples (currentSampleRate, settings.decayMs);
+    if (voice->decaySamplesRemaining > 0)
+    {
+        voice->decayDelta = (1.0f - voice->sustainLevel) / static_cast<float> (voice->decaySamplesRemaining);
+    }
+    else if (voice->attackSamplesRemaining <= 0)
+    {
+        voice->envelopeGain = voice->sustainLevel;
+    }
+
+    return selectedZone;
 }
 
 void SamplePlayerAudioProcessor::triggerAuxiliaryKeyswitchSlots (bool triggerOnNoteOn,
@@ -6120,103 +6362,16 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
                                  excludedZone,
                                  forcedMapSetSlot);
 
-    if (zone == nullptr)
-        return {};
-
-    if (! suppressMonoCut)
-    {
-        const bool useRetriggerFadeTail = forcedMapSetSlot >= 0;
-
-        for (auto& existing : voices)
-        {
-            if (! existing.active)
-                continue;
-
-            if (existing.midiNote != midiNoteNumber)
-                continue;
-
-            if (useRetriggerFadeTail)
-                startStealTailFromVoice (existing, strumRetriggerFadeOutMs);
-
-            existing = VoiceState {};
-        }
-    }
-
-    auto* voice = findFreeVoice();
-    if (voice == nullptr)
-    {
-        voice = stealOldestVoice();
-        if (voice != nullptr)
-            startStealTailFromVoice (*voice);
-    }
-
-    if (voice == nullptr)
-        return {};
-
-    *voice = VoiceState {};
-    auto selectedZone = zone;
-
-    voice->active = true;
-    voice->midiNote = midiNoteNumber;
-    voice->midiChannel = midiChannel;
-    voice->zone = selectedZone;
-    voice->position = 0.0;
-    const bool ignoreMidiVelocity = usedModwheelLayerSelection && settings.loopEnabled;
-    voice->velocityGain = ignoreMidiVelocity ? 1.0f : (velocity127 * velocityScale);
-    voice->age = ++voiceAgeCounter;
-
-    bool oneShotPlayback = false;
-    if (const auto sampleSet = std::atomic_load (&currentSampleSet); sampleSet != nullptr)
-    {
-        if (const auto it = sampleSet->oneShotPlaybackBySlot.find (voice->zone->metadata.mapSetSlot);
-            it != sampleSet->oneShotPlaybackBySlot.end())
-        {
-            oneShotPlayback = it->second;
-        }
-    }
-
-    const int playbackNote = oneShotPlayback ? voice->zone->metadata.rootNote : midiNoteNumber;
-    const auto semitoneOffset = static_cast<double> (playbackNote - voice->zone->metadata.rootNote);
-    const auto pitch = std::pow (2.0, semitoneOffset / 12.0);
-    const auto sampleRateRatio = voice->zone->sourceSampleRate / juce::jmax (1.0, currentSampleRate);
-    const int pitchDownOctaves = juce::jlimit (0, 2, playerPitchDownOctaves.load (std::memory_order_relaxed));
-    const auto octaveDownRatio = std::pow (2.0, -static_cast<double> (pitchDownOctaves));
-
-    voice->pitchRatio = juce::jmax (0.0001, sampleRateRatio * pitch * octaveDownRatio);
-
-    voice->sustainLevel = juce::jlimit (0.0f, 1.0f, settings.sustainLevel);
-    voice->pan = juce::jlimit (-1.0f, 1.0f, pan);
-    const float leftGain = std::sqrt (0.5f * (1.0f - voice->pan));
-    const float rightGain = std::sqrt (0.5f * (1.0f + voice->pan));
-    voice->panGains = { leftGain, rightGain };
-    voice->ignoreMonoNoteDedupe = suppressMonoCut;
-
-    // Haas effect: delay the left doubled voice by 10 ms for stereo width
-    if (pan < -0.5f)
-        voice->delaySamplesRemaining = msToSamples (currentSampleRate, 10.0f);
-
-    voice->attackSamplesRemaining = msToSamples (currentSampleRate, settings.attackMs);
-    if (voice->attackSamplesRemaining > 0)
-    {
-        voice->envelopeGain = 0.0f;
-        voice->attackDelta = 1.0f / static_cast<float> (voice->attackSamplesRemaining);
-    }
-    else
-    {
-        voice->envelopeGain = 1.0f;
-    }
-
-    voice->decaySamplesRemaining = msToSamples (currentSampleRate, settings.decayMs);
-    if (voice->decaySamplesRemaining > 0)
-    {
-        voice->decayDelta = (1.0f - voice->sustainLevel) / static_cast<float> (voice->decaySamplesRemaining);
-    }
-    else if (voice->attackSamplesRemaining <= 0)
-    {
-        voice->envelopeGain = voice->sustainLevel;
-    }
-
-    return selectedZone;
+    return startVoiceFromZone (midiChannel,
+                               midiNoteNumber,
+                               velocity,
+                               settings,
+                               zone,
+                               suppressMonoCut,
+                               forcedMapSetSlot >= 0,
+                               false,
+                               usedModwheelLayerSelection,
+                               pan);
 }
 
 void SamplePlayerAudioProcessor::releaseVoicesForNote (int midiChannel,
@@ -6623,6 +6778,62 @@ std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioP
     return candidatePool->at (static_cast<size_t> (chosenIndex));
 }
 
+std::shared_ptr<const SamplePlayerAudioProcessor::SampleZone> SamplePlayerAudioProcessor::pickZoneForRootLayer (int midiNoteNumber,
+                                                                                                                  int rootNote,
+                                                                                                                  int velocityLayer,
+                                                                                                                  int preferredRoundRobinIndex,
+                                                                                                                  int forcedMapSetSlot) const
+{
+    juce::ignoreUnused (midiNoteNumber);
+
+    const auto sampleSet = std::atomic_load (&currentSampleSet);
+    if (sampleSet == nullptr || sampleSet->zones.empty())
+        return {};
+
+    const int activeSlot = forcedMapSetSlot >= 0
+        ? forcedMapSetSlot
+        : juce::jmax (0, activeMapSetSlot.load (std::memory_order_relaxed));
+
+    std::vector<std::shared_ptr<const SampleZone>> candidates;
+    for (const auto& zone : sampleSet->zones)
+    {
+        if (zone == nullptr)
+            continue;
+
+        const auto& metadata = zone->metadata;
+        if (metadata.mapSetSlot != activeSlot)
+            continue;
+        if (metadata.rootNote != rootNote)
+            continue;
+        if (metadata.velocityLayer != velocityLayer)
+            continue;
+
+        candidates.push_back (zone);
+    }
+
+    if (candidates.empty())
+        return {};
+
+    std::sort (candidates.begin(), candidates.end(), [] (const auto& a, const auto& b)
+    {
+        if (a->metadata.roundRobinIndex != b->metadata.roundRobinIndex)
+            return a->metadata.roundRobinIndex < b->metadata.roundRobinIndex;
+
+        return a->sourceFile.getFileName() < b->sourceFile.getFileName();
+    });
+
+    if (preferredRoundRobinIndex > 0)
+    {
+        for (const auto& zone : candidates)
+        {
+            if (zone != nullptr && zone->metadata.roundRobinIndex == preferredRoundRobinIndex)
+                return zone;
+        }
+    }
+
+    return candidates.front();
+}
+
 bool SamplePlayerAudioProcessor::hasMultipleRoundRobinsForNote (int midiNoteNumber, int velocity127) const
 {
     const auto sampleSet = std::atomic_load (&currentSampleSet);
@@ -6805,6 +7016,7 @@ void SamplePlayerAudioProcessor::renderSingleVoice (VoiceState& voice,
     const auto loop = buildLoopSettingsForZone (zone, settings);
     const int zoneLength = zone.audio.getNumSamples();
     float mapSetGainLinear = 1.0f;
+    float velocityLayerGain = 1.0f;
     if (const auto sampleSet = std::atomic_load (&currentSampleSet); sampleSet != nullptr)
     {
         if (const auto gainIt = sampleSet->gainLinearBySlot.find (zone.metadata.mapSetSlot);
@@ -6812,6 +7024,8 @@ void SamplePlayerAudioProcessor::renderSingleVoice (VoiceState& voice,
         {
             mapSetGainLinear = juce::jmax (0.0f, gainIt->second);
         }
+
+        velocityLayerGain = getRealtimeVelocityLayerGain (voice, *sampleSet);
     }
 
     for (int i = 0; i < numSamples; ++i)
@@ -6871,7 +7085,7 @@ void SamplePlayerAudioProcessor::renderSingleVoice (VoiceState& voice,
         }
 
         const auto envelope = juce::jmax (0.0f, voice.envelopeGain);
-    const auto amp = settings.outputGainLinear * mapSetGainLinear * voice.velocityGain * envelope;
+        const auto amp = settings.outputGainLinear * mapSetGainLinear * velocityLayerGain * voice.velocityGain * envelope;
 
         if (amp > 0.0f)
         {
@@ -6918,6 +7132,33 @@ void SamplePlayerAudioProcessor::renderSingleVoice (VoiceState& voice,
             voice.active = false;
         }
     }
+}
+
+float SamplePlayerAudioProcessor::getRealtimeVelocityLayerGain (const VoiceState& voice,
+                                                                const SampleSet& sampleSet) const
+{
+    if (voice.zone == nullptr)
+        return 1.0f;
+
+    if (! modwheelVelocityLayerControlEnabled.load (std::memory_order_relaxed))
+        return 1.0f;
+
+    const auto slotIt = sampleSet.velocityLayersBySlotRoot.find (voice.zone->metadata.mapSetSlot);
+    if (slotIt == sampleSet.velocityLayersBySlotRoot.end())
+        return 1.0f;
+
+    const auto rootIt = slotIt->second.find (voice.zone->metadata.rootNote);
+    if (rootIt == slotIt->second.end() || rootIt->second.size() <= 1)
+        return 1.0f;
+
+    const auto modwheel01 = juce::jlimit (0.0f, 1.0f,
+                                          modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed));
+    const int selectionVelocity = juce::jlimit (1, 127,
+                                                1 + static_cast<int> (std::round (modwheel01 * 126.0f)));
+    return computeVelocityCrossfadeGain (rootIt->second,
+                                         voice.zone->metadata.velocityLayer,
+                                         selectionVelocity,
+                                         30);
 }
 
 float SamplePlayerAudioProcessor::readSampleLinear (const SampleZone& zone, int channel, double samplePosition)

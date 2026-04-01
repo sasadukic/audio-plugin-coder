@@ -105,6 +105,7 @@ public:
         int highNote = 127;
         int lowVelocity = 1;
         int highVelocity = 127;
+        int velocityLayer = 1;
         int roundRobinIndex = 1;
         int mapSetSlot = 0;
     };
@@ -212,6 +213,7 @@ private:
         std::unordered_map<int, float> gainLinearBySlot;
         std::unordered_map<int, bool> loopPlaybackBySlot;
         std::unordered_map<int, bool> oneShotPlaybackBySlot;
+        std::unordered_map<int, std::unordered_map<int, std::vector<int>>> velocityLayersBySlotRoot;
         std::vector<int> noteOnTriggerSlots;
         std::vector<int> noteOffTriggerSlots;
         std::array<int, 128> keyswitchSlotByMidi {};
@@ -309,6 +311,16 @@ private:
                                          const BlockSettings& settings,
                                          int primarySlotToSkip = -1);
     void startVoiceForNote (int midiChannel, int midiNoteNumber, float velocity, const BlockSettings& settings);
+    std::shared_ptr<const SampleZone> startVoiceFromZone (int midiChannel,
+                                                          int midiNoteNumber,
+                                                          float velocity,
+                                                          const BlockSettings& settings,
+                                                          std::shared_ptr<const SampleZone> selectedZone,
+                                                          bool suppressMonoCut,
+                                                          bool useRetriggerFadeTail,
+                                                          bool ignoreMonoNoteDedupeForVoice,
+                                                          bool usedModwheelLayerSelection,
+                                                          float pan);
     std::shared_ptr<const SampleZone> startVoiceForNoteInternal (int midiChannel,
                                                                  int midiNoteNumber,
                                                                  float velocity,
@@ -334,10 +346,16 @@ private:
                                                        int rrOffset = 0,
                                                        const SampleZone* excludedZone = nullptr,
                                                        int forcedMapSetSlot = -1);
+    std::shared_ptr<const SampleZone> pickZoneForRootLayer (int midiNoteNumber,
+                                                            int rootNote,
+                                                            int velocityLayer,
+                                                            int preferredRoundRobinIndex,
+                                                            int forcedMapSetSlot = -1) const;
     bool hasMultipleRoundRobinsForNote (int midiNoteNumber, int velocity127) const;
 
     BlockSettings getBlockSettingsSnapshot() const;
     LoopSettings buildLoopSettingsForZone (const SampleZone& zone, const BlockSettings& settings) const;
+    float getRealtimeVelocityLayerGain (const VoiceState& voice, const SampleSet& sampleSet) const;
 
     void renderVoices (juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples, const BlockSettings& settings);
     void renderSingleVoice (VoiceState& voice,
