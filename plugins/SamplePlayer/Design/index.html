@@ -7282,6 +7282,9 @@
       entry.sampleUrl = nextUrl;
       entry.sampleDataUrl = "";
       entry.autoCapturePending = false;
+      if (!String(entry.manifestPath || "").trim()) {
+        try { await ensureEntryRuntimeSampleDataUrl(entry); } catch {}
+      }
 
       if (prevUrl) {
         state.waveformCache.delete(prevUrl);
@@ -7374,7 +7377,11 @@
       const wavBlob = encodeAudioBufferToWavBlob(trimmed);
       const nextUrl = URL.createObjectURL(wavBlob);
       entry.sampleUrl = nextUrl;
+      entry.sampleDataUrl = "";
       entry.autoCapturePending = false;
+      if (!String(entry.manifestPath || "").trim()) {
+        try { await ensureEntryRuntimeSampleDataUrl(entry); } catch {}
+      }
 
       const safeCutNorm = cutSample / totalSamples;
       const startNorm = clamp01(entry.loopStartNorm ?? 0);
@@ -7592,6 +7599,7 @@
           URL.revokeObjectURL(entry.sampleUrl);
         }
         entry.sampleUrl = sampleUrl;
+        entry.sampleDataUrl = sampleUrl.startsWith("data:") ? sampleUrl : "";
         entry.autoCapturePending = false;
       }
 
