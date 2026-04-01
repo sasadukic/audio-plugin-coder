@@ -3222,10 +3222,6 @@
       gap: 6px;
     }
 
-    .keyswitch-map-loop-wrap input[type="checkbox"] {
-      display: none;
-    }
-
     .keyswitch-map-loop-btn {
       border: 1px solid rgba(var(--line-rgb), 0.3);
       border-radius: 6px;
@@ -3246,6 +3242,17 @@
       color: rgba(206, 206, 206, 0.88);
       border-color: rgba(var(--line-rgb), 0.24);
       background: rgba(var(--surface-card-rgb), 0.84);
+    }
+
+    .keyswitch-map-loop-btn.anykey {
+      color: rgba(215, 233, 255, 0.96);
+      border-color: rgba(96, 154, 255, 0.44);
+      background: rgba(38, 56, 92, 0.88);
+    }
+
+    .keyswitch-map-loop-btn:disabled {
+      opacity: 0.72;
+      cursor: default;
     }
 
     .keyswitch-map-key {
@@ -4514,10 +4521,8 @@
                 <div class="keyswitch-map-main-controls">
                   <select id="keyswitchMapSelect" class="keyswitch-map-select" aria-label="Select keyswitch set"></select>
                   <button id="keyswitchMapNormalizeBtn" class="keyswitch-map-normalize-btn hidden" type="button" title="Normalize all samples to peak level">Normalize</button>
-                  <button id="keyswitchMapPlaybackModeBtn" class="keyswitch-map-loop-btn hidden" type="button" aria-pressed="false" title="Samples follow their keyboard ranges">Range</button>
                   <div id="keyswitchMapLoopWrap" class="keyswitch-map-loop-wrap hidden">
-                    <button id="keyswitchMapLoopModeBtn" class="keyswitch-map-loop-btn" type="button" aria-pressed="true" title="Loop playback enabled">Loop</button>
-                    <input id="keyswitchMapLoopToggle" type="checkbox" checked>
+                    <button id="keyswitchMapLoopModeBtn" class="keyswitch-map-loop-btn" type="button" title="Loop playback enabled">Loop</button>
                   </div>
                   <span id="keyswitchMapWarning" class="keyswitch-map-warning hidden" aria-live="polite"></span>
                 </div>
@@ -4980,10 +4985,8 @@
       mapMatrixSplitBtn: document.getElementById("mapMatrixSplitBtn"),
       keyswitchMapSelect: document.getElementById("keyswitchMapSelect"),
       keyswitchMapNormalizeBtn: document.getElementById("keyswitchMapNormalizeBtn"),
-      keyswitchMapPlaybackModeBtn: document.getElementById("keyswitchMapPlaybackModeBtn"),
       keyswitchMapLoopWrap: document.getElementById("keyswitchMapLoopWrap"),
       keyswitchMapLoopModeBtn: document.getElementById("keyswitchMapLoopModeBtn"),
-      keyswitchMapLoopToggle: document.getElementById("keyswitchMapLoopToggle"),
       keyswitchMapWarning: document.getElementById("keyswitchMapWarning"),
       sampleEditor: document.getElementById("sampleEditor"),
       sampleEditorTitle: document.getElementById("sampleEditorTitle"),
@@ -8211,6 +8214,40 @@
       return resolveKeyswitchPlaybackMode(set) === "oneshot";
     }
 
+    function getKeyswitchToolbarModeState(set) {
+      if (!set) return state.baseLoopPlaybackEnabled !== false ? "loop" : "oneshot";
+      const triggerMode = getKeyswitchTriggerMode(set);
+      if (triggerMode !== "manual") return "anykey";
+      if (resolveKeyswitchPlaybackMode(set) === "oneshot") return "anykey";
+      return isKeyswitchSetLoopPlaybackEnabled(set) ? "loop" : "oneshot";
+    }
+
+    function setKeyswitchToolbarModeState(set, mode) {
+      const normalizedMode = String(mode || "").trim().toLowerCase();
+      if (!set) {
+        state.baseLoopPlaybackEnabled = normalizedMode === "loop";
+        return normalizedMode;
+      }
+      if (getKeyswitchTriggerMode(set) !== "manual") {
+        set.playbackMode = "oneshot";
+        set.loopPlaybackEnabled = false;
+        return "anykey";
+      }
+      if (normalizedMode === "loop") {
+        set.playbackMode = "spread";
+        set.loopPlaybackEnabled = true;
+        return "loop";
+      }
+      if (normalizedMode === "anykey") {
+        set.playbackMode = "oneshot";
+        set.loopPlaybackEnabled = false;
+        return "anykey";
+      }
+      set.playbackMode = "spread";
+      set.loopPlaybackEnabled = false;
+      return "oneshot";
+    }
+
     function normalizeSequencerStep(step) {
       const source = (step && typeof step === "object") ? step : {};
       let noteMidi = Number(source.noteMidi);
@@ -9762,32 +9799,33 @@
       });
     }
 
-    function updateKeyswitchLoopModeButton(enabled) {
+    function updateKeyswitchLoopModeButton(set = getKeyswitchSetById(state.activeMapSetId)) {
       if (!el.keyswitchMapLoopModeBtn) return;
-      const isEnabled = !!enabled;
-      el.keyswitchMapLoopModeBtn.textContent = isEnabled ? "Loop" : "OneShot";
-      el.keyswitchMapLoopModeBtn.setAttribute("aria-pressed", isEnabled ? "true" : "false");
-      el.keyswitchMapLoopModeBtn.classList.toggle("oneshot", !isEnabled);
-      el.keyswitchMapLoopModeBtn.title = isEnabled
-        ? "Loop playback enabled"
-        : "One-shot playback enabled";
-    }
-
-    function updateKeyswitchPlaybackModeButton(set) {
-      if (!el.keyswitchMapPlaybackModeBtn) return;
-      const normalizedMode = resolveKeyswitchPlaybackMode(set);
-      const isOneShot = normalizedMode === "oneshot";
+      const currentState = getKeyswitchToolbarModeState(set);
       const triggerMode = getKeyswitchTriggerMode(set);
-      el.keyswitchMapPlaybackModeBtn.textContent = isOneShot ? "AnyKey" : "Range";
-      el.keyswitchMapPlaybackModeBtn.setAttribute("aria-pressed", isOneShot ? "true" : "false");
-      el.keyswitchMapPlaybackModeBtn.classList.toggle("oneshot", isOneShot);
-      el.keyswitchMapPlaybackModeBtn.title = isOneShot
-        ? (triggerMode === "on"
-            ? "This keyswitch auto-triggers on note press and always uses AnyKey playback"
-            : triggerMode === "off"
-              ? "This keyswitch auto-triggers on note release and always uses AnyKey playback"
-              : "Any played key triggers this keyswitch set without pitch tracking")
-        : "Samples in this keyswitch set follow their keyboard ranges";
+      const isLockedAnyKey = !!set && triggerMode !== "manual";
+      el.keyswitchMapLoopModeBtn.textContent = currentState === "loop"
+        ? "Loop"
+        : currentState === "anykey"
+          ? "AnyKey"
+          : "OneShot";
+      el.keyswitchMapLoopModeBtn.classList.toggle("oneshot", currentState === "oneshot");
+      el.keyswitchMapLoopModeBtn.classList.toggle("anykey", currentState === "anykey");
+      el.keyswitchMapLoopModeBtn.disabled = isLockedAnyKey;
+      el.keyswitchMapLoopModeBtn.setAttribute("aria-label", `Playback mode ${el.keyswitchMapLoopModeBtn.textContent}`);
+      el.keyswitchMapLoopModeBtn.title = !set
+        ? (currentState === "loop"
+            ? "Base map samples loop during playback"
+            : "Base map samples play as one-shots")
+        : currentState === "loop"
+          ? "This keyswitch set follows note ranges with loop playback"
+          : currentState === "anykey"
+            ? (triggerMode === "on"
+                ? "This keyswitch auto-triggers on note press and is locked to AnyKey one-shot playback"
+                : triggerMode === "off"
+                  ? "This keyswitch auto-triggers on note release and is locked to AnyKey one-shot playback"
+                  : "Any played key triggers this keyswitch set without pitch tracking")
+            : "This keyswitch set follows note ranges with one-shot playback";
     }
 
     function syncLoopOneshotWithAutoLoopSamples(options = {}) {
@@ -9801,10 +9839,7 @@
         set.loopPlaybackEnabled = loopSamplesEnabled;
       });
 
-      if (el.keyswitchMapLoopToggle) {
-        el.keyswitchMapLoopToggle.checked = loopSamplesEnabled;
-      }
-      updateKeyswitchLoopModeButton(loopSamplesEnabled);
+      updateKeyswitchLoopModeButton();
 
       if (shouldRender) {
         renderKeyboardMap(undefined, true);
@@ -9823,14 +9858,9 @@
       const activeMapSet = getActiveMapSet();
       const activeKeyswitchSet = getKeyswitchSetById(state.activeMapSetId);
       const showLoopEditor = !!activeMapSet;
-      const showPlaybackModeEditor = !!activeKeyswitchSet;
       if (el.keyswitchMapLoopWrap) el.keyswitchMapLoopWrap.classList.toggle("hidden", !showLoopEditor);
-      if (el.keyswitchMapPlaybackModeBtn) {
-        el.keyswitchMapPlaybackModeBtn.classList.toggle("hidden", !showPlaybackModeEditor);
-      }
       if (el.keyswitchMapNormalizeBtn) el.keyswitchMapNormalizeBtn.classList.toggle("hidden", !showLoopEditor);
-      syncLoopOneshotWithAutoLoopSamples({ shouldRender: false, persist: false });
-      updateKeyswitchPlaybackModeButton(activeKeyswitchSet);
+      updateKeyswitchLoopModeButton(activeKeyswitchSet);
       if (!activeKeyswitchSet) {
         const duplicates = getDuplicateKeyswitchNotes();
         if (duplicates.length > 0) {
@@ -9854,34 +9884,41 @@
       }
     }
 
-    function applyActiveKeyswitchSetLoopToggle(shouldRender = true) {
-      if (!el.keyswitchMapLoopToggle) return false;
-      if (el.autoLoop) {
-        el.autoLoop.checked = !!el.keyswitchMapLoopToggle.checked;
-      }
-      updateAutoLoopDetailsVisibility(false);
-      syncLoopOneshotWithAutoLoopSamples({ shouldRender, persist: true });
-      return true;
-    }
-
-    function toggleActiveKeyswitchPlaybackMode(shouldRender = true) {
+    function cycleActiveKeyswitchToolbarMode(shouldRender = true) {
       const activeKeyswitchSet = getKeyswitchSetById(state.activeMapSetId);
-      if (!activeKeyswitchSet) return false;
-      ensureSessionStateWritable("keyswitch-playback-mode");
-      if (getKeyswitchTriggerMode(activeKeyswitchSet) !== "manual") {
-        activeKeyswitchSet.playbackMode = "oneshot";
-        updateKeyswitchPlaybackModeButton(activeKeyswitchSet);
+      if (!activeKeyswitchSet) {
+        ensureSessionStateWritable("base-playback-mode");
+        setKeyswitchToolbarModeState(null, state.baseLoopPlaybackEnabled !== false ? "oneshot" : "loop");
+        updateKeyswitchLoopModeButton(null);
+        if (shouldRender) {
+          renderKeyboardMap(undefined, true);
+          renderPlayerKeyboard();
+          updateLoopHandles();
+          refreshSelectedSampleMeta();
+        }
         scheduleSessionStateSave(350);
         void flushSessionStateToNative(false);
         return true;
       }
-      activeKeyswitchSet.playbackMode = isKeyswitchPlaybackModeOneShot(activeKeyswitchSet)
-        ? "spread"
-        : "oneshot";
-      updateKeyswitchPlaybackModeButton(activeKeyswitchSet);
+      ensureSessionStateWritable("keyswitch-playback-mode");
+      if (getKeyswitchTriggerMode(activeKeyswitchSet) !== "manual") {
+        setKeyswitchToolbarModeState(activeKeyswitchSet, "anykey");
+        updateKeyswitchLoopModeButton(activeKeyswitchSet);
+        return false;
+      }
+      const currentState = getKeyswitchToolbarModeState(activeKeyswitchSet);
+      const nextState = currentState === "oneshot"
+        ? "loop"
+        : currentState === "loop"
+          ? "anykey"
+          : "oneshot";
+      setKeyswitchToolbarModeState(activeKeyswitchSet, nextState);
+      updateKeyswitchLoopModeButton(activeKeyswitchSet);
       if (shouldRender) {
         renderKeyboardMap(undefined, true);
         renderPlayerKeyboard();
+        updateLoopHandles();
+        refreshSelectedSampleMeta();
       }
       scheduleSessionStateSave(350);
       void flushSessionStateToNative(false);
@@ -15101,11 +15138,6 @@
           setActiveMapSet(el.keyswitchMapSelect.value, true);
         });
       }
-      if (el.keyswitchMapLoopToggle) {
-        el.keyswitchMapLoopToggle.addEventListener("change", () => {
-          applyActiveKeyswitchSetLoopToggle(true);
-        });
-      }
 
       if (el.keyswitchMapNormalizeBtn) {
         el.keyswitchMapNormalizeBtn.addEventListener("click", () => {
@@ -15195,15 +15227,9 @@
           }
         });
       }
-      if (el.keyswitchMapLoopModeBtn && el.keyswitchMapLoopToggle) {
+      if (el.keyswitchMapLoopModeBtn) {
         el.keyswitchMapLoopModeBtn.addEventListener("click", () => {
-          el.keyswitchMapLoopToggle.checked = !el.keyswitchMapLoopToggle.checked;
-          applyActiveKeyswitchSetLoopToggle(true);
-        });
-      }
-      if (el.keyswitchMapPlaybackModeBtn) {
-        el.keyswitchMapPlaybackModeBtn.addEventListener("click", () => {
-          toggleActiveKeyswitchPlaybackMode(true);
+          cycleActiveKeyswitchToolbarMode(true);
         });
       }
       if (el.mapMatrixIntervalInput) {
