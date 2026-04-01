@@ -4845,6 +4845,7 @@
       autoPresets: [],
       keyswitchSets: [],
       activeMapSetId: "base",
+      basePlaybackMode: "spread",
       baseLoopPlaybackEnabled: true,
       mapMatrixVelocityLayers: 3,
       mapMatrixRrColumns: 1,
@@ -6470,6 +6471,7 @@
           autoFillRr: state.mapMatrixAutoFillRr !== false
         },
         baseLoopPlaybackEnabled: state.baseLoopPlaybackEnabled !== false,
+        basePlaybackMode: normalizeKeyswitchPlaybackMode(state.basePlaybackMode),
         manifestFilePath,
         manifestBasePath,
         manualRootRanges: cloneManualRangesObject(state.manualRootRanges),
@@ -6591,6 +6593,7 @@
           state.mapMatrixRrColumns,
           state.mapMatrixSplitEnabled,
           state.baseLoopPlaybackEnabled,
+          normalizeKeyswitchPlaybackMode(state.basePlaybackMode),
           getPackManifestFilePath(),
           getPackManifestBasePath(),
           state.loopCrossfadeMs,
@@ -6906,6 +6909,9 @@
           ? normalizeOpenStringColorMap(ui.playerOpenStringColorsByMidi, state.playerOpenStringMidis)
           : normalizeOpenStringColorMap(state.playerOpenStringColorsByMidi, state.playerOpenStringMidis);
         state.baseLoopPlaybackEnabled = ui.baseLoopPlaybackEnabled !== false;
+        state.basePlaybackMode = Object.prototype.hasOwnProperty.call(ui, "basePlaybackMode")
+          ? normalizeKeyswitchPlaybackMode(ui.basePlaybackMode)
+          : "spread";
         state.packManifestFilePath = String(
           ui.manifestFilePath
           || state.packManifestFilePath
@@ -8139,12 +8145,14 @@
         }
         return {
           entries: Array.isArray(activeKeyswitchSet?.entries) ? activeKeyswitchSet.entries.filter((entry) => entry.valid) : [],
-          manualRanges: activeKeyswitchSet?.manualRanges || {}
+          manualRanges: activeKeyswitchSet?.manualRanges || {},
+          oneShotPlayback: resolveKeyswitchPlaybackMode(activeKeyswitchSet) === "oneshot"
         };
       }
       return {
         entries: state.entries.filter((entry) => entry.valid),
-        manualRanges: state.manualRootRanges
+        manualRanges: state.manualRootRanges,
+        oneShotPlayback: isBasePlaybackModeOneShot()
       };
     }
 
@@ -8193,6 +8201,10 @@
       return String(value || "").trim().toLowerCase() === "oneshot" ? "oneshot" : "spread";
     }
 
+    function isBasePlaybackModeOneShot() {
+      return normalizeKeyswitchPlaybackMode(state.basePlaybackMode) === "oneshot";
+    }
+
     function normalizeKeyswitchTriggerModeName(name) {
       const normalized = String(name || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
       if (normalized === "on" || normalized === "noteon" || normalized === "keyon") return "on";
@@ -8215,7 +8227,10 @@
     }
 
     function getKeyswitchToolbarModeState(set) {
-      if (!set) return state.baseLoopPlaybackEnabled !== false ? "loop" : "oneshot";
+      if (!set) {
+        if (state.baseLoopPlaybackEnabled !== false) return "loop";
+        return isBasePlaybackModeOneShot() ? "anykey" : "oneshot";
+      }
       const triggerMode = getKeyswitchTriggerMode(set);
       if (triggerMode !== "manual") return "anykey";
       if (resolveKeyswitchPlaybackMode(set) === "oneshot") return "anykey";
@@ -8226,6 +8241,7 @@
       const normalizedMode = String(mode || "").trim().toLowerCase();
       if (!set) {
         state.baseLoopPlaybackEnabled = normalizedMode === "loop";
+        state.basePlaybackMode = normalizedMode === "anykey" ? "oneshot" : "spread";
         return normalizedMode;
       }
       if (getKeyswitchTriggerMode(set) !== "manual") {
@@ -9888,7 +9904,13 @@
       const activeKeyswitchSet = getKeyswitchSetById(state.activeMapSetId);
       if (!activeKeyswitchSet) {
         ensureSessionStateWritable("base-playback-mode");
-        setKeyswitchToolbarModeState(null, state.baseLoopPlaybackEnabled !== false ? "oneshot" : "loop");
+        const currentState = getKeyswitchToolbarModeState(null);
+        const nextState = currentState === "oneshot"
+          ? "loop"
+          : currentState === "loop"
+            ? "anykey"
+            : "oneshot";
+        setKeyswitchToolbarModeState(null, nextState);
         updateKeyswitchLoopModeButton(null);
         if (shouldRender) {
           renderKeyboardMap(undefined, true);
@@ -14103,13 +14125,21 @@
         keyswitchSetsByMidi.get(set.keyMidi).push(set);
       });
       const playableMidis = new Set();
-      roots.forEach((rootMidi) => {
-        const range = rangesByRoot.get(rootMidi);
-        if (!range) return;
-        for (let midi = range.low; midi <= range.high; midi += 1) {
+      const hasPlayableEntries = Array.isArray(playbackSource.entries)
+        && playbackSource.entries.some((entry) => entryHasPlayableSource(entry));
+      if (playbackSource.oneShotPlayback && hasPlayableEntries) {
+        for (let midi = PLAYER_KB_START_MIDI; midi <= PLAYER_KB_END_MIDI; midi += 1) {
           playableMidis.add(midi);
         }
-      });
+      } else {
+        roots.forEach((rootMidi) => {
+          const range = rangesByRoot.get(rootMidi);
+          if (!range) return;
+          for (let midi = range.low; midi <= range.high; midi += 1) {
+            playableMidis.add(midi);
+          }
+        });
+      }
       const openStringMidis = new Set(
         getOpenStringMidisForSet()
           .map((midi) => Math.round(Number(midi)))
@@ -14322,14 +14352,29 @@
       renderKeyboardMap(undefined, true);
     }
 
-    function selectDonorRootForPlayedNote(playedMidi, entries = state.entries, manualRanges = state.manualRootRanges) {
+    function selectDonorRootForPlayedNote(playedMidi, entries = state.entries, manualRanges = state.manualRootRanges, options = {}) {
       const { roots, rangesByRoot } = getResolvedRootRanges(entries, manualRanges);
       if (!roots.length) return null;
+      const normalizedPlayedMidi = Math.round(Number(playedMidi));
+      if (!Number.isFinite(normalizedPlayedMidi)) return roots[0];
       for (let i = 0; i < roots.length; i += 1) {
         const root = roots[i];
         const range = rangesByRoot.get(root);
         if (!range) continue;
-        if (playedMidi >= range.low && playedMidi <= range.high) return root;
+        if (normalizedPlayedMidi >= range.low && normalizedPlayedMidi <= range.high) return root;
+      }
+      if (options?.oneShotPlayback) {
+        let nearestRoot = roots[0];
+        let nearestDistance = Math.abs(nearestRoot - normalizedPlayedMidi);
+        for (let i = 1; i < roots.length; i += 1) {
+          const root = roots[i];
+          const distance = Math.abs(root - normalizedPlayedMidi);
+          if (distance < nearestDistance) {
+            nearestRoot = root;
+            nearestDistance = distance;
+          }
+        }
+        return nearestRoot;
       }
       return null;
     }
@@ -14745,7 +14790,8 @@
       layerMixGain = 1,
       externalKeySerial = null,
       layerStartDelaySec = 0,
-      holdLoopUntilRelease = true
+      holdLoopUntilRelease = true,
+      playAsOneShot = false
     ) {
       const keyMidi = Number.isFinite(playedMidi) ? Math.round(playedMidi) : null;
       if (keyMidi === null) return;
@@ -14766,7 +14812,8 @@
             layerMixGain,
             retrySerial,
             layerStartDelaySec,
-            holdLoopUntilRelease
+            holdLoopUntilRelease,
+            playAsOneShot
           );
         });
         return;
@@ -14795,7 +14842,7 @@
       }
 
       const velocityGain = Math.max(0.05, Math.min(1, 0.2 + (velocityNorm * 0.8)));
-      const semitoneRatio = Math.pow(2, (playedMidi - donorRoot) / 12);
+      const semitoneRatio = playAsOneShot ? 1 : Math.pow(2, (playedMidi - donorRoot) / 12);
       const fineTuneRatio = Math.pow(2, clampFineTune(entry.fineTuneCents ?? 0) / 1200);
       const pitchDownRatio = getPlayerPitchDownRateRatio();
       const sampleGainScale = dbToGain(entry.editorGainDb ?? 0);
@@ -15011,6 +15058,15 @@
       const hasExplicitSource = options && Array.isArray(options.entries);
       const playedMidi = Math.max(0, Math.min(127, Math.round(Number(midi) || 0)));
       let sourceEntries = hasExplicitSource ? options.entries : null;
+      let playbackSource = hasExplicitSource
+        ? {
+            entries: sourceEntries,
+            manualRanges: (options && typeof options.manualRanges === "object" && options.manualRanges !== null)
+              ? options.manualRanges
+              : state.manualRootRanges,
+            oneShotPlayback: !!options?.oneShotPlayback
+          }
+        : null;
       let manualRanges = (options && typeof options.manualRanges === "object" && options.manualRanges !== null)
         ? options.manualRanges
         : null;
@@ -15039,15 +15095,17 @@
         // In the native plugin, route preview keys through the DSP engine so
         // audio goes through the plugin output bus (host metering works).
         if (getNativeBackend()) {
-          const playbackSource = getPlayerPlaybackSource();
-          const donorRoot = selectDonorRootForPlayedNote(playedMidi, playbackSource.entries, playbackSource.manualRanges);
-          if (donorRoot === null) return switchedByKeyswitch;
+          playbackSource = getPlayerPlaybackSource();
+          if (!playbackSource.oneShotPlayback) {
+            const donorRoot = selectDonorRootForPlayedNote(playedMidi, playbackSource.entries, playbackSource.manualRanges);
+            if (donorRoot === null) return switchedByKeyswitch;
+          }
           const ratio = Math.max(0, Math.min(1, pointerRatioY));
           const midiVelocity = Math.max(1, Math.min(127, Math.round((ratio * 126) + 1)));
           return emitNativePreviewMidi(true, playedMidi, midiVelocity, 1);
         }
 
-        const playbackSource = getPlayerPlaybackSource();
+        playbackSource = getPlayerPlaybackSource();
         sourceEntries = playbackSource.entries;
         manualRanges = playbackSource.manualRanges;
       }
@@ -15056,7 +15114,9 @@
       if (!manualRanges || typeof manualRanges !== "object") manualRanges = state.manualRootRanges;
       const ratio = Math.max(0, Math.min(1, pointerRatioY));
       const velocityNorm = ratio;
-      const donorRoot = selectDonorRootForPlayedNote(playedMidi, sourceEntries, manualRanges);
+      const donorRoot = selectDonorRootForPlayedNote(playedMidi, sourceEntries, manualRanges, {
+        oneShotPlayback: !!playbackSource?.oneShotPlayback
+      });
       if (donorRoot === null) return switchedByKeyswitch;
       const useModwheelVelocity = isAutoModwheelVelocityControlActiveForRoot(donorRoot, sourceEntries);
       const loopedVelocityRoot = hasLoopedEntriesForRoot(donorRoot, sourceEntries);
@@ -15091,12 +15151,12 @@
           void ensureEntrySampleUrl(entry, 3200).then((url) => {
             if (!url) return;
             if ((state.previewTriggerSerialByKey.get(keyMidi) ?? 0) !== keySerial) return;
-            playMappedSampleEntry(entry, playbackVelocityNorm, playedMidi, donorRoot, gain, keySerial, delaySec, holdLoopUntilRelease);
+            playMappedSampleEntry(entry, playbackVelocityNorm, playedMidi, donorRoot, gain, keySerial, delaySec, holdLoopUntilRelease, !!playbackSource?.oneShotPlayback);
           });
           startedCount += 1;
           return;
         }
-        playMappedSampleEntry(entry, playbackVelocityNorm, playedMidi, donorRoot, gain, keySerial, delaySec, holdLoopUntilRelease);
+        playMappedSampleEntry(entry, playbackVelocityNorm, playedMidi, donorRoot, gain, keySerial, delaySec, holdLoopUntilRelease, !!playbackSource?.oneShotPlayback);
         startedCount += 1;
       });
 
@@ -16082,6 +16142,7 @@
       state.keyswitchSets = [];
       state.activeMapSetId = "base";
       state.baseLoopPlaybackEnabled = true;
+      state.basePlaybackMode = "spread";
       state.mapMatrixAssignMode = false;
       state.mapMatrixRrCursor = {};
       state.mapMatrixPaintActive = false;
@@ -16286,6 +16347,7 @@
           autoModwheelVelocityControl: !!el.autoModwheelVelocity?.checked,
           autoNormalizeRecorded: !!el.autoNormalizeRecorded?.checked,
           baseLoopPlaybackEnabled: state.baseLoopPlaybackEnabled !== false,
+          basePlaybackMode: normalizeKeyswitchPlaybackMode(state.basePlaybackMode),
           manualRootRanges: cloneManualRangesObject(state.manualRootRanges),
           openStringMidis: normalizeOpenStringMidiList(state.playerOpenStringMidis),
           openStringColorsByMidi: normalizeOpenStringColorMap(state.playerOpenStringColorsByMidi, state.playerOpenStringMidis)
@@ -16798,6 +16860,11 @@
       );
       state.activeMapSetId = importedKeyswitchSets.length > 0 ? importedKeyswitchSets[0].id : "base";
       state.baseLoopPlaybackEnabled = data?.settings?.baseLoopPlaybackEnabled !== false;
+      state.basePlaybackMode = normalizeKeyswitchPlaybackMode(
+        sessionUiState?.basePlaybackMode
+        ?? data?.settings?.basePlaybackMode
+        ?? "spread"
+      );
       state.packManifestFilePath = resolvedManifestFilePath;
       state.packManifestBasePath = resolvedManifestBasePath;
       state.playerOpenStringMidis = importedKeyswitchSets.length > 0 ? [] : legacyGlobalOpenStringMidis;

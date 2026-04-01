@@ -2117,11 +2117,15 @@ juce::var buildDirectLoadSessionSnapshot (const juce::var& manifest,
     uiObj->setProperty ("manifestBasePath", manifestBasePath);
     uiObj->setProperty ("activeMapSetId", juce::String ("base"));
     uiObj->setProperty ("baseLoopPlaybackEnabled", true);
+    uiObj->setProperty ("basePlaybackMode", juce::var ("spread"));
 
     if (auto* manifestRoot = manifest.getDynamicObject())
     {
         const auto loopPlaybackEnabledVar = manifestRoot->getProperty ("settings").getProperty ("baseLoopPlaybackEnabled", true);
         uiObj->setProperty ("baseLoopPlaybackEnabled", loopPlaybackEnabledVar);
+        const auto basePlaybackMode = normalizeKeyswitchPlaybackMode (
+            manifestRoot->getProperty ("settings").getProperty ("basePlaybackMode", "spread").toString());
+        uiObj->setProperty ("basePlaybackMode", juce::var (basePlaybackMode));
         const auto baseManualRangesVar = pickManualRangesVar (
             manifestRoot->getProperty ("settings").getProperty ("manualRootRanges", juce::var {}),
             juce::var {},
@@ -3171,6 +3175,8 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     bool allowPitchUpAboveHighest = false;
     bool useModwheelForVelocityLayers = false;
     bool baseLoopPlaybackEnabled = true;
+    juce::String basePlaybackMode = normalizeKeyswitchPlaybackMode (
+        manifestObject->getProperty ("settings").getProperty ("basePlaybackMode", "spread").toString());
     juce::String manifestBasePath;
     juce::String autoDestinationPath;
     juce::String activeMapSetId = "base";
@@ -3260,6 +3266,9 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         const auto baseLoopPlaybackEnabledVar = uiObject->getProperty ("baseLoopPlaybackEnabled");
         if (! baseLoopPlaybackEnabledVar.isVoid())
             baseLoopPlaybackEnabled = static_cast<bool> (baseLoopPlaybackEnabledVar);
+        const auto basePlaybackModeVar = uiObject->getProperty ("basePlaybackMode");
+        if (! basePlaybackModeVar.isVoid())
+            basePlaybackMode = normalizeKeyswitchPlaybackMode (basePlaybackModeVar.toString());
         manifestBasePath = resolveAutoSamplerDestinationPath (uiObject->getProperty ("manifestBasePath").toString());
         baseManualRangesVar = uiObject->getProperty ("manualRootRanges");
         activeMapSetId = uiObject->getProperty ("activeMapSetId").toString().trim();
@@ -3339,7 +3348,8 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         baseSet.slot = 0;
         baseSet.keyswitchMidi = -1;
         baseSet.loopPlaybackEnabled = baseLoopPlaybackEnabled;
-        baseSet.oneShotPlayback = false;
+        baseSet.oneShotPlayback = (! baseLoopPlaybackEnabled)
+            && normalizeKeyswitchPlaybackMode (basePlaybackMode) == "oneshot";
         baseSet.manualRangesVar = pickManualRangesVar (
             baseManualRangesVar,
             manifestObject->getProperty ("settings").getProperty ("manualRootRanges", juce::var {}),
