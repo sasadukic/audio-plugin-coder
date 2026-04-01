@@ -3353,7 +3353,9 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         }
     }
 
-    modwheelVelocityLayerControlEnabled.store (useModwheelForVelocityLayers, std::memory_order_relaxed);
+    const bool ccArmedModwheelVelocity = modwheelVelocityLayerControlSeenFromMidi.load (std::memory_order_relaxed);
+    modwheelVelocityLayerControlEnabled.store (useModwheelForVelocityLayers || ccArmedModwheelVelocity,
+                                               std::memory_order_relaxed);
     modwheelVelocityLayerControlValue01.store (modwheelValue01, std::memory_order_relaxed);
     sequencerDoublingEnabled.store (sequencerDoubling, std::memory_order_relaxed);
     if (auto* modParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kModWheelParamId)))
@@ -6024,6 +6026,8 @@ void SamplePlayerAudioProcessor::handleMidiMessage (const juce::MidiMessage& mes
     {
         const auto cc = juce::jlimit (0, 127, message.getControllerValue());
         const float value01 = static_cast<float> (cc) / 127.0f;
+        modwheelVelocityLayerControlSeenFromMidi.store (true, std::memory_order_relaxed);
+        modwheelVelocityLayerControlEnabled.store (true, std::memory_order_relaxed);
         modwheelVelocityLayerControlValue01.store (value01, std::memory_order_relaxed);
         if (auto* modParam = dynamic_cast<juce::RangedAudioParameter*> (parameters.getParameter (kModWheelParamId)))
         {

@@ -457,6 +457,7 @@ private:
     std::atomic<int> sessionStateSyncRequestId { 0 };
     std::atomic<bool> monolithDecodeInProgress { false };
     std::atomic<bool> modwheelVelocityLayerControlEnabled { false };
+    std::atomic<bool> modwheelVelocityLayerControlSeenFromMidi { false };
     std::atomic<float> modwheelVelocityLayerControlValue01 { 0.0f };
     std::atomic<float> expressionControllerValue01 { 0.0f };
     std::atomic<int> playerPitchDownOctaves { 0 };
