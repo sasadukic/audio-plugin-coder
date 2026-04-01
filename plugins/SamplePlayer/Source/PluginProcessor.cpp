@@ -1240,10 +1240,17 @@ void SamplePlayerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     if (keepAutoSamplerAwake && outputBuffer.getNumChannels() > 0 && outputBuffer.getNumSamples() > 0)
     {
-        // Keep the host process callback alive while autosampler MIDI is being generated.
-        constexpr float keepAliveLevel = 1.0e-9f;
+        // Some hosts suspend effectively silent synths even while they are generating MIDI.
+        // Use a tiny alternating signal across the whole block so autosampler scheduling keeps advancing.
+        constexpr float keepAliveLevel = 1.0e-6f;
         for (int ch = 0; ch < outputBuffer.getNumChannels(); ++ch)
-            outputBuffer.addSample (ch, 0, keepAliveLevel);
+        {
+            for (int sample = 0; sample < outputBuffer.getNumSamples(); ++sample)
+            {
+                const auto polarity = (sample & 1) == 0 ? keepAliveLevel : -keepAliveLevel;
+                outputBuffer.addSample (ch, sample, polarity);
+            }
+        }
     }
 
     midiMessages.swapWith (renderMidi);
