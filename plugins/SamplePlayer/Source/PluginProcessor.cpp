@@ -2154,6 +2154,7 @@ juce::var buildDirectLoadSessionSnapshot (const juce::var& manifest,
                 uiKs->setProperty ("key", ksObj->getProperty ("key"));
                 uiKs->setProperty ("keyMidi", ksObj->getProperty ("keyMidi"));
                 uiKs->setProperty ("loopPlaybackEnabled", ksObj->getProperty ("loopPlaybackEnabled"));
+                uiKs->setProperty ("gainDb", ksObj->getProperty ("gainDb"));
                 uiKs->setProperty ("openStringMidis", ksObj->getProperty ("openStringMidis"));
                 uiKs->setProperty ("playbackMode",
                                    resolveKeyswitchOneShotPlayback (keyswitchName,
@@ -2453,6 +2454,27 @@ void SamplePlayerAudioProcessor::setActiveMapSetId (const juce::String& setId)
 
     writeLoadDebugLog ("active map switch requested | setId=" + normalizedSetId + " | mode=resync");
     setUiSessionStateJson (updatedJson);
+}
+
+void SamplePlayerAudioProcessor::setKeyswitchSetGainDb (const juce::String& setId, float gainDb)
+{
+    const auto normalizedSetId = setId.trim();
+    if (normalizedSetId.isEmpty())
+        return;
+
+    const auto sampleSet = std::atomic_load (&currentSampleSet);
+    if (sampleSet == nullptr)
+        return;
+
+    const auto slotIt = sampleSet->mapSetSlotById.find (normalizedSetId.toStdString());
+    if (slotIt == sampleSet->mapSetSlotById.end())
+        return;
+
+    auto updatedSampleSet = std::make_shared<SampleSet> (*sampleSet);
+    const int slot = juce::jmax (0, slotIt->second);
+    const auto clampedGainDb = juce::jlimit (-24.0f, 24.0f, gainDb);
+    updatedSampleSet->gainLinearBySlot[slot] = juce::Decibels::decibelsToGain (clampedGainDb);
+    std::atomic_store (&currentSampleSet, std::static_pointer_cast<const SampleSet> (updatedSampleSet));
 }
 
 juce::String SamplePlayerAudioProcessor::getUiSessionStateJson (bool lightweightPreferred)
@@ -3193,6 +3215,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         juce::String name;
         int keyMidi = -1;
         bool loopPlaybackEnabled = true;
+        float gainDb = 0.0f;
         bool oneShotPlayback = false;
         KeyswitchTriggerMode triggerMode = KeyswitchTriggerMode::manual;
         juce::var manualRangesVar;
@@ -3290,6 +3313,10 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                 const auto loopPlaybackEnabledVar = setObject->getProperty ("loopPlaybackEnabled");
                 if (! loopPlaybackEnabledVar.isVoid())
                     state.loopPlaybackEnabled = static_cast<bool> (loopPlaybackEnabledVar);
+                state.gainDb = juce::jlimit (-24.0f,
+                                             24.0f,
+                                             static_cast<float> (varToDouble (setObject->getProperty ("gainDb"),
+                                                                              0.0)));
                 state.triggerMode = getKeyswitchTriggerModeFromName (state.name);
                 state.oneShotPlayback = resolveKeyswitchOneShotPlayback (state.name,
                                                                         setObject->getProperty ("playbackMode").toString());
@@ -3332,6 +3359,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         int slot = 0;
         int keyswitchMidi = -1;
         bool loopPlaybackEnabled = true;
+        float gainDb = 0.0f;
         bool oneShotPlayback = false;
         KeyswitchTriggerMode triggerMode = KeyswitchTriggerMode::manual;
         juce::var manualRangesVar;
@@ -3376,6 +3404,10 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
             set.name = keyswitchObject->getProperty ("name").toString().trim();
             set.keyswitchMidi = -1;
             set.loopPlaybackEnabled = baseLoopPlaybackEnabled;
+            set.gainDb = juce::jlimit (-24.0f,
+                                       24.0f,
+                                       static_cast<float> (varToDouble (keyswitchObject->getProperty ("gainDb"),
+                                                                        0.0)));
             set.triggerMode = getKeyswitchTriggerModeFromName (set.name);
             set.oneShotPlayback = resolveKeyswitchOneShotPlayback (set.name,
                                                                   keyswitchObject->getProperty ("playbackMode").toString());
@@ -3394,6 +3426,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
                     set.name = uiState.name;
                 set.keyswitchMidi = uiState.keyMidi;
                 set.loopPlaybackEnabled = uiState.loopPlaybackEnabled;
+                set.gainDb = uiState.gainDb;
                 set.oneShotPlayback = uiState.oneShotPlayback;
                 set.triggerMode = uiState.triggerMode;
                 set.manualRangesVar = pickManualRangesVar (
@@ -3556,6 +3589,10 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
         hashMix (hash, static_cast<juce::uint64> (mapSet.loopPlaybackEnabled ? 1 : 0));
         hashMix (hash, static_cast<juce::uint64> (mapSet.oneShotPlayback ? 1 : 0));
         hashMix (hash, static_cast<juce::uint64> (juce::jmax (0, mapSet.keyswitchMidi + 1)));
+        hashMix (hash,
+             static_cast<juce::uint64> (std::llround ((static_cast<double> (juce::jlimit (-24.0f, 24.0f, mapSet.gainDb))
+                                    + 24.0)
+                                   * 100.0)));
 
         auto& slotRoots = rootsBySlot[mapSet.slot];
         auto& slotLayersByRoot = layersBySlotRoot[mapSet.slot];
@@ -3812,6 +3849,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     for (const auto& mapSet : mapSets)
     {
         newSampleSet->mapSetSlotById[mapSet.id.toStdString()] = mapSet.slot;
+        newSampleSet->gainLinearBySlot[mapSet.slot] = juce::Decibels::decibelsToGain (juce::jlimit (-24.0f, 24.0f, mapSet.gainDb));
         newSampleSet->loopPlaybackBySlot[mapSet.slot] = mapSet.loopPlaybackEnabled;
         newSampleSet->oneShotPlaybackBySlot[mapSet.slot] = mapSet.oneShotPlayback;
         if (mapSet.triggerMode == KeyswitchTriggerMode::noteOn)
@@ -6755,6 +6793,15 @@ void SamplePlayerAudioProcessor::renderSingleVoice (VoiceState& voice,
 
     const auto loop = buildLoopSettingsForZone (zone, settings);
     const int zoneLength = zone.audio.getNumSamples();
+    float mapSetGainLinear = 1.0f;
+    if (const auto sampleSet = std::atomic_load (&currentSampleSet); sampleSet != nullptr)
+    {
+        if (const auto gainIt = sampleSet->gainLinearBySlot.find (zone.metadata.mapSetSlot);
+            gainIt != sampleSet->gainLinearBySlot.end())
+        {
+            mapSetGainLinear = juce::jmax (0.0f, gainIt->second);
+        }
+    }
 
     for (int i = 0; i < numSamples; ++i)
     {
@@ -6813,7 +6860,7 @@ void SamplePlayerAudioProcessor::renderSingleVoice (VoiceState& voice,
         }
 
         const auto envelope = juce::jmax (0.0f, voice.envelopeGain);
-        const auto amp = settings.outputGainLinear * voice.velocityGain * envelope;
+    const auto amp = settings.outputGainLinear * mapSetGainLinear * voice.velocityGain * envelope;
 
         if (amp > 0.0f)
         {

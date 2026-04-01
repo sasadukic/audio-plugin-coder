@@ -204,6 +204,10 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
                      {
                          editor.handleActiveMapSetEvent (payload);
                      })
+                     .withEventListener ("keyswitch_gain_set", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleKeyswitchGainSetEvent (payload);
+                     })
                      .withEventListener ("sequencer_host_trigger_set", [&editor] (const juce::var& payload)
                      {
                          editor.handleSequencerHostTriggerSetEvent (payload);
@@ -1058,6 +1062,29 @@ void SamplePlayerAudioProcessorEditor::handleActiveMapSetEvent (const juce::var&
     audioProcessor.setActiveMapSetId (setId);
     audioProcessor.perfLog ("active_map_set", juce::Time::getMillisecondCounterHiRes() - t0,
                             "setId=" + setId);
+}
+
+void SamplePlayerAudioProcessorEditor::handleKeyswitchGainSetEvent (const juce::var& eventPayload)
+{
+    juce::String setId;
+    float gainDb = 0.0f;
+
+    if (const auto* object = eventPayload.getDynamicObject())
+    {
+        setId = object->getProperty ("setId").toString().trim();
+        gainDb = juce::jlimit (-24.0f,
+                               24.0f,
+                               static_cast<float> (double (object->getProperty ("gainDb"))));
+    }
+    else if (eventPayload.isString())
+    {
+        setId = eventPayload.toString().trim();
+    }
+
+    if (setId.isEmpty())
+        return;
+
+    audioProcessor.setKeyswitchSetGainDb (setId, gainDb);
 }
 
 void SamplePlayerAudioProcessorEditor::handleSequencerHostTriggerSetEvent (const juce::var& eventPayload)

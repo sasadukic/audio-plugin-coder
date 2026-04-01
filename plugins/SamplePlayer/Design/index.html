@@ -3130,6 +3130,16 @@
       background: rgba(var(--surface-card-rgb), 0.82);
     }
 
+    .keyswitch-map-gain-knob {
+      align-self: center;
+    }
+
+    .keyswitch-map-gain-knob.is-disabled {
+      opacity: 0.42;
+      pointer-events: none;
+      cursor: default;
+    }
+
     .keyswitch-map-key-wrap {
       display: inline-flex;
       align-items: center;
@@ -4506,6 +4516,11 @@
                   <button id="addFolderBtn" class="sample-loop-tool-btn" type="button">Add Folder</button>
                   <button id="newKeyswitchBtn" class="sample-loop-tool-btn" type="button">New Keyswitch</button>
                   <select id="keyswitchMapSelect" class="keyswitch-map-select" aria-label="Select keyswitch set"></select>
+                  <div id="keyswitchGainKnob" class="knob knob-mini tooltip-right keyswitch-map-gain-knob is-disabled" data-param="keyswitchGain" data-min="-24" data-max="24" data-step="0.1" data-value="0" data-unit="dB" data-decimals="1" data-tooltip-value="true" aria-disabled="true" aria-label="Select a keyswitch set">
+                    <div class="knob-face"><div class="knob-pointer"></div></div>
+                    <div class="knob-label">Set Gain</div>
+                    <div class="knob-value"></div>
+                  </div>
                   <button id="clearInstrumentBtn" class="sample-loop-tool-btn" type="button">Clear</button>
                 </div>
                 <div id="newKeyswitchPopover" class="new-ks-popover">
@@ -4989,6 +5004,7 @@
       keyswitchMapLoopWrap: document.getElementById("keyswitchMapLoopWrap"),
       keyswitchMapLoopModeBtn: document.getElementById("keyswitchMapLoopModeBtn"),
       keyswitchMapWarning: document.getElementById("keyswitchMapWarning"),
+      keyswitchGainKnob: document.getElementById("keyswitchGainKnob"),
       sampleEditor: document.getElementById("sampleEditor"),
       sampleEditorTitle: document.getElementById("sampleEditorTitle"),
       sampleEditorMeta: document.getElementById("sampleEditorMeta"),
@@ -6482,6 +6498,7 @@
               key: String(set?.key || ""),
               keyMidi: Number.isFinite(set?.keyMidi) ? Math.round(set.keyMidi) : null,
               loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
+              gainDb: clampKeyswitchGainDb(set?.gainDb ?? 0),
               playbackMode: resolveKeyswitchPlaybackMode(set),
               openStringMidis: getNormalizedKeyswitchSetOpenStringMidis(set),
               openStringColorsByMidi: getNormalizedKeyswitchSetOpenStringColorsByMidi(set),
@@ -6631,7 +6648,7 @@
           JSON.stringify(state.velocityCrossfadeByRoot || {}),
           JSON.stringify(state.sequencerSteps),
           JSON.stringify(state.strumStepPattern),
-          ksSets.map(s => `${s?.id}:${s?.key}:${s?.keyMidi}:${JSON.stringify(s?.manualRanges||{})}`).join(";"),
+          ksSets.map(s => `${s?.id}:${s?.key}:${s?.keyMidi}:${clampKeyswitchGainDb(s?.gainDb ?? 0).toFixed(1)}:${JSON.stringify(s?.manualRanges||{})}`).join(";"),
           entrySigParts
         ].join("|");
 
@@ -6940,6 +6957,7 @@
             matched.manualRanges
           );
           matched.loopPlaybackEnabled = snapshotSet?.loopPlaybackEnabled !== false;
+          matched.gainDb = clampKeyswitchGainDb(snapshotSet?.gainDb ?? matched?.gainDb ?? 0);
           matched.openStringMidis = normalizeOpenStringMidiList(
             snapshotSet?.openStringMidis
             ?? matched?.openStringMidis
@@ -8126,6 +8144,13 @@
         state.activeMapSetId = active.id;
       }
       return active;
+    }
+
+    function getKeyswitchSetGainDb(setOrId) {
+      const set = typeof setOrId === "string"
+        ? getKeyswitchSetById(setOrId)
+        : setOrId;
+      return clampKeyswitchGainDb(set?.gainDb ?? 0);
     }
 
     function getActiveMapEntries() {
@@ -9992,8 +10017,26 @@
         state.activeMapSetId = available[0].id;
       }
       el.keyswitchMapSelect.value = state.activeMapSetId;
+      syncKeyswitchGainKnob();
       updateKeyswitchToolbarKeyEditor();
       syncMapMatrixControls();
+    }
+
+    function syncKeyswitchGainKnob() {
+      const knobNode = el.keyswitchGainKnob;
+      const knob = state.knobs.keyswitchGain;
+      if (!knobNode || !knob || typeof knob.set !== "function") return;
+
+      const activeSet = getKeyswitchSetById(state.activeMapSetId);
+      const enabled = !!activeSet;
+      knobNode.classList.toggle("is-disabled", !enabled);
+      knobNode.setAttribute("aria-disabled", enabled ? "false" : "true");
+      knob.set(enabled ? getKeyswitchSetGainDb(activeSet) : 0, false);
+
+      if (!enabled) {
+        knobNode.dataset.tooltip = "Select a keyswitch set";
+        knobNode.setAttribute("aria-label", "Select a keyswitch set");
+      }
     }
 
     function buildKeyswitchEntriesFromManifest(data, options = null) {
@@ -10110,6 +10153,7 @@
             key: normalizedKey.key,
             keyMidi: normalizedKey.keyMidi,
             loopPlaybackEnabled: data?.loopPlaybackEnabled !== false,
+            gainDb: clampKeyswitchGainDb(data?.gainDb ?? 0),
             playbackMode: normalizeKeyswitchTriggerModeName(setName) !== "manual"
               ? "oneshot"
               : normalizeKeyswitchPlaybackMode(data?.playbackMode),
@@ -10448,7 +10492,7 @@
         });
 
         node.addEventListener("dblclick", (ev) => {
-          if (param !== "gain") return;
+          if (param !== "gain" && param !== "keyswitchGain") return;
           ev.preventDefault();
           set(0);
         });
@@ -11519,6 +11563,10 @@
 
     function clampSampleGainDb(v) {
       return Math.max(-24, Math.min(24, Number(v) || 0));
+    }
+
+    function clampKeyswitchGainDb(v) {
+      return clampSampleGainDb(v);
     }
 
     function clampAutoInterval(v) {
@@ -14933,9 +14981,10 @@
       const fineTuneRatio = Math.pow(2, clampFineTune(entry.fineTuneCents ?? 0) / 1200);
       const pitchDownRatio = getPlayerPitchDownRateRatio();
       const sampleGainScale = dbToGain(entry.editorGainDb ?? 0);
+      const mapSetGainScale = dbToGain(getKeyswitchSetGainDb(entry?.mapSetId || state.activeMapSetId));
       const playbackRate = Math.max(0.125, Math.min(8, semitoneRatio * fineTuneRatio * pitchDownRatio));
       const voiceSettings = getPlayerVoiceSettings();
-      const peakGain = Math.max(0.0001, velocityGain * voiceSettings.outputGain * mixGain * sampleGainScale);
+      const peakGain = Math.max(0.0001, velocityGain * voiceSettings.outputGain * mixGain * sampleGainScale * mapSetGainScale);
       const startDelaySec = Math.max(0, Math.min(0.003, Number(layerStartDelaySec) || 0));
 
       getWaveformForEntry(entry).then((waveform) => {
@@ -15107,7 +15156,7 @@
         if ((state.previewTriggerSerialByKey.get(keyMidi) ?? 0) !== keySerial) return;
         if (state.selectedMapEntryOrder === entry.order) stopWaveformPlayhead();
         const audio = new Audio(entry.sampleUrl);
-        audio.volume = Math.max(0, Math.min(1, velocityGain * mixGain * sampleGainScale * Math.min(1, voiceSettings.outputGain)));
+        audio.volume = Math.max(0, Math.min(1, velocityGain * mixGain * sampleGainScale * mapSetGainScale * Math.min(1, voiceSettings.outputGain)));
         audio.playbackRate = playbackRate;
         if ("preservesPitch" in audio) audio.preservesPitch = false;
         if ("mozPreservesPitch" in audio) audio.mozPreservesPitch = false;
@@ -15286,6 +15335,27 @@
         });
       }
 
+      if (el.keyswitchGainKnob) {
+        el.keyswitchGainKnob.addEventListener("knobchange", (ev) => {
+          const activeSet = getKeyswitchSetById(state.activeMapSetId);
+          if (!activeSet) {
+            syncKeyswitchGainKnob();
+            return;
+          }
+
+          const nextDb = clampKeyswitchGainDb(ev?.detail?.value ?? 0);
+          if (Math.abs(getKeyswitchSetGainDb(activeSet) - nextDb) < 0.049) return;
+
+          ensureSessionStateWritable("keyswitch-gain");
+          activeSet.gainDb = nextDb;
+          emitNativeEvent("keyswitch_gain_set", {
+            setId: activeSet.id,
+            gainDb: nextDb
+          });
+          scheduleSessionStateSave(220);
+        });
+      }
+
       if (el.keyswitchMapNormalizeBtn) {
         el.keyswitchMapNormalizeBtn.addEventListener("click", () => {
           void normalizeAllSamples();
@@ -15324,6 +15394,7 @@
             key: normalized.key,
             keyMidi: normalized.keyMidi,
             loopPlaybackEnabled: true,
+            gainDb: 0,
             playbackMode: normalizeKeyswitchTriggerModeName(name) !== "manual" ? "oneshot" : "spread",
             openStringMidis: [],
             openStringColorsByMidi: {},
@@ -16470,6 +16541,7 @@
               name: setName,
               keyswitchKey: setKey,
               loopPlaybackEnabled: set?.loopPlaybackEnabled !== false,
+              gainDb: clampKeyswitchGainDb(set?.gainDb ?? 0),
               playbackMode: resolveKeyswitchPlaybackMode(set),
               openStringMidis: getNormalizedKeyswitchSetOpenStringMidis(set),
               openStringColorsByMidi: getNormalizedKeyswitchSetOpenStringColorsByMidi(set),
@@ -16907,6 +16979,7 @@
           key: keyInfo.key,
           keyMidi: keyInfo.keyMidi,
           loopPlaybackEnabled: sessionLoopPlayback === null ? (rawSet?.loopPlaybackEnabled !== false) : sessionLoopPlayback,
+          gainDb: clampKeyswitchGainDb(sessionUiSet?.gainDb ?? rawSet?.gainDb ?? 0),
           playbackMode: normalizeKeyswitchTriggerModeName(importedSetName) !== "manual"
             ? "oneshot"
             : normalizeKeyswitchPlaybackMode(sessionUiSet?.playbackMode || rawSet?.playbackMode),

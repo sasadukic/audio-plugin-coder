@@ -164,6 +164,7 @@ public:
     void loadManifestDirect (const juce::String& filePath);
     void loadMonolithDirect (const juce::String& filePath);
     void setActiveMapSetId (const juce::String& setId);
+    void setKeyswitchSetGainDb (const juce::String& setId, float gainDb);
     juce::String getUiSessionStateJson (bool lightweightPreferred = false);
     juce::String getSampleDataUrlForMapEntry (int rootMidi,
                                               int velocityLayer,
@@ -208,6 +209,7 @@ private:
         juce::StringArray sourcePaths;
         juce::String summary;
         std::unordered_map<std::string, int> mapSetSlotById;
+        std::unordered_map<int, float> gainLinearBySlot;
         std::unordered_map<int, bool> loopPlaybackBySlot;
         std::unordered_map<int, bool> oneShotPlaybackBySlot;
         std::vector<int> noteOnTriggerSlots;
