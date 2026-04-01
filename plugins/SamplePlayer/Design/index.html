@@ -10923,16 +10923,41 @@
       return roots;
     }
 
+    function getManualRangeRoots(manualRanges) {
+      const source = (manualRanges && typeof manualRanges === "object") ? manualRanges : null;
+      if (!source) return [];
+
+      return Object.keys(source)
+        .map((key) => Math.round(Number(key)))
+        .filter((rootMidi) => Number.isFinite(rootMidi) && rootMidi >= 0 && rootMidi <= 127)
+        .sort((a, b) => a - b);
+    }
+
     function getMapMatrixIntervalRoots(entries = getActiveMapEntries(), interval = state.mapMatrixInterval) {
       const step = clampMapMatrixInterval(interval);
-      if (step <= 1) return [];
       const roots = Array.from(new Set(
         [...(Array.isArray(entries) ? entries : [])]
           .filter((entry) => entry && entry.valid)
           .map((entry) => Math.max(0, Math.min(127, Math.round(Number(entry.rootMidi) || 0))))
       )).sort((a, b) => a - b);
-      if (!roots.length) return [];
-      return buildIntervalRootsFromRange(roots[0], roots[roots.length - 1], step);
+
+      if (!state.mapMatrixSplitEnabled) {
+        if (step <= 1 || !roots.length) return [];
+        return buildIntervalRootsFromRange(roots[0], roots[roots.length - 1], step);
+      }
+
+      const manualRoots = getManualRangeRoots(getActiveMapManualRanges());
+      if (manualRoots.length) return manualRoots;
+
+      if (step <= 1) return buildIntervalRootsFromRange(0, 127, 1);
+      if (!roots.length) return buildIntervalRootsFromRange(0, 127, step);
+
+      const splitRoots = buildIntervalRootsFromRange(0, 127, step);
+      roots.forEach((rootMidi) => {
+        if (!splitRoots.includes(rootMidi)) splitRoots.push(rootMidi);
+      });
+      splitRoots.sort((a, b) => a - b);
+      return splitRoots;
     }
 
     function isMapMatrixRootMidi(midi, interval = state.mapMatrixInterval, intervalRoots = null) {
@@ -11017,15 +11042,15 @@
       if (!state.mapMatrixSplitEnabled) return;
       const validEntries = [...(Array.isArray(entries) ? entries : [])]
         .filter((entry) => entry && entry.valid);
-      const roots = Array.from(new Set(
-        validEntries.map((entry) => Math.max(0, Math.min(127, Math.round(Number(entry.rootMidi) || 0))))
-      )).sort((a, b) => a - b);
+      const roots = getMapMatrixIntervalRoots(validEntries, state.mapMatrixInterval);
       const manualRanges = getActiveMapManualRanges();
       if (!manualRanges || typeof manualRanges !== "object") return;
 
       Object.keys(manualRanges).forEach((key) => {
         delete manualRanges[key];
       });
+
+      if (!roots.length) return;
 
       roots.forEach((root, idx) => {
         const low = idx === 0 ? root : Math.max(0, Math.min(root, roots[idx - 1] + 1));
