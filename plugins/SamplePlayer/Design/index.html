@@ -7797,6 +7797,7 @@
       const noteToken = midiToNote(root);
       const owner = getMutableActiveMapEntriesStore();
       if (!Array.isArray(owner)) return;
+      const existingFileNames = new Set(owner.map((entry) => String(entry?.fileName || "").trim().toLowerCase()).filter(Boolean));
 
       if (state.mapMatrixSplitEnabled) {
         const { rrColumns, interval } = normalizeMapMatrixState();
@@ -7815,7 +7816,8 @@
             { name: file.name, path: file.path || "" },
             targetRoot,
             targetLayer,
-            rrColumns > 1 ? targetRr : null
+            rrColumns > 1 ? targetRr : null,
+            existingFileNames
           );
           owner.push(entry);
           ensureEntryEditorState(entry);
@@ -7827,8 +7829,17 @@
         audioFiles.forEach((file) => {
           const parsed = parseFilename(String(file.name || ""));
           const loopEnabled = parsed.valid ? !!parsed.loopEnabled : hasLoopTokenInFileName(file.name);
+          const velocityLayer = parsed.valid && Number.isFinite(parsed.velocityLayer) ? parsed.velocityLayer : 1;
+          const rrIndex = parsed.valid && Number.isFinite(parsed.rrIndex) ? parsed.rrIndex : null;
+          const fileName = buildMappedImportFileName({
+            originalName: String(file.name || "sample.wav"),
+            rootMidi: root,
+            velocityLayer,
+            rrIndex,
+            loopEnabled
+          }, existingFileNames);
           const entry = {
-            fileName: String(file.name || "sample.wav"),
+            fileName,
             manifestPath: String(file.path || ""),
             order: getNextMapEntryOrder(),
             sampleUrl: "",
@@ -7842,8 +7853,8 @@
             reason: "",
             noteToken,
             rootMidi: root,
-            velocityLayer: parsed.valid && Number.isFinite(parsed.velocityLayer) ? parsed.velocityLayer : 1,
-            rrIndex: parsed.valid && Number.isFinite(parsed.rrIndex) ? parsed.rrIndex : null,
+            velocityLayer,
+            rrIndex,
             loopEnabled,
             hasVelocityToken: parsed.valid && !!parsed.hasVelocityToken,
             hasRRToken: parsed.valid && !!parsed.hasRRToken,
@@ -11118,16 +11129,74 @@
       return parts.some((token) => String(token).toUpperCase() === "L");
     }
 
-    function createMatrixMappedEntryFromFile(file, rootMidi, velocityLayer, rrIndex = 1) {
+    function getImportedSampleFileExtension(fileName, fallback = ".wav") {
+      const match = String(fileName || "").trim().match(/\.([^.\\/]+)$/);
+      if (!match) return fallback;
+      const cleaned = String(match[1] || "").replace(/[^a-z0-9]+/gi, "").toLowerCase();
+      return cleaned ? `.${cleaned}` : fallback;
+    }
+
+    function sanitizeImportedSampleFileStem(raw, fallback = "sample") {
+      const cleaned = String(raw || "")
+        .trim()
+        .replace(/[<>:"/\\|?*\u0000-\u001f]+/g, " ")
+        .replace(/\s+/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/[. ]+$/g, "")
+        .replace(/^_+|_+$/g, "");
+      return cleaned || String(fallback || "sample");
+    }
+
+    function buildMappedImportFileName(options, existingFileNames = null) {
+      const source = (options && typeof options === "object") ? options : {};
+      const root = Math.max(0, Math.min(127, Math.round(Number(source.rootMidi) || 0)));
+      const velocityLayer = Math.max(1, Math.min(5, Math.round(Number(source.velocityLayer) || 1)));
+      const rrIndexValue = Math.round(Number(source.rrIndex));
+      const rrIndex = Number.isFinite(rrIndexValue) && rrIndexValue > 0 ? rrIndexValue : null;
+      const extension = getImportedSampleFileExtension(source.originalName, ".wav");
+      const stemParts = [
+        `${midiToNote(root)}_V${velocityLayer}`
+      ];
+      if (rrIndex !== null) stemParts.push(`RR${rrIndex}`);
+      if (source.loopEnabled) stemParts.push("L");
+      const stem = sanitizeImportedSampleFileStem(stemParts.join("_"), "sample");
+      let candidate = `${stem}${extension}`;
+
+      if (!(existingFileNames instanceof Set)) return candidate;
+
+      const baseKey = candidate.toLowerCase();
+      if (!existingFileNames.has(baseKey)) {
+        existingFileNames.add(baseKey);
+        return candidate;
+      }
+
+      let suffix = 2;
+      do {
+        candidate = `${stem}_${suffix}${extension}`;
+        suffix += 1;
+      } while (existingFileNames.has(candidate.toLowerCase()));
+
+      existingFileNames.add(candidate.toLowerCase());
+      return candidate;
+    }
+
+    function createMatrixMappedEntryFromFile(file, rootMidi, velocityLayer, rrIndex = 1, existingFileNames = null) {
       const parsed = parseFilename(String(file?.name || ""));
       const loopEnabled = parsed.valid ? !!parsed.loopEnabled : hasLoopTokenInFileName(file?.name);
       const suffixSerial = parsed.valid && Number.isFinite(parsed.suffixSerial) ? parsed.suffixSerial : null;
       const root = Math.max(0, Math.min(127, Math.round(Number(rootMidi) || 0)));
       const layer = clampMapMatrixVelocityLayers(velocityLayer);
       const sourcePath = (file && typeof file.path === "string") ? String(file.path).trim() : "";
+      const fileName = buildMappedImportFileName({
+        originalName: String(file?.name || "sample.wav"),
+        rootMidi: root,
+        velocityLayer: layer,
+        rrIndex,
+        loopEnabled
+      }, existingFileNames);
 
       return {
-        fileName: String(file?.name || "sample.wav"),
+        fileName,
         manifestPath: sourcePath,
         order: getNextMapEntryOrder(),
         sampleUrl: sourcePath ? "" : URL.createObjectURL(file),
@@ -11269,6 +11338,7 @@
       const mapLookup = getMapMatrixEntryLookup(activeEntries, rrColumns);
       const cursorKey = getMapMatrixCursorKey(targetRoot, targetLayer);
       let cursorStart = Math.max(1, Math.min(rrColumns, Math.round(Number(state.mapMatrixRrCursor[cursorKey]) || 1)));
+      const existingFileNames = new Set(owner.map((entry) => String(entry?.fileName || "").trim().toLowerCase()).filter(Boolean));
       let added = 0;
       let skipped = 0;
 
@@ -11283,7 +11353,8 @@
           file,
           targetRoot,
           targetLayer,
-          rrColumns > 1 ? targetRr : null
+          rrColumns > 1 ? targetRr : null,
+          existingFileNames
         );
         owner.push(entry);
         if (!entry.manifestPath) {
