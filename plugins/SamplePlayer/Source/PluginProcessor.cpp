@@ -1919,7 +1919,7 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
     juce::String normalizedJson = json;
 
     int parsedPitchDownOctaves = 0;
-    float parsedModwheelValue01 = modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed);
+    float parsedModwheelValue01 = 0.0f;
     uiSessionStateLightweightVersion.fetch_add (1, std::memory_order_relaxed);
     float parsedExpressionValue01 = expressionControllerValue01.load (std::memory_order_relaxed);
     float parsedAttackMs = parameters.getRawParameterValue ("attackMs")->load();
@@ -1935,9 +1935,6 @@ void SamplePlayerAudioProcessor::setUiSessionStateJson (const juce::String& json
             {
                 parsedPitchDownOctaves = juce::jlimit (0, 2,
                     varToInt (uiObject->getProperty ("playerPitchDownOctaves"), 0));
-                parsedModwheelValue01 = juce::jlimit (0.0f, 1.0f,
-                    static_cast<float> (varToDouble (uiObject->getProperty ("modWheelValue"),
-                                                     static_cast<double> (parsedModwheelValue01))));
                 parsedExpressionValue01 = juce::jlimit (0.0f, 1.0f,
                     static_cast<float> (varToDouble (uiObject->getProperty ("expressionValue"),
                                                      static_cast<double> (parsedExpressionValue01))));
@@ -3313,8 +3310,7 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     juce::String manifestBasePath;
     juce::String autoDestinationPath;
     juce::String activeMapSetId = "base";
-    float modwheelValue01 = juce::jlimit (0.0f, 1.0f,
-                                          modwheelVelocityLayerControlValue01.load (std::memory_order_relaxed));
+    float modwheelValue01 = 0.0f;
     juce::var baseManualRangesVar;
     bool sequencerHostTriggerEnabled = false;
     bool sequencerDoubling = false;
@@ -3346,10 +3342,6 @@ void SamplePlayerAudioProcessor::syncSampleSetFromSessionStateJson (const juce::
     if (const auto* uiObject = rootObject->getProperty ("ui").getDynamicObject())
     {
         allowPitchUpAboveHighest = static_cast<bool> (uiObject->getProperty ("allowPitchUpAboveHighest"));
-        modwheelValue01 = juce::jlimit (0.0f, 1.0f,
-                                        static_cast<float> (varToDouble (uiObject->getProperty ("modWheelValue"),
-                                                                         static_cast<double> (modwheelValue01))));
-
         if (const auto* autoObject = uiObject->getProperty ("auto").getDynamicObject())
         {
             useModwheelForVelocityLayers = static_cast<bool> (autoObject->getProperty ("modwheelVelocityControl"));
@@ -7219,7 +7211,7 @@ float SamplePlayerAudioProcessor::getRealtimeVelocityLayerGain (const VoiceState
     return computeVelocityCrossfadeBlendState (rootIt->second,
                                                voice.zone->metadata.velocityLayer,
                                                selectionVelocity,
-                                               50,
+                                               70,
                                                jitterSigned).gain;
 }
 
@@ -7250,7 +7242,7 @@ double SamplePlayerAudioProcessor::getRealtimeVelocityLayerDelaySourceSamples (c
     const auto blendState = computeVelocityCrossfadeBlendState (rootIt->second,
                                                                 voice.zone->metadata.velocityLayer,
                                                                 selectionVelocity,
-                                                                50,
+                                                                70,
                                                                 jitterSigned);
 
     if (currentSampleRate <= 0.0)

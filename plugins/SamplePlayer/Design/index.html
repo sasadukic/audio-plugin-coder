@@ -4587,7 +4587,7 @@
                         <div id="sampleLoopXfadePointer" class="sample-finetune-pointer sample-loop-xfade-pointer"></div>
                       </div>
                     </div>
-                    <label class="sample-velocity-toggle" title="Velocity crossfade 50%" aria-label="Velocity crossfade 50%">
+                    <label class="sample-velocity-toggle" title="Velocity crossfade 70%" aria-label="Velocity crossfade 70%">
                       <input id="velocityXfadeToggle" type="checkbox">
                       <span class="sample-velocity-toggle-mark">✓</span>
                     </label>
@@ -6530,7 +6530,7 @@
         allowPitchUpAboveHighest: !!state.allowPitchUpAboveHighest,
         autoRR: !!state.autoRR,
         autoGainCrossfade: !!state.autoGainCrossfade,
-        modWheelValue: Math.max(0, Math.min(1, Number(state.modWheelValue) || 0)),
+        modWheelValue: 0,
         expressionValue: Math.max(0, Math.min(1, Number(state.expressionValue) || 0)),
         pitchBendValue: Math.max(-1, Math.min(1, Number(state.pitchBendValue) || 0)),
         playerPitchDownOctaves: Math.max(0, Math.min(2, Math.round(Number(state.playerPitchDownOctaves) || 0))),
@@ -6635,7 +6635,7 @@
           state.allowPitchUpAboveHighest,
           state.autoRR,
           state.autoGainCrossfade,
-          state.modWheelValue,
+          0,
           state.expressionValue,
           state.pitchBendValue,
           ampEnvelopeSnapshot.attackMs,
@@ -6933,7 +6933,7 @@
         state.allowPitchUpAboveHighest = ui.allowPitchUpAboveHighest !== undefined ? !!ui.allowPitchUpAboveHighest : state.allowPitchUpAboveHighest;
         state.autoRR = ui.autoRR !== undefined ? !!ui.autoRR : state.autoRR;
         state.autoGainCrossfade = ui.autoGainCrossfade !== undefined ? !!ui.autoGainCrossfade : state.autoGainCrossfade;
-        state.modWheelValue = Math.max(0, Math.min(1, Number(ui.modWheelValue) || 0));
+        state.modWheelValue = 0;
         state.expressionValue = Math.max(0, Math.min(1, Number(ui.expressionValue) || 0));
         state.pitchBendValue = Math.max(-1, Math.min(1, Number(ui.pitchBendValue) || 0));
         state.playerPitchDownOctaves = Math.max(0, Math.min(2, Math.round(Number(ui.playerPitchDownOctaves) || 0)));
@@ -11609,7 +11609,7 @@
     }
 
     function clampVelocityCrossfadePercent(v) {
-      return Number(v) > 0 ? 50 : 0;
+      return Number(v) > 0 ? 70 : 0;
     }
 
     function clampSampleGainDb(v) {
@@ -12103,10 +12103,10 @@
 
     function getVelocityCrossfadePercentForRoot(rootMidi) {
       if (!Number.isFinite(rootMidi)) return 0;
-      if (isAutoModwheelVelocityControlActiveForRoot(rootMidi)) return 50;
+      if (isAutoModwheelVelocityControlActiveForRoot(rootMidi)) return 70;
       const key = String(Math.round(rootMidi));
       if (Object.prototype.hasOwnProperty.call(state.velocityCrossfadeByRoot, key)) {
-        return Number(state.velocityCrossfadeByRoot[key]) > 0 ? 50 : 0;
+        return Number(state.velocityCrossfadeByRoot[key]) > 0 ? 70 : 0;
       }
       return 0;
     }
@@ -12154,7 +12154,7 @@
 
     function applyModwheelVelocityCrossfadeLink() {
       if (!isAutoModwheelVelocityControlEnabled()) return;
-      const applied = setVelocityCrossfadePercentForAllRoots(50);
+      const applied = setVelocityCrossfadePercentForAllRoots(70);
       if (el.velocityXfadeToggle) {
         el.velocityXfadeToggle.checked = applied > 0;
       }
@@ -17831,7 +17831,7 @@
             el.velocityXfadeToggle.checked = true;
             return;
           }
-          const normalized = el.velocityXfadeToggle.checked ? 50 : 0;
+          const normalized = el.velocityXfadeToggle.checked ? 70 : 0;
           const selectedEntry = getMapEntryByOrder(state.selectedMapEntryOrder);
           if (!selectedEntry) {
             syncVelocityCrossfadeControl(null);
