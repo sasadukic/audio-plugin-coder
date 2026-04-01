@@ -14592,7 +14592,7 @@
       const layerCount = layers.length;
       const baseIdx = Math.min(layerCount - 1, Math.floor(((v - 1) * layerCount) / 127));
       const perRootPercent = getVelocityCrossfadePercentForRoot(donorRoot);
-      const xfadePct = Math.max(0, Math.min(0.5, perRootPercent / 100));
+      const xfadePct = Math.max(0, Math.min(1, perRootPercent / 100));
       if (xfadePct <= 0.0001) return [{ velocityLayer: layers[baseIdx], gain: 1, startDelaySec: 0 }];
 
       const layerRange = 127 / layerCount;

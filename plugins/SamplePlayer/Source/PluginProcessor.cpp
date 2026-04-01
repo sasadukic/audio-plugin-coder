@@ -270,7 +270,7 @@ VelocityLayerBlendState computeVelocityCrossfadeBlendState (const std::vector<in
     const int velocity127 = juce::jlimit (1, 127, selectionVelocity);
     const int baseIndex = juce::jmin (layerCount - 1,
                                       ((velocity127 - 1) * layerCount) / 127);
-    const float xfadePct = juce::jlimit (0.0f, 0.5f, static_cast<float> (crossfadePercent) / 100.0f);
+    const float xfadePct = juce::jlimit (0.0f, 1.0f, static_cast<float> (crossfadePercent) / 100.0f);
 
     if (xfadePct <= 0.0001f)
     {
