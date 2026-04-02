@@ -54,6 +54,30 @@ bool decodeDataUrlToMemory (const juce::String& dataUrl, juce::MemoryBlock& outp
     return juce::Base64::convertFromBase64 (out, payload);
 }
 
+juce::String getMimeTypeForFile (const juce::File& file)
+{
+    const auto ext = file.getFileExtension().toLowerCase();
+    if (ext == ".png")  return "image/png";
+    if (ext == ".jpg" || ext == ".jpeg") return "image/jpeg";
+    if (ext == ".webp") return "image/webp";
+    if (ext == ".gif")  return "image/gif";
+    if (ext == ".svg")  return "image/svg+xml";
+    return "application/octet-stream";
+}
+
+juce::String buildFileDataUrl (const juce::File& file)
+{
+    if (! file.existsAsFile())
+        return {};
+
+    juce::MemoryBlock bytes;
+    if (! file.loadFileAsData (bytes) || bytes.getSize() == 0)
+        return {};
+
+    return "data:" + getMimeTypeForFile (file) + ";base64,"
+         + juce::Base64::toBase64 (bytes.getData(), bytes.getSize());
+}
+
 juce::String sanitizeRelativeAssetPath (const juce::String& rawPath)
 {
     auto path = rawPath.trim().replaceCharacter ('\\', '/');
@@ -75,6 +99,36 @@ juce::String sanitizeRelativeAssetPath (const juce::String& rawPath)
 
     return safe.joinIntoString ("/");
 }
+
+juce::String extractResourcePathFromUrl (const juce::String& rawUrl)
+{
+    auto url = rawUrl.trim();
+    if (url.isEmpty())
+        return {};
+
+    const auto root = juce::WebBrowserComponent::getResourceProviderRoot();
+    if (url.startsWithIgnoreCase (root))
+        url = url.fromFirstOccurrenceOf (root, false, false);
+    else if (const auto schemePos = url.indexOf ("://"); schemePos >= 0)
+    {
+        if (const auto pathPos = url.indexOfChar (schemePos + 3, '/'); pathPos >= 0)
+            url = url.substring (pathPos);
+        else
+            url.clear();
+    }
+
+    url = url.upToFirstOccurrenceOf ("?", false, false);
+    url = url.upToFirstOccurrenceOf ("#", false, false);
+
+    if (url.isEmpty() || url == "/")
+        return "index.html";
+
+    if (url.startsWithChar ('/'))
+        url = url.substring (1);
+
+    return sanitizeRelativeAssetPath (url);
+}
+
 } // namespace
 
 SamplePlayerAudioProcessorEditor::SamplePlayerAudioProcessorEditor (SamplePlayerAudioProcessor& p)
@@ -84,8 +138,12 @@ SamplePlayerAudioProcessorEditor::SamplePlayerAudioProcessorEditor (SamplePlayer
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
+    lastPushedLightweightVersion = audioProcessor.getUiSessionStateLightweightVersion();
+    lastPushedLightweightSessionJson = audioProcessor.getUiSessionStateJson (true);
+
     setSize (defaultEditorWidth, defaultPlayerHeight);
-    startTimerHz (20);
+
+    startTimerHz (10);
 }
 
 SamplePlayerAudioProcessorEditor::~SamplePlayerAudioProcessorEditor()
@@ -118,6 +176,10 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
 
     options = options.withNativeIntegrationEnabled()
                      .withKeepPageLoadedWhenBrowserIsHidden()
+                     .withEventListener ("frontend_ready", [&editor] (const juce::var&)
+                     {
+                         editor.frontendReadyForEvents = true;
+                     })
                      .withEventListener ("autosampler_control", [&editor] (const juce::var& payload)
                      {
                          editor.handleAutoSamplerControlEvent (payload);
@@ -130,6 +192,10 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
                      {
                          editor.handlePickInstrumentManifestEvent (payload);
                      })
+                     .withEventListener ("pick_graphic_file", [&editor] (const juce::var& payload)
+                     {
+                         editor.handlePickGraphicFileEvent (payload);
+                     })
                      .withEventListener ("session_state_set", [&editor] (const juce::var& payload)
                      {
                          editor.handleSessionStateSetEvent (payload);
@@ -138,9 +204,21 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
                      {
                          editor.handleActiveMapSetEvent (payload);
                      })
+                     .withEventListener ("keyswitch_gain_set", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleKeyswitchGainSetEvent (payload);
+                     })
                      .withEventListener ("sequencer_host_trigger_set", [&editor] (const juce::var& payload)
                      {
                          editor.handleSequencerHostTriggerSetEvent (payload);
+                     })
+                     .withEventListener ("sequencer_settings_set", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleSequencerSettingsSetEvent (payload);
+                     })
+                     .withEventListener ("strum_settings_set", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleStrumSettingsSetEvent (payload);
                      })
                      .withEventListener ("session_state_get", [&editor] (const juce::var& payload)
                      {
@@ -150,21 +228,37 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
                      {
                          editor.handleSampleDataGetEvent (payload);
                      })
-                     .withEventListener ("graphic_data_get", [&editor] (const juce::var& payload)
-                     {
-                         editor.handleGraphicDataGetEvent (payload);
-                     })
                      .withEventListener ("preview_midi", [&editor] (const juce::var& payload)
                      {
                          editor.handlePreviewMidiEvent (payload);
+                     })
+                     .withEventListener ("performance_wheel_set", [&editor] (const juce::var& payload)
+                     {
+                         editor.handlePerformanceWheelSetEvent (payload);
+                     })
+                     .withEventListener ("amp_envelope_set", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleAmpEnvelopeSetEvent (payload);
                      })
                      .withEventListener ("save_instrument_bundle", [&editor] (const juce::var& payload)
                      {
                          editor.handleSaveInstrumentBundleEvent (payload);
                      })
+                     .withEventListener ("graphic_data_get", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleGraphicDataGetEvent (payload);
+                     })
                      .withEventListener ("debug_log", [&editor] (const juce::var& payload)
                      {
                          editor.handleDebugLogEvent (payload);
+                     })
+                     .withEventListener ("pick_audio_files", [&editor] (const juce::var& payload)
+                     {
+                         editor.handlePickAudioFilesEvent (payload);
+                     })
+                     .withEventListener ("pick_audio_folder", [&editor] (const juce::var& payload)
+                     {
+                         editor.handlePickAudioFolderEvent (payload);
                      })
                      .withEventListener ("ui_resize", [&editor] (const juce::var& payload)
                      {
@@ -189,13 +283,25 @@ std::optional<juce::WebBrowserComponent::Resource> SamplePlayerAudioProcessorEdi
         };
     };
 
-    auto resourcePath = url.fromFirstOccurrenceOf (
-        juce::WebBrowserComponent::getResourceProviderRoot(), false, false);
+    auto makeStringResource = [] (const juce::String& text, const char* mime)
+    {
+        const auto utf8 = text.toUTF8();
+        const auto* bytesBegin = reinterpret_cast<const std::byte*> (utf8.getAddress());
+        const auto numBytes = static_cast<size_t> (std::strlen (utf8.getAddress()));
 
-    if (resourcePath.isEmpty() || resourcePath == "/")
-        resourcePath = "/index.html";
+        return juce::WebBrowserComponent::Resource{
+            std::vector<std::byte> (bytesBegin, bytesBegin + numBytes),
+            juce::String (mime)
+        };
+    };
 
-    auto path = resourcePath.startsWithChar ('/') ? resourcePath.substring (1) : resourcePath;
+    const auto path = extractResourcePathFromUrl (url);
+
+    if (path.isEmpty())
+    {
+        appendUiDebugLog ("resource request ignored | unresolved path | url=" + url);
+        return std::nullopt;
+    }
 
     if (path == "index.html")
     {
@@ -211,6 +317,15 @@ std::optional<juce::WebBrowserComponent::Resource> SamplePlayerAudioProcessorEdi
                              "image/svg+xml");
     }
 
+    if (path == "session-state-light.json" || path == "session-state-full.json")
+    {
+        const auto jsonPayload = buildSessionStateJsonForFrontend (path == "session-state-full.json");
+        appendUiDebugLog ("resource request served | path=" + path
+                          + " | bytesOut=" + juce::String (jsonPayload.getNumBytesAsUTF8()));
+        return makeStringResource (jsonPayload, "application/json");
+    }
+
+    appendUiDebugLog ("resource request missing | path=" + path + " | url=" + url);
     return std::nullopt;
 }
 
@@ -287,31 +402,9 @@ juce::String SamplePlayerAudioProcessorEditor::buildAudioWavDataUrl (const Sampl
     return "data:audio/wav;base64," + base64;
 }
 
-juce::String SamplePlayerAudioProcessorEditor::buildFileDataUrl (const juce::File& file)
+juce::String SamplePlayerAudioProcessorEditor::buildSessionStateJsonForFrontend (bool requestFull) const
 {
-    if (! file.existsAsFile())
-        return {};
-
-    juce::MemoryBlock bytes;
-    if (! file.loadFileAsData (bytes) || bytes.getSize() == 0)
-        return {};
-
-    const auto ext = file.getFileExtension().toLowerCase();
-    juce::String mimeType = "application/octet-stream";
-    if (ext == ".png") mimeType = "image/png";
-    else if (ext == ".jpg" || ext == ".jpeg") mimeType = "image/jpeg";
-    else if (ext == ".webp") mimeType = "image/webp";
-    else if (ext == ".bmp") mimeType = "image/bmp";
-    else if (ext == ".gif") mimeType = "image/gif";
-    else if (ext == ".svg") mimeType = "image/svg+xml";
-    else if (ext == ".avif") mimeType = "image/avif";
-    else if (ext == ".wav") mimeType = "audio/wav";
-    else if (ext == ".aif" || ext == ".aiff") mimeType = "audio/aiff";
-    else if (ext == ".flac") mimeType = "audio/flac";
-    else if (ext == ".ogg") mimeType = "audio/ogg";
-    else if (ext == ".mp3") mimeType = "audio/mpeg";
-
-    return "data:" + mimeType + ";base64," + juce::Base64::toBase64 (bytes.getData(), bytes.getSize());
+    return audioProcessor.getUiSessionStateJson (! requestFull);
 }
 
 void SamplePlayerAudioProcessorEditor::timerCallback()
@@ -319,18 +412,79 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
     if (! webView)
         return;
 
-    const auto lightweightSessionJson = audioProcessor.getUiSessionStateJson (true);
-    if (lightweightSessionJson.isNotEmpty()
-        && lightweightSessionJson != lastPushedLightweightSessionJson)
+    const auto _timerStart = juce::Time::getMillisecondCounterHiRes();
+
+    // Flush profiler ring buffer to log file periodically
+    audioProcessor.perfFlushToFile();
+    const auto _afterFlush = juce::Time::getMillisecondCounterHiRes();
+
+    if (! frontendReadyForEvents)
+        return;
+
+    const int currentLightweightVersion = audioProcessor.getUiSessionStateLightweightVersion();
+    if (currentLightweightVersion != lastPushedLightweightVersion)
     {
-        lastPushedLightweightSessionJson = lightweightSessionJson;
-        auto payloadObject = juce::DynamicObject::Ptr (new juce::DynamicObject());
-        payloadObject->setProperty ("json", lightweightSessionJson);
-        payloadObject->setProperty ("lightweight", true);
-        payloadObject->setProperty ("full", false);
-        webView->emitEventIfBrowserIsVisible ("session_state_payload", juce::var (payloadObject.get()));
-        appendUiDebugLog ("session_state_push auto | bytesOut="
-                          + juce::String (lightweightSessionJson.getNumBytesAsUTF8()));
+        const auto nowMs = juce::Time::getMillisecondCounterHiRes();
+        if (nowMs < suppressLightweightPushUntilMs)
+        {
+            lastPushedLightweightVersion = currentLightweightVersion;
+        }
+        else
+        {
+            const auto lightweightSessionJson = audioProcessor.getUiSessionStateJson (true);
+            lastPushedLightweightVersion = currentLightweightVersion;
+            if (lightweightSessionJson.isNotEmpty()
+                && lightweightSessionJson != lastPushedLightweightSessionJson)
+            {
+                lastPushedLightweightSessionJson = lightweightSessionJson;
+                auto payloadObject = juce::DynamicObject::Ptr (new juce::DynamicObject());
+                payloadObject->setProperty ("lightweight", true);
+                payloadObject->setProperty ("full", false);
+                payloadObject->setProperty ("version", currentLightweightVersion);
+                payloadObject->setProperty ("reason", "auto");
+                const auto _beforePush = juce::Time::getMillisecondCounterHiRes();
+                webView->emitEventIfBrowserIsVisible ("session_state_changed", juce::var (payloadObject.get()));
+                const auto _afterPush = juce::Time::getMillisecondCounterHiRes();
+                appendUiDebugLog ("session_state_changed auto | version="
+                                  + juce::String (currentLightweightVersion)
+                                  + " | emitMs=" + juce::String (_afterPush - _beforePush, 2)
+                                  + " | flushMs=" + juce::String (_afterFlush - _timerStart, 2));
+            }
+        }
+    }
+
+    {
+        constexpr int kMaxEmitsPerTick = 1;
+        int emitted = 0;
+        while (emitted < kMaxEmitsPerTick)
+        {
+            PendingSampleDataEmit pending;
+            {
+                const juce::ScopedLock lock (pendingSampleDataEmitLock);
+                if (pendingSampleDataEmitQueue.empty())
+                    break;
+                pending = std::move (pendingSampleDataEmitQueue.front());
+                pendingSampleDataEmitQueue.pop_front();
+            }
+
+            auto object = juce::DynamicObject::Ptr (new juce::DynamicObject());
+            object->setProperty ("requestId", pending.requestId);
+            object->setProperty ("order", pending.order);
+            object->setProperty ("dataUrl", pending.dataUrl);
+            object->setProperty ("hasData", pending.dataUrl.isNotEmpty());
+            webView->emitEventIfBrowserIsVisible ("sample_data_payload", juce::var (object.get()));
+
+            appendUiDebugLog ("sample_data_get emitted | requestId=" + juce::String (pending.requestId)
+                              + " | order=" + juce::String (pending.order)
+                              + " | root=" + juce::String (pending.rootMidi)
+                              + " | velocityLayer=" + juce::String (pending.velocityLayer)
+                              + " | rr=" + juce::String (pending.rrIndex)
+                              + " | manifestPath=" + juce::String (pending.hasManifestPath ? "yes" : "no")
+                              + " | manifestPathCandidates=" + juce::String (pending.manifestPathCandidateCount)
+                              + " | bytesOut=" + juce::String (pending.bytesOut)
+                              + " | encodingMs=" + juce::String (pending.encodingElapsedMs, 2));
+            ++emitted;
+        }
     }
 
     const auto emitTakeEvent = [this] (const juce::String& fileName,
@@ -418,10 +572,13 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
     }
 
     const auto [heldMaskLo, heldMaskHi] = audioProcessor.getHeldMidiMaskForUi();
+    const auto [modWheelValue, expressionValue] = audioProcessor.getPerformanceWheelValuesForUi();
     const int activeMapSetSlot = audioProcessor.getActiveMapSetSlotForUi();
     const int sequencerStep = audioProcessor.getSequencerCurrentStepForUi();
     const bool midiActivityChanged = heldMaskLo != lastPushedHeldMidiMaskLo
                                   || heldMaskHi != lastPushedHeldMidiMaskHi
+                                  || std::abs (modWheelValue - lastPushedModWheelValue) > 0.0005f
+                                  || std::abs (expressionValue - lastPushedExpressionValue) > 0.0005f
                                   || activeMapSetSlot != lastPushedActiveMapSetSlot
                                   || sequencerStep != lastPushedSequencerStep;
 
@@ -429,6 +586,8 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
     {
         lastPushedHeldMidiMaskLo = heldMaskLo;
         lastPushedHeldMidiMaskHi = heldMaskHi;
+        lastPushedModWheelValue = modWheelValue;
+        lastPushedExpressionValue = expressionValue;
         lastPushedActiveMapSetSlot = activeMapSetSlot;
         lastPushedSequencerStep = sequencerStep;
 
@@ -451,6 +610,8 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
 
         auto payload = juce::DynamicObject::Ptr (new juce::DynamicObject());
         payload->setProperty ("notes", juce::var (notes));
+        payload->setProperty ("modWheelValue", modWheelValue);
+        payload->setProperty ("expressionValue", expressionValue);
         payload->setProperty ("activeSlot", activeMapSetSlot);
         payload->setProperty ("sequencerStep", sequencerStep);
         webView->emitEventIfBrowserIsVisible ("midi_activity", juce::var (payload.get()));
@@ -464,7 +625,12 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
                       || progress.statusMessage != lastAutoSamplerStatus;
 
     if (! changed)
+    {
+        const auto _timerMs = juce::Time::getMillisecondCounterHiRes() - _timerStart;
+        if (_timerMs > 5.0)
+            audioProcessor.perfLog ("timerCallback", _timerMs, "SLOW-nochange");
         return;
+    }
 
     lastAutoSamplerActive = progress.active;
     lastAutoSamplerExpected = progress.expectedTakes;
@@ -472,6 +638,10 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
     lastAutoSamplerInputDetected = progress.inputDetected;
     lastAutoSamplerStatus = progress.statusMessage;
     webView->emitEventIfBrowserIsVisible ("autosampler_status", makeAutoSamplerStatusVar (progress));
+
+    const auto _timerMs = juce::Time::getMillisecondCounterHiRes() - _timerStart;
+    if (_timerMs > 5.0)
+        audioProcessor.perfLog ("timerCallback", _timerMs, "SLOW");
 }
 
 void SamplePlayerAudioProcessorEditor::handleAutoSamplerControlEvent (const juce::var& eventPayload)
@@ -509,12 +679,6 @@ void SamplePlayerAudioProcessorEditor::handleAutoSamplerControlEvent (const juce
         settings.instrumentName = settingsObj->getProperty ("instrumentName").toString();
         settings.keyswitchMode = static_cast<bool> (settingsObj->getProperty ("keyswitchMode"));
         settings.keyswitchKey = settingsObj->getProperty ("keyswitchKey").toString();
-        settings.wallpaperSourcePath = settingsObj->getProperty ("wallpaperSourcePath").toString();
-        settings.wallpaperDataUrl = settingsObj->getProperty ("wallpaperDataUrl").toString();
-        settings.wallpaperFileName = settingsObj->getProperty ("wallpaperFileName").toString();
-        settings.logoSourcePath = settingsObj->getProperty ("logoSourcePath").toString();
-        settings.logoDataUrl = settingsObj->getProperty ("logoDataUrl").toString();
-        settings.logoFileName = settingsObj->getProperty ("logoFileName").toString();
         settings.loopSamples = static_cast<bool> (settingsObj->getProperty ("loopSamples"));
         settings.autoLoopMode = static_cast<bool> (settingsObj->getProperty ("autoLoopMode"));
         settings.loopStartPercent = static_cast<float> (double (settingsObj->getProperty ("loopStartPercent")));
@@ -589,11 +753,15 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
 
     int requestId = -1;
     juce::File initialDir = juce::File::getSpecialLocation (juce::File::userHomeDirectory);
+    juce::String mode = "open";
+    juce::String defaultName;
 
     if (const auto* object = eventPayload.getDynamicObject())
     {
         requestId = static_cast<int> (std::round (double (object->getProperty ("requestId"))));
         const auto currentPath = object->getProperty ("currentPath").toString().trim();
+        mode = object->getProperty ("mode").toString().trim().toLowerCase();
+        defaultName = object->getProperty ("defaultName").toString().trim();
         if (juce::File::isAbsolutePath (currentPath))
         {
             const auto current = juce::File (currentPath);
@@ -604,15 +772,26 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
         }
     }
 
-    loadInstrumentChooser = std::make_unique<juce::FileChooser> ("Open instrument JSON",
+    if (mode != "save")
+        mode = "open";
+
+    if (mode == "save" && defaultName.isNotEmpty())
+        initialDir = initialDir.getChildFile (defaultName);
+
+    loadInstrumentChooser = std::make_unique<juce::FileChooser> (mode == "save" ? "Save instrument JSON" : "Open instrument JSON",
                                                                   initialDir,
-                                                                  "*.json;*.smpinst",
+                                                                  "*.json;*.smpinst;*.smpinstm",
                                                                   true);
 
     juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> safeThis (this);
-    loadInstrumentChooser->launchAsync (juce::FileBrowserComponent::openMode
-                                        | juce::FileBrowserComponent::canSelectFiles,
-                                        [safeThis, requestId] (const juce::FileChooser& chooser)
+    const int chooserFlags = (mode == "save"
+                                ? (juce::FileBrowserComponent::saveMode
+                                   | juce::FileBrowserComponent::canSelectFiles
+                                   | juce::FileBrowserComponent::warnAboutOverwriting)
+                                : (juce::FileBrowserComponent::openMode
+                                   | juce::FileBrowserComponent::canSelectFiles));
+    loadInstrumentChooser->launchAsync (chooserFlags,
+                                        [safeThis, requestId, mode] (const juce::FileChooser& chooser)
     {
         if (safeThis == nullptr || safeThis->webView == nullptr)
             return;
@@ -621,7 +800,9 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
                                                  const juce::String& path,
                                                  const juce::String& fileName,
                                                  const juce::String& text,
-                                                 const juce::String& message)
+                                                 const juce::String& message,
+                                                 bool nativeLoaded,
+                                                 const juce::String& format)
         {
             if (safeThis == nullptr || safeThis->webView == nullptr)
                 return;
@@ -633,13 +814,79 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
             payload->setProperty ("fileName", fileName);
             payload->setProperty ("text", text);
             payload->setProperty ("message", message);
+            payload->setProperty ("nativeLoaded", nativeLoaded);
+            payload->setProperty ("format", format);
             safeThis->webView->emitEventIfBrowserIsVisible ("instrument_manifest_picked", juce::var (payload.get()));
         };
 
-        const auto file = chooser.getResult();
+        auto file = chooser.getResult();
+        if (mode == "save")
+        {
+            if (file == juce::File {})
+            {
+                emitResult (false, {}, {}, {}, "Save canceled.", false, {});
+                safeThis->loadInstrumentChooser.reset();
+                return;
+            }
+
+            if (file.hasFileExtension (".json") == false
+                && file.hasFileExtension (".smpinst") == false
+                && file.hasFileExtension (".smpinstm") == false)
+            {
+                file = file.withFileExtension (".json");
+            }
+
+            const auto format = file.hasFileExtension ("smpinstm") ? juce::String ("smpinstm")
+                               : (file.hasFileExtension ("smpinst") ? juce::String ("smpinst")
+                                                                     : juce::String ("json"));
+            emitResult (true,
+                        file.getFullPathName(),
+                        file.getFileName(),
+                        {},
+                        {},
+                        false,
+                        format);
+            safeThis->loadInstrumentChooser.reset();
+            return;
+        }
+
         if (! file.existsAsFile())
         {
-            emitResult (false, {}, {}, {}, "Load canceled.");
+            emitResult (false, {}, {}, {}, "Load canceled.", false, {});
+            safeThis->loadInstrumentChooser.reset();
+            return;
+        }
+
+        const bool isMonolith = file.hasFileExtension ("smpinstm");
+        const bool isManifest = file.hasFileExtension ("smpinst") || file.hasFileExtension ("json");
+        const auto format = isMonolith ? juce::String ("smpinstm")
+                                       : (file.hasFileExtension ("smpinst") ? juce::String ("smpinst")
+                                                                            : juce::String ("json"));
+
+        if (isMonolith)
+        {
+            safeThis->audioProcessor.loadMonolithDirect (file.getFullPathName());
+            emitResult (true,
+                        file.getFullPathName(),
+                        file.getFileName(),
+                        {},
+                        {},
+                        true,
+                        format);
+            safeThis->loadInstrumentChooser.reset();
+            return;
+        }
+
+        if (isManifest)
+        {
+            safeThis->audioProcessor.loadManifestDirect (file.getFullPathName());
+            emitResult (true,
+                        file.getFullPathName(),
+                        file.getFileName(),
+                        {},
+                        {},
+                        true,
+                        format);
             safeThis->loadInstrumentChooser.reset();
             return;
         }
@@ -651,7 +898,9 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
                         file.getFullPathName(),
                         file.getFileName(),
                         {},
-                        "Could not read selected file.");
+                        "Could not read selected file.",
+                        false,
+                        format);
             safeThis->loadInstrumentChooser.reset();
             return;
         }
@@ -660,8 +909,98 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
                     file.getFullPathName(),
                     file.getFileName(),
                     text,
-                    {});
+                    {},
+                    false,
+                    format);
+
         safeThis->loadInstrumentChooser.reset();
+    });
+}
+
+void SamplePlayerAudioProcessorEditor::handlePickGraphicFileEvent (const juce::var& eventPayload)
+{
+    if (! webView)
+        return;
+
+    int requestId = -1;
+    juce::String currentPath;
+
+    if (const auto* object = eventPayload.getDynamicObject())
+    {
+        requestId = static_cast<int> (std::round (double (object->getProperty ("requestId"))));
+        currentPath = object->getProperty ("currentPath").toString().trim();
+    }
+
+    auto emitResult = [this, requestId] (bool success,
+                                         const juce::String& path,
+                                         const juce::String& fileName,
+                                         const juce::String& dataUrl,
+                                         const juce::String& message)
+    {
+        if (! webView)
+            return;
+
+        auto payload = juce::DynamicObject::Ptr (new juce::DynamicObject());
+        payload->setProperty ("requestId", requestId);
+        payload->setProperty ("success", success);
+        payload->setProperty ("path", path);
+        payload->setProperty ("fileName", fileName);
+        payload->setProperty ("dataUrl", dataUrl);
+        payload->setProperty ("message", message);
+        webView->emitEventIfBrowserIsVisible ("native_graphic_file_picked", juce::var (payload.get()));
+    };
+
+    juce::File initialDir = juce::File::getSpecialLocation (juce::File::userDesktopDirectory);
+    if (juce::File::isAbsolutePath (currentPath))
+    {
+        const juce::File currentFile (currentPath);
+        if (currentFile.isDirectory())
+            initialDir = currentFile;
+        else if (currentFile.exists())
+            initialDir = currentFile.getParentDirectory();
+    }
+
+    const auto chooserFlags = juce::FileBrowserComponent::openMode
+                            | juce::FileBrowserComponent::canSelectFiles;
+
+    graphicFileChooser = std::make_unique<juce::FileChooser> (
+        "Select wallpaper image",
+        initialDir,
+        "*.png;*.jpg;*.jpeg;*.webp;*.gif;*.svg",
+        true);
+
+    juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> safeThis (this);
+    graphicFileChooser->launchAsync (chooserFlags, [safeThis, emitResult] (const juce::FileChooser& chooser)
+    {
+        if (safeThis == nullptr)
+            return;
+
+        const auto file = chooser.getResult();
+        if (! file.existsAsFile())
+        {
+            emitResult (false, {}, {}, {}, "Wallpaper selection canceled.");
+            safeThis->graphicFileChooser.reset();
+            return;
+        }
+
+        const auto dataUrl = buildFileDataUrl (file);
+        if (dataUrl.isEmpty())
+        {
+            emitResult (false,
+                        file.getFullPathName(),
+                        file.getFileName(),
+                        {},
+                        "Could not read selected wallpaper file.");
+            safeThis->graphicFileChooser.reset();
+            return;
+        }
+
+        emitResult (true,
+                    file.getFullPathName(),
+                    file.getFileName(),
+                    dataUrl,
+                    {});
+        safeThis->graphicFileChooser.reset();
     });
 }
 
@@ -690,6 +1029,7 @@ void SamplePlayerAudioProcessorEditor::handleUIResizeEvent (const juce::var& eve
 
 void SamplePlayerAudioProcessorEditor::handleSessionStateSetEvent (const juce::var& eventPayload)
 {
+    const auto t0 = juce::Time::getMillisecondCounterHiRes();
     juce::String jsonPayload;
 
     if (const auto* object = eventPayload.getDynamicObject())
@@ -697,11 +1037,18 @@ void SamplePlayerAudioProcessorEditor::handleSessionStateSetEvent (const juce::v
     else if (eventPayload.isString())
         jsonPayload = eventPayload.toString();
 
+    // The payload came from the UI itself.  Suppress the timer's automatic
+    // lightweight session push for a short window so local edits such as
+    // doubling do not bounce a large JSON payload straight back into JS.
+    suppressLightweightPushUntilMs = juce::Time::getMillisecondCounterHiRes() + 4000.0;
     audioProcessor.setUiSessionStateJson (jsonPayload);
+    audioProcessor.perfLog ("session_state_set", juce::Time::getMillisecondCounterHiRes() - t0,
+                            "bytes=" + juce::String (jsonPayload.getNumBytesAsUTF8()));
 }
 
 void SamplePlayerAudioProcessorEditor::handleActiveMapSetEvent (const juce::var& eventPayload)
 {
+    const auto t0 = juce::Time::getMillisecondCounterHiRes();
     juce::String setId;
 
     if (const auto* object = eventPayload.getDynamicObject())
@@ -713,6 +1060,31 @@ void SamplePlayerAudioProcessorEditor::handleActiveMapSetEvent (const juce::var&
         return;
 
     audioProcessor.setActiveMapSetId (setId);
+    audioProcessor.perfLog ("active_map_set", juce::Time::getMillisecondCounterHiRes() - t0,
+                            "setId=" + setId);
+}
+
+void SamplePlayerAudioProcessorEditor::handleKeyswitchGainSetEvent (const juce::var& eventPayload)
+{
+    juce::String setId;
+    float gainDb = 0.0f;
+
+    if (const auto* object = eventPayload.getDynamicObject())
+    {
+        setId = object->getProperty ("setId").toString().trim();
+        gainDb = juce::jlimit (-24.0f,
+                               24.0f,
+                               static_cast<float> (double (object->getProperty ("gainDb"))));
+    }
+    else if (eventPayload.isString())
+    {
+        setId = eventPayload.toString().trim();
+    }
+
+    if (setId.isEmpty())
+        return;
+
+    audioProcessor.setKeyswitchSetGainDb (setId, gainDb);
 }
 
 void SamplePlayerAudioProcessorEditor::handleSequencerHostTriggerSetEvent (const juce::var& eventPayload)
@@ -733,6 +1105,18 @@ void SamplePlayerAudioProcessorEditor::handleSequencerHostTriggerSetEvent (const
     }
 
     audioProcessor.setSequencerHostTriggerEnabled (enabled);
+}
+
+void SamplePlayerAudioProcessorEditor::handleSequencerSettingsSetEvent (const juce::var& eventPayload)
+{
+    audioProcessor.applySequencerSettingsFromUi (eventPayload);
+}
+
+void SamplePlayerAudioProcessorEditor::handleStrumSettingsSetEvent (const juce::var& eventPayload)
+{
+    const auto t0 = juce::Time::getMillisecondCounterHiRes();
+    audioProcessor.applyStrumSettingsFromUi (eventPayload);
+    audioProcessor.perfLog ("strum_settings_set", juce::Time::getMillisecondCounterHiRes() - t0, {});
 }
 
 void SamplePlayerAudioProcessorEditor::handleSessionStateGetEvent (const juce::var& eventPayload)
@@ -761,7 +1145,7 @@ void SamplePlayerAudioProcessorEditor::handleSessionStateGetEvent (const juce::v
     appendUiDebugLog ("session_state_get begin | mode=" + juce::String (requestFull ? "full" : "light")
                       + " | reason=" + reason);
     const auto payloadFetchStartMs = juce::Time::getMillisecondCounterHiRes();
-    const auto jsonPayload = audioProcessor.getUiSessionStateJson (! requestFull);
+    const auto jsonPayload = buildSessionStateJsonForFrontend (requestFull);
     const auto payloadFetchMs = juce::Time::getMillisecondCounterHiRes() - payloadFetchStartMs;
 
     auto object = juce::DynamicObject::Ptr (new juce::DynamicObject());
@@ -814,79 +1198,48 @@ void SamplePlayerAudioProcessorEditor::handleSampleDataGetEvent (const juce::var
         }
     }
 
-    const auto requestStartMs = juce::Time::getMillisecondCounterHiRes();
-    auto dataUrl = audioProcessor.getSampleDataUrlForMapEntry (rootMidi, velocityLayer, rrIndex, fileName);
-    if (dataUrl.isEmpty())
-    {
-        if (manifestPath.isNotEmpty())
-            manifestPathCandidates.insert (0, manifestPath);
+    const bool hasManPath = manifestPath.isNotEmpty();
+    const int candCount = manifestPathCandidates.size();
 
-        for (const auto& pathCandidate : manifestPathCandidates)
+    // Offload expensive WAV encoding to a background thread.  Results are
+    // queued and drained by the 10Hz timer (max 2 per tick) to prevent
+    // WKWebView IPC channel flooding which stalls the message thread.
+    sampleDataRequestPool.addJob ([this, requestId, order, rootMidi, velocityLayer, rrIndex,
+                                   fileName, manifestPath, manifestPathCandidates,
+                                   hasManPath, candCount]() mutable
+    {
+        const auto requestStartMs = juce::Time::getMillisecondCounterHiRes();
+        auto dataUrl = audioProcessor.getSampleDataUrlForMapEntry (rootMidi, velocityLayer, rrIndex, fileName);
+        if (dataUrl.isEmpty())
         {
-            dataUrl = audioProcessor.getSampleDataUrlForAbsolutePath (pathCandidate, fileName);
-            if (dataUrl.isNotEmpty())
-                break;
+            if (manifestPath.isNotEmpty())
+                manifestPathCandidates.insert (0, manifestPath);
+
+            for (const auto& pathCandidate : manifestPathCandidates)
+            {
+                dataUrl = audioProcessor.getSampleDataUrlForAbsolutePath (pathCandidate, fileName);
+                if (dataUrl.isNotEmpty())
+                    break;
+            }
         }
-    }
 
-    auto object = juce::DynamicObject::Ptr (new juce::DynamicObject());
-    object->setProperty ("requestId", requestId);
-    object->setProperty ("order", order);
-    object->setProperty ("dataUrl", dataUrl);
-    object->setProperty ("hasData", dataUrl.isNotEmpty());
-    webView->emitEventIfBrowserIsVisible ("sample_data_payload", juce::var (object.get()));
+        PendingSampleDataEmit pending;
+        pending.requestId = requestId;
+        pending.order = order;
+        pending.dataUrl = std::move (dataUrl);
+        pending.rootMidi = rootMidi;
+        pending.velocityLayer = velocityLayer;
+        pending.rrIndex = rrIndex;
+        pending.hasManifestPath = hasManPath;
+        pending.manifestPathCandidateCount = candCount;
+        pending.bytesOut = pending.dataUrl.getNumBytesAsUTF8();
+        pending.encodingElapsedMs = juce::Time::getMillisecondCounterHiRes() - requestStartMs;
 
-    appendUiDebugLog ("sample_data_get handled | requestId=" + juce::String (requestId)
-                      + " | order=" + juce::String (order)
-                      + " | root=" + juce::String (rootMidi)
-                      + " | velocityLayer=" + juce::String (velocityLayer)
-                      + " | rr=" + juce::String (rrIndex)
-                      + " | manifestPath=" + juce::String (manifestPath.isNotEmpty() ? "yes" : "no")
-                      + " | manifestPathCandidates=" + juce::String (manifestPathCandidates.size())
-                      + " | bytesOut=" + juce::String (dataUrl.getNumBytesAsUTF8())
-                      + " | elapsedMs=" + juce::String (juce::Time::getMillisecondCounterHiRes() - requestStartMs, 2));
-}
-
-void SamplePlayerAudioProcessorEditor::handleGraphicDataGetEvent (const juce::var& eventPayload)
-{
-    if (! webView)
-        return;
-
-    int requestId = -1;
-    juce::String kind;
-    juce::String path;
-
-    if (const auto* object = eventPayload.getDynamicObject())
-    {
-        requestId = static_cast<int> (std::round (double (object->getProperty ("requestId"))));
-        kind = object->getProperty ("kind").toString().trim();
-        path = object->getProperty ("path").toString().trim();
-    }
-
-    auto response = juce::DynamicObject::Ptr (new juce::DynamicObject());
-    response->setProperty ("requestId", requestId);
-    response->setProperty ("kind", kind);
-    response->setProperty ("path", path);
-
-    juce::String dataUrl;
-    juce::String mimeType;
-    juce::String fileName;
-    if (juce::File::isAbsolutePath (path))
-    {
-        const auto file = juce::File (path);
-        if (file.existsAsFile())
         {
-            dataUrl = buildFileDataUrl (file);
-            fileName = file.getFileName();
-            mimeType = file.getFileExtension().toLowerCase();
+            const juce::ScopedLock lock (pendingSampleDataEmitLock);
+            pendingSampleDataEmitQueue.push_back (std::move (pending));
         }
-    }
-
-    response->setProperty ("dataUrl", dataUrl);
-    response->setProperty ("hasData", dataUrl.isNotEmpty());
-    response->setProperty ("fileName", fileName);
-    response->setProperty ("mimeType", mimeType);
-    webView->emitEventIfBrowserIsVisible ("graphic_data_payload", juce::var (response.get()));
+    });
 }
 
 void SamplePlayerAudioProcessorEditor::handlePreviewMidiEvent (const juce::var& eventPayload)
@@ -894,6 +1247,16 @@ void SamplePlayerAudioProcessorEditor::handlePreviewMidiEvent (const juce::var& 
     const auto* object = eventPayload.getDynamicObject();
     if (object == nullptr)
         return;
+
+    const auto controllerNumberVar = object->getProperty ("controllerNumber");
+    if (! controllerNumberVar.isVoid())
+    {
+        const int controllerNumber = static_cast<int> (std::round (double (controllerNumberVar)));
+        const int controllerValue = static_cast<int> (std::round (double (object->getProperty ("controllerValue"))));
+        const int midiChannel = static_cast<int> (std::round (double (object->getProperty ("channel"))));
+        audioProcessor.queuePreviewControllerEvent (controllerNumber, controllerValue, midiChannel);
+        return;
+    }
 
     const bool noteOn = static_cast<bool> (object->getProperty ("noteOn"));
     const int midiNote = static_cast<int> (std::round (double (object->getProperty ("midiNote"))));
@@ -903,8 +1266,81 @@ void SamplePlayerAudioProcessorEditor::handlePreviewMidiEvent (const juce::var& 
     audioProcessor.queuePreviewMidiEvent (noteOn, midiNote, velocity127, midiChannel);
 }
 
+void SamplePlayerAudioProcessorEditor::handlePerformanceWheelSetEvent (const juce::var& eventPayload)
+{
+    const auto* object = eventPayload.getDynamicObject();
+    if (object == nullptr)
+        return;
+
+    const auto wheel = object->getProperty ("wheel").toString().trim().toLowerCase();
+    auto* parameter = dynamic_cast<juce::RangedAudioParameter*> (
+        audioProcessor.parameters.getParameter (wheel == "expression" ? "expression" : "modWheel"));
+    if (parameter == nullptr)
+        return;
+
+    const float value = juce::jlimit (0.0f, 1.0f, static_cast<float> (double (object->getProperty ("value"))));
+    const auto phase = object->getProperty ("phase").toString().trim().toLowerCase();
+    bool& gestureActive = (wheel == "expression") ? expressionGestureActive : modWheelGestureActive;
+
+    if (phase == "begin")
+    {
+        if (! gestureActive)
+        {
+            parameter->beginChangeGesture();
+            gestureActive = true;
+        }
+        parameter->setValueNotifyingHost (value);
+        return;
+    }
+
+    if (phase == "end")
+    {
+        parameter->setValueNotifyingHost (value);
+        if (gestureActive)
+        {
+            parameter->endChangeGesture();
+            gestureActive = false;
+        }
+        return;
+    }
+
+    if (! gestureActive)
+    {
+        parameter->beginChangeGesture();
+        gestureActive = true;
+    }
+
+    parameter->setValueNotifyingHost (value);
+}
+
+void SamplePlayerAudioProcessorEditor::handleAmpEnvelopeSetEvent (const juce::var& eventPayload)
+{
+    const auto* object = eventPayload.getDynamicObject();
+    if (object == nullptr)
+        return;
+
+    const auto applyParam = [this] (const juce::String& paramId, float plainValue)
+    {
+        auto* parameter = dynamic_cast<juce::RangedAudioParameter*> (audioProcessor.parameters.getParameter (paramId));
+        if (parameter == nullptr)
+            return;
+
+        const auto value01 = juce::jlimit (0.0f, 1.0f, parameter->convertTo0to1 (plainValue));
+        if (std::abs (parameter->getValue() - value01) <= 0.000001f)
+            return;
+
+        parameter->setValueNotifyingHost (value01);
+    };
+
+    applyParam ("attackMs", static_cast<float> (juce::jmax (0.0, double (object->getProperty ("attackMs")))));
+    applyParam ("decayMs", static_cast<float> (juce::jmax (0.0, double (object->getProperty ("decayMs")))));
+    applyParam ("sustain", static_cast<float> (juce::jlimit (0.0, 1.0, double (object->getProperty ("sustainPercent")) / 100.0)));
+    applyParam ("releaseMs", static_cast<float> (juce::jmax (0.0, double (object->getProperty ("releaseMs")))));
+}
+
 void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const juce::var& eventPayload)
 {
+    const auto _t0 = juce::Time::getMillisecondCounterHiRes();
     if (! webView)
         return;
 
@@ -912,6 +1348,7 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
     {
         juce::String relativePath;
         juce::String dataUrl;
+        juce::String sourcePath;
     };
 
     auto emitResult = [this] (bool success,
@@ -941,6 +1378,7 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
     auto manifestJson = object->getProperty ("manifestJson").toString();
     auto manifestPath = object->getProperty ("manifestPath").toString().trim();
     const bool askForPath = static_cast<bool> (object->getProperty ("askForPath"));
+    const bool overwriteExisting = static_cast<bool> (object->getProperty ("overwriteExisting"));
 
     if (manifestJson.trim().isEmpty())
     {
@@ -961,10 +1399,37 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
             SaveAsset item;
             item.relativePath = assetObject->getProperty ("path").toString().trim();
             item.dataUrl = assetObject->getProperty ("dataUrl").toString().trim();
-            if (item.relativePath.isEmpty() || item.dataUrl.isEmpty())
+            item.sourcePath = assetObject->getProperty ("sourcePath").toString().trim();
+            if (item.relativePath.isEmpty() || (item.dataUrl.isEmpty() && item.sourcePath.isEmpty()))
                 continue;
             assets.push_back (std::move (item));
         }
+    }
+
+    {
+        juce::String wallpaperPath;
+        bool hasGraphics = false;
+        if (const auto parsed = juce::JSON::parse (manifestJson); parsed.isObject())
+        {
+            if (const auto* manifestObject = parsed.getDynamicObject())
+            {
+                const auto graphicsVar = manifestObject->getProperty ("graphics");
+                if (graphicsVar.isObject())
+                {
+                    hasGraphics = true;
+                    if (const auto* graphicsObject = graphicsVar.getDynamicObject())
+                        wallpaperPath = graphicsObject->getProperty ("wallpaperPath").toString().trim();
+                }
+            }
+        }
+
+        appendUiDebugLog ("native save_instrument_bundle received | hasGraphics="
+                          + juce::String (hasGraphics ? "yes" : "no")
+                          + " | wallpaperPath=" + wallpaperPath.quoted()
+                          + " | askForPath=" + juce::String (askForPath ? "yes" : "no")
+                          + " | overwriteExisting=" + juce::String (overwriteExisting ? "yes" : "no")
+                          + " | manifestPath=" + manifestPath.quoted()
+                          + " | assetCount=" + juce::String (static_cast<int> (assets.size())));
     }
 
     const auto writeBundle = [emitResult, manifestJson, assets] (juce::File manifestFile)
@@ -976,7 +1441,8 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
         }
 
         if (manifestFile.hasFileExtension (".json") == false
-            && manifestFile.hasFileExtension (".smpinst") == false)
+            && manifestFile.hasFileExtension (".smpinst") == false
+            && manifestFile.hasFileExtension (".smpinstm") == false)
         {
             manifestFile = manifestFile.withFileExtension (".json");
         }
@@ -1009,13 +1475,6 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
                 continue;
             }
 
-            juce::MemoryBlock bytes;
-            if (! decodeDataUrlToMemory (asset.dataUrl, bytes) || bytes.getSize() == 0)
-            {
-                ++failedAssets;
-                continue;
-            }
-
             const auto targetFile = baseDir.getChildFile (relativePath);
             const auto parent = targetFile.getParentDirectory();
             if (! parent.isDirectory())
@@ -1028,7 +1487,33 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
                 }
             }
 
-            if (targetFile.replaceWithData (bytes.getData(), bytes.getSize()))
+            bool wroteAsset = false;
+            if (asset.dataUrl.isNotEmpty())
+            {
+                juce::MemoryBlock bytes;
+                if (decodeDataUrlToMemory (asset.dataUrl, bytes) && bytes.getSize() > 0)
+                    wroteAsset = targetFile.replaceWithData (bytes.getData(), bytes.getSize());
+            }
+
+            if (! wroteAsset && juce::File::isAbsolutePath (asset.sourcePath))
+            {
+                const juce::File sourceFile (asset.sourcePath);
+                if (sourceFile.existsAsFile())
+                {
+                    if (sourceFile == targetFile)
+                    {
+                        wroteAsset = true;
+                    }
+                    else
+                    {
+                        if (targetFile.existsAsFile())
+                            targetFile.deleteFile();
+                        wroteAsset = sourceFile.copyFileTo (targetFile);
+                    }
+                }
+            }
+
+            if (wroteAsset)
                 ++writtenAssets;
             else
                 ++failedAssets;
@@ -1064,6 +1549,7 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
     if (juce::File::isAbsolutePath (manifestPath))
     {
         writeBundle (juce::File (manifestPath));
+        audioProcessor.perfLog ("save_instrument_bundle", juce::Time::getMillisecondCounterHiRes() - _t0, "direct-path");
         return;
     }
 
@@ -1080,14 +1566,17 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
         if (const auto* manifestObject = parsed.getDynamicObject())
         {
             const auto instrumentName = juce::File::createLegalFileName (manifestObject->getProperty ("instrumentName").toString().trim());
+            const bool isMonolith = static_cast<bool> (manifestObject->getProperty ("monolith"));
             if (instrumentName.isNotEmpty())
-                defaultName = instrumentName + ".json";
+                defaultName = instrumentName + (isMonolith ? ".smpinstm" : ".json");
+            else if (isMonolith)
+                defaultName = "Instrument.smpinstm";
         }
     }
 
     saveInstrumentChooser = std::make_unique<juce::FileChooser> ("Save instrument JSON",
                                                                   initialDir.getChildFile (defaultName),
-                                                                  "*.json;*.smpinst",
+                                                                  "*.json;*.smpinst;*.smpinstm",
                                                                   true);
 
     juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> safeThis (this);
@@ -1104,6 +1593,41 @@ void SamplePlayerAudioProcessorEditor::handleSaveInstrumentBundleEvent (const ju
     });
 }
 
+void SamplePlayerAudioProcessorEditor::handleGraphicDataGetEvent (const juce::var& eventPayload)
+{
+    if (! webView)
+        return;
+
+    int requestId = -1;
+    juce::String path;
+
+    if (const auto* object = eventPayload.getDynamicObject())
+    {
+        requestId = static_cast<int> (std::round (double (object->getProperty ("requestId"))));
+        path = object->getProperty ("path").toString().trim();
+    }
+
+    auto payload = juce::DynamicObject::Ptr (new juce::DynamicObject());
+    payload->setProperty ("requestId", requestId);
+    payload->setProperty ("path", path);
+
+    if (! juce::File::isAbsolutePath (path))
+    {
+        payload->setProperty ("success", false);
+        payload->setProperty ("dataUrl", juce::String());
+        payload->setProperty ("message", "Invalid wallpaper path.");
+        webView->emitEventIfBrowserIsVisible ("graphic_data_payload", juce::var (payload.get()));
+        return;
+    }
+
+    const juce::File file (path);
+    const auto dataUrl = buildFileDataUrl (file);
+    payload->setProperty ("success", dataUrl.isNotEmpty());
+    payload->setProperty ("dataUrl", dataUrl);
+    payload->setProperty ("message", dataUrl.isNotEmpty() ? juce::String() : juce::String ("Could not load wallpaper."));
+    webView->emitEventIfBrowserIsVisible ("graphic_data_payload", juce::var (payload.get()));
+}
+
 void SamplePlayerAudioProcessorEditor::handleDebugLogEvent (const juce::var& eventPayload)
 {
     juce::String message;
@@ -1118,4 +1642,123 @@ void SamplePlayerAudioProcessorEditor::handleDebugLogEvent (const juce::var& eve
         return;
 
     appendUiDebugLog (message);
+}
+
+// ---------------------------------------------------------------------------
+//  Native audio file / folder picker handlers
+// ---------------------------------------------------------------------------
+
+static bool isAudioFileExtension (const juce::String& ext)
+{
+    const auto lower = ext.toLowerCase();
+    return lower == ".wav" || lower == ".wave" || lower == ".aif" || lower == ".aiff"
+        || lower == ".flac" || lower == ".ogg" || lower == ".mp3";
+}
+
+static juce::var buildNativeFileListPayload (const juce::Array<juce::File>& files)
+{
+    juce::Array<juce::var> entries;
+
+    for (const auto& file : files)
+    {
+        if (! file.existsAsFile())
+            continue;
+        if (! isAudioFileExtension (file.getFileExtension()))
+            continue;
+
+        auto entry = juce::DynamicObject::Ptr (new juce::DynamicObject());
+        entry->setProperty ("name", file.getFileName());
+        entry->setProperty ("path", file.getFullPathName());
+        entry->setProperty ("size", file.getSize());
+        entries.add (juce::var (entry.get()));
+    }
+
+    auto payload = juce::DynamicObject::Ptr (new juce::DynamicObject());
+    payload->setProperty ("files", entries);
+    return juce::var (payload.get());
+}
+
+void SamplePlayerAudioProcessorEditor::handlePickAudioFilesEvent (const juce::var& /*eventPayload*/)
+{
+    if (! webView)
+        return;
+
+    const auto chooserFlags = juce::FileBrowserComponent::openMode
+                            | juce::FileBrowserComponent::canSelectFiles
+                            | juce::FileBrowserComponent::canSelectMultipleItems;
+
+    audioFileChooser = std::make_unique<juce::FileChooser> (
+        "Select audio files",
+        juce::File::getSpecialLocation (juce::File::userDesktopDirectory),
+        "*.wav;*.aif;*.aiff;*.flac;*.ogg;*.mp3",
+        true);
+
+    juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> safeThis (this);
+    audioFileChooser->launchAsync (chooserFlags, [safeThis] (const juce::FileChooser& chooser)
+    {
+        if (safeThis == nullptr || safeThis->webView == nullptr)
+            return;
+
+        const auto results = chooser.getResults();
+        if (results.isEmpty())
+        {
+            safeThis->audioFileChooser.reset();
+            return;
+        }
+
+        safeThis->webView->emitEventIfBrowserIsVisible ("native_audio_files_picked",
+                                                         buildNativeFileListPayload (results));
+        appendUiDebugLog ("native audio files picked | count=" + juce::String (results.size()));
+        safeThis->audioFileChooser.reset();
+    });
+}
+
+void SamplePlayerAudioProcessorEditor::handlePickAudioFolderEvent (const juce::var& /*eventPayload*/)
+{
+    if (! webView)
+        return;
+
+    const auto chooserFlags = juce::FileBrowserComponent::openMode
+                            | juce::FileBrowserComponent::canSelectDirectories;
+
+    audioFileChooser = std::make_unique<juce::FileChooser> (
+        "Select folder with audio files",
+        juce::File::getSpecialLocation (juce::File::userDesktopDirectory),
+        "*",
+        true);
+
+    juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> safeThis (this);
+    audioFileChooser->launchAsync (chooserFlags, [safeThis] (const juce::FileChooser& chooser)
+    {
+        if (safeThis == nullptr || safeThis->webView == nullptr)
+            return;
+
+        const auto folder = chooser.getResult();
+        if (! folder.isDirectory())
+        {
+            safeThis->audioFileChooser.reset();
+            return;
+        }
+
+        juce::Array<juce::File> audioFiles;
+        for (const auto& entry : juce::RangedDirectoryIterator (folder,
+                                                                 true,
+                                                                 "*.wav;*.aif;*.aiff;*.flac;*.ogg;*.mp3",
+                                                                 juce::File::findFiles))
+        {
+            audioFiles.add (entry.getFile());
+        }
+
+        if (audioFiles.isEmpty())
+        {
+            safeThis->audioFileChooser.reset();
+            return;
+        }
+
+        safeThis->webView->emitEventIfBrowserIsVisible ("native_audio_files_picked",
+                                                         buildNativeFileListPayload (audioFiles));
+        appendUiDebugLog ("native audio folder picked | folder=" + folder.getFullPathName()
+                          + " | fileCount=" + juce::String (audioFiles.size()));
+        safeThis->audioFileChooser.reset();
+    });
 }

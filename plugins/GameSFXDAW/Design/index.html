@@ -1,0 +1,2045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GameSFXDAW - Containers Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #1d1d1d;
+      --surface: #252525;
+      --surface-alt: #2c2c2c;
+      --surface-soft: #323232;
+      --border: #3d3d3d;
+      --text: #ebebeb;
+      --muted: #b5b5b5;
+      --accent: #6f6f6f;
+      --accent-strong: #8f8f8f;
+      --draft: #a3a3a3;
+      --review: #e4a13b;
+      --approved: #63bf7a;
+      --danger: #d76a78;
+      --shadow: none;
+      --timeline-grid-major: rgba(99, 99, 99, 0.5);
+      --timeline-grid-minor: rgba(85, 85, 85, 0.5);
+      --timeline-clip: #585858;
+      --timeline-clip-active: #727272;
+      --lane-label-width: 170px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #191919;
+      color: var(--text);
+      font-family: "Roboto", sans-serif;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .app-shell {
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 8px;
+      border: 0;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      border-radius: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2px 2px 8px 2px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .brand strong {
+      font-size: 1.2rem;
+      letter-spacing: 0.02em;
+      font-weight: 700;
+    }
+
+    .brand span {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .preview-gain-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--border);
+      background: #222222;
+      padding: 5px 9px;
+      min-width: 182px;
+      border-radius: 2px;
+    }
+
+    .preview-gain-control label {
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    .preview-knob-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .knob {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 1px solid #5e5e5e;
+      background: #313131;
+      position: relative;
+      cursor: ns-resize;
+      padding: 0;
+      flex: 0 0 auto;
+    }
+
+    .knob:hover {
+      border-color: #838383;
+      background: #3a3a3a;
+    }
+
+    .knob-indicator {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 2px;
+      height: 9px;
+      margin-left: -1px;
+      margin-top: -10px;
+      background: #e2e2e2;
+      border-radius: 1px;
+      transform-origin: 50% 10px;
+      transform: rotate(var(--knob-angle, 0deg));
+      pointer-events: none;
+    }
+
+    button,
+    input {
+      font-family: inherit;
+      color: inherit;
+    }
+
+    .btn {
+      border: 1px solid var(--border);
+      background: var(--surface-alt);
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: border-color 140ms ease, background 140ms ease;
+      border-radius: 2px;
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      background: #383838;
+    }
+
+    .btn-accent {
+      background: #3a3a3a;
+      border-color: #5b5b5b;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      margin: 0;
+      flex: 0 0 auto;
+    }
+
+    .tab-button {
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      color: var(--muted);
+      padding: 7px 12px;
+      letter-spacing: 0.015em;
+      cursor: pointer;
+      transition: all 140ms ease;
+      border-radius: 2px;
+    }
+
+    .tab-button.active {
+      color: var(--text);
+      border-color: var(--accent);
+      background: #3a3a3a;
+    }
+
+    .tab-panel {
+      display: none;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .tab-panel.active {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .containers-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr 360px;
+      gap: 8px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .panel {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      padding: 10px;
+      overflow: hidden;
+      border-radius: 2px;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-title {
+      letter-spacing: 0.015em;
+      margin: 0 0 8px 0;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #d2d2d2;
+    }
+
+    .sidebar-list,
+    .container-list,
+    .layer-list,
+    .version-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow: auto;
+      max-height: 590px;
+      padding-right: 4px;
+    }
+
+    .sidebar-item {
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      padding: 8px 10px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+    }
+
+    .sidebar-item.active {
+      color: var(--text);
+      border-color: var(--accent);
+      background: #404040;
+    }
+
+    .browser-toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .search {
+      flex: 1;
+      background: #1f1f1f;
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      outline: none;
+      border-radius: 3px;
+    }
+
+    .search:focus {
+      border-color: var(--accent-strong);
+    }
+
+    .search::placeholder {
+      color: #8d8d8d;
+    }
+
+    .container-card {
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      padding: 8px;
+      cursor: pointer;
+      transition: border-color 120ms ease, background 120ms ease;
+      border-radius: 2px;
+    }
+
+    .container-card.active {
+      border-color: var(--accent);
+      background: #353535;
+      box-shadow: 0 0 0 1px rgba(200, 200, 200, 0.2);
+    }
+
+    .container-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+
+    .container-name {
+      font-weight: 600;
+    }
+
+    .status-pill {
+      padding: 2px 6px;
+      font-size: 0.75rem;
+      border: 1px solid;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .status-draft {
+      color: var(--draft);
+      border-color: var(--draft);
+    }
+
+    .status-in_review {
+      color: var(--review);
+      border-color: var(--review);
+    }
+
+    .status-approved {
+      color: var(--approved);
+      border-color: var(--approved);
+    }
+
+    .meta-line {
+      color: var(--muted);
+      font-size: 0.84rem;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .tags {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      font-size: 0.76rem;
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      color: var(--muted);
+      background: #202020;
+    }
+
+    .inspector-header {
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 9px;
+    }
+
+    .inspector-header h3 {
+      margin: 0 0 4px 0;
+      font-weight: 500;
+    }
+
+    .inspector-meta {
+      color: var(--muted);
+      font-size: 0.84rem;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .section-block {
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      background: #232323;
+      padding: 10px;
+      border-radius: 3px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .section-head h4 {
+      margin: 0;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+
+    .layer-row,
+    .version-row {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 8px;
+    }
+
+    .row-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.88rem;
+      margin-bottom: 4px;
+    }
+
+    .mono {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.76rem;
+      color: var(--muted);
+    }
+
+    .version-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 7px;
+    }
+
+    .approve {
+      border: 1px solid var(--border);
+      background: #292929;
+      padding: 5px 7px;
+      cursor: pointer;
+      font-size: 0.76rem;
+      color: var(--muted);
+      border-radius: 3px;
+    }
+
+    .approve.active {
+      color: var(--approved);
+      border-color: var(--approved);
+      background: rgba(99, 191, 122, 0.13);
+    }
+
+    .placeholder {
+      border: 1px dashed var(--border);
+      padding: 32px;
+      color: var(--muted);
+      background: #222222;
+      text-align: center;
+      font-size: 0.95rem;
+      border-radius: 3px;
+    }
+
+    .timeline-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 8px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .timeline-sidebar {
+      gap: 10px;
+    }
+
+    .timeline-stats {
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      padding: 10px;
+      border-radius: 3px;
+      display: grid;
+      gap: 6px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .timeline-track-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow: auto;
+      min-height: 0;
+      flex: 1;
+    }
+
+    .timeline-track-item {
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      padding: 8px 10px;
+      cursor: pointer;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      border-radius: 3px;
+    }
+
+    .timeline-track-item.active {
+      color: var(--text);
+      border-color: var(--accent);
+      background: #404040;
+    }
+
+    .timeline-main {
+      gap: 6px;
+    }
+
+    .timeline-toolbar {
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      padding: 7px 9px;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .timeline-toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .timeline-zoom-controls {
+      margin-left: auto;
+    }
+
+    .icon-btn {
+      width: 24px;
+      height: 24px;
+      border: 1px solid var(--border);
+      background: var(--surface-alt);
+      color: var(--text);
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .icon-btn:hover {
+      border-color: var(--accent);
+      background: #383838;
+    }
+
+    .timeline-canvas {
+      border: 1px solid var(--border);
+      background: #1f1f1f;
+      border-radius: 2px;
+      overflow: auto;
+      flex: 1;
+      min-height: 0;
+      --bar-width: 108px;
+      --timeline-width: 1728px;
+    }
+
+    .timeline-ruler {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      height: 30px;
+      border-bottom: 1px solid var(--border);
+      background: #272727;
+      min-width: calc(var(--timeline-width) + var(--lane-label-width));
+    }
+
+    .timeline-ruler-spacer {
+      position: sticky;
+      left: 0;
+      z-index: 12;
+      flex: 0 0 var(--lane-label-width);
+      border-right: 1px solid var(--border);
+      background: #272727;
+    }
+
+    .timeline-ruler-cell {
+      position: relative;
+      flex: 0 0 auto;
+      width: var(--bar-width);
+      border-right: 1px solid var(--timeline-grid-major);
+      color: #c8c8c8;
+      font-size: 0.72rem;
+      padding: 6px 8px;
+    }
+
+    .timeline-ruler-cell::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: calc(var(--bar-width) / 2);
+      width: 1px;
+      height: 100%;
+      background: var(--timeline-grid-minor);
+      opacity: 1;
+    }
+
+    .timeline-lanes {
+      min-width: calc(var(--timeline-width) + var(--lane-label-width));
+    }
+
+    .timeline-lane {
+      display: flex;
+      min-height: 64px;
+      border-bottom: 1px solid var(--border);
+      background-image:
+        linear-gradient(to right, var(--timeline-grid-major) 1px, transparent 1px),
+        linear-gradient(to right, var(--timeline-grid-minor) 1px, transparent 1px);
+      background-size: var(--bar-width) 100%, calc(var(--bar-width) / 2) 100%;
+      background-position: 0 0, calc(var(--bar-width) / 2) 0;
+    }
+
+    .timeline-lane-label {
+      flex: 0 0 var(--lane-label-width);
+      padding: 8px 10px;
+      border-right: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.8rem;
+      background: rgba(37, 37, 37, 0.92);
+      position: sticky;
+      left: 0;
+      z-index: 2;
+    }
+
+    .timeline-lane-label strong {
+      display: block;
+      color: var(--text);
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .timeline-lane-body {
+      position: relative;
+      flex: 0 0 auto;
+      width: var(--timeline-width);
+    }
+
+    .timeline-clip {
+      position: absolute;
+      top: 10px;
+      height: 42px;
+      border: 1px solid #6d6d6d;
+      border-radius: 2px;
+      background: var(--timeline-clip);
+      color: #f2f2f2;
+      padding: 6px 15px 6px 8px;
+      font-size: 0.74rem;
+      text-align: left;
+      cursor: grab;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      appearance: none;
+    }
+
+    .timeline-clip.active {
+      border-color: #bdbdbd;
+      background: var(--timeline-clip-active);
+      box-shadow: 0 0 0 1px rgba(210, 210, 210, 0.25);
+    }
+
+    .timeline-clip.dragging {
+      opacity: 0.92;
+      cursor: grabbing;
+    }
+
+    .timeline-clip-title {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding-right: 6px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .timeline-clip-sub {
+      display: block;
+      font-size: 0.67rem;
+      margin-top: 3px;
+      color: #d4d4d4;
+      opacity: 0.92;
+      pointer-events: none;
+      position: relative;
+      z-index: 2;
+    }
+
+    .timeline-waveform {
+      position: absolute;
+      left: 8px;
+      right: 12px;
+      bottom: 4px;
+      height: 11px;
+      display: flex;
+      align-items: flex-end;
+      gap: 1px;
+      opacity: 0.62;
+      pointer-events: none;
+    }
+
+    .timeline-wave-bar {
+      flex: 1 1 auto;
+      min-width: 1px;
+      background: rgba(246, 246, 246, 0.5);
+      border-radius: 1px 1px 0 0;
+    }
+
+    .timeline-clip-handle {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 9px;
+      height: 100%;
+      border-left: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.08);
+      cursor: ew-resize;
+    }
+
+    .timeline-empty {
+      color: #969696;
+      padding: 14px 12px;
+      font-size: 0.8rem;
+    }
+
+    .timeline-layout {
+      grid-template-columns: 330px 1fr;
+      gap: 0;
+      border: 1px solid #373737;
+      border-radius: 2px;
+      overflow: hidden;
+      background: #2a2a2a;
+    }
+
+    .timeline-sidebar,
+    .timeline-main {
+      border: 0;
+      padding: 0;
+      background: transparent;
+    }
+
+    .timeline-sidebar {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      border-right: 1px solid #3b3b3b;
+      background: #2b2b2b;
+    }
+
+    .timeline-stats {
+      border: 0;
+      border-radius: 0;
+      padding: 8px 10px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px 10px;
+      border-bottom: 1px solid #3b3b3b;
+      background: #303030;
+    }
+
+    .timeline-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #aaaaaa;
+    }
+
+    .timeline-stat strong {
+      color: #e0e0e0;
+      font-size: 0.73rem;
+      font-weight: 500;
+      text-transform: none;
+    }
+
+    .timeline-track-list {
+      gap: 0;
+      padding: 0;
+      background: #2a2a2a;
+      border-top: 1px solid #252525;
+    }
+
+    .timeline-track-item {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid #3b3b3b;
+      border-radius: 0;
+      min-height: 58px;
+      padding: 0 8px;
+      background: linear-gradient(180deg, #353535 0%, #323232 100%);
+      color: #d3d3d3;
+      display: grid;
+      grid-template-columns: 24px 1fr auto;
+      align-items: center;
+      gap: 8px;
+      text-align: left;
+    }
+
+    .timeline-track-item.active {
+      background: linear-gradient(180deg, #404040 0%, #383838 100%);
+      border-bottom-color: #4a4a4a;
+      box-shadow: inset 2px 0 0 #6ea7ff;
+    }
+
+    .timeline-track-index {
+      color: #969696;
+      font-size: 0.73rem;
+    }
+
+    .timeline-track-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .timeline-track-info strong {
+      color: #ececec;
+      font-size: 0.82rem;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .timeline-track-info span {
+      color: #a7a7a7;
+      font-size: 0.72rem;
+    }
+
+    .timeline-track-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .timeline-track-knob {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid #656565;
+      background: #262626;
+      position: relative;
+    }
+
+    .timeline-track-knob::after {
+      content: "";
+      position: absolute;
+      width: 2px;
+      height: 5px;
+      left: 50%;
+      top: 2px;
+      margin-left: -1px;
+      background: #89c2ff;
+      border-radius: 1px;
+    }
+
+    .timeline-track-toggle {
+      width: 17px;
+      height: 17px;
+      border: 1px solid #5a5a5a;
+      border-radius: 2px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.62rem;
+      font-weight: 600;
+      color: #d0d0d0;
+      background: #303030;
+    }
+
+    #addTrackButton {
+      width: calc(100% - 12px);
+      margin: 6px;
+      padding: 7px 10px;
+      border-radius: 2px;
+      text-align: center;
+    }
+
+    .timeline-main {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: #2f2f2f;
+    }
+
+    .timeline-toolbar {
+      border: 0;
+      border-radius: 0;
+      border-bottom: 1px solid #3b3b3b;
+      background: #2f2f2f;
+      min-height: 42px;
+      padding: 6px 10px;
+      gap: 12px;
+    }
+
+    .timeline-zoom-controls {
+      margin-left: auto;
+    }
+
+    .timeline-canvas {
+      border: 0;
+      border-radius: 0;
+      background: #3b3b3b;
+    }
+
+    .timeline-ruler {
+      min-width: var(--timeline-width);
+      height: 36px;
+      border-bottom: 1px solid #353535;
+      background: #333333;
+    }
+
+    .timeline-ruler-spacer,
+    .timeline-lane-label {
+      display: none;
+    }
+
+    .timeline-ruler-cell {
+      padding: 4px 8px 3px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: #d0d0d0;
+    }
+
+    .timeline-ruler-bar {
+      font-size: 0.72rem;
+      line-height: 1;
+    }
+
+    .timeline-ruler-time {
+      font-size: 0.62rem;
+      color: #9f9f9f;
+      line-height: 1;
+    }
+
+    .timeline-lanes {
+      min-width: var(--timeline-width);
+      background: #404040;
+    }
+
+    .timeline-lane {
+      min-height: 58px;
+      border-bottom: 1px solid #353535;
+      background-color: rgba(66, 66, 66, 0.86);
+    }
+
+    .timeline-lane:nth-child(odd) {
+      background-color: rgba(62, 62, 62, 0.86);
+    }
+
+    .timeline-lane.active {
+      background-color: rgba(74, 74, 74, 0.9);
+    }
+
+    .timeline-lane-body {
+      width: var(--timeline-width);
+      min-height: 58px;
+    }
+
+    .timeline-clip {
+      top: 8px;
+      height: 42px;
+      border: 1px solid #b1b1b1;
+      background: #6f6f6f;
+    }
+
+    .timeline-clip.active {
+      border-color: #d6d6d6;
+      background: #7b7b7b;
+    }
+
+    @media (max-width: 1220px) {
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .topbar-actions {
+        width: 100%;
+        flex-wrap: wrap;
+      }
+
+      .preview-gain-control {
+        width: 100%;
+      }
+
+      .containers-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .timeline-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar-list,
+      .container-list,
+      .layer-list,
+      .version-list {
+        max-height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <strong>GameSFXDAW</strong>
+        <span>Project Atlas</span>
+      </div>
+      <div class="topbar-actions">
+        <div class="preview-gain-control">
+          <label for="masterPreviewGainKnob">Preview</label>
+          <div class="preview-knob-wrap">
+            <button id="masterPreviewGainKnob" class="knob" type="button" aria-label="Preview gain">
+              <span class="knob-indicator"></span>
+            </button>
+            <span id="masterPreviewGainDbValue" class="mono">0.0 dB</span>
+          </div>
+        </div>
+        <button class="btn btn-accent">Export Approved</button>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab-button active" data-tab="containers">Containers</button>
+      <button class="tab-button" data-tab="timeline">Timeline</button>
+      <button class="tab-button" data-tab="export">Export</button>
+    </nav>
+
+    <section id="containers" class="tab-panel active">
+      <div class="containers-layout">
+        <aside class="panel">
+          <h2 class="panel-title">Project Categories</h2>
+          <div id="categoryList" class="sidebar-list"></div>
+        </aside>
+
+        <section class="panel">
+          <h2 class="panel-title">SFX Containers</h2>
+          <div class="browser-toolbar">
+            <input id="containerSearch" class="search" type="text" placeholder="Search containers">
+            <button id="addContainerButton" class="btn">Add Container</button>
+          </div>
+          <div id="containerList" class="container-list"></div>
+        </section>
+
+        <aside class="panel">
+          <div id="inspector"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="timeline" class="tab-panel">
+      <div class="timeline-layout">
+        <aside class="timeline-sidebar">
+          <div class="timeline-stats">
+            <div class="timeline-stat"><span>Transport</span><strong id="timelineTransport">Stopped</strong></div>
+            <div class="timeline-stat"><span>BPM</span><strong id="timelineBpm">120</strong></div>
+            <div class="timeline-stat"><span>Bars</span><strong id="timelineBars">16</strong></div>
+            <div class="timeline-stat"><span>Snap</span><strong id="timelineSnap">1/8</strong></div>
+          </div>
+          <div id="timelineTrackList" class="timeline-track-list"></div>
+          <button id="addTrackButton" class="btn">Add Track</button>
+        </aside>
+
+        <section class="timeline-main">
+          <div class="timeline-toolbar">
+            <div class="timeline-toolbar-group timeline-zoom-controls">
+              <button id="timelineZoomOut" class="icon-btn" type="button" aria-label="Zoom out">−</button>
+              <span id="timelineZoomValue" class="mono">100%</span>
+              <button id="timelineZoomIn" class="icon-btn" type="button" aria-label="Zoom in">+</button>
+            </div>
+          </div>
+
+          <div id="timelineCanvas" class="timeline-canvas">
+            <div id="timelineRuler" class="timeline-ruler"></div>
+            <div id="timelineLanes" class="timeline-lanes"></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="export" class="tab-panel">
+      <div class="placeholder">Export presets UI will target Wwise, FMOD, Unity, and Unreal profiles.</div>
+    </section>
+  </div>
+
+  <script>
+    const state = {
+      activeTab: "containers",
+      activeCategory: "All",
+      search: "",
+      previewGainDb: 0.0,
+      selectedContainerId: "cont_001",
+      timeline: {
+        transport: "Stopped",
+        bpm: 120,
+        bars: 16,
+        snap: "1/8",
+        zoom: 1,
+        selectedTrackId: "trk_001",
+        selectedClipId: "clip_001",
+        tracks: [
+          {
+            id: "trk_001",
+            name: "Main",
+            clips: [
+              { id: "clip_001", containerId: "cont_001", startBar: 1, lengthBars: 2 }
+            ]
+          },
+          {
+            id: "trk_002",
+            name: "Sweeteners",
+            clips: [
+              { id: "clip_002", containerId: "cont_003", startBar: 3, lengthBars: 1 }
+            ]
+          }
+        ]
+      },
+      project: {
+        name: "Project Atlas",
+        containers: [
+          {
+            id: "cont_001",
+            name: "Footstep_Grass",
+            category: "Foley",
+            status: "in_review",
+            durationMs: 610,
+            loudnessLufs: -15.8,
+            tags: ["player", "outdoor"],
+            layers: [
+              { id: "lyr_001", name: "Transient", gainDb: 0.0, pitchSt: 0.0, offsetMs: 0, source: "footstep_transient_01.wav" },
+              { id: "lyr_002", name: "Body", gainDb: -1.5, pitchSt: -0.2, offsetMs: 6, source: "footstep_body_02.wav" },
+              { id: "lyr_003", name: "Tail", gainDb: -3.0, pitchSt: 0.0, offsetMs: 22, source: "cloth_tail_01.wav" }
+            ],
+            versions: [
+              { id: "ver_001", name: "A_Default", approved: true, notes: "Balanced for third-person camera", createdAt: "2026-02-25T06:59:35Z" },
+              { id: "ver_002", name: "B_HeavyArmor", approved: false, notes: "Extra low body layer", createdAt: "2026-02-25T06:59:35Z" }
+            ]
+          },
+          {
+            id: "cont_002",
+            name: "Gunshot_AR",
+            category: "Weapons",
+            status: "draft",
+            durationMs: 980,
+            loudnessLufs: -13.1,
+            tags: ["weapon", "rifle", "combat"],
+            layers: [
+              { id: "lyr_004", name: "Muzzle Transient", gainDb: 1.0, pitchSt: 0.2, offsetMs: 0, source: "ar_transient_01.wav" },
+              { id: "lyr_005", name: "Body Crack", gainDb: 0.0, pitchSt: 0.0, offsetMs: 5, source: "ar_body_02.wav" }
+            ],
+            versions: [
+              { id: "ver_003", name: "A_Default", approved: false, notes: "Needs indoor reflection variant", createdAt: "2026-02-25T06:59:35Z" }
+            ]
+          },
+          {
+            id: "cont_003",
+            name: "UI_Click_Inventory",
+            category: "UI",
+            status: "approved",
+            durationMs: 144,
+            loudnessLufs: -18.0,
+            tags: ["ui", "inventory"],
+            layers: [
+              { id: "lyr_006", name: "Click Core", gainDb: 0.0, pitchSt: 0.0, offsetMs: 0, source: "ui_click_core.wav" },
+              { id: "lyr_007", name: "Air Tick", gainDb: -5.0, pitchSt: 2.1, offsetMs: 0, source: "ui_air_tick.wav" }
+            ],
+            versions: [
+              { id: "ver_004", name: "Approved", approved: true, notes: "Shipped in sprint 12", createdAt: "2026-02-25T06:59:35Z" }
+            ]
+          }
+        ]
+      }
+    };
+
+    const categoryListEl = document.getElementById("categoryList");
+    const containerListEl = document.getElementById("containerList");
+    const inspectorEl = document.getElementById("inspector");
+    const searchEl = document.getElementById("containerSearch");
+    const addContainerButton = document.getElementById("addContainerButton");
+    const masterPreviewGainKnobEl = document.getElementById("masterPreviewGainKnob");
+    const masterPreviewGainValueEl = document.getElementById("masterPreviewGainDbValue");
+    const timelineTransportEl = document.getElementById("timelineTransport");
+    const timelineBpmEl = document.getElementById("timelineBpm");
+    const timelineBarsEl = document.getElementById("timelineBars");
+    const timelineSnapEl = document.getElementById("timelineSnap");
+    const timelineTrackListEl = document.getElementById("timelineTrackList");
+    const addTrackButtonEl = document.getElementById("addTrackButton");
+    const timelineZoomOutEl = document.getElementById("timelineZoomOut");
+    const timelineZoomInEl = document.getElementById("timelineZoomIn");
+    const timelineZoomValueEl = document.getElementById("timelineZoomValue");
+    const timelineCanvasEl = document.getElementById("timelineCanvas");
+    const timelineRulerEl = document.getElementById("timelineRuler");
+    const timelineLanesEl = document.getElementById("timelineLanes");
+    const juceBackend = window.__JUCE__ && window.__JUCE__.backend ? window.__JUCE__.backend : null;
+    let previewKnobDragState = null;
+    let timelineInteraction = null;
+    let suppressTimelineClick = false;
+    let isSyncingTimelineScroll = false;
+
+    function categoriesWithCount() {
+      const counts = new Map();
+      counts.set("All", state.project.containers.length);
+      for (const container of state.project.containers) {
+        counts.set(container.category, (counts.get(container.category) || 0) + 1);
+      }
+      return Array.from(counts.entries()).map(([name, count]) => ({ name, count }));
+    }
+
+    function selectedContainer() {
+      return state.project.containers.find((container) => container.id === state.selectedContainerId) || null;
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function containerIndexById(containerId) {
+      const index = state.project.containers.findIndex((container) => container.id === containerId);
+      return index >= 0 ? index : 0;
+    }
+
+    function emitJuceSliderValue(identifier, value) {
+      if (!juceBackend) return;
+      juceBackend.emitEvent(identifier, {
+        eventType: "valueChanged",
+        value
+      });
+    }
+
+    function requestJuceInitialUpdate(identifier) {
+      if (!juceBackend) return;
+      juceBackend.emitEvent(identifier, { eventType: "requestInitialUpdate" });
+    }
+
+    function updateMasterPreviewGainDisplay() {
+      if (masterPreviewGainKnobEl) {
+        const normalized = (state.previewGainDb + 24.0) / 36.0;
+        const angle = -135 + (normalized * 270);
+        masterPreviewGainKnobEl.style.setProperty("--knob-angle", `${angle.toFixed(2)}deg`);
+      }
+      if (masterPreviewGainValueEl) {
+        masterPreviewGainValueEl.textContent = `${state.previewGainDb.toFixed(1)} dB`;
+      }
+    }
+
+    function setMasterPreviewGain(value, emitToBackend = true) {
+      const numericValue = Number(value);
+      if (!Number.isFinite(numericValue)) return;
+      state.previewGainDb = clamp(numericValue, -24.0, 12.0);
+      updateMasterPreviewGainDisplay();
+      if (emitToBackend) {
+        emitJuceSliderValue("masterPreviewGainDb", state.previewGainDb);
+      }
+    }
+
+    function syncSelectedContainerState() {
+      const selectedIndex = containerIndexById(state.selectedContainerId);
+      emitJuceSliderValue("selectedContainerIndex", selectedIndex);
+
+      const container = selectedContainer();
+      if (!container) {
+        updateTimelineToolbarInfo();
+        return;
+      }
+
+      const recommendedGain = clamp(-16.0 - container.loudnessLufs, -24.0, 12.0);
+      setMasterPreviewGain(recommendedGain, true);
+      updateTimelineToolbarInfo();
+    }
+
+    function setupJuceBindings() {
+      if (!juceBackend) return;
+
+      juceBackend.addEventListener("masterPreviewGainDb", (event) => {
+        if (event && event.eventType === "valueChanged" && Number.isFinite(Number(event.value))) {
+          setMasterPreviewGain(Number(event.value), false);
+        }
+      });
+
+      requestJuceInitialUpdate("masterPreviewGainDb");
+      requestJuceInitialUpdate("selectedContainerIndex");
+    }
+
+    function setupPreviewKnob() {
+      if (!masterPreviewGainKnobEl) return;
+
+      masterPreviewGainKnobEl.addEventListener("mousedown", (event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        previewKnobDragState = {
+          startY: event.clientY,
+          startValue: state.previewGainDb
+        };
+        window.addEventListener("mousemove", onPreviewKnobDrag);
+        window.addEventListener("mouseup", endPreviewKnobDrag);
+      });
+
+      masterPreviewGainKnobEl.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        const delta = event.deltaY < 0 ? 0.5 : -0.5;
+        setMasterPreviewGain(state.previewGainDb + delta, true);
+      }, { passive: false });
+
+      masterPreviewGainKnobEl.addEventListener("dblclick", () => {
+        setMasterPreviewGain(0.0, true);
+      });
+    }
+
+    function onPreviewKnobDrag(event) {
+      if (!previewKnobDragState) return;
+      const delta = previewKnobDragState.startY - event.clientY;
+      setMasterPreviewGain(previewKnobDragState.startValue + (delta * 0.15), true);
+    }
+
+    function endPreviewKnobDrag() {
+      previewKnobDragState = null;
+      window.removeEventListener("mousemove", onPreviewKnobDrag);
+      window.removeEventListener("mouseup", endPreviewKnobDrag);
+    }
+
+    function timelineBarWidthPx() {
+      return Math.round(96 * state.timeline.zoom);
+    }
+
+    function timelineSnapStepBars() {
+      const snapMap = {
+        "1/1": 1.0,
+        "1/2": 0.5,
+        "1/4": 0.25,
+        "1/8": 0.125,
+        "1/16": 0.0625
+      };
+      return snapMap[state.timeline.snap] || 0.25;
+    }
+
+    function snapTimelineBars(value) {
+      const step = timelineSnapStepBars();
+      return Math.round(value / step) * step;
+    }
+
+    function normalizeBarValue(value) {
+      return Number(value.toFixed(4));
+    }
+
+    function formatBarValue(value) {
+      const rounded = normalizeBarValue(value);
+      if (Number.isInteger(rounded)) {
+        return String(rounded);
+      }
+      return rounded.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+    }
+
+    function waveformSeedFromText(text) {
+      let hash = 2166136261;
+      for (let index = 0; index < text.length; index += 1) {
+        hash ^= text.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+      }
+      return hash >>> 0;
+    }
+
+    function clipWaveformHeights(seedText, pointCount) {
+      let seed = waveformSeedFromText(seedText);
+      const heights = [];
+      for (let index = 0; index < pointCount; index += 1) {
+        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+        const noise = (seed & 0xffff) / 65535;
+        const shaped = 0.2 + (Math.abs(Math.sin((index + 1) * 0.62 + (noise * 3.14))) * 0.8);
+        heights.push(Math.round(shaped * 100));
+      }
+      return heights;
+    }
+
+    function renderClipWaveform(containerId, clipId, lengthBars) {
+      const points = Math.max(16, Math.min(56, Math.round(lengthBars * 18)));
+      const heights = clipWaveformHeights(`${containerId}:${clipId}`, points);
+      return `
+        <div class="timeline-waveform">
+          ${heights.map((height) => `<span class="timeline-wave-bar" style="height:${height}%;"></span>`).join("")}
+        </div>
+      `;
+    }
+
+    function setTimelineZoom(value) {
+      const zoom = clamp(value, 0.6, 2.4);
+      if (Math.abs(zoom - state.timeline.zoom) < 0.001) return;
+      state.timeline.zoom = normalizeBarValue(zoom);
+      renderTimeline();
+    }
+
+    function setupTimelineScrollSync() {
+      if (!timelineCanvasEl || !timelineTrackListEl) return;
+
+      timelineCanvasEl.addEventListener("scroll", () => {
+        if (isSyncingTimelineScroll) return;
+        isSyncingTimelineScroll = true;
+        timelineTrackListEl.scrollTop = timelineCanvasEl.scrollTop;
+        window.requestAnimationFrame(() => {
+          isSyncingTimelineScroll = false;
+        });
+      });
+
+      timelineTrackListEl.addEventListener("scroll", () => {
+        if (isSyncingTimelineScroll) return;
+        isSyncingTimelineScroll = true;
+        timelineCanvasEl.scrollTop = timelineTrackListEl.scrollTop;
+        window.requestAnimationFrame(() => {
+          isSyncingTimelineScroll = false;
+        });
+      });
+    }
+
+    function timelineTrackById(trackId) {
+      return state.timeline.tracks.find((track) => track.id === trackId) || null;
+    }
+
+    function timelineClipById(trackId, clipId) {
+      const track = timelineTrackById(trackId);
+      if (!track) return null;
+      return track.clips.find((clip) => clip.id === clipId) || null;
+    }
+
+    function timelineSelectedTrack() {
+      return timelineTrackById(state.timeline.selectedTrackId) || state.timeline.tracks[0] || null;
+    }
+
+    function ensureTimelineSelection() {
+      if (state.timeline.tracks.length === 0) {
+        state.timeline.selectedTrackId = null;
+        state.timeline.selectedClipId = null;
+        return;
+      }
+
+      if (!timelineTrackById(state.timeline.selectedTrackId)) {
+        state.timeline.selectedTrackId = state.timeline.tracks[0].id;
+      }
+
+      if (state.timeline.selectedClipId) {
+        const hasSelectedClip = state.timeline.tracks.some((track) =>
+          track.clips.some((clip) => clip.id === state.timeline.selectedClipId)
+        );
+        if (!hasSelectedClip) {
+          state.timeline.selectedClipId = null;
+        }
+      }
+    }
+
+    function nextTimelineTrackId() {
+      const maxTrackNumber = state.timeline.tracks.reduce((maxId, track) => {
+        const value = Number(track.id.replace("trk_", ""));
+        return Number.isFinite(value) ? Math.max(maxId, value) : maxId;
+      }, 0);
+      return `trk_${String(maxTrackNumber + 1).padStart(3, "0")}`;
+    }
+
+    function nextTimelineClipId() {
+      const maxClipNumber = state.timeline.tracks.reduce((maxId, track) => {
+        for (const clip of track.clips) {
+          const value = Number(clip.id.replace("clip_", ""));
+          if (Number.isFinite(value)) {
+            maxId = Math.max(maxId, value);
+          }
+        }
+        return maxId;
+      }, 0);
+      return `clip_${String(maxClipNumber + 1).padStart(3, "0")}`;
+    }
+
+    function updateTimelineToolbarInfo() {
+      if (timelineTransportEl) timelineTransportEl.textContent = state.timeline.transport;
+      if (timelineBpmEl) timelineBpmEl.textContent = String(state.timeline.bpm);
+      if (timelineBarsEl) timelineBarsEl.textContent = String(state.timeline.bars);
+      if (timelineSnapEl) timelineSnapEl.textContent = state.timeline.snap;
+
+      if (timelineZoomValueEl) timelineZoomValueEl.textContent = `${Math.round(state.timeline.zoom * 100)}%`;
+    }
+
+    function updateTimelineScale() {
+      if (!timelineCanvasEl) return;
+      const barWidth = timelineBarWidthPx();
+      const timelineWidth = Math.max(state.timeline.bars * barWidth, 640);
+      timelineCanvasEl.style.setProperty("--bar-width", `${barWidth}px`);
+      timelineCanvasEl.style.setProperty("--timeline-width", `${timelineWidth}px`);
+    }
+
+    function renderTimelineTrackList() {
+      if (!timelineTrackListEl) return;
+
+      if (state.timeline.tracks.length === 0) {
+        timelineTrackListEl.innerHTML = `<div class="timeline-empty">No tracks yet.</div>`;
+        return;
+      }
+
+      timelineTrackListEl.innerHTML = state.timeline.tracks
+        .map((track, index) => `
+          <button type="button" class="timeline-track-item ${state.timeline.selectedTrackId === track.id ? "active" : ""}" data-track-id="${track.id}">
+            <span class="timeline-track-index">${index + 1}</span>
+            <span class="timeline-track-info">
+              <strong>${track.name}</strong>
+              <span>${track.clips.length} clips</span>
+            </span>
+            <span class="timeline-track-controls">
+              <span class="timeline-track-knob"></span>
+              <span class="timeline-track-toggle">M</span>
+              <span class="timeline-track-toggle">S</span>
+            </span>
+          </button>
+        `)
+        .join("");
+    }
+
+    function renderTimelineRuler() {
+      if (!timelineRulerEl) return;
+
+      timelineRulerEl.innerHTML = Array.from({ length: state.timeline.bars }, (_, index) => {
+        const bar = index + 1;
+        const secondsApprox = ((bar - 1) * 0.5).toFixed(3);
+        return `
+          <div class="timeline-ruler-cell">
+            <span class="timeline-ruler-bar">${bar}</span>
+            <span class="timeline-ruler-time">${secondsApprox}s</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderTimelineLanes() {
+      if (!timelineLanesEl) return;
+
+      if (state.timeline.tracks.length === 0) {
+        timelineLanesEl.innerHTML = `<div class="timeline-empty">Create a track to begin sequencing containers.</div>`;
+        return;
+      }
+
+      const barWidth = timelineBarWidthPx();
+
+      timelineLanesEl.innerHTML = state.timeline.tracks.map((track) => `
+        <div class="timeline-lane ${state.timeline.selectedTrackId === track.id ? "active" : ""}">
+          <div class="timeline-lane-body" data-lane-track-id="${track.id}">
+            ${track.clips.length === 0
+              ? `<div class="timeline-empty">No clips on this track.</div>`
+              : track.clips.map((clip) => {
+                  const clipContainer = state.project.containers.find((container) => container.id === clip.containerId);
+                  const clipName = clipContainer ? clipContainer.name : "Unknown";
+                  const leftPx = ((clip.startBar - 1) * barWidth) + 6;
+                  const widthPx = Math.max((clip.lengthBars * barWidth) - 12, 76);
+                  const barLabel = clip.lengthBars > 1 ? `${formatBarValue(clip.lengthBars)} bars` : "1 bar";
+                  const isDragging = timelineInteraction && timelineInteraction.clipId === clip.id;
+                  return `
+                    <button
+                      type="button"
+                      class="timeline-clip ${state.timeline.selectedClipId === clip.id ? "active" : ""} ${isDragging ? "dragging" : ""}"
+                      style="left:${leftPx}px; width:${widthPx}px;"
+                      data-track-id="${track.id}"
+                      data-clip-id="${clip.id}">
+                      ${renderClipWaveform(clip.containerId, clip.id, clip.lengthBars)}
+                      <span class="timeline-clip-title">${clipName}</span>
+                      <span class="timeline-clip-sub">Bar ${formatBarValue(clip.startBar)} • ${barLabel}</span>
+                      <span class="timeline-clip-handle" data-clip-resize="1"></span>
+                    </button>
+                  `;
+                }).join("")
+            }
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderTimeline() {
+      ensureTimelineSelection();
+      updateTimelineToolbarInfo();
+      updateTimelineScale();
+      renderTimelineTrackList();
+      renderTimelineRuler();
+      renderTimelineLanes();
+    }
+
+    function selectTimelineTrack(trackId) {
+      const track = timelineTrackById(trackId);
+      if (!track) return;
+
+      state.timeline.selectedTrackId = track.id;
+
+      if (state.timeline.selectedClipId) {
+        const clipOnTrack = track.clips.some((clip) => clip.id === state.timeline.selectedClipId);
+        if (!clipOnTrack) {
+          state.timeline.selectedClipId = null;
+        }
+      }
+
+      renderTimeline();
+    }
+
+    function selectTimelineClip(trackId, clipId) {
+      const track = timelineTrackById(trackId);
+      if (!track) return;
+
+      const clipExists = track.clips.some((clip) => clip.id === clipId);
+      if (!clipExists) return;
+
+      state.timeline.selectedTrackId = trackId;
+      state.timeline.selectedClipId = clipId;
+      renderTimeline();
+    }
+
+    function beginTimelineClipInteraction(trackId, clipId, mode, clientX) {
+      const clip = timelineClipById(trackId, clipId);
+      if (!clip) return;
+
+      timelineInteraction = {
+        mode,
+        trackId,
+        clipId,
+        startClientX: clientX,
+        startBar: clip.startBar,
+        startLengthBars: clip.lengthBars,
+        didMove: false
+      };
+
+      state.timeline.selectedTrackId = trackId;
+      state.timeline.selectedClipId = clipId;
+      document.body.style.userSelect = "none";
+
+      window.addEventListener("mousemove", onTimelineClipInteractionMove);
+      window.addEventListener("mouseup", endTimelineClipInteraction);
+      renderTimeline();
+    }
+
+    function onTimelineClipInteractionMove(event) {
+      if (!timelineInteraction) return;
+
+      const clip = timelineClipById(timelineInteraction.trackId, timelineInteraction.clipId);
+      if (!clip) return;
+
+      const barWidth = timelineBarWidthPx();
+      const deltaBars = (event.clientX - timelineInteraction.startClientX) / barWidth;
+      const snapStep = timelineSnapStepBars();
+
+      if (Math.abs(event.clientX - timelineInteraction.startClientX) > 2) {
+        timelineInteraction.didMove = true;
+      }
+
+      if (timelineInteraction.mode === "move") {
+        const startPosition = timelineInteraction.startBar - 1;
+        const nextPosition = Math.max(0, snapTimelineBars(startPosition + deltaBars));
+        clip.startBar = normalizeBarValue(nextPosition + 1);
+      } else {
+        const nextLength = snapTimelineBars(timelineInteraction.startLengthBars + deltaBars);
+        clip.lengthBars = normalizeBarValue(Math.max(snapStep, nextLength));
+      }
+
+      const clipEnd = clip.startBar + clip.lengthBars;
+      if (clipEnd > state.timeline.bars) {
+        state.timeline.bars = Math.ceil(clipEnd + 2);
+      }
+
+      renderTimeline();
+    }
+
+    function endTimelineClipInteraction() {
+      if (!timelineInteraction) return;
+
+      if (timelineInteraction.didMove) {
+        suppressTimelineClick = true;
+      }
+
+      timelineInteraction = null;
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onTimelineClipInteractionMove);
+      window.removeEventListener("mouseup", endTimelineClipInteraction);
+      renderTimeline();
+    }
+
+    function addTimelineTrack() {
+      const trackId = nextTimelineTrackId();
+      const track = {
+        id: trackId,
+        name: `Track ${state.timeline.tracks.length + 1}`,
+        clips: []
+      };
+      state.timeline.tracks.push(track);
+      state.timeline.selectedTrackId = trackId;
+      state.timeline.selectedClipId = null;
+      renderTimeline();
+    }
+
+    function addSelectedContainerToTimeline() {
+      const container = selectedContainer();
+      if (!container) return;
+
+      if (state.timeline.tracks.length === 0) {
+        addTimelineTrack();
+      }
+
+      const track = timelineSelectedTrack();
+      if (!track) return;
+
+      const snapStep = timelineSnapStepBars();
+      const rawLength = Math.max(1, Math.min(4, Math.ceil(container.durationMs / 350)));
+      const clipLengthBars = normalizeBarValue(Math.max(snapStep, snapTimelineBars(rawLength)));
+      const maxEndBar = track.clips.reduce((maxEnd, clip) => (
+        Math.max(maxEnd, clip.startBar + clip.lengthBars)
+      ), 1);
+      const startBar = normalizeBarValue(Math.max(1, maxEndBar));
+      const endingBar = startBar + clipLengthBars;
+
+      if (endingBar > state.timeline.bars) {
+        state.timeline.bars = Math.ceil(endingBar + 4);
+      }
+
+      const clip = {
+        id: nextTimelineClipId(),
+        containerId: container.id,
+        startBar,
+        lengthBars: clipLengthBars
+      };
+
+      track.clips.push(clip);
+      state.timeline.selectedTrackId = track.id;
+      state.timeline.selectedClipId = clip.id;
+      renderTimeline();
+    }
+
+    function filterContainers() {
+      const term = state.search.trim().toLowerCase();
+      return state.project.containers.filter((container) => {
+        const categoryPass = state.activeCategory === "All" || container.category === state.activeCategory;
+        if (!categoryPass) return false;
+        if (!term) return true;
+        const tagText = container.tags.join(" ").toLowerCase();
+        return container.name.toLowerCase().includes(term) || tagText.includes(term);
+      });
+    }
+
+    function renderCategories() {
+      const categories = categoriesWithCount();
+      categoryListEl.innerHTML = categories
+        .map(({ name, count }) => `
+          <button class="sidebar-item ${state.activeCategory === name ? "active" : ""}" data-category="${name}">
+            <span>${name}</span>
+            <strong>${count}</strong>
+          </button>
+        `)
+        .join("");
+    }
+
+    function renderContainers() {
+      const filtered = filterContainers();
+      if (filtered.length === 0) {
+        containerListEl.innerHTML = `<div class="placeholder">No containers match this filter.</div>`;
+        return;
+      }
+
+      containerListEl.innerHTML = filtered
+        .map((container) => `
+          <article class="container-card ${container.id === state.selectedContainerId ? "active" : ""}" data-container-id="${container.id}">
+            <div class="container-head">
+              <div class="container-name">${container.name}</div>
+              <span class="status-pill status-${container.status}">${container.status.replace("_", " ")}</span>
+            </div>
+            <div class="meta-line">
+              <span>${container.category}</span>
+              <span>${container.layers.length} layers</span>
+              <span>${container.versions.length} versions</span>
+              <span>${container.durationMs} ms</span>
+            </div>
+          </article>
+        `)
+        .join("");
+    }
+
+    function renderInspector() {
+      const container = selectedContainer();
+      if (!container) {
+        inspectorEl.innerHTML = `<div class="placeholder">Select a container to inspect layers and versions.</div>`;
+        return;
+      }
+
+      inspectorEl.innerHTML = `
+        <div class="inspector-header">
+          <h3>${container.name}</h3>
+          <div class="inspector-meta">
+            <span>${container.category}</span>
+            <span>${container.durationMs} ms</span>
+            <span>${container.loudnessLufs} LUFS</span>
+          </div>
+        </div>
+
+        <section class="section-block">
+          <div class="section-head">
+            <h4>Layers</h4>
+            <button id="addLayerButton" class="btn">Add Layer</button>
+          </div>
+          <div class="layer-list">
+            ${container.layers.map((layer) => `
+              <article class="layer-row">
+                <div class="row-title">
+                  <strong>${layer.name}</strong>
+                  <span class="mono">${layer.source}</span>
+                </div>
+                <div class="meta-line">
+                  <span>Gain ${layer.gainDb.toFixed(1)} dB</span>
+                  <span>Pitch ${layer.pitchSt.toFixed(1)} st</span>
+                  <span>Offset ${layer.offsetMs} ms</span>
+                </div>
+              </article>
+            `).join("")}
+          </div>
+        </section>
+
+        <section class="section-block">
+          <div class="section-head">
+            <h4>Versions</h4>
+            <button id="addVersionButton" class="btn">Add Version</button>
+          </div>
+          <div class="version-list">
+            ${container.versions.map((version) => `
+              <article class="version-row">
+                <div class="row-title">
+                  <strong>${version.name}</strong>
+                  <span class="mono">${formatDate(version.createdAt)}</span>
+                </div>
+                <div class="meta-line">${version.notes}</div>
+                <div class="version-actions">
+                  <button class="approve ${version.approved ? "active" : ""}" data-action="approve-version" data-version-id="${version.id}">
+                    ${version.approved ? "Approved" : "Set Approved"}
+                  </button>
+                </div>
+              </article>
+            `).join("")}
+          </div>
+        </section>
+      `;
+    }
+
+    function formatDate(isoDate) {
+      const date = new Date(isoDate);
+      return date.toISOString().slice(0, 10);
+    }
+
+    function addContainer() {
+      const next = state.project.containers.length + 1;
+      const id = `cont_${String(next).padStart(3, "0")}`;
+      const container = {
+        id,
+        name: `New_SFX_${next}`,
+        category: "Unsorted",
+        status: "draft",
+        durationMs: 500,
+        loudnessLufs: -16.0,
+        tags: ["new"],
+        layers: [],
+        versions: []
+      };
+      state.project.containers.unshift(container);
+      state.selectedContainerId = id;
+      state.activeCategory = "All";
+      renderAll();
+      syncSelectedContainerState();
+    }
+
+    function addLayer() {
+      const container = selectedContainer();
+      if (!container) return;
+      const next = container.layers.length + 1;
+      container.layers.push({
+        id: `lyr_${container.id}_${next}`,
+        name: `Layer_${next}`,
+        gainDb: 0.0,
+        pitchSt: 0.0,
+        offsetMs: 0,
+        source: "new_layer.wav"
+      });
+      renderInspector();
+      renderContainers();
+    }
+
+    function addVersion() {
+      const container = selectedContainer();
+      if (!container) return;
+      const next = container.versions.length + 1;
+      container.versions.push({
+        id: `ver_${container.id}_${next}`,
+        name: `Version_${next}`,
+        approved: false,
+        notes: "New snapshot from current layer stack",
+        createdAt: new Date().toISOString()
+      });
+      container.status = "in_review";
+      renderInspector();
+      renderContainers();
+    }
+
+    function setApprovedVersion(versionId) {
+      const container = selectedContainer();
+      if (!container) return;
+      for (const version of container.versions) {
+        version.approved = version.id === versionId;
+      }
+      container.status = "approved";
+      renderInspector();
+      renderContainers();
+    }
+
+    function selectTab(tabId) {
+      state.activeTab = tabId;
+      document.querySelectorAll(".tab-button").forEach((button) => {
+        button.classList.toggle("active", button.dataset.tab === tabId);
+      });
+      document.querySelectorAll(".tab-panel").forEach((panel) => {
+        panel.classList.toggle("active", panel.id === tabId);
+      });
+
+      if (tabId === "timeline") {
+        renderTimeline();
+      }
+    }
+
+    function bindEvents() {
+      document.querySelectorAll(".tab-button").forEach((button) => {
+        button.addEventListener("click", () => selectTab(button.dataset.tab));
+      });
+
+      categoryListEl.addEventListener("click", (event) => {
+        const target = event.target.closest("[data-category]");
+        if (!target) return;
+        state.activeCategory = target.dataset.category;
+        renderCategories();
+        renderContainers();
+      });
+
+      containerListEl.addEventListener("click", (event) => {
+        const card = event.target.closest("[data-container-id]");
+        if (!card) return;
+        state.selectedContainerId = card.dataset.containerId;
+        renderContainers();
+        renderInspector();
+        syncSelectedContainerState();
+      });
+
+      searchEl.addEventListener("input", (event) => {
+        state.search = event.target.value;
+        renderContainers();
+      });
+
+      addContainerButton.addEventListener("click", addContainer);
+
+      addTrackButtonEl.addEventListener("click", addTimelineTrack);
+      timelineZoomOutEl.addEventListener("click", () => setTimelineZoom(state.timeline.zoom - 0.1));
+      timelineZoomInEl.addEventListener("click", () => setTimelineZoom(state.timeline.zoom + 0.1));
+
+      timelineTrackListEl.addEventListener("click", (event) => {
+        const target = event.target.closest("[data-track-id]");
+        if (!target) return;
+        selectTimelineTrack(target.dataset.trackId);
+      });
+
+      timelineLanesEl.addEventListener("mousedown", (event) => {
+        if (event.button !== 0) return;
+        const clipButton = event.target.closest("[data-clip-id]");
+        if (!clipButton) return;
+
+        event.preventDefault();
+        const isResizeHandle = event.target.closest("[data-clip-resize]") !== null;
+        beginTimelineClipInteraction(
+          clipButton.dataset.trackId,
+          clipButton.dataset.clipId,
+          isResizeHandle ? "resize" : "move",
+          event.clientX
+        );
+      });
+
+      timelineLanesEl.addEventListener("click", (event) => {
+        if (suppressTimelineClick) {
+          suppressTimelineClick = false;
+          return;
+        }
+
+        const clipButton = event.target.closest("[data-clip-id]");
+        if (clipButton) {
+          selectTimelineClip(clipButton.dataset.trackId, clipButton.dataset.clipId);
+          return;
+        }
+
+        const lane = event.target.closest("[data-lane-track-id]");
+        if (lane) {
+          selectTimelineTrack(lane.dataset.laneTrackId);
+        }
+      });
+
+      inspectorEl.addEventListener("click", (event) => {
+        const action = event.target.dataset.action;
+        if (action === "approve-version") {
+          setApprovedVersion(event.target.dataset.versionId);
+          return;
+        }
+
+        if (event.target.id === "addLayerButton") {
+          addLayer();
+        }
+        if (event.target.id === "addVersionButton") {
+          addVersion();
+        }
+      });
+    }
+
+    function renderAll() {
+      renderCategories();
+      renderContainers();
+      renderInspector();
+      renderTimeline();
+    }
+
+    setupJuceBindings();
+    updateMasterPreviewGainDisplay();
+    setupPreviewKnob();
+    setupTimelineScrollSync();
+    bindEvents();
+    renderAll();
+    syncSelectedContainerState();
+  </script>
+</body>
+</html>

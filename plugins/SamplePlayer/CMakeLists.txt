@@ -31,10 +31,14 @@ juce_add_binary_data(sampleplayer_WebUI
 
 juce_add_plugin(sample_player
     COMPANY_NAME "Noizefield"
+    VERSION "1.0.1"
     PLUGIN_MANUFACTURER_CODE NPSA
     PLUGIN_CODE SMP2
     FORMATS ${PLUGIN_FORMATS}
     PRODUCT_NAME "Sample Player"
+    COPY_PLUGIN_AFTER_BUILD TRUE
+    VST3_COPY_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/VST3"
+    AU_COPY_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/Components"
     VST3_CATEGORIES Instrument
     NEEDS_WEBVIEW2 ${NEEDS_WEBVIEW2}
     NEEDS_WEB_BROWSER ${NEEDS_WEB_BROWSER}
@@ -89,4 +93,33 @@ if(WIN32)
             JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
             _USE_MATH_DEFINES=1
     )
+endif()
+
+if(APPLE AND TARGET sample_player_VST3)
+    target_compile_options(sample_player_VST3
+        PRIVATE
+            -UJucePlugin_Name
+            -DJucePlugin_Name=\"Ritual\ Engine\"
+            -UJucePlugin_Desc
+            -DJucePlugin_Desc=\"Ritual\ Engine\"
+    )
+
+    if(TARGET sample_player_vst3_helper)
+        target_compile_options(sample_player_vst3_helper
+            PRIVATE
+                -UJucePlugin_Name
+                -DJucePlugin_Name=\"Ritual\ Engine\"
+                -UJucePlugin_Desc
+                -DJucePlugin_Desc=\"Ritual\ Engine\"
+        )
+    endif()
+
+    add_custom_command(TARGET sample_player_VST3 POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+            -Dsource_bundle=$<TARGET_BUNDLE_DIR:sample_player_VST3>
+            -Dinstall_dir=$ENV{HOME}/Library/Audio/Plug-Ins/VST3
+            -Dold_name=Sample\ Player
+            -Dnew_name=Ritual\ Engine
+            -P ${CMAKE_CURRENT_LIST_DIR}/cmake/rename_vst3_bundle.cmake
+        VERBATIM)
 endif()
