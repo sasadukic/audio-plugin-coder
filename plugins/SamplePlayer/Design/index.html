@@ -15752,10 +15752,7 @@
         if (!Number.isFinite(midi)) return;
         const rect = keyNode.getBoundingClientRect();
         const ratioY = (ev.clientY - rect.top) / Math.max(1, rect.height);
-        triggerKeyboardMapKey(midi, ratioY, {
-          entries: getActiveMapEntries(),
-          manualRanges: getActiveMapManualRanges()
-        });
+        triggerKeyboardMapKey(midi, ratioY);
         keyNode.classList.add("pressed");
         window.setTimeout(() => keyNode.classList.remove("pressed"), 120);
       });
