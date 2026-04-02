@@ -72,10 +72,12 @@ jobs:
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DAPC_PLUGIN_FILTER="${{ inputs.plugin_name }}"
 
       - name: Build VST3
+        shell: bash
         run: |
           cmake --build build --config Release --target "$APC_TARGET_PREFIX"_VST3
 
       - name: Build Standalone
+        shell: bash
         run: |
           cmake --build build --config Release --target "$APC_TARGET_PREFIX"_Standalone
 
