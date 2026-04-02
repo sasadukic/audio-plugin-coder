@@ -35,7 +35,7 @@ juce_add_plugin(sample_player
     PLUGIN_MANUFACTURER_CODE NPSA
     PLUGIN_CODE SMP2
     FORMATS ${PLUGIN_FORMATS}
-    PRODUCT_NAME "Sample Player"
+    PRODUCT_NAME "Ritual Engine"
     COPY_PLUGIN_AFTER_BUILD TRUE
     VST3_COPY_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/VST3"
     AU_COPY_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/Components"
@@ -95,33 +95,3 @@ if(WIN32)
     )
 endif()
 
-if(APPLE AND TARGET sample_player_VST3)
-    target_compile_options(sample_player_VST3
-        PRIVATE
-            -UJucePlugin_Name
-            -DJucePlugin_Name=\"Ritual\ Engine\"
-            -UJucePlugin_Desc
-            -DJucePlugin_Desc=\"Ritual\ Engine\"
-    )
-
-    if(TARGET sample_player_vst3_helper)
-        target_compile_options(sample_player_vst3_helper
-            PRIVATE
-                -UJucePlugin_Name
-                -DJucePlugin_Name=\"Ritual\ Engine\"
-                -UJucePlugin_Desc
-                -DJucePlugin_Desc=\"Ritual\ Engine\"
-        )
-    endif()
-
-    if(NOT DEFINED ENV{GITHUB_ACTIONS})
-        add_custom_command(TARGET sample_player_VST3 POST_BUILD
-            COMMAND ${CMAKE_COMMAND}
-                -Dsource_bundle=$<TARGET_BUNDLE_DIR:sample_player_VST3>
-                -Dinstall_dir=$ENV{HOME}/Library/Audio/Plug-Ins/VST3
-                -Dold_name=Sample\ Player
-                -Dnew_name=Ritual\ Engine
-                -P ${CMAKE_CURRENT_LIST_DIR}/cmake/rename_vst3_bundle.cmake
-            VERBATIM)
-    endif()
-endif()
