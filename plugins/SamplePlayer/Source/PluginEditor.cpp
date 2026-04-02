@@ -458,6 +458,38 @@ void SamplePlayerAudioProcessorEditor::timerCallback()
         int emitted = 0;
         while (emitted < kMaxEmitsPerTick)
         {
+            PendingGraphicDataEmit pending;
+            {
+                const juce::ScopedLock lock (pendingGraphicDataEmitLock);
+                if (pendingGraphicDataEmitQueue.empty())
+                    break;
+                pending = std::move (pendingGraphicDataEmitQueue.front());
+                pendingGraphicDataEmitQueue.pop_front();
+            }
+
+            auto object = juce::DynamicObject::Ptr (new juce::DynamicObject());
+            object->setProperty ("requestId", pending.requestId);
+            object->setProperty ("path", pending.path);
+            object->setProperty ("success", pending.dataUrl.isNotEmpty());
+            object->setProperty ("dataUrl", pending.dataUrl);
+            object->setProperty ("message", pending.message);
+            webView->emitEventIfBrowserIsVisible ("graphic_data_payload", juce::var (object.get()));
+
+            appendUiDebugLog ("graphic_data_get emitted | requestId=" + juce::String (pending.requestId)
+                              + " | path=" + pending.path.quoted()
+                              + " | bytesOut=" + juce::String (pending.bytesOut)
+                              + " | encodingMs=" + juce::String (pending.encodingElapsedMs, 2)
+                              + " | success=" + juce::String (pending.dataUrl.isNotEmpty() ? "yes" : "no")
+                              + (pending.message.isNotEmpty() ? " | message=" + pending.message.quoted() : juce::String()));
+            ++emitted;
+        }
+    }
+
+    {
+        constexpr int kMaxEmitsPerTick = 1;
+        int emitted = 0;
+        while (emitted < kMaxEmitsPerTick)
+        {
             PendingSampleDataEmit pending;
             {
                 const juce::ScopedLock lock (pendingSampleDataEmitLock);
@@ -1620,12 +1652,27 @@ void SamplePlayerAudioProcessorEditor::handleGraphicDataGetEvent (const juce::va
         return;
     }
 
-    const juce::File file (path);
-    const auto dataUrl = buildFileDataUrl (file);
-    payload->setProperty ("success", dataUrl.isNotEmpty());
-    payload->setProperty ("dataUrl", dataUrl);
-    payload->setProperty ("message", dataUrl.isNotEmpty() ? juce::String() : juce::String ("Could not load wallpaper."));
-    webView->emitEventIfBrowserIsVisible ("graphic_data_payload", juce::var (payload.get()));
+    // Mirror sample-data transport: encode off the message thread and queue
+    // one emit per timer tick so large image payloads do not stall WebView IPC.
+    sampleDataRequestPool.addJob ([this, requestId, path]()
+    {
+        const auto requestStartMs = juce::Time::getMillisecondCounterHiRes();
+        const juce::File file (path);
+        const auto dataUrl = buildFileDataUrl (file);
+
+        PendingGraphicDataEmit pending;
+        pending.requestId = requestId;
+        pending.path = path;
+        pending.dataUrl = dataUrl;
+        pending.message = dataUrl.isNotEmpty() ? juce::String() : juce::String ("Could not load wallpaper.");
+        pending.bytesOut = pending.dataUrl.getNumBytesAsUTF8();
+        pending.encodingElapsedMs = juce::Time::getMillisecondCounterHiRes() - requestStartMs;
+
+        {
+            const juce::ScopedLock lock (pendingGraphicDataEmitLock);
+            pendingGraphicDataEmitQueue.push_back (std::move (pending));
+        }
+    });
 }
 
 void SamplePlayerAudioProcessorEditor::handleDebugLogEvent (const juce::var& eventPayload)

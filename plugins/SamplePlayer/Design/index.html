@@ -6424,9 +6424,10 @@
         return "";
       }
       logWallpaperDebug("hydrate-request", `requestPath=${JSON.stringify(absolutePath)}`);
-      const dataUrl = String(await requestGraphicDataFromNative(absolutePath, 3500) || "").trim();
+      const dataUrl = String(await requestGraphicDataFromNative(absolutePath, 8000) || "").trim();
       if (!dataUrl) {
         logWallpaperDebug("hydrate-empty-result", `requestPath=${JSON.stringify(absolutePath)}`);
+        applyPlayerWallpaperVisual(state.wallpaperDataUrl);
         return "";
       }
       state.wallpaperDataUrl = dataUrl;
@@ -16495,7 +16496,10 @@
     }
 
     function normalizeDestinationFolderPath(pathLike) {
-      return String(pathLike || "").trim().replace(/\\/g, "/").replace(/\/+$/, "");
+      const normalized = String(pathLike || "").trim().replace(/\\/g, "/");
+      if (!normalized) return "";
+      if (/^[A-Za-z]:\/+$/.test(normalized)) return normalized.slice(0, 3);
+      return normalized.replace(/\/+$/, "");
     }
 
     function applyAutoDestinationPath(pathLike) {
@@ -17125,6 +17129,7 @@
       state.wallpaperSourceFileName = String(sessionUiState?.wallpaperSourceFileName || state.wallpaperAssetPath.split("/").pop() || "").trim();
       state.wallpaperDataUrl = String(data?.graphics?.wallpaperDataUrl || "").trim();
       updateWallpaperField();
+      applyPlayerWallpaperVisual(state.wallpaperDataUrl);
       debugLoadLog(`wallpaper apply-loaded raw | manifestGraphics=${JSON.stringify(data?.graphics || null)} | manifestWallpaper=${JSON.stringify(data?.wallpaper || null)} | sessionWallpaperAsset=${JSON.stringify(sessionUiState?.wallpaperAssetPath || "")} | sessionWallpaperSource=${JSON.stringify(sessionUiState?.wallpaperSourcePath || "")}`);
       state.nextVirtualOrder = -1;
       state.rrCursor = {};

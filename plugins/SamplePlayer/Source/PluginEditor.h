@@ -81,8 +81,20 @@ private:
         double encodingElapsedMs = 0.0;
     };
 
+    struct PendingGraphicDataEmit
+    {
+        int requestId = -1;
+        juce::String path;
+        juce::String dataUrl;
+        juce::String message;
+        size_t bytesOut = 0;
+        double encodingElapsedMs = 0.0;
+    };
+
     juce::CriticalSection pendingSampleDataEmitLock;
     std::deque<PendingSampleDataEmit> pendingSampleDataEmitQueue;
+    juce::CriticalSection pendingGraphicDataEmitLock;
+    std::deque<PendingGraphicDataEmit> pendingGraphicDataEmitQueue;
 
     std::optional<juce::WebBrowserComponent::Resource> getResource (const juce::String& url);
     static juce::WebBrowserComponent::Options createWebOptions (SamplePlayerAudioProcessorEditor& editor);
