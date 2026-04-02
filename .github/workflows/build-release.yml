@@ -40,28 +40,46 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Resolve plugin target prefix
+        shell: bash
+        run: |
+          plugin_cmake="plugins/${{ inputs.plugin_name }}/CMakeLists.txt"
+          if [ ! -f "$plugin_cmake" ]; then
+            echo "Missing plugin definition: $plugin_cmake" >&2
+            exit 1
+          fi
+
+          target_prefix=$(sed -n 's/^[[:space:]]*juce_add_plugin(\([[:alnum:]_][[:alnum:]_]*\).*/\1/p' "$plugin_cmake" | head -n 1)
+          if [ -z "$target_prefix" ]; then
+            echo "Failed to resolve JUCE target prefix from $plugin_cmake" >&2
+            exit 1
+          fi
+
+          echo "APC_TARGET_PREFIX=$target_prefix" >> "$GITHUB_ENV"
+          echo "Resolved target prefix: $target_prefix"
+
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Configure CMake
         run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DAPC_PLUGIN_FILTER="${{ inputs.plugin_name }}"
 
       - name: Build VST3
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_VST3"
+          cmake --build build --config Release --target "$APC_TARGET_PREFIX"_VST3
 
       - name: Build Standalone
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_Standalone"
+          cmake --build build --config Release --target "$APC_TARGET_PREFIX"_Standalone
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{ inputs.plugin_name }}
           path: |
-            build/*_artefacts/Release/*.vst3
-            build/*_artefacts/Release/*.exe
+            build/**/*_artefacts/Release/**/*.vst3
+            build/**/*_artefacts/Release/**/*.exe
           retention-days: 30
 
   # ============================================
@@ -77,6 +95,24 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Resolve plugin target prefix
+        shell: bash
+        run: |
+          plugin_cmake="plugins/${{ inputs.plugin_name }}/CMakeLists.txt"
+          if [ ! -f "$plugin_cmake" ]; then
+            echo "Missing plugin definition: $plugin_cmake" >&2
+            exit 1
+          fi
+
+          target_prefix=$(sed -n 's/^[[:space:]]*juce_add_plugin(\([[:alnum:]_][[:alnum:]_]*\).*/\1/p' "$plugin_cmake" | head -n 1)
+          if [ -z "$target_prefix" ]; then
+            echo "Failed to resolve JUCE target prefix from $plugin_cmake" >&2
+            exit 1
+          fi
+
+          echo "APC_TARGET_PREFIX=$target_prefix" >> "$GITHUB_ENV"
+          echo "Resolved target prefix: $target_prefix"
+
       - name: Install Dependencies
         run: |
           brew install cmake || true
@@ -85,28 +121,29 @@ jobs:
         run: |
           cmake -S . -B build -G Xcode \
             -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13 \
+            -DAPC_PLUGIN_FILTER="${{ inputs.plugin_name }}"
 
       - name: Build VST3
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_VST3"
+          cmake --build build --config Release --target "$APC_TARGET_PREFIX"_VST3
 
       - name: Build AU
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_AU"
+          cmake --build build --config Release --target "$APC_TARGET_PREFIX"_AU
 
       - name: Build Standalone
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_Standalone"
+          cmake --build build --config Release --target "$APC_TARGET_PREFIX"_Standalone
 
       - name: Upload macOS Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-${{ inputs.plugin_name }}
           path: |
-            build/*_artefacts/Release/*.vst3
-            build/*_artefacts/Release/*.component
-            build/*_artefacts/Release/*.app
+            build/**/*_artefacts/Release/**/*.vst3
+            build/**/*_artefacts/Release/**/*.component
+            build/**/*_artefacts/Release/**/*.app
           retention-days: 30
 
   # ============================================
@@ -121,6 +158,24 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+
+      - name: Resolve plugin target prefix
+        shell: bash
+        run: |
+          plugin_cmake="plugins/${{ inputs.plugin_name }}/CMakeLists.txt"
+          if [ ! -f "$plugin_cmake" ]; then
+            echo "Missing plugin definition: $plugin_cmake" >&2
+            exit 1
+          fi
+
+          target_prefix=$(sed -n 's/^[[:space:]]*juce_add_plugin(\([[:alnum:]_][[:alnum:]_]*\).*/\1/p' "$plugin_cmake" | head -n 1)
+          if [ -z "$target_prefix" ]; then
+            echo "Failed to resolve JUCE target prefix from $plugin_cmake" >&2
+            exit 1
+          fi
+
+          echo "APC_TARGET_PREFIX=$target_prefix" >> "$GITHUB_ENV"
+          echo "Resolved target prefix: $target_prefix"
 
       - name: Install Dependencies
         run: |
@@ -142,28 +197,29 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            -DAPC_PLUGIN_FILTER="${{ inputs.plugin_name }}"
 
       - name: Build VST3
         run: |
-          cmake --build build --target "${{ inputs.plugin_name }}_VST3"
+          cmake --build build --target "$APC_TARGET_PREFIX"_VST3
 
       - name: Build LV2
         run: |
-          xvfb-run cmake --build build --target "${{ inputs.plugin_name }}_LV2"
+          xvfb-run cmake --build build --target "$APC_TARGET_PREFIX"_LV2
 
       - name: Build Standalone
         run: |
-          xvfb-run cmake --build build --target "${{ inputs.plugin_name }}_Standalone"
+          xvfb-run cmake --build build --target "$APC_TARGET_PREFIX"_Standalone
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{ inputs.plugin_name }}
           path: |
-            build/**/Release/VST3/
-            build/**/Release/LV2/
-            build/**/Release/Standalone/${{ inputs.plugin_name }}
+            build/**/*_artefacts/Release/**/*.vst3
+            build/**/*_artefacts/Release/**/*.lv2
+            build/**/*_artefacts/Release/Standalone/**
           retention-days: 30
 
   # ============================================

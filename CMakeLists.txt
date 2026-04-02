@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # OPTIONAL FEATURES
 # ============================================
 option(APC_ENABLE_VISAGE "Enable Visage UI framework support" OFF)
+set(APC_PLUGIN_FILTER "" CACHE STRING "Optional plugin folder name to build; empty builds all plugins")
 
 # ============================================
 # PLATFORM DETECTION
@@ -73,12 +74,21 @@ endif()
 # ============================================
 message(STATUS "Scanning for plugins in: ${CMAKE_CURRENT_SOURCE_DIR}/plugins")
 
+if(NOT APC_PLUGIN_FILTER STREQUAL "")
+    message(STATUS "Plugin filter: ${APC_PLUGIN_FILTER}")
+endif()
+
 file(GLOB PLUGIN_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/plugins/*")
 
 set(APC_PLUGIN_COUNT 0)
 
 foreach(PLUGIN_DIR ${PLUGIN_DIRS})
     get_filename_component(DIR_NAME ${PLUGIN_DIR} NAME)
+
+    if(NOT APC_PLUGIN_FILTER STREQUAL "" AND NOT DIR_NAME STREQUAL APC_PLUGIN_FILTER)
+        message(STATUS " -> SKIPPING: ${DIR_NAME} (Filtered out)")
+        continue()
+    endif()
     
     if(IS_DIRECTORY "${PLUGIN_DIR}")
         if(EXISTS "${PLUGIN_DIR}/CMakeLists.txt")
@@ -90,6 +100,10 @@ foreach(PLUGIN_DIR ${PLUGIN_DIRS})
         endif()
     endif()
 endforeach()
+
+if(APC_PLUGIN_COUNT EQUAL 0 AND NOT APC_PLUGIN_FILTER STREQUAL "")
+    message(FATAL_ERROR "Plugin filter '${APC_PLUGIN_FILTER}' did not match any plugin folder with a CMakeLists.txt")
+endif()
 
 message(STATUS "Total plugins found: ${APC_PLUGIN_COUNT}")
 message(STATUS "--- END ---")
