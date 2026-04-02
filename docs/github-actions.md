@@ -71,10 +71,11 @@ platforms: windows
 **Steps:**
 1. Checkout repository with submodules
 2. Setup MSVC compiler
-3. Configure CMake with Visual Studio 2022
-4. Build VST3 target
-5. Build Standalone target
-6. Upload artifacts
+3. Install WebView2 SDK package for JUCE webview plugins
+4. Configure CMake with Visual Studio 2022
+5. Build VST3 target
+6. Build Standalone target
+7. Upload artifacts
 
 **Outputs:**
 - `{PluginName}.vst3` bundle
@@ -116,7 +117,7 @@ Built for both `x86_64` (Intel) and `arm64` (Apple Silicon) architectures.
 
 **Complete Dependencies:**
 ```yaml
-cmake libasound2-dev libfreetype6-dev libgl1-mesa-dev libx11-dev
+cmake libasound2-dev libcurl4-openssl-dev libfreetype6-dev libgl1-mesa-dev libx11-dev
 libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev
 libwebkit2gtk-4.1-dev libjack-jackd2-dev xvfb
 ```

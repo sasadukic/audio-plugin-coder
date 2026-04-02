@@ -114,12 +114,14 @@ if(APPLE AND TARGET sample_player_VST3)
         )
     endif()
 
-    add_custom_command(TARGET sample_player_VST3 POST_BUILD
-        COMMAND ${CMAKE_COMMAND}
-            -Dsource_bundle=$<TARGET_BUNDLE_DIR:sample_player_VST3>
-            -Dinstall_dir=$ENV{HOME}/Library/Audio/Plug-Ins/VST3
-            -Dold_name=Sample\ Player
-            -Dnew_name=Ritual\ Engine
-            -P ${CMAKE_CURRENT_LIST_DIR}/cmake/rename_vst3_bundle.cmake
-        VERBATIM)
+    if(NOT DEFINED ENV{GITHUB_ACTIONS})
+        add_custom_command(TARGET sample_player_VST3 POST_BUILD
+            COMMAND ${CMAKE_COMMAND}
+                -Dsource_bundle=$<TARGET_BUNDLE_DIR:sample_player_VST3>
+                -Dinstall_dir=$ENV{HOME}/Library/Audio/Plug-Ins/VST3
+                -Dold_name=Sample\ Player
+                -Dnew_name=Ritual\ Engine
+                -P ${CMAKE_CURRENT_LIST_DIR}/cmake/rename_vst3_bundle.cmake
+            VERBATIM)
+    endif()
 endif()

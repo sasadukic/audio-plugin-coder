@@ -61,6 +61,12 @@ jobs:
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Install WebView2 SDK
+        shell: pwsh
+        run: |
+          Register-PackageSource -ProviderName NuGet -Name nugetRepository -Location https://www.nuget.org/api/v2 -Trusted -ErrorAction SilentlyContinue
+          Install-Package Microsoft.Web.WebView2 -Scope CurrentUser -RequiredVersion 1.0.3485.44 -Source nugetRepository -Force
+
       - name: Configure CMake
         run: |
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DAPC_PLUGIN_FILTER="${{ inputs.plugin_name }}"
@@ -183,6 +189,7 @@ jobs:
           sudo apt-get install -y \
             cmake \
             libasound2-dev \
+            libcurl4-openssl-dev \
             libfreetype6-dev \
             libgl1-mesa-dev \
             libx11-dev \
