@@ -60,6 +60,29 @@ void storeInstrumentsFolderPath (const juce::String& path)
     file.replaceWithText (normalized, false, false, "\n");
 }
 
+juce::File resolveInitialChooserPath (const juce::String& currentPath,
+                                      const juce::File& fallback)
+{
+    if (! juce::File::isAbsolutePath (currentPath))
+        return fallback;
+
+    const auto current = juce::File (currentPath);
+    if (current.isDirectory())
+        return current;
+    if (current.exists())
+        return current.getParentDirectory();
+
+#if ! JUCE_WINDOWS
+    const auto literalBackslashCandidate = juce::File (currentPath + "\\");
+    if (literalBackslashCandidate.isDirectory())
+        return literalBackslashCandidate;
+    if (literalBackslashCandidate.exists())
+        return literalBackslashCandidate.getParentDirectory();
+#endif
+
+    return fallback;
+}
+
 bool decodeDataUrlToMemory (const juce::String& dataUrl, juce::MemoryBlock& output, juce::String* outMimeType = nullptr)
 {
     const auto trimmed = dataUrl.trim();
@@ -786,14 +809,7 @@ void SamplePlayerAudioProcessorEditor::handleDestinationFolderPickEvent (const j
     {
         requestId = static_cast<int> (std::round (double (object->getProperty ("requestId"))));
         const auto currentPath = object->getProperty ("currentPath").toString().trim();
-        if (juce::File::isAbsolutePath (currentPath))
-        {
-            const auto current = juce::File (currentPath);
-            if (current.isDirectory())
-                initialDir = current;
-            else if (current.exists())
-                initialDir = current.getParentDirectory();
-        }
+        initialDir = resolveInitialChooserPath (currentPath, initialDir);
     }
 
     const auto chooserFlags = juce::FileBrowserComponent::openMode
@@ -869,14 +885,7 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
         currentPath = object->getProperty ("currentPath").toString().trim();
         mode = object->getProperty ("mode").toString().trim().toLowerCase();
         defaultName = object->getProperty ("defaultName").toString().trim();
-        if (juce::File::isAbsolutePath (currentPath))
-        {
-            const auto current = juce::File (currentPath);
-            if (current.isDirectory())
-                initialDir = current;
-            else if (current.exists())
-                initialDir = current.getParentDirectory();
-        }
+        initialDir = resolveInitialChooserPath (currentPath, initialDir);
     }
 
     if (mode != "save")

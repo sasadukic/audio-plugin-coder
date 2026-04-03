@@ -5715,13 +5715,20 @@
     function getPackManifestBasePath() {
       const path = String(state.packManifestBasePath || "").trim();
       if (!path) return "";
-      return path.replace(/\\/g, "/");
+      return normalizePathSeparators(path);
     }
 
     function getPackManifestFilePath() {
       const path = String(state.packManifestFilePath || "").trim();
       if (!path) return "";
-      return path.replace(/\\/g, "/");
+      return normalizePathSeparators(path);
+    }
+
+    function normalizePathSeparators(pathLike) {
+      const normalized = String(pathLike || "").trim();
+      if (!normalized) return "";
+      const isWindowsLikePath = /^[A-Za-z]:([\\/]|$)/.test(normalized) || /^\\\\/.test(normalized);
+      return isWindowsLikePath ? normalized.replace(/\\/g, "/") : normalized;
     }
 
     function resolveManifestAssetPath(manifestBasePath, assetPath) {
@@ -5729,7 +5736,7 @@
       if (!rel) return "";
       if (/^[A-Za-z]:\//.test(rel) || rel.startsWith("/")) return rel;
 
-      const base = String(manifestBasePath || "").trim().replace(/\\/g, "/");
+      const base = normalizePathSeparators(manifestBasePath);
       if (!base) return "";
 
       const sanitizedRel = rel.replace(/^\.?\//, "");
@@ -5764,12 +5771,11 @@
         // Keep raw path when URI decoding fails.
       }
 
-      normalized = normalized.replace(/\\/g, "/").trim();
-      return normalized;
+      return normalizePathSeparators(normalized);
     }
 
     function getNormalizedPathDir(pathLike) {
-      const normalized = String(pathLike || "").trim().replace(/\\/g, "/");
+      const normalized = normalizePathSeparators(pathLike);
       if (!normalized) return "";
       const trimmed = normalized.replace(/\/+$/, "");
       if (!trimmed) return "";
@@ -5782,12 +5788,12 @@
     function getKeyswitchImportBasePathCandidates(filePath) {
       const candidates = [];
       const pushCandidate = (value) => {
-        const candidate = String(value || "").trim().replace(/\\/g, "/").replace(/\/+$/, "");
+        const candidate = normalizePathSeparators(value).replace(/\/+$/, "");
         if (!candidate) return;
         if (!candidates.includes(candidate)) candidates.push(candidate);
       };
 
-      const destinationPath = String(el.autoDestination?.value || "").trim().replace(/\\/g, "/").replace(/\/+$/, "");
+      const destinationPath = normalizePathSeparators(el.autoDestination?.value || "").replace(/\/+$/, "");
       const manifestBasePath = getPackManifestBasePath();
 
       const fileDir = getNormalizedPathDir(filePath);
@@ -16646,7 +16652,7 @@
     }
 
     function normalizeDestinationFolderPath(pathLike) {
-      const normalized = String(pathLike || "").trim().replace(/\\/g, "/");
+      const normalized = normalizePathSeparators(pathLike);
       if (!normalized) return "";
       if (/^[A-Za-z]:\/+$/.test(normalized)) return normalized.slice(0, 3);
       return normalized.replace(/\/+$/, "");
