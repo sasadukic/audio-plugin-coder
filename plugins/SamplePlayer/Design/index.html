@@ -4505,6 +4505,11 @@
           <div class="auto-meta-strip">
             <div class="field-grid auto-meta-grid">
               <div class="field">
+                <label class="auto-meta-sr-label" for="autoInstrumentsFolder">Instruments Folder</label>
+                <input id="autoInstrumentsFolder" class="auto-meta-input" type="text" value="" placeholder="Instruments Folder" aria-label="Instruments Folder" title="Click to choose instruments folder" readonly>
+                <input id="autoInstrumentsFolderPicker" class="hidden" type="file" webkitdirectory directory multiple tabindex="-1" aria-hidden="true">
+              </div>
+              <div class="field">
                 <label class="auto-meta-sr-label" for="autoDestination">Destination Folder</label>
                 <input id="autoDestination" class="auto-meta-input" type="text" value="" placeholder="Destination Folder" aria-label="Destination Folder" title="Click to choose destination folder">
                 <input id="autoDestinationPicker" class="hidden" type="file" webkitdirectory directory multiple tabindex="-1" aria-hidden="true">
@@ -4828,6 +4833,7 @@
     const AUDIO_REGEX = /\.(wav|aif|aiff|flac|ogg|mp3)$/i;
     const SETUP_COLLAPSE_STATE_KEY = "samplePlayer.setupCollapseState.v1";
     const AUTO_PRESET_STORAGE_KEY = "samplePlayer.autoSamplerPresets.v1";
+    const INSTRUMENTS_FOLDER_STORAGE_KEY = "samplePlayer.instrumentsFolder.v1";
     const SAME_KEY_RETRIGGER_FADE_SEC = 0;
     const PLAYER_KB_START_MIDI = 12; // C0
     const PLAYER_KB_END_MIDI = 84; // C6
@@ -5147,6 +5153,8 @@
       autoPresetNameInput: document.getElementById("autoPresetNameInput"),
       autoPresetConfirmBtn: document.getElementById("autoPresetConfirmBtn"),
       autoPresetList: document.getElementById("autoPresetList"),
+      autoInstrumentsFolder: document.getElementById("autoInstrumentsFolder"),
+      autoInstrumentsFolderPicker: document.getElementById("autoInstrumentsFolderPicker"),
       autoDestination: document.getElementById("autoDestination"),
       autoDestinationPicker: document.getElementById("autoDestinationPicker"),
       autoInstrumentLabel: document.getElementById("autoInstrumentLabel"),
@@ -5498,6 +5506,7 @@
         loopCrossfadeMs: getAutoLoopCrossfadeMs(),
         modwheelVelocityControl: !!el.autoModwheelVelocity?.checked,
         normalizeRecorded: !!el.autoNormalizeRecorded?.checked,
+        instrumentsFolder: String(el.autoInstrumentsFolder?.value || ""),
         destination: String(el.autoDestination?.value || ""),
         packChecks: getAutoPackChecksSnapshot()
       };
@@ -6459,6 +6468,10 @@
       setAutoLoopCrossfadeMs(snapshot.loopCrossfadeMs ?? getAutoLoopCrossfadeMs(), false);
       if (el.autoModwheelVelocity) el.autoModwheelVelocity.checked = !!snapshot.modwheelVelocityControl;
       if (el.autoNormalizeRecorded) el.autoNormalizeRecorded.checked = !!snapshot.normalizeRecorded;
+      applyInstrumentsFolderPath(snapshot.instrumentsFolder || loadInstrumentsFolderFromStorage(), {
+        persist: true,
+        saveSession: false
+      });
       if (el.autoDestination && typeof snapshot.destination === "string") {
         const destinationPath = normalizeDestinationFolderPath(
           snapshot.destination
@@ -11953,6 +11966,55 @@
       }
     }
 
+    function loadInstrumentsFolderFromStorage() {
+      try {
+        return normalizeDestinationFolderPath(window.localStorage.getItem(INSTRUMENTS_FOLDER_STORAGE_KEY) || "");
+      } catch {
+        return "";
+      }
+    }
+
+    function saveInstrumentsFolderToStorage(pathLike) {
+      try {
+        const normalized = normalizeDestinationFolderPath(pathLike);
+        if (normalized) {
+          window.localStorage.setItem(INSTRUMENTS_FOLDER_STORAGE_KEY, normalized);
+        } else {
+          window.localStorage.removeItem(INSTRUMENTS_FOLDER_STORAGE_KEY);
+        }
+      } catch {
+        // ignore storage failures
+      }
+    }
+
+    function applyInstrumentsFolderPath(pathLike, options = {}) {
+      const normalized = normalizeDestinationFolderPath(pathLike);
+      if (!el.autoInstrumentsFolder) return normalized;
+
+      if (el.autoInstrumentsFolder.value !== normalized) {
+        el.autoInstrumentsFolder.value = normalized;
+      }
+
+      if (options.persist !== false) {
+        saveInstrumentsFolderToStorage(normalized);
+      }
+
+      if (options.saveSession !== false) {
+        scheduleSessionStateSave(250);
+      }
+
+      return normalized;
+    }
+
+    function getDefaultInstrumentsFolderPath() {
+      return normalizeDestinationFolderPath(
+        el.autoInstrumentsFolder?.value
+        || loadInstrumentsFolderFromStorage()
+        || el.autoDestination?.value
+        || getPackManifestBasePath()
+      );
+    }
+
     function applyAutoPresetSettings(presetSettings) {
       const settings = normalizeAutoPresetRecord({ settings: presetSettings }, 0)?.settings;
       if (!settings) return;
@@ -13474,7 +13536,7 @@
       const requestId = (Number(state.manifestPickRequestSeq) || 0) + 1;
       state.manifestPickRequestSeq = requestId;
       const timeoutMs = Math.max(1000, Math.round(Number(options?.timeoutMs) || 25000));
-      const currentPath = String(options?.currentPath || getPackManifestFilePath() || getPackManifestBasePath()).trim();
+      const currentPath = String(options?.currentPath || getDefaultInstrumentsFolderPath() || getPackManifestFilePath() || getPackManifestBasePath()).trim();
       const mode = String(options?.mode || "open").trim().toLowerCase() === "save" ? "save" : "open";
       const defaultName = String(options?.defaultName || "").trim();
       return new Promise((resolve) => {
@@ -17151,6 +17213,14 @@
         sessionUiState?.auto?.destination
         || resolvedManifestBasePath
       );
+      applyInstrumentsFolderPath(
+        sessionUiState?.auto?.instrumentsFolder
+        || loadInstrumentsFolderFromStorage(),
+        {
+          persist: true,
+          saveSession: false
+        }
+      );
       resetSetupSaveButtonState();
       if (!state.wallpaperSourcePath && state.wallpaperAssetPath && resolvedManifestBasePath) {
         state.wallpaperSourcePath = resolveManifestAssetPath(resolvedManifestBasePath, state.wallpaperAssetPath);
@@ -17314,7 +17384,9 @@
 
     async function pickAndLoadPackViaNative() {
       if (!getNativeBackend()) return false;
-      const picked = await requestManifestPickFromNative();
+      const picked = await requestManifestPickFromNative({
+        currentPath: getDefaultInstrumentsFolderPath() || getPackManifestFilePath() || getPackManifestBasePath()
+      });
       if (!picked) {
         setStatus(el.setupStatus, "Instrument picker timed out.", "bad");
         return true;
@@ -18184,6 +18256,22 @@
         el.autoInstrument.addEventListener("change", refreshPlayerName);
       }
 
+      const openInstrumentsFolderPicker = async () => {
+        if (getNativeBackend()) {
+          const selected = await requestDestinationFolderFromNative({
+            currentPath: getDefaultInstrumentsFolderPath()
+          });
+          if (selected) {
+            applyInstrumentsFolderPath(selected);
+          }
+          return selected;
+        }
+
+        if (!el.autoInstrumentsFolderPicker) return "";
+        el.autoInstrumentsFolderPicker.click();
+        return "";
+      };
+
       const applyDestinationFolderName = (folderName) => {
         if (!el.autoDestination) return;
         const merged = mergeFolderNameIntoPath(el.autoDestination.value, folderName);
@@ -18197,6 +18285,19 @@
         return requestAutoDestinationFolder();
       };
 
+      if (el.autoInstrumentsFolder) {
+        el.autoInstrumentsFolder.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          void openInstrumentsFolderPicker();
+        });
+        el.autoInstrumentsFolder.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter") {
+            ev.preventDefault();
+            void openInstrumentsFolderPicker();
+          }
+        });
+      }
+
       if (el.autoDestination) {
         el.autoDestination.addEventListener("click", (ev) => {
           ev.preventDefault();
@@ -18207,6 +18308,30 @@
             ev.preventDefault();
             openDestinationFolderPicker();
           }
+        });
+      }
+
+      if (el.autoInstrumentsFolderPicker) {
+        el.autoInstrumentsFolderPicker.addEventListener("change", (ev) => {
+          const files = Array.from(ev.target.files || []);
+          if (!files.length) return;
+          const firstFile = files[0];
+          const relPath = String(firstFile.webkitRelativePath || "").replace(/\\/g, "/");
+          const folderName = relPath.split("/")[0] || "";
+          const nativePath = String(firstFile.path || "").replace(/\\/g, "/");
+
+          let resolvedAbsolute = "";
+          if (nativePath && relPath) {
+            const nativeLower = nativePath.toLowerCase();
+            const relLower = relPath.toLowerCase();
+            if (nativeLower.endsWith(relLower)) {
+              const prefix = nativePath.slice(0, nativePath.length - relPath.length);
+              if (folderName) resolvedAbsolute = `${prefix}${folderName}`.replace(/\/+$/, "");
+            }
+          }
+
+          applyInstrumentsFolderPath(resolvedAbsolute || folderName);
+          el.autoInstrumentsFolderPicker.value = "";
         });
       }
 
@@ -18245,6 +18370,11 @@
           el.autoDestinationPicker.value = "";
         });
       }
+
+      applyInstrumentsFolderPath(loadInstrumentsFolderFromStorage(), {
+        persist: false,
+        saveSession: false
+      });
 
       const bindAutoNoteStepper = (input, downBtn, upBtn, fallbackMidi) => {
         if (downBtn) {
