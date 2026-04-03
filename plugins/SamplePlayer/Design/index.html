@@ -4975,6 +4975,9 @@
       pendingManifestPickRequests: new Map(),
       destinationFolderRequestSeq: 0,
       pendingDestinationFolderRequests: new Map(),
+      instrumentsFolderDefaultRequestSeq: 0,
+      pendingInstrumentsFolderDefaultRequests: new Map(),
+      nativeInstrumentsFolderDefault: "",
       graphicPickRequestSeq: 0,
       pendingGraphicPickRequests: new Map(),
       graphicDataRequestSeq: 0,
@@ -8013,6 +8016,9 @@
         const manifestPickToken = backend.addEventListener("instrument_manifest_picked", (payload) => {
           handleInstrumentManifestPickedPayload(payload);
         });
+        const instrumentsFolderDefaultToken = backend.addEventListener("instruments_folder_default", (payload) => {
+          handleNativeInstrumentsFolderDefaultPayload(payload);
+        });
         const graphicPickToken = backend.addEventListener("native_graphic_file_picked", (payload) => {
           handleNativeGraphicFilePickedPayload(payload);
         });
@@ -8028,7 +8034,7 @@
         const nativeAudioPickToken = backend.addEventListener("native_audio_files_picked", (payload) => {
           handleNativePickedAudioFiles(payload);
         });
-        state.nativeSessionListeners = [stateToken, statePayloadToken, sampleDataToken, manifestPickToken, graphicPickToken, graphicDataToken, saveResultToken, midiActivityToken, nativeAudioPickToken];
+        state.nativeSessionListeners = [stateToken, statePayloadToken, sampleDataToken, manifestPickToken, instrumentsFolderDefaultToken, graphicPickToken, graphicDataToken, saveResultToken, midiActivityToken, nativeAudioPickToken];
       } catch {
         state.nativeSessionListeners = [];
         debugLoadLog("restore bridge failed | listener registration");
@@ -12008,6 +12014,53 @@
       }
     }
 
+    function requestNativeInstrumentsFolderDefault(timeoutMs = 12000) {
+      if (!getNativeBackend()) return Promise.resolve("");
+      const requestId = (Number(state.instrumentsFolderDefaultRequestSeq) || 0) + 1;
+      state.instrumentsFolderDefaultRequestSeq = requestId;
+      return new Promise((resolve) => {
+        const timeoutId = window.setTimeout(() => {
+          const pending = state.pendingInstrumentsFolderDefaultRequests.get(requestId);
+          if (!pending) return;
+          state.pendingInstrumentsFolderDefaultRequests.delete(requestId);
+          resolve("");
+        }, Math.max(1000, Math.round(Number(timeoutMs) || 12000)));
+
+        state.pendingInstrumentsFolderDefaultRequests.set(requestId, { resolve, timeoutId });
+        const emitted = emitNativeEvent("get_instruments_folder_default", { requestId });
+        if (!emitted) {
+          const pending = state.pendingInstrumentsFolderDefaultRequests.get(requestId);
+          if (pending) {
+            window.clearTimeout(pending.timeoutId);
+            state.pendingInstrumentsFolderDefaultRequests.delete(requestId);
+          }
+          resolve("");
+        }
+      });
+    }
+
+    function saveNativeInstrumentsFolderDefault(pathLike) {
+      const normalized = normalizeDestinationFolderPath(pathLike);
+      state.nativeInstrumentsFolderDefault = normalized;
+      if (!getNativeBackend()) return false;
+      return emitNativeEvent("set_instruments_folder_default", { path: normalized });
+    }
+
+    function handleNativeInstrumentsFolderDefaultPayload(payload) {
+      const info = (payload && typeof payload === "object" && !Array.isArray(payload))
+        ? payload
+        : null;
+      const requestId = Math.round(Number(info?.requestId));
+      const path = normalizeDestinationFolderPath(info?.path || "");
+      if (path) state.nativeInstrumentsFolderDefault = path;
+      if (!Number.isFinite(requestId)) return;
+      const pending = state.pendingInstrumentsFolderDefaultRequests.get(requestId);
+      if (!pending) return;
+      state.pendingInstrumentsFolderDefaultRequests.delete(requestId);
+      window.clearTimeout(pending.timeoutId);
+      pending.resolve(path);
+    }
+
     function applyInstrumentsFolderPath(pathLike, options = {}) {
       const normalized = normalizeDestinationFolderPath(pathLike);
       if (!el.autoInstrumentsFolder) return normalized;
@@ -12020,6 +12073,12 @@
         saveInstrumentsFolderToStorage(normalized);
       }
 
+      if (options.nativePersist !== false) {
+        saveNativeInstrumentsFolderDefault(normalized);
+      } else if (normalized) {
+        state.nativeInstrumentsFolderDefault = normalized;
+      }
+
       if (options.saveSession !== false) {
         scheduleSessionStateSave(250);
       }
@@ -12030,6 +12089,7 @@
     function getDefaultInstrumentsFolderPath() {
       return normalizeDestinationFolderPath(
         el.autoInstrumentsFolder?.value
+        || state.nativeInstrumentsFolderDefault
         || loadInstrumentsFolderFromStorage()
         || el.autoDestination?.value
         || getPackManifestBasePath()
@@ -13560,6 +13620,7 @@
       const currentPath = String(options?.currentPath || getDefaultInstrumentsFolderPath() || getPackManifestFilePath() || getPackManifestBasePath()).trim();
       const mode = String(options?.mode || "open").trim().toLowerCase() === "save" ? "save" : "open";
       const defaultName = String(options?.defaultName || "").trim();
+      debugLoadLog(`pick manifest request | mode=${mode} | currentPath=${currentPath || "<empty>"}`);
       return new Promise((resolve) => {
         const timeoutId = window.setTimeout(() => {
           const pending = state.pendingManifestPickRequests.get(requestId);
@@ -18395,8 +18456,21 @@
 
       applyInstrumentsFolderPath(loadInstrumentsFolderFromStorage(), {
         persist: false,
+        nativePersist: false,
         saveSession: false
       });
+
+      if (getNativeBackend()) {
+        void requestNativeInstrumentsFolderDefault().then((path) => {
+          if (!path) return;
+          applyInstrumentsFolderPath(path, {
+            persist: true,
+            nativePersist: false,
+            saveSession: false
+          });
+          debugLoadLog(`native instruments folder restored | path=${path}`);
+        });
+      }
 
       const bindAutoNoteStepper = (input, downBtn, upBtn, fallbackMidi) => {
         if (downBtn) {

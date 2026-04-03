@@ -105,6 +105,8 @@ private:
     void timerCallback() override;
     void handleAutoSamplerControlEvent (const juce::var& eventPayload);
     void handleDestinationFolderPickEvent (const juce::var& eventPayload);
+    void handleGetInstrumentsFolderDefaultEvent (const juce::var& eventPayload);
+    void handleSetInstrumentsFolderDefaultEvent (const juce::var& eventPayload);
     void handlePickInstrumentManifestEvent (const juce::var& eventPayload);
     void handlePickGraphicFileEvent (const juce::var& eventPayload);
     void handleUIResizeEvent (const juce::var& eventPayload);

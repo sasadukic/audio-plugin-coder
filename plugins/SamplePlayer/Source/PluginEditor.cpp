@@ -27,6 +27,39 @@ void appendUiDebugLog (const juce::String& message)
     logFile.appendText (line, false, false, "\n");
 }
 
+juce::File getStoredInstrumentsFolderFile()
+{
+    return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+        .getChildFile ("SamplePlayer")
+        .getChildFile ("default_instruments_folder.txt");
+}
+
+juce::String loadStoredInstrumentsFolderPath()
+{
+    const auto file = getStoredInstrumentsFolderFile();
+    if (! file.existsAsFile())
+        return {};
+    return file.loadFileAsString().trim();
+}
+
+void storeInstrumentsFolderPath (const juce::String& path)
+{
+    const auto normalized = path.trim();
+    const auto file = getStoredInstrumentsFolderFile();
+    const auto parent = file.getParentDirectory();
+    if (! parent.isDirectory())
+        parent.createDirectory();
+
+    if (normalized.isEmpty())
+    {
+        if (file.exists())
+            file.deleteFile();
+        return;
+    }
+
+    file.replaceWithText (normalized, false, false, "\n");
+}
+
 bool decodeDataUrlToMemory (const juce::String& dataUrl, juce::MemoryBlock& output, juce::String* outMimeType = nullptr)
 {
     const auto trimmed = dataUrl.trim();
@@ -187,6 +220,14 @@ juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOp
                      .withEventListener ("pick_destination_folder", [&editor] (const juce::var& payload)
                      {
                          editor.handleDestinationFolderPickEvent (payload);
+                     })
+                     .withEventListener ("get_instruments_folder_default", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleGetInstrumentsFolderDefaultEvent (payload);
+                     })
+                     .withEventListener ("set_instruments_folder_default", [&editor] (const juce::var& payload)
+                     {
+                         editor.handleSetInstrumentsFolderDefaultEvent (payload);
                      })
                      .withEventListener ("pick_instrument_manifest", [&editor] (const juce::var& payload)
                      {
@@ -781,6 +822,36 @@ void SamplePlayerAudioProcessorEditor::handleDestinationFolderPickEvent (const j
     });
 }
 
+void SamplePlayerAudioProcessorEditor::handleGetInstrumentsFolderDefaultEvent (const juce::var& eventPayload)
+{
+    if (! webView)
+        return;
+
+    int requestId = -1;
+    if (const auto* object = eventPayload.getDynamicObject())
+        requestId = static_cast<int> (std::round (double (object->getProperty ("requestId"))));
+
+    const auto path = loadStoredInstrumentsFolderPath();
+    auto payload = juce::DynamicObject::Ptr (new juce::DynamicObject());
+    payload->setProperty ("requestId", requestId);
+    payload->setProperty ("path", path);
+    webView->emitEventIfBrowserIsVisible ("instruments_folder_default", juce::var (payload.get()));
+    appendUiDebugLog ("instruments folder default requested | requestId=" + juce::String (requestId)
+                      + " | path=" + (path.isNotEmpty() ? path : "<empty>"));
+}
+
+void SamplePlayerAudioProcessorEditor::handleSetInstrumentsFolderDefaultEvent (const juce::var& eventPayload)
+{
+    juce::String path;
+    if (const auto* object = eventPayload.getDynamicObject())
+        path = object->getProperty ("path").toString().trim();
+    else if (eventPayload.isString())
+        path = eventPayload.toString().trim();
+
+    storeInstrumentsFolderPath (path);
+    appendUiDebugLog ("instruments folder default stored | path=" + (path.isNotEmpty() ? path : "<empty>"));
+}
+
 void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const juce::var& eventPayload)
 {
     if (! webView)
@@ -790,11 +861,12 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
     juce::File initialDir = juce::File::getSpecialLocation (juce::File::userHomeDirectory);
     juce::String mode = "open";
     juce::String defaultName;
+    juce::String currentPath;
 
     if (const auto* object = eventPayload.getDynamicObject())
     {
         requestId = static_cast<int> (std::round (double (object->getProperty ("requestId"))));
-        const auto currentPath = object->getProperty ("currentPath").toString().trim();
+        currentPath = object->getProperty ("currentPath").toString().trim();
         mode = object->getProperty ("mode").toString().trim().toLowerCase();
         defaultName = object->getProperty ("defaultName").toString().trim();
         if (juce::File::isAbsolutePath (currentPath))
@@ -812,6 +884,11 @@ void SamplePlayerAudioProcessorEditor::handlePickInstrumentManifestEvent (const 
 
     if (mode == "save" && defaultName.isNotEmpty())
         initialDir = initialDir.getChildFile (defaultName);
+
+    appendUiDebugLog ("pick instrument manifest | requestId=" + juce::String (requestId)
+                      + " | mode=" + mode
+                      + " | currentPath=" + (currentPath.isNotEmpty() ? currentPath : "<empty>")
+                      + " | initialDir=" + initialDir.getFullPathName());
 
     loadInstrumentChooser = std::make_unique<juce::FileChooser> (mode == "save" ? "Save instrument JSON" : "Open instrument JSON",
                                                                   initialDir,
