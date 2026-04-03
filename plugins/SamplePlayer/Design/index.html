@@ -4510,8 +4510,8 @@
                 <input id="autoInstrumentsFolderPicker" class="hidden" type="file" webkitdirectory directory multiple tabindex="-1" aria-hidden="true">
               </div>
               <div class="field">
-                <label class="auto-meta-sr-label" for="autoDestination">Destination Folder</label>
-                <input id="autoDestination" class="auto-meta-input" type="text" value="" placeholder="Destination Folder Name" aria-label="Destination Folder" title="Folder name created inside Instruments Folder">
+                <label class="auto-meta-sr-label" for="autoDestination">Instrument Folder Name</label>
+                <input id="autoDestination" class="auto-meta-input" type="text" value="" placeholder="Instrument Folder Name" aria-label="Instrument Folder Name" title="Folder name created inside Instruments Folder">
               </div>
               <div class="field">
                 <label id="autoInstrumentLabel" class="auto-meta-sr-label" for="autoInstrument">Instrument Name</label>
@@ -16902,7 +16902,7 @@
 
         const destinationFolderName = getDestinationFolderNameForSave();
         if (!destinationFolderName) {
-          setStatus(el.setupStatus, "Enter a destination folder name before saving the instrument.", "warn");
+          setStatus(el.setupStatus, "Enter an instrument folder name before saving the instrument.", "warn");
           return;
         }
 
@@ -18216,7 +18216,7 @@
 
             const destinationPath = getDestinationFolderNameForSave();
             if (!destinationPath) {
-              setStatus(el.setupStatus, "Enter a destination folder name before starting auto sampling.", "warn");
+              setStatus(el.setupStatus, "Enter an instrument folder name before starting auto sampling.", "warn");
               return;
             }
 
