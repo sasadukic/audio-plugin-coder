@@ -4511,8 +4511,7 @@
               </div>
               <div class="field">
                 <label class="auto-meta-sr-label" for="autoDestination">Destination Folder</label>
-                <input id="autoDestination" class="auto-meta-input" type="text" value="" placeholder="Destination Folder" aria-label="Destination Folder" title="Click to choose destination folder">
-                <input id="autoDestinationPicker" class="hidden" type="file" webkitdirectory directory multiple tabindex="-1" aria-hidden="true">
+                <input id="autoDestination" class="auto-meta-input" type="text" value="" placeholder="Destination Folder Name" aria-label="Destination Folder" title="Folder name created inside Instruments Folder">
               </div>
               <div class="field">
                 <label id="autoInstrumentLabel" class="auto-meta-sr-label" for="autoInstrument">Instrument Name</label>
@@ -5163,7 +5162,6 @@
       autoInstrumentsFolder: document.getElementById("autoInstrumentsFolder"),
       autoInstrumentsFolderPicker: document.getElementById("autoInstrumentsFolderPicker"),
       autoDestination: document.getElementById("autoDestination"),
-      autoDestinationPicker: document.getElementById("autoDestinationPicker"),
       autoInstrumentLabel: document.getElementById("autoInstrumentLabel"),
       autoInstrument: document.getElementById("autoInstrument"),
       autoAuthorLabel: document.getElementById("autoAuthorLabel"),
@@ -5793,7 +5791,7 @@
         if (!candidates.includes(candidate)) candidates.push(candidate);
       };
 
-      const destinationPath = normalizePathSeparators(el.autoDestination?.value || "").replace(/\/+$/, "");
+      const destinationPath = getResolvedInstrumentSaveBasePath();
       const manifestBasePath = getPackManifestBasePath();
 
       const fileDir = getNormalizedPathDir(filePath);
@@ -6486,12 +6484,15 @@
         saveSession: false
       });
       if (el.autoDestination && typeof snapshot.destination === "string") {
-        const destinationPath = normalizeDestinationFolderPath(
+        applyAutoDestinationName(
           snapshot.destination
-          || getPackManifestBasePath()
-          || computeManifestBasePathFromFilePath(getPackManifestFilePath())
+          || getLeafFolderName(getPackManifestBasePath())
+          || getLeafFolderName(computeManifestBasePathFromFilePath(getPackManifestFilePath())),
+          {
+            render: false,
+            saveSession: false
+          }
         );
-        el.autoDestination.value = destinationPath;
       }
       applyAutoPackChecksSnapshot(snapshot.packChecks || {});
       updateAutoLoopDetailsVisibility();
@@ -7146,7 +7147,7 @@
         sustainMs: getAutoHoldMs(),
         releaseTailMs: getAutoTailMs(),
         prerollMs: getAutoPrerollMs(),
-        destinationFolder: String(el.autoDestination?.value || "").trim(),
+        destinationFolder: getResolvedInstrumentSaveBasePath(),
         instrumentName: String(el.autoInstrument?.value || (keyswitchMode ? "Keyswitch" : "Instrument")).trim(),
         keyswitchMode,
         keyswitchKey: keyswitchMode ? String(keyswitchInfo.key || "C0").trim() : "",
@@ -12097,7 +12098,6 @@
         el.autoInstrumentsFolder?.value
         || state.nativeInstrumentsFolderDefault
         || loadInstrumentsFolderFromStorage()
-        || el.autoDestination?.value
         || getPackManifestBasePath()
       );
     }
@@ -13839,7 +13839,7 @@
       }
 
       const manifestBasePath = getPackManifestBasePath();
-      const destinationPath = String(el.autoDestination?.value || "").trim();
+      const destinationPath = getResolvedInstrumentSaveBasePath();
       if (manifestBasePath) {
         pushBase(`${manifestBasePath}/Keyswitches`);
         pushBase(manifestBasePath);
@@ -16658,6 +16658,43 @@
       return normalized.replace(/\/+$/, "");
     }
 
+    function normalizeDestinationFolderName(nameLike) {
+      return String(nameLike || "").trim().replace(/[\\/]+/g, " ").replace(/\s+/g, " ").trim();
+    }
+
+    function applyAutoDestinationName(nameLike, options = {}) {
+      const normalized = normalizeDestinationFolderName(nameLike);
+      if (!el.autoDestination) return normalized;
+      if (el.autoDestination.value !== normalized) {
+        el.autoDestination.value = normalized;
+      }
+      if (options.render !== false) renderAuto();
+      if (options.saveSession !== false) scheduleSessionStateSave(250);
+      return normalized;
+    }
+
+    function getDestinationFolderNameForSave() {
+      return normalizeDestinationFolderName(el.autoDestination?.value || "");
+    }
+
+    function joinAbsolutePath(basePath, childName) {
+      const base = normalizeDestinationFolderPath(basePath);
+      const child = normalizeDestinationFolderName(childName);
+      if (!base || !child) return "";
+      return `${base.replace(/\/+$/, "")}/${sanitizePathToken(child, "Instrument")}`;
+    }
+
+    function getResolvedInstrumentSaveBasePath() {
+      return joinAbsolutePath(getDefaultInstrumentsFolderPath(), getDestinationFolderNameForSave());
+    }
+
+    function getLeafFolderName(pathLike) {
+      const normalized = normalizeDestinationFolderPath(pathLike);
+      if (!normalized) return "";
+      const parts = normalized.split("/").filter(Boolean);
+      return parts.length ? parts[parts.length - 1] : "";
+    }
+
     function applyAutoDestinationPath(pathLike) {
       const normalized = normalizeDestinationFolderPath(pathLike);
       if (!normalized || !el.autoDestination) return "";
@@ -16669,48 +16706,12 @@
       return normalized;
     }
 
-    async function requestAutoDestinationFolder(options = {}) {
-      const currentPath = normalizeDestinationFolderPath(options?.currentPath || el.autoDestination?.value || "");
-
-      if (getNativeBackend()) {
-        return requestDestinationFolderFromNative({ currentPath, timeoutMs: options?.timeoutMs });
-      }
-
-      if (typeof window.showDirectoryPicker === "function") {
-        try {
-          const handle = await window.showDirectoryPicker();
-          const folderName = String(handle?.name || "").trim();
-          if (!folderName) return "";
-          const merged = mergeFolderNameIntoPath(currentPath, folderName);
-          return applyAutoDestinationPath(merged || folderName);
-        } catch {
-          // fall through to input-based directory picker
-        }
-      }
-
-      if (!el.autoDestinationPicker) return "";
-
-      const requestId = (Number(state.destinationFolderRequestSeq) || 0) + 1;
-      state.destinationFolderRequestSeq = requestId;
-      const timeoutMs = Math.max(1000, Math.round(Number(options?.timeoutMs) || 25000));
-
-      return new Promise((resolve) => {
-        const timeoutId = window.setTimeout(() => {
-          const pending = state.pendingDestinationFolderRequests.get(requestId);
-          if (!pending) return;
-          state.pendingDestinationFolderRequests.delete(requestId);
-          resolve("");
-        }, timeoutMs);
-
-        state.pendingDestinationFolderRequests.set(requestId, { resolve, timeoutId });
-        el.autoDestinationPicker.click();
-      });
-    }
-
     async function ensureAutoDestinationFolder(options = {}) {
-      const existing = normalizeDestinationFolderPath(el.autoDestination?.value || "");
-      if (existing) return existing;
-      return requestAutoDestinationFolder(options);
+      const instrumentsFolder = normalizeDestinationFolderPath(options?.instrumentsFolder || getDefaultInstrumentsFolderPath());
+      if (!instrumentsFolder) return "";
+      const destinationName = normalizeDestinationFolderName(options?.destinationName || el.autoDestination?.value || "");
+      if (!destinationName) return "";
+      return joinAbsolutePath(instrumentsFolder, destinationName);
     }
 
     function buildKeyswitchSampleFolder(baseSampleFolder, keyswitchName, keyswitchKey, fallbackToken = "keyswitch") {
@@ -16893,19 +16894,40 @@
 
       try {
         const instrumentName = String(el.autoInstrument?.value || "Instrument").trim() || "Instrument";
-        const destinationFolder = await ensureAutoDestinationFolder({ timeoutMs: 25000 });
+        const instrumentsFolder = normalizeDestinationFolderPath(getDefaultInstrumentsFolderPath());
+        if (!instrumentsFolder) {
+          setStatus(el.setupStatus, "Choose an Instruments Folder before saving the instrument.", "warn");
+          return;
+        }
+
+        const destinationFolderName = getDestinationFolderNameForSave();
+        if (!destinationFolderName) {
+          setStatus(el.setupStatus, "Enter a destination folder name before saving the instrument.", "warn");
+          return;
+        }
+
+        const destinationFolder = await ensureAutoDestinationFolder({
+          instrumentsFolder,
+          destinationName: destinationFolderName,
+          timeoutMs: 25000
+        });
         if (!destinationFolder) {
-          setStatus(el.setupStatus, "Choose a destination folder before saving the instrument.", "warn");
+          setStatus(el.setupStatus, "Could not resolve the instrument save folder.", "warn");
           return;
         }
 
         setStatus(el.setupStatus, "Preparing instrument save...", "ok");
 
         const existingManifestPath = normalizeManifestPathInput(getPackManifestFilePath());
-        const manifestPath = existingManifestPath
+        const existingManifestBasePath = computeManifestBasePathFromFilePath(existingManifestPath);
+        const canOverwriteExisting = !!existingManifestPath && existingManifestBasePath === destinationFolder;
+        const existingManifestExt = existingManifestPath && /\.(smpinstm|smpinst|json)$/i.test(existingManifestPath)
+          ? existingManifestPath.match(/\.(smpinstm|smpinst|json)$/i)?.[0] || ".json"
+          : ".json";
+        const manifestPath = canOverwriteExisting
           ? existingManifestPath
-          : `${destinationFolder}/${sanitizePathToken(instrumentName, "Instrument")}.json`;
-        const overwriteExisting = !!existingManifestPath;
+          : `${destinationFolder}/${sanitizePathToken(instrumentName, "Instrument")}${existingManifestExt}`;
+        const overwriteExisting = canOverwriteExisting;
 
         const manifest = buildManifestSkeleton("smpinst", {
           preserveRuntimePaths: false,
@@ -17024,8 +17046,11 @@
       if (success) {
         if (manifestPath) state.packManifestFilePath = manifestPath;
         if (manifestBasePath) state.packManifestBasePath = manifestBasePath;
-        if (manifestBasePath && el.autoDestination) {
-          el.autoDestination.value = normalizeDestinationFolderPath(manifestBasePath);
+        if (manifestBasePath) {
+          applyAutoDestinationName(getLeafFolderName(manifestBasePath), {
+            render: false,
+            saveSession: false
+          });
         }
         const wallpaperAssetPath = getWallpaperAssetPath();
         if (wallpaperAssetPath && manifestBasePath) {
@@ -17300,9 +17325,13 @@
       if (el.autoInstrument && typeof data?.instrumentName === "string") {
         el.autoInstrument.value = data.instrumentName.trim();
       }
-      applyAutoDestinationPath(
+      applyAutoDestinationName(
         sessionUiState?.auto?.destination
-        || resolvedManifestBasePath
+        || getLeafFolderName(resolvedManifestBasePath),
+        {
+          render: false,
+          saveSession: false
+        }
       );
       applyInstrumentsFolderPath(
         sessionUiState?.auto?.instrumentsFolder
@@ -18179,9 +18208,15 @@
               return;
             }
 
-            const destinationPath = String(el.autoDestination?.value || "").trim();
+            const instrumentsFolder = normalizeDestinationFolderPath(getDefaultInstrumentsFolderPath());
+            if (!instrumentsFolder) {
+              setStatus(el.setupStatus, "Choose an Instruments Folder before starting auto sampling.", "warn");
+              return;
+            }
+
+            const destinationPath = getDestinationFolderNameForSave();
             if (!destinationPath) {
-              setStatus(el.setupStatus, "Choose a destination folder before starting auto sampling.", "warn");
+              setStatus(el.setupStatus, "Enter a destination folder name before starting auto sampling.", "warn");
               return;
             }
 
@@ -18361,19 +18396,6 @@
         return "";
       };
 
-      const applyDestinationFolderName = (folderName) => {
-        if (!el.autoDestination) return;
-        const merged = mergeFolderNameIntoPath(el.autoDestination.value, folderName);
-        if (merged && merged !== el.autoDestination.value) {
-          return applyAutoDestinationPath(merged);
-        }
-        return normalizeDestinationFolderPath(el.autoDestination.value);
-      };
-
-      const openDestinationFolderPicker = async () => {
-        return requestAutoDestinationFolder();
-      };
-
       if (el.autoInstrumentsFolder) {
         el.autoInstrumentsFolder.addEventListener("click", (ev) => {
           ev.preventDefault();
@@ -18388,15 +18410,11 @@
       }
 
       if (el.autoDestination) {
-        el.autoDestination.addEventListener("click", (ev) => {
-          ev.preventDefault();
-          openDestinationFolderPicker();
-        });
-        el.autoDestination.addEventListener("keydown", (ev) => {
-          if (ev.key === "Enter") {
-            ev.preventDefault();
-            openDestinationFolderPicker();
-          }
+        el.autoDestination.addEventListener("blur", () => {
+          applyAutoDestinationName(el.autoDestination.value, {
+            render: false,
+            saveSession: true
+          });
         });
       }
 
@@ -18421,42 +18439,6 @@
 
           applyInstrumentsFolderPath(resolvedAbsolute || folderName);
           el.autoInstrumentsFolderPicker.value = "";
-        });
-      }
-
-      if (el.autoDestinationPicker) {
-        el.autoDestinationPicker.addEventListener("change", (ev) => {
-          const files = Array.from(ev.target.files || []);
-          if (!files.length) return;
-          const firstFile = files[0];
-          const relPath = String(firstFile.webkitRelativePath || "").replace(/\\/g, "/");
-          const folderName = relPath.split("/")[0] || "";
-          const nativePath = String(firstFile.path || "").replace(/\\/g, "/");
-
-          let resolvedAbsolute = "";
-          if (nativePath && relPath) {
-            const nativeLower = nativePath.toLowerCase();
-            const relLower = relPath.toLowerCase();
-            if (nativeLower.endsWith(relLower)) {
-              const prefix = nativePath.slice(0, nativePath.length - relPath.length);
-              if (folderName) resolvedAbsolute = `${prefix}${folderName}`.replace(/\/+$/, "");
-            }
-          }
-
-          if (resolvedAbsolute) {
-            applyAutoDestinationPath(resolvedAbsolute);
-          } else {
-            applyDestinationFolderName(folderName);
-          }
-
-          const firstPending = state.pendingDestinationFolderRequests.entries().next();
-          if (!firstPending.done) {
-            const [pendingId, pending] = firstPending.value;
-            state.pendingDestinationFolderRequests.delete(pendingId);
-            window.clearTimeout(pending.timeoutId);
-            pending.resolve(normalizeDestinationFolderPath(el.autoDestination?.value || ""));
-          }
-          el.autoDestinationPicker.value = "";
         });
       }
 
