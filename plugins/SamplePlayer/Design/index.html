@@ -7521,14 +7521,22 @@
 
     function handleNativeDestinationFolderSelected(payload) {
       const info = (payload && typeof payload === "object") ? payload : {};
-      const path = applyAutoDestinationPath(info.path || "");
-      if (!path) return;
+      const rawPath = normalizeDestinationFolderPath(info.path || "");
+      if (!rawPath) return;
+
+      let target = "destination";
 
       const requestId = Math.round(Number(info.requestId));
       if (Number.isFinite(requestId) && state.pendingDestinationFolderRequests.has(requestId)) {
         const pending = state.pendingDestinationFolderRequests.get(requestId);
         state.pendingDestinationFolderRequests.delete(requestId);
         window.clearTimeout(pending.timeoutId);
+        target = String(pending.target || "destination").trim().toLowerCase() === "instruments"
+          ? "instruments"
+          : "destination";
+        const path = target === "instruments"
+          ? applyInstrumentsFolderPath(rawPath)
+          : applyAutoDestinationPath(rawPath);
         pending.resolve(path);
         return;
       }
@@ -7538,8 +7546,17 @@
         const [pendingId, pending] = firstPending.value;
         state.pendingDestinationFolderRequests.delete(pendingId);
         window.clearTimeout(pending.timeoutId);
+        target = String(pending.target || "destination").trim().toLowerCase() === "instruments"
+          ? "instruments"
+          : "destination";
+        const path = target === "instruments"
+          ? applyInstrumentsFolderPath(rawPath)
+          : applyAutoDestinationPath(rawPath);
         pending.resolve(path);
+        return;
       }
+
+      applyAutoDestinationPath(rawPath);
     }
 
     function appendNativeAutoSamplerTake(payload) {
@@ -13575,6 +13592,9 @@
       state.destinationFolderRequestSeq = requestId;
       const timeoutMs = Math.max(1000, Math.round(Number(options?.timeoutMs) || 25000));
       const currentPath = normalizeManifestPathInput(options?.currentPath || el.autoDestination?.value || "");
+      const target = String(options?.target || "destination").trim().toLowerCase() === "instruments"
+        ? "instruments"
+        : "destination";
       return new Promise((resolve) => {
         const timeoutId = window.setTimeout(() => {
           const pending = state.pendingDestinationFolderRequests.get(requestId);
@@ -13583,7 +13603,7 @@
           resolve("");
         }, timeoutMs);
 
-        state.pendingDestinationFolderRequests.set(requestId, { resolve, timeoutId });
+        state.pendingDestinationFolderRequests.set(requestId, { resolve, timeoutId, target });
         const emitted = emitNativeEvent("pick_destination_folder", {
           requestId,
           currentPath
@@ -18263,11 +18283,9 @@
       const openInstrumentsFolderPicker = async () => {
         if (getNativeBackend()) {
           const selected = await requestDestinationFolderFromNative({
-            currentPath: getDefaultInstrumentsFolderPath()
+            currentPath: getDefaultInstrumentsFolderPath(),
+            target: "instruments"
           });
-          if (selected) {
-            applyInstrumentsFolderPath(selected);
-          }
           return selected;
         }
 

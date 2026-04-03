@@ -738,10 +738,12 @@ void SamplePlayerAudioProcessorEditor::handleDestinationFolderPickEvent (const j
     if (! webView)
         return;
 
+    int requestId = -1;
     juce::File initialDir = juce::File::getSpecialLocation (juce::File::userHomeDirectory);
 
     if (const auto* object = eventPayload.getDynamicObject())
     {
+        requestId = static_cast<int> (std::round (double (object->getProperty ("requestId"))));
         const auto currentPath = object->getProperty ("currentPath").toString().trim();
         if (juce::File::isAbsolutePath (currentPath))
         {
@@ -758,7 +760,7 @@ void SamplePlayerAudioProcessorEditor::handleDestinationFolderPickEvent (const j
 
     destinationFolderChooser = std::make_unique<juce::FileChooser> ("Choose destination folder", initialDir, "*", true);
     juce::Component::SafePointer<SamplePlayerAudioProcessorEditor> safeThis (this);
-    destinationFolderChooser->launchAsync (chooserFlags, [safeThis] (const juce::FileChooser& chooser)
+    destinationFolderChooser->launchAsync (chooserFlags, [safeThis, requestId] (const juce::FileChooser& chooser)
     {
         if (safeThis == nullptr)
             return;
@@ -771,6 +773,7 @@ void SamplePlayerAudioProcessorEditor::handleDestinationFolderPickEvent (const j
         }
 
         auto payload = juce::DynamicObject::Ptr (new juce::DynamicObject());
+    payload->setProperty ("requestId", requestId);
         payload->setProperty ("path", selectedFolder.getFullPathName());
         safeThis->webView->emitEventIfBrowserIsVisible ("destination_folder_selected", juce::var (payload.get()));
         appendUiDebugLog ("destination folder selected | path=" + selectedFolder.getFullPathName());
