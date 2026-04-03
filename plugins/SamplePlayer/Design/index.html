@@ -1091,13 +1091,12 @@
       border-radius: 0;
       position: relative;
       overflow: hidden;
-      background:
-        linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.04)),
-        var(--player-wallpaper-image),
-        var(--chrome-surface);
-      background-repeat: no-repeat, no-repeat, no-repeat;
-      background-position: center, center calc(50% - 30px), center;
-      background-size: cover, cover, cover;
+      background-color: var(--chrome-surface);
+      background-image:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.04));
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: cover;
     }
 
     .player-stage::before {
@@ -6378,10 +6377,14 @@
 
     function applyPlayerWallpaperVisual(dataUrl = "") {
       const normalized = String(dataUrl || "").trim();
-      document.documentElement.style.setProperty(
-        "--player-wallpaper-image",
-        normalized ? `url("${normalized.replace(/"/g, "\\\"")}")` : "none"
-      );
+      if (el.playerStage) {
+        el.playerStage.style.backgroundImage = normalized
+          ? `linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.04)), url("${normalized.replace(/"/g, "\\\"")}")`
+          : "linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.04))";
+        el.playerStage.style.backgroundRepeat = normalized ? "no-repeat, no-repeat" : "no-repeat";
+        el.playerStage.style.backgroundPosition = normalized ? "center, center calc(50% - 30px)" : "center";
+        el.playerStage.style.backgroundSize = normalized ? "cover, cover" : "cover";
+      }
       void applyWallpaperBackdropTheme(normalized);
     }
 
