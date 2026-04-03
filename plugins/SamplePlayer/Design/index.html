@@ -2194,23 +2194,21 @@
     }
 
     .auto-meta-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 1.45fr) minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 1fr) auto;
+      align-items: end;
     }
 
     .auto-meta-strip {
       margin-bottom: 8px;
     }
 
-    .auto-author-field .auto-author-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .auto-meta-grid > .field {
       min-width: 0;
     }
 
-    .auto-author-field .auto-author-row input {
-      flex: 1 1 auto;
-      min-width: 0;
+    .auto-save-field {
+      display: flex;
+      min-width: 88px;
     }
 
     .auto-meta-input {
@@ -2237,8 +2235,6 @@
     }
 
     .auto-wallpaper-input {
-      flex: 0 1 220px;
-      min-width: 150px;
       cursor: pointer;
     }
 
@@ -2247,8 +2243,8 @@
     }
 
     .auto-save-btn {
-      flex: 0 0 auto;
-      min-width: 72px;
+      width: 100%;
+      min-width: 88px;
     }
 
     .auto-save-btn.is-saving {
@@ -4342,9 +4338,17 @@
       .auto-layout {
         grid-template-columns: 1fr;
       }
+
+      .auto-meta-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
     }
 
     @media (max-width: 900px) {
+      .auto-meta-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .auto-stack-split {
         grid-template-columns: 1fr;
       }
@@ -4518,13 +4522,17 @@
                 <label id="autoInstrumentLabel" class="auto-meta-sr-label" for="autoInstrument">Instrument Name</label>
                 <input id="autoInstrument" class="auto-meta-input" type="text" value="" placeholder="Instrument Name" aria-label="Instrument Name">
               </div>
-              <div class="field auto-author-field">
+              <div class="field">
                 <label id="autoAuthorLabel" class="auto-meta-sr-label" for="autoAuthor">Author</label>
-                <div class="auto-author-row">
-                  <input id="autoAuthor" class="auto-meta-input" type="text" value="" placeholder="Author" aria-label="Author">
-                  <input id="wallpaperField" class="auto-meta-input auto-wallpaper-input" type="text" value="" placeholder="Wallpaper" aria-label="Wallpaper" readonly title="Click to choose wallpaper">
-                  <button id="saveSmpinstBtn" class="sample-loop-tool-btn auto-save-btn hidden" type="button">Save</button>
-                </div>
+                <input id="autoAuthor" class="auto-meta-input" type="text" value="" placeholder="Author" aria-label="Author">
+              </div>
+              <div class="field">
+                <label class="auto-meta-sr-label" for="wallpaperField">Wallpaper</label>
+                <input id="wallpaperField" class="auto-meta-input auto-wallpaper-input" type="text" value="" placeholder="Wallpaper" aria-label="Wallpaper" readonly title="Click to choose wallpaper">
+              </div>
+              <div class="field auto-save-field">
+                <label class="auto-meta-sr-label" for="saveSmpinstBtn">Save</label>
+                <button id="saveSmpinstBtn" class="sample-loop-tool-btn auto-save-btn hidden" type="button">Save</button>
               </div>
             </div>
           </div>
