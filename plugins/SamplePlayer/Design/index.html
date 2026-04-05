@@ -3030,6 +3030,50 @@
       margin-right: 0;
     }
 
+    .keyswitch-map-import-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .import-menu-btn {
+      position: relative;
+      padding-right: 18px;
+    }
+
+    .import-menu-btn::after {
+      content: "";
+      position: absolute;
+      right: 7px;
+      top: 50%;
+      width: 0;
+      height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid currentColor;
+      transform: translateY(-25%);
+      pointer-events: none;
+    }
+
+    .import-menu-btn[aria-expanded="true"] {
+      border-color: rgba(var(--accent-rgb), 0.72);
+      color: var(--accent-text);
+      background: var(--accent-surface);
+    }
+
+    .import-menu {
+      width: 96px;
+      min-width: 96px;
+    }
+
+    .import-menu .sample-loop-tool-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      text-align: left;
+    }
+
     .keyswitch-map-matrix-controls {
       display: inline-flex;
       align-items: center;
@@ -4558,8 +4602,13 @@
             <div id="keyboardMapBody" class="section-body">
               <div id="keyswitchMapToolbar" class="keyswitch-map-toolbar">
                 <div class="keyswitch-map-import-controls">
-                  <button id="addFilesBtn" class="sample-loop-tool-btn" type="button">Add Files</button>
-                  <button id="addFolderBtn" class="sample-loop-tool-btn" type="button">Add Folder</button>
+                  <div id="importMenuWrap" class="keyswitch-map-import-wrap">
+                    <button id="importMenuBtn" class="sample-loop-tool-btn import-menu-btn" type="button" aria-haspopup="true" aria-expanded="false">Import</button>
+                    <div id="importMenu" class="auto-pack-as-menu import-menu hidden" role="menu" aria-label="Import options">
+                      <button id="importFilesBtn" class="sample-loop-tool-btn" type="button" role="menuitem">Files</button>
+                      <button id="importFolderBtn" class="sample-loop-tool-btn" type="button" role="menuitem">Folder</button>
+                    </div>
+                  </div>
                   <button id="newKeyswitchBtn" class="sample-loop-tool-btn" type="button">New Keyswitch</button>
                   <select id="keyswitchMapSelect" class="keyswitch-map-select" aria-label="Select keyswitch set"></select>
                   <div id="keyswitchGainKnob" class="knob knob-mini tooltip-right keyswitch-map-gain-knob is-disabled" data-param="keyswitchGain" data-min="-24" data-max="24" data-step="0.1" data-value="0" data-unit="dB" data-decimals="1" data-tooltip-value="true" aria-disabled="true" aria-label="Select a keyswitch set">
@@ -5124,8 +5173,11 @@
         setup: document.getElementById("panel-setup")
       },
 
-      addFilesBtn: document.getElementById("addFilesBtn"),
-      addFolderBtn: document.getElementById("addFolderBtn"),
+      importMenuWrap: document.getElementById("importMenuWrap"),
+      importMenuBtn: document.getElementById("importMenuBtn"),
+      importMenu: document.getElementById("importMenu"),
+      importFilesBtn: document.getElementById("importFilesBtn"),
+      importFolderBtn: document.getElementById("importFolderBtn"),
       clearInstrumentBtn: document.getElementById("clearInstrumentBtn"),
       saveSmpinstBtn: document.getElementById("saveSmpinstBtn"),
       wallpaperField: document.getElementById("wallpaperField"),
@@ -18009,20 +18061,67 @@
     }
 
     function setupImport() {
-      el.addFilesBtn.addEventListener("click", () => {
+      const setImportMenuOpen = (open) => {
+        if (!el.importMenu || !el.importMenuBtn) return;
+        const show = !!open;
+        el.importMenu.classList.toggle("hidden", !show);
+        el.importMenuBtn.setAttribute("aria-expanded", show ? "true" : "false");
+      };
+
+      const triggerImportFiles = () => {
+        setImportMenuOpen(false);
         if (getNativeBackend()) {
           emitNativeEvent("pick_audio_files", {});
           return;
         }
         el.filesInput.click();
-      });
-      el.addFolderBtn.addEventListener("click", () => {
+      };
+
+      const triggerImportFolder = () => {
+        setImportMenuOpen(false);
         if (getNativeBackend()) {
           emitNativeEvent("pick_audio_folder", {});
           return;
         }
         el.folderInput.click();
-      });
+      };
+
+      if (el.importMenuBtn && el.importMenu) {
+        el.importMenuBtn.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          const opening = el.importMenu.classList.contains("hidden");
+          setImportMenuOpen(opening);
+        });
+      }
+
+      if (el.importFilesBtn) {
+        el.importFilesBtn.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          triggerImportFiles();
+        });
+      }
+
+      if (el.importFolderBtn) {
+        el.importFolderBtn.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          triggerImportFolder();
+        });
+      }
+
+      if (el.importMenuWrap) {
+        window.addEventListener("pointerdown", (ev) => {
+          const target = ev.target;
+          if (!(target instanceof Node)) return;
+          const insideImportMenu = !!(el.importMenuWrap && el.importMenuWrap.contains(target));
+          if (!insideImportMenu) setImportMenuOpen(false);
+        });
+
+        window.addEventListener("keydown", (ev) => {
+          if (ev.key !== "Escape") return;
+          setImportMenuOpen(false);
+        });
+      }
+
       el.clearInstrumentBtn.addEventListener("click", () => {
         if (clearActiveKeyswitchSet()) return;
         clearInstrument();
