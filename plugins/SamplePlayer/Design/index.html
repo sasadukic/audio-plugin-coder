@@ -1872,14 +1872,17 @@
     }
 
     .player-load-btn {
+      --player-load-plus-size: 32px;
+      --player-load-plus-stroke: 2px;
       width: 86px;
       height: 86px;
+      position: relative;
       border-radius: 50%;
       border: 1px solid rgba(var(--player-swatch-rgb), 0.75);
       background: transparent;
       color: rgba(228, 228, 228, 0.95);
-      font-size: 56px;
-      line-height: 1;
+      font-size: 0;
+      line-height: 0;
       text-transform: none;
       letter-spacing: 0;
       padding: 0;
@@ -1891,6 +1894,24 @@
       transition: opacity 180ms ease;
       animation: playerLoadBounceIn 210ms cubic-bezier(0.38, 0.02, 0.4, 1.15) both;
       will-change: transform, opacity;
+    }
+
+    .player-load-btn::before,
+    .player-load-btn::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: var(--player-load-plus-size);
+      height: var(--player-load-plus-stroke);
+      border-radius: 999px;
+      background: currentColor;
+      transform: translate(-50%, -50%);
+    }
+
+    .player-load-btn::after {
+      width: var(--player-load-plus-stroke);
+      height: var(--player-load-plus-size);
     }
 
     .player-load-btn:hover,
@@ -3595,7 +3616,7 @@
       overflow-y: hidden;
       border: 1px solid rgba(var(--line-rgb), 0.28);
       border-radius: 4px;
-      background: rgba(var(--surface-deep-rgb), 0.82);
+      background: rgba(18, 18, 20, 0.94);
       scrollbar-width: none;
       -ms-overflow-style: none;
       cursor: default;
@@ -4393,9 +4414,9 @@
       }
 
       .player-load-btn {
+        --player-load-plus-size: 28px;
         width: 74px;
         height: 74px;
-        font-size: 48px;
       }
 
       .map-key.white {
@@ -13324,9 +13345,9 @@
     function drawWaveformMessage(text) {
       const { ctx, drawWidth, cssHeight } = prepareWaveformCanvas(1);
       ctx.clearRect(0, 0, drawWidth, cssHeight);
-      ctx.fillStyle = "rgba(4, 8, 14, 0.92)";
+      ctx.fillStyle = "rgba(18, 18, 20, 0.94)";
       ctx.fillRect(0, 0, drawWidth, cssHeight);
-      ctx.fillStyle = "rgba(184, 202, 234, 0.85)";
+      ctx.fillStyle = "rgba(198, 198, 202, 0.88)";
       ctx.font = '11px "SFMono-Regular", Menlo, monospace';
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -13337,11 +13358,11 @@
     function drawWaveformPeaks(peaks, zoom = state.waveformZoom) {
       const { ctx, drawWidth, cssHeight } = prepareWaveformCanvas(zoom);
       ctx.clearRect(0, 0, drawWidth, cssHeight);
-      ctx.fillStyle = "rgba(4, 8, 14, 0.92)";
+      ctx.fillStyle = "rgba(18, 18, 20, 0.94)";
       ctx.fillRect(0, 0, drawWidth, cssHeight);
 
       const mid = (cssHeight - 1) * 0.5;
-      ctx.strokeStyle = "rgba(140, 146, 156, 0.24)";
+      ctx.strokeStyle = "rgba(132, 132, 136, 0.28)";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, mid);
