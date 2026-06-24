@@ -105,13 +105,16 @@ if(APPLE AND TARGET sample_player_VST3)
     )
 
     if(TARGET sample_player_vst3_helper)
-        target_compile_options(sample_player_vst3_helper
-            PRIVATE
-                -UJucePlugin_Name
-                -DJucePlugin_Name=\"Ritual\ Engine\"
-                -UJucePlugin_Desc
-                -DJucePlugin_Desc=\"Ritual\ Engine\"
-        )
+        get_target_property(helper_type sample_player_vst3_helper TYPE)
+        if(NOT helper_type STREQUAL "UTILITY")
+            target_compile_options(sample_player_vst3_helper
+                PRIVATE
+                    -UJucePlugin_Name
+                    -DJucePlugin_Name=\"Ritual\ Engine\"
+                    -UJucePlugin_Desc
+                    -DJucePlugin_Desc=\"Ritual\ Engine\"
+            )
+        endif()
     endif()
 
     add_custom_command(TARGET sample_player_VST3 POST_BUILD
