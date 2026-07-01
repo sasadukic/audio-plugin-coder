@@ -47,7 +47,7 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -S . -B build -DJUCE_WEBVIEW2_PACKAGE_LOCATION="${{ github.workspace }}/build/packages"
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DJUCE_WEBVIEW2_PACKAGE_LOCATION="${{ github.workspace }}/build/packages"
 
       - name: Build VST3
         run: |
@@ -62,8 +62,8 @@ jobs:
         with:
           name: windows-${{ env.PLUGIN_NAME }}
           path: |
-            build/**/Release/*.vst3
-            build/**/Release/*.exe
+            build/**/*.vst3
+            build/**/*.exe
           retention-days: 30
 
   # ============================================
@@ -86,6 +86,7 @@ jobs:
       - name: Configure CMake
         run: |
           cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
 
@@ -106,9 +107,9 @@ jobs:
         with:
           name: macos-${{ env.PLUGIN_NAME }}
           path: |
-            build/**/Release/*.vst3
-            build/**/Release/*.component
-            build/**/Release/*.app
+            build/**/*.vst3
+            build/**/*.component
+            build/**/*.app
           retention-days: 30
 
   # ============================================
@@ -163,9 +164,9 @@ jobs:
         with:
           name: linux-${{ env.PLUGIN_NAME }}
           path: |
-            build/**/Release/VST3/
-            build/**/Release/LV2/
-            build/**/Release/Standalone/${{ env.PLUGIN_NAME }}
+            build/**/*.vst3
+            build/**/*.lv2
+            build/**/Standalone/${{ env.PLUGIN_NAME }}
           retention-days: 30
 
   # ============================================
