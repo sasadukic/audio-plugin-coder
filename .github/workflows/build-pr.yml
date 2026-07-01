@@ -83,8 +83,8 @@ jobs:
         with:
           name: windows-${{ matrix.plugin }}-pr
           path: |
-            build/*_artefacts/Release/*.vst3
-            build/*_artefacts/Release/*.exe
+            build/**/Release/*.vst3
+            build/**/Release/*.exe
           retention-days: 7
 
   # ============================================
@@ -130,9 +130,9 @@ jobs:
         with:
           name: macos-${{ matrix.plugin }}-pr
           path: |
-            build/*_artefacts/Release/*.vst3
-            build/*_artefacts/Release/*.component
-            build/*_artefacts/Release/*.app
+            build/**/Release/*.vst3
+            build/**/Release/*.component
+            build/**/Release/*.app
           retention-days: 7
 
   # ============================================
