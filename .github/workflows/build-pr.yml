@@ -62,9 +62,13 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install WebView2 NuGet package
+        run: |
+          nuget install Microsoft.Web.WebView2 -Version 1.0.3485.44 -OutputDirectory build/packages
+
       - name: Configure CMake
         run: |
-          cmake -S . -B build
+          cmake -S . -B build -DJUCE_WEBVIEW2_PACKAGE_LOCATION=build/packages
 
       - name: Build VST3
         run: |

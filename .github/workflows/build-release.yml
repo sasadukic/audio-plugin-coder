@@ -25,6 +25,7 @@ on:
 
 env:
   BUILD_TYPE: Release
+  PLUGIN_NAME: ${{ github.event.inputs.plugin_name || 'sample_player' }}
 
 jobs:
   # ============================================
@@ -40,22 +41,26 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Install WebView2 NuGet package
+        run: |
+          nuget install Microsoft.Web.WebView2 -Version 1.0.3485.44 -OutputDirectory build/packages
+
       - name: Configure CMake
         run: |
-          cmake -S . -B build
+          cmake -S . -B build -DJUCE_WEBVIEW2_PACKAGE_LOCATION=build/packages
 
       - name: Build VST3
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_VST3"
+          cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_VST3"
 
       - name: Build Standalone
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_Standalone"
+          cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_Standalone"
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-${{ inputs.plugin_name }}
+          name: windows-${{ env.PLUGIN_NAME }}
           path: |
             build/*_artefacts/Release/*.vst3
             build/*_artefacts/Release/*.exe
@@ -86,20 +91,20 @@ jobs:
 
       - name: Build VST3
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_VST3"
+          cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_VST3"
 
       - name: Build AU
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_AU"
+          cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_AU"
 
       - name: Build Standalone
         run: |
-          cmake --build build --config Release --target "${{ inputs.plugin_name }}_Standalone"
+          cmake --build build --config Release --target "${{ env.PLUGIN_NAME }}_Standalone"
 
       - name: Upload macOS Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-${{ inputs.plugin_name }}
+          name: macos-${{ env.PLUGIN_NAME }}
           path: |
             build/*_artefacts/Release/*.vst3
             build/*_artefacts/Release/*.component
@@ -143,24 +148,24 @@ jobs:
 
       - name: Build VST3
         run: |
-          cmake --build build --target "${{ inputs.plugin_name }}_VST3"
+          cmake --build build --target "${{ env.PLUGIN_NAME }}_VST3"
 
       - name: Build LV2
         run: |
-          xvfb-run cmake --build build --target "${{ inputs.plugin_name }}_LV2"
+          xvfb-run cmake --build build --target "${{ env.PLUGIN_NAME }}_LV2"
 
       - name: Build Standalone
         run: |
-          xvfb-run cmake --build build --target "${{ inputs.plugin_name }}_Standalone"
+          xvfb-run cmake --build build --target "${{ env.PLUGIN_NAME }}_Standalone"
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-${{ inputs.plugin_name }}
+          name: linux-${{ env.PLUGIN_NAME }}
           path: |
             build/**/Release/VST3/
             build/**/Release/LV2/
-            build/**/Release/Standalone/${{ inputs.plugin_name }}
+            build/**/Release/Standalone/${{ env.PLUGIN_NAME }}
           retention-days: 30
 
   # ============================================
@@ -180,7 +185,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          pattern: "*-${{ inputs.plugin_name }}"
+          pattern: "*-${{ env.PLUGIN_NAME }}"
 
       - name: List Downloaded Artifacts
         run: |
@@ -189,29 +194,28 @@ jobs:
 
       - name: Create Release Archives
         run: |
-          PLUGIN_NAME="${{ inputs.plugin_name }}"
           VERSION="${{ github.ref_name }}"
           
           mkdir -p release
           
           # Package Windows artifacts
-          if [ -d "artifacts/windows-${PLUGIN_NAME}" ]; then
-            cd "artifacts/windows-${PLUGIN_NAME}"
-            zip -r "../../release/${PLUGIN_NAME}-${VERSION}-Windows.zip" .
+          if [ -d "artifacts/windows-${{ env.PLUGIN_NAME }}" ]; then
+            cd "artifacts/windows-${{ env.PLUGIN_NAME }}"
+            zip -r "../../release/${{ env.PLUGIN_NAME }}-${VERSION}-Windows.zip" .
             cd ../..
           fi
           
           # Package macOS artifacts
-          if [ -d "artifacts/macos-${PLUGIN_NAME}" ]; then
-            cd "artifacts/macos-${PLUGIN_NAME}"
-            zip -r "../../release/${PLUGIN_NAME}-${VERSION}-macOS.zip" .
+          if [ -d "artifacts/macos-${{ env.PLUGIN_NAME }}" ]; then
+            cd "artifacts/macos-${{ env.PLUGIN_NAME }}"
+            zip -r "../../release/${{ env.PLUGIN_NAME }}-${VERSION}-macOS.zip" .
             cd ../..
           fi
           
           # Package Linux artifacts
-          if [ -d "artifacts/linux-${PLUGIN_NAME}" ]; then
-            cd "artifacts/linux-${PLUGIN_NAME}"
-            zip -r "../../release/${PLUGIN_NAME}-${VERSION}-Linux.zip" .
+          if [ -d "artifacts/linux-${{ env.PLUGIN_NAME }}" ]; then
+            cd "artifacts/linux-${{ env.PLUGIN_NAME }}"
+            zip -r "../../release/${{ env.PLUGIN_NAME }}-${VERSION}-Linux.zip" .
             cd ../..
           fi
           
@@ -225,7 +229,7 @@ jobs:
           files: release/*
           generate_release_notes: true
           body: |
-            ## ${{ inputs.plugin_name }} Release
+            ## ${{ env.PLUGIN_NAME }} Release
             
             ### Installation
             - **Windows**: Extract the ZIP and run the installer or copy VST3 to your plugins folder
@@ -247,6 +251,6 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ inputs.plugin_name }}
+          name: release-${{ env.PLUGIN_NAME }}
           path: release/*
           retention-days: 30
