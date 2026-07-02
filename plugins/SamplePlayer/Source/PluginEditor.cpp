@@ -214,17 +214,16 @@ void SamplePlayerAudioProcessorEditor::paint (juce::Graphics& g)
 
 void SamplePlayerAudioProcessorEditor::resized()
 {
-    webView->setBounds (getLocalBounds());
-}
-
-void SamplePlayerAudioProcessorEditor::userScaleFactorChanged()
-{
     if (webView != nullptr)
     {
         webView->setBounds (getLocalBounds());
+
+        #if JUCE_WINDOWS
+        // Force sync WebView2 HWND bounds to prevent scaling mismatches/white areas on Windows
         auto bounds = getLocalBounds();
         webView->setBounds (bounds.withWidth (bounds.getWidth() - 1));
         webView->setBounds (bounds);
+        #endif
     }
 }
 
