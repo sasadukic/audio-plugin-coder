@@ -49,15 +49,12 @@ jobs:
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DJUCE_WEBVIEW2_PACKAGE_LOCATION="${{ github.workspace }}/build/packages"
 
-      - name: Copy WebView2Loader.dll to build directories
+      - name: Add WebView2 to PATH and System32
         shell: pwsh
         run: |
-          $dll = Resolve-Path "build/packages/Microsoft.Web.WebView2.*/build/native/x64/WebView2Loader.dll" | Select-Object -ExpandProperty Path
-          $dirs = @("build/plugins/SamplePlayer/Release", "build/plugins/CloudWash/Release", "build/plugins/GameSFXDAW/Release")
-          foreach ($dir in $dirs) {
-              New-Item -ItemType Directory -Force -Path $dir
-              Copy-Item -Path $dll -Destination $dir -Force
-          }
+          $dir = Resolve-Path "build/packages/Microsoft.Web.WebView2.*/build/native/x64" | Select-Object -ExpandProperty Path
+          echo "$dir" >> $env:GITHUB_PATH
+          Copy-Item -Path "$dir\WebView2Loader.dll" -Destination "C:\Windows\System32\" -Force
 
       - name: Build VST3
         run: |
