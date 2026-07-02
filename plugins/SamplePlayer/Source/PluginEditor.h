@@ -15,6 +15,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    void userScaleFactorChanged() override;
 
 private:
     static constexpr int defaultEditorWidth = 1040;

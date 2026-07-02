@@ -217,8 +217,24 @@ void SamplePlayerAudioProcessorEditor::resized()
     webView->setBounds (getLocalBounds());
 }
 
+void SamplePlayerAudioProcessorEditor::userScaleFactorChanged()
+{
+    if (webView != nullptr)
+    {
+        webView->setBounds (getLocalBounds());
+        auto bounds = getLocalBounds();
+        webView->setBounds (bounds.withWidth (bounds.getWidth() - 1));
+        webView->setBounds (bounds);
+    }
+}
+
 juce::WebBrowserComponent::Options SamplePlayerAudioProcessorEditor::createWebOptions (SamplePlayerAudioProcessorEditor& editor)
 {
+#if JUCE_WINDOWS
+    // Set default webview background to dark grey to prevent white flash/border during scaling
+    SetEnvironmentVariableW (L"WEBVIEW2_DEFAULT_BACKGROUND_COLOR", L"FF181818");
+#endif
+
     auto options = juce::WebBrowserComponent::Options{};
 
 #if JUCE_WINDOWS
